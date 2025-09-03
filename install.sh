@@ -1,42 +1,67 @@
-# symlink .config dir
+#!/bin/bash
+
 os=$(uname -s)
-cur_path=$(echo $PWD)
+cur_path=$(pwd)
 
-# ln -s -f $cur_path/.config/shared/* ~/.config/
-#
+# Ensure directory exists
+ensure_dir() {
+    [ ! -d "$1" ] && mkdir -p "$1"
+}
 
-# alacritty
-ln -s -f $cur_path/.config/shared/alacritty/alacritty.toml ~/.config/alacritty/alacritty.toml
+# Copy configuration file
+copy_config() {
+    local source="$1" target="$2" name="$3"
 
-# ln -s -f ~/dotfiles/.config/shared/git/.gitconfig ~/.gitconfig
-# ln -s -f ~/dotfiles/.config/shared/gitmux/.gitmux.conf ~/.gitmux.conf
-# ln -s -f ~/dotfiles/.config/shared/mycli/.myclirc ~/.myclirc
-# ln -s -f ~/dotfiles/.config/tmux/.tmux.conf ~/.tmux.conf
-#ln -s -f ~/dotfiles/.config/shared/tmuxifier/* ~/.tmuxifier/layouts/
-ln -s -f $cur_path/.config/shared/tmux/.tmux.conf ~/.tmux.conf
-# ln -s -f ~/dotfiles/.config/shared/visidata/.visidatarc ~/.visidatarc
-# ln -s -f ~/dotfiles/.config/shared/zsh/.zshenv ~/.zshenv
-# ln -s -f ~/dotfiles/.config/shared/zsh/.zshrc ~/.zshrc
-# ln -s -f ~/dotfiles/bin/shared/* ~/bin/
+    [ ! -f "$source" ] && echo "ERROR: $source not found" && return 1
 
-# if [[ os == "Darwin" ]]; then
-    #brew bundle --file=~/dotfiles/Brewfile
-    # ln -s -f ~/dotfiles/bin/macos/* ~/bin/
-    # ln -s -f ~/dotfiles/.config/macos/* ~/.config/
-    # ln -s -f $cur_path/.config/macos/* ~/.config/
-    # ln -s -f ~/dotfiles/.config/macos/zsh/.zshenv ~/.zshenv
-    # ln -s -f ~/dotfiles/.config/macos/zsh/.zshrc ~/.zshrc
-    # ln -s -f ~/dotfiles/.config/shared/lazygit/config.yml ~/Library/Application\ Support/lazygit/config.yml
-    # ln -s -f ~/dotfiles/.config/macos/hammerspoon/init.lua ~/.hammerspoon/init.lua
-    # curl -L https://github.com/kvndrsslr/sketchybar-app-font/releases/download/latest/sketchybar-app-font.ttf -o $HOME/Library/Fonts/sketchybar-app-font.ttf
-    ln -s -f $cur_path/.config/macos/aerospace/aerospace.toml ~/.config/aerospace/aerospace.toml
-    # ln -s -f ~/dotfiles/.config/borders ~/.config/
-    # ln -s -f ~/dotfiles/.config/hammerspoon/init.lua ~/.hammerspoon/init.lua
-    # ln -s -f ~/dotfiles/.config/karabiner/karabiner.json ~/.config/karabiner/karabiner.json
-    # ln -s -f ~/dotfiles/.config/lazysql/config.yaml ~/Library/Application\ Support/lazysql/config.toml
-    # ln -s -f ~/dotfiles/.config/sketchybar ~/.config/
-    # ln -s -f ~/dotfiles/.config/skhd ~/.config/
-# else
-    # ln -s -f ~/dotfiles/.config/linux/* ~/.config/
-    # ln -s -f ~/dotfiles/bin/linux/* ~/bin/
-# fi
+    ensure_dir "$(dirname "$target")"
+    [ -f "$target" ] && cp "$target" "$target.backup.$(date +%Y%m%d_%H%M%S)"
+
+    cp "$source" "$target" && echo "Copied $name" || echo "Failed: $name"
+}
+
+# Process configuration
+process_config() {
+    local check_cmd="$1" source="$2" target="$3" name="$4"
+
+    [ -n "$check_cmd" ] && ! eval "$check_cmd" >/dev/null 2>&1 && return 0
+    [[ "$source" != /* ]] && source="$cur_path/$source"
+    target="${target/#\~/$HOME}"
+
+    copy_config "$source" "$target" "$name"
+}
+
+# Configuration arrays
+# app name | source path | target path | display name
+shared_configs=(
+    "command -v alacritty|.config/shared/alacritty/alacritty.toml|~/.config/alacritty/alacritty.toml|Alacritty"
+    "command -v tmux|.config/shared/tmux/.tmux.conf|~/.tmux.conf|Tmux"
+)
+
+macos_configs=(
+    "command -v aerospace|.config/macos/aerospace/aerospace.toml|~/.config/aerospace/aerospace.toml|Aerospace"
+)
+
+linux_configs=(
+    # "command -v i3|.config/linux/i3/config|~/.config/i3/config|i3wm"
+)
+
+# Process configurations
+for config in "${shared_configs[@]}"; do
+    IFS='|' read -r check_cmd source target name <<< "$config"
+    process_config "$check_cmd" "$source" "$target" "$name"
+done
+
+if [[ "$os" == "Darwin" ]]; then
+    for config in "${macos_configs[@]}"; do
+        IFS='|' read -r check_cmd source target name <<< "$config"
+        process_config "$check_cmd" "$source" "$target" "$name"
+    done
+elif [[ "$os" == "Linux" ]]; then
+    for config in "${linux_configs[@]}"; do
+        IFS='|' read -r check_cmd source target name <<< "$config"
+        process_config "$check_cmd" "$source" "$target" "$name"
+    done
+fi
+
+echo "Done"
