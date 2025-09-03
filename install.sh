@@ -2,7 +2,11 @@
 os=$(uname -s)
 cur_path=$(echo $PWD)
 
-ln -s -f ~/dotfiles/.config/shared/* ~/.config/
+# ln -s -f $cur_path/.config/shared/* ~/.config/
+#
+
+# alacritty
+ln -s -f $cur_path/.config/shared/alacritty/alacritty.toml ~/.config/alacritty/alacritty.toml
 
 # ln -s -f ~/dotfiles/.config/shared/git/.gitconfig ~/.gitconfig
 # ln -s -f ~/dotfiles/.config/shared/gitmux/.gitmux.conf ~/.gitmux.conf
@@ -19,12 +23,13 @@ ln -s -f $cur_path/.config/shared/tmux/.tmux.conf ~/.tmux.conf
     #brew bundle --file=~/dotfiles/Brewfile
     # ln -s -f ~/dotfiles/bin/macos/* ~/bin/
     # ln -s -f ~/dotfiles/.config/macos/* ~/.config/
+    # ln -s -f $cur_path/.config/macos/* ~/.config/
     # ln -s -f ~/dotfiles/.config/macos/zsh/.zshenv ~/.zshenv
     # ln -s -f ~/dotfiles/.config/macos/zsh/.zshrc ~/.zshrc
     # ln -s -f ~/dotfiles/.config/shared/lazygit/config.yml ~/Library/Application\ Support/lazygit/config.yml
     # ln -s -f ~/dotfiles/.config/macos/hammerspoon/init.lua ~/.hammerspoon/init.lua
     # curl -L https://github.com/kvndrsslr/sketchybar-app-font/releases/download/latest/sketchybar-app-font.ttf -o $HOME/Library/Fonts/sketchybar-app-font.ttf
-    # ln -s -f ~/dotfiles/.config/aerospace ~/.config/
+    ln -s -f $cur_path/.config/macos/aerospace/aerospace.toml ~/.config/aerospace/aerospace.toml
     # ln -s -f ~/dotfiles/.config/borders ~/.config/
     # ln -s -f ~/dotfiles/.config/hammerspoon/init.lua ~/.hammerspoon/init.lua
     # ln -s -f ~/dotfiles/.config/karabiner/karabiner.json ~/.config/karabiner/karabiner.json
