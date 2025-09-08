@@ -7,6 +7,7 @@ my config files
   - alacritty
 - macintosh
   - aerospace
+  - borders[JanyBorders]
 - linux
   - TODO
 
