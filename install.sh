@@ -34,8 +34,9 @@ process_config() {
 # Configuration arrays
 # app name | source path | target path | display name
 shared_configs=(
-    "command -v alacritty|.config/shared/alacritty/alacritty.toml|~/.config/alacritty/alacritty.toml|Alacritty"
+#    "command -v alacritty|.config/shared/alacritty/alacritty.toml|~/.config/alacritty/alacritty.toml|Alacritty"
     "command -v tmux|.config/shared/tmux/.tmux.conf|~/.tmux.conf|Tmux"
+	"Command -v kitty|.config/shared/kitty/kitty.conf|~/.config/kitty/kitty.conf|Kitty"
 )
 
 macos_configs=(

@@ -4,7 +4,7 @@ my config files
 # tools
 - shared
   - tmux
-  - alacritty
+  - kitty
 - macintosh
   - aerospace
   - borders[JanyBorders]
