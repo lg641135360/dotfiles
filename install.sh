@@ -36,7 +36,7 @@ process_config() {
 shared_configs=(
 #    "command -v alacritty|.config/shared/alacritty/alacritty.toml|~/.config/alacritty/alacritty.toml|Alacritty"
     "command -v tmux|.config/shared/tmux/.tmux.conf|~/.tmux.conf|Tmux"
-	"Command -v kitty|.config/shared/kitty/kitty.conf|~/.config/kitty/kitty.conf|Kitty"
+	"command -v kitty|.config/shared/kitty/kitty.conf|~/.config/kitty/kitty.conf|Kitty"
 	"command -v kitty|.config/shared/kitty/Dracula.conf|~/.config/kitty/themes/Dracula.conf|kitty_theme"
 )
 
