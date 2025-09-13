@@ -5,6 +5,7 @@ my config files
 - shared
   - tmux
   - kitty
+  - git
 - macintosh
   - aerospace
   - borders[JanyBorders]

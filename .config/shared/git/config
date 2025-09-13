@@ -1,0 +1,42 @@
+[user]
+    name = Rikoo
+    email = gang.li02@mthreads.com
+
+[commit]
+    template = ~/.config/git/template
+    verbose = true
+
+[core]
+    autocrlf = input
+    whitespace = error
+    excludesfile = ~/.config/git/ignore
+
+[init]
+    defaultBranch = dev
+
+[status]
+    branch = true
+    short = true
+    showUntrackedFiles = all
+
+[color "status"]
+    added = green
+    changed = yellow
+    untracked = red
+
+[log]
+    abbrevCommit = true
+
+[push]
+    autoSetupRemote = true
+
+[pull]
+    rebase = true
+
+[alias]
+    st = "!git status --short --branch | sed 's/^??/[NEW]/g; s/^A /[ADD]/g; s/^M /[MOD]/g; s/^D /[DEL]/g'"
+    s = "!git status --short --branch | sed 's/^??/[NEW]/g; s/^A /[ADD]/g; s/^M /[MOD]/g; s/^D /[DEL]/g'"
+    co = checkout
+    br = branch
+    ci = commit
+    lg = log --oneline --graph --decorate --all

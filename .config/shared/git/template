@@ -1,0 +1,34 @@
+# <type>(<scope>): <description>
+#
+# [optional body]
+#
+# [optional footer(s)]
+
+# === Conventional Commits Types ===
+# feat: ✨ A new feature
+# fix: 🐛 A bug fix
+# docs: � Documentation only changes
+# style: 💄 Changes that do not affect the meaning of the code
+# refactor: ♻️  A code change that neither fixes a bug nor adds a feature
+# perf: ⚡ A code change that improves performance
+# test: ✅ Adding missing tests or correcting existing tests
+# build: � Changes that affect the build system or external dependencies
+# ci: � Changes to our CI configuration files and scripts
+# chore: 🧹 Other changes that don't modify src or test files
+# revert: ⏪ Reverts a previous commit
+
+# === Breaking Changes ===
+# BREAKING CHANGE: � Introduce breaking API changes
+# Or use ! after type: feat!: new feature with breaking change
+
+# === Examples ===
+# feat(auth): add OAuth2 login support
+# fix(api): resolve null pointer exception in user service
+# docs: update README with new installation instructions
+# style: format code according to style guide
+# refactor(database): extract user repository interface
+# perf(query): optimize database queries for faster response
+# test(auth): add unit tests for login functionality
+# build(deps): bump lodash from 4.17.20 to 4.17.21
+# ci(deploy): add automated deployment pipeline
+# chore(release): prepare version 2.1.0 
