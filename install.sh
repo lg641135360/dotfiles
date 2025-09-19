@@ -74,6 +74,7 @@ shared_configs=(
 	"command -v git|.config/shared/git/config|~/.config/git/config|Git_config"
 	"command -v git|.config/shared/git/ignore|~/.config/git/ignore|Git_ignore"
 	"command -v git|.config/shared/git/template|~/.config/git/template|Git_template"
+	"command -v nvim|.config/shared/nvim/init.vim|~/.config/nvim/init.vim|nvim"
 )
 
 macos_configs=(

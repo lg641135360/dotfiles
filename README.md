@@ -6,6 +6,7 @@ my config files
   - tmux
   - kitty
   - git
+  - nvim
 - macintosh
   - aerospace
   - borders[JanyBorders]
