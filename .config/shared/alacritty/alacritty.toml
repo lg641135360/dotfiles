@@ -5,7 +5,7 @@ general.import = [
 [window]
 decorations = "buttonless"
 blur = true
-opacity = 0.8
+opacity = 0.75
 title = "alacritty"
 dynamic_title = false
 startup_mode = "Maximized"
