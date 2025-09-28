@@ -33,10 +33,3 @@
 [pull]
     rebase = true
 
-[alias]
-    st = "!git status --short --branch | sed 's/^??/[NEW]/g; s/^A /[ADD]/g; s/^M /[MOD]/g; s/^D /[DEL]/g'"
-    s = "!git status --short --branch | sed 's/^??/[NEW]/g; s/^A /[ADD]/g; s/^M /[MOD]/g; s/^D /[DEL]/g'"
-    co = checkout
-    br = branch
-    ci = commit
-    lg = log --oneline --graph --decorate --all
