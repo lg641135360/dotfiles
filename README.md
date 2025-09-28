@@ -7,6 +7,7 @@ my config files
   - kitty
   - git
   - nvim
+  - zsh(on ~/.config/zsh)
 - macintosh
   - aerospace
   - borders[JanyBorders]
