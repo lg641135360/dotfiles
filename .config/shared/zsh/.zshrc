@@ -22,10 +22,11 @@ setopt HIST_IGNORE_DUPS HIST_IGNORE_ALL_DUPS HIST_REDUCE_BLANKS HIST_FIND_NO_DUP
 # 插件顺序：语法高亮放最后
 plug "zap-zsh/supercharge"
 plug "zap-zsh/vim"
-plug "zap-zsh/zap-prompt"
+# plug "zap-zsh/zap-prompt"
 plug "hlissner/zsh-autopair"
 plug "zsh-users/zsh-autosuggestions"
 # plug "zap-zsh/atmachine"
+plug "romkatv/powerlevel10k"
 plug "zap-zsh/fzf"
 plug "rupa/z"
 plug "zsh-users/zsh-history-substring-search"
