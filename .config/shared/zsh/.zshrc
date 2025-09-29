@@ -38,3 +38,6 @@ bindkey '^N' history-substring-search-down
 
 # 常用便捷 setopt（按需保留）
 setopt AUTO_CD GLOB_DOTS EXTENDED_GLOB
+
+# To customize prompt, run `p10k configure` or edit ~/.config/zsh/.p10k.zsh.
+[[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
