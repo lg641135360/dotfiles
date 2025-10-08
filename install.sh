@@ -53,6 +53,28 @@ copy_config() {
     fi
 }
 
+# Copy configuration directory
+copy_config_dir() {
+    local source="$1" target="$2" name="$3"
+
+    [ ! -d "$source" ] && echo "ERROR: $source directory not found" && return 1
+
+    ensure_dir "$(dirname "$target")"
+    
+    # Create backup if target directory exists
+    local cleanup_msg=""
+    if [ -d "$target" ]; then
+        mv "$target" "$target.backup.$(date +%Y%m%d_%H%M%S)"
+        echo "Backed up existing $name directory"
+    fi
+
+    if cp -r "$source" "$target"; then
+        echo "Copied $name directory"
+    else
+        echo "Failed to copy $name directory"
+    fi
+}
+
 # Process configuration
 process_config() {
     local check_cmd="$1" source="$2" target="$3" name="$4"
@@ -64,6 +86,17 @@ process_config() {
     copy_config "$source" "$target" "$name"
 }
 
+# Process directory configuration
+process_config_dir() {
+    local check_cmd="$1" source="$2" target="$3" name="$4"
+
+    [ -n "$check_cmd" ] && ! eval "$check_cmd" >/dev/null 2>&1 && return 0
+    [[ "$source" != /* ]] && source="$cur_path/$source"
+    target="${target/#\~/$HOME}"
+
+    copy_config_dir "$source" "$target" "$name"
+}
+
 # Configuration arrays
 # app name | source path | target path | display name
 shared_configs=(
@@ -71,11 +104,13 @@ shared_configs=(
     "command -v tmux|.config/shared/tmux/.tmux.conf|~/.tmux.conf|Tmux"
 	"command -v kitty|.config/shared/kitty/kitty.conf|~/.config/kitty/kitty.conf|Kitty"
 	"command -v kitty|.config/shared/kitty/Dracula.conf|~/.config/kitty/themes/Dracula.conf|kitty_theme"
-	"command -v git|.config/shared/git/config|~/.config/git/config|Git_config"
-	"command -v git|.config/shared/git/ignore|~/.config/git/ignore|Git_ignore"
-	"command -v git|.config/shared/git/template|~/.config/git/template|Git_template"
-	"command -v nvim|.config/shared/nvim/init.vim|~/.config/nvim/init.vim|nvim"
 	"command -v zsh|.config/shared/zsh/.zshrc|~/.config/zsh/.zshrc|zsh"
+)
+
+# Directory configurations (for copying entire directories)
+shared_dir_configs=(
+	"command -v git|.config/shared/git|~/.config/git|git"
+	"command -v nvim|.config/shared/nvim|~/.config/nvim|nvim"
 )
 
 macos_configs=(
@@ -90,6 +125,12 @@ linux_configs=(
 for config in "${shared_configs[@]}"; do
     IFS='|' read -r check_cmd source target name <<< "$config"
     process_config "$check_cmd" "$source" "$target" "$name"
+done
+
+# Process directory configurations
+for config in "${shared_dir_configs[@]}"; do
+    IFS='|' read -r check_cmd source target name <<< "$config"
+    process_config_dir "$check_cmd" "$source" "$target" "$name"
 done
 
 if [[ "$os" == "Darwin" ]]; then
