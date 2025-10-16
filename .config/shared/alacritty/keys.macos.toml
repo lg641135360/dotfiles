@@ -1,0 +1,7 @@
+[keyboard]
+bindings = [
+  { key = "H", mods = "Command", chars = "\u0001\u0068" },  # Ctrl+a then h
+  { key = "J", mods = "Command", chars = "\u0001\u006a" },  # Ctrl+a then j
+  { key = "K", mods = "Command", chars = "\u0001\u006b" },  # Ctrl+a then k
+  { key = "L", mods = "Command", chars = "\u0001\u006c" },  # Ctrl+a then l
+]

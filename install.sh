@@ -195,11 +195,11 @@ process_config_dir() {
 # Configuration arrays
 # app name | source path | target path | display name
 shared_configs=(
-    "command -v alacritty|.config/shared/alacritty/alacritty.toml|~/.config/alacritty/alacritty.toml|Alacritty"
     "command -v tmux|.config/shared/tmux/.tmux.conf|~/.tmux.conf|Tmux"
 	"command -v kitty|.config/shared/kitty/kitty.conf|~/.config/kitty/kitty.conf|Kitty"
 	"command -v kitty|.config/shared/kitty/Dracula.conf|~/.config/kitty/themes/Dracula.conf|kitty_theme"
 	"command -v zsh|.config/shared/zsh/.zshrc|~/.config/zsh/.zshrc|zsh"
+    "command -v alacritty|.config/shared/alacritty/alacritty.toml|~/.config/alacritty/alacritty.toml|Alacritty"
 )
 
 # Directory configurations (for copying entire directories)
@@ -210,10 +210,12 @@ shared_dir_configs=(
 
 macos_configs=(
     "command -v aerospace|.config/macos/aerospace/aerospace.toml|~/.config/aerospace/aerospace.toml|Aerospace"
+    "command -v alacritty|.config/shared/alacritty/keys.macos.toml|~/.config/alacritty/keys.toml|Alacritty"
 )
 
 linux_configs=(
     # "command -v i3|.config/linux/i3/config|~/.config/i3/config|i3wm"
+    "command -v alacritty|.config/shared/alacritty/keys.linux.toml|~/.config/alacritty/keys.toml|Alacritty"
 )
 
 # Main installation function
