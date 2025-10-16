@@ -1,28 +1,90 @@
 #!/bin/bash
+set -e  # Exit on error
 
+# Script configuration
 os=$(uname -s)
 cur_path=$(pwd)
+backup_limit=5
+timestamp=$(date +%Y%m%d_%H%M%S)
+
+# Logging functions
+log_info() {
+    echo -e "\033[0;32m[INFO]\033[0m $1"
+}
+
+log_warn() {
+    echo -e "\033[0;33m[WARN]\033[0m $1"
+}
+
+log_error() {
+    echo -e "\033[0;31m[ERROR]\033[0m $1" >&2
+}
+
+# Error handling
+trap 'log_error "An error occurred at line $LINENO. Exiting..."; exit 1' ERR
+
+# Check if required commands are available
+check_dependencies() {
+    local missing_deps=()
+    for cmd in "$@"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing_deps+=("$cmd")
+        fi
+    done
+    
+    if [ ${#missing_deps[@]} -ne 0 ]; then
+        log_error "Missing required dependencies: ${missing_deps[*]}"
+        exit 1
+    fi
+}
 
 # Ensure directory exists
 ensure_dir() {
-    [ ! -d "$1" ] && mkdir -p "$1"
+    local dir="$1"
+    if [ ! -d "$dir" ]; then
+        mkdir -p "$dir" || {
+            log_error "Failed to create directory: $dir"
+            return 1
+        }
+        log_info "Created directory: $dir"
+    fi
 }
 
-# Clean old backup files (keep only latest 5)
+# Clean old backup files/directories (keep only latest N)
 clean_old_backups() {
     local target="$1"
-    local backup_files
+    local is_dir="${2:-false}"  # Optional parameter to handle directories
+    local dir backup_items count removed=0
     
-    # Find all backup files for this target, sorted by timestamp (newest first)
-    backup_files=$(find "$(dirname "$target")" -maxdepth 1 -name "$(basename "$target").backup.*" -type f 2>/dev/null | sort -t. -k3 -r)
+    dir="$(dirname "$target")"
+    if [ ! -d "$dir" ]; then
+        return 0
+    fi
     
-    # Count backup files
-    local count=$(echo "$backup_files" | grep -c .)
+    # Find all backup items for this target, sorted by timestamp (newest first)
+    if [ "$is_dir" = "true" ]; then
+        backup_items=$(find "$dir" -maxdepth 1 -type d -name "$(basename "$target").backup.*" | sort -r)
+    else
+        backup_items=$(find "$dir" -maxdepth 1 -type f -name "$(basename "$target").backup.*" | sort -r)
+    fi
     
-    if [ "$count" -gt 5 ]; then
-        # Keep only the first 5 (newest), remove the rest
-        echo "$backup_files" | tail -n +6 | xargs rm -f
-        echo "(cleaned $((count - 5)) old backups)"
+    count=$(echo "$backup_items" | grep -c . || true)
+    
+    if [ "$count" -gt "$backup_limit" ]; then
+        echo "$backup_items" | tail -n +"$((backup_limit + 1))" | while read -r item; do
+            if [ "$is_dir" = "true" ]; then
+                rm -rf "$item" && removed=$((removed + 1))
+            else
+                rm -f "$item" && removed=$((removed + 1))
+            fi
+        done
+        if [ $removed -gt 0 ]; then
+            if [ "$is_dir" = "true" ]; then
+                log_info "Cleaned $removed old backup directories for $(basename "$target")"
+            else
+                log_info "Cleaned $removed old backup files for $(basename "$target")"
+            fi
+        fi
     fi
 }
 
@@ -30,26 +92,39 @@ clean_old_backups() {
 copy_config() {
     local source="$1" target="$2" name="$3"
 
-    [ ! -f "$source" ] && echo "ERROR: $source not found" && return 1
-
-    ensure_dir "$(dirname "$target")"
-    
-    # Create backup if target exists
-    local cleanup_msg=""
-    if [ -f "$target" ]; then
-        cp "$target" "$target.backup.$(date +%Y%m%d_%H%M%S)"
-        # Clean old backups after creating new one
-        cleanup_msg=$(clean_old_backups "$target")
+    # Validate input
+    if [ ! -f "$source" ]; then
+        log_error "Source file not found: $source"
+        return 1
     fi
 
-    if cp "$source" "$target"; then
-        if [ -n "$cleanup_msg" ]; then
-            echo "Copied $name $cleanup_msg"
-        else
-            echo "Copied $name"
+    # Create target directory
+    if ! ensure_dir "$(dirname "$target")"; then
+        return 1
+    fi
+    
+    # Create backup if target exists
+    if [ -f "$target" ]; then
+        if ! cp "$target" "$target.backup.$timestamp"; then
+            log_error "Failed to create backup for $target"
+            return 1
         fi
+        log_info "Created backup for $name"
+        clean_old_backups "$target"
+    fi
+
+    # Copy file
+    if cp "$source" "$target"; then
+        log_info "Successfully copied $name"
     else
-        echo "Failed: $name"
+        log_error "Failed to copy $name"
+        return 1
+    fi
+
+    # Verify copy
+    if ! diff "$source" "$target" >/dev/null 2>&1; then
+        log_error "Verification failed for $name"
+        return 1
     fi
 }
 
@@ -57,21 +132,41 @@ copy_config() {
 copy_config_dir() {
     local source="$1" target="$2" name="$3"
 
-    [ ! -d "$source" ] && echo "ERROR: $source directory not found" && return 1
-
-    ensure_dir "$(dirname "$target")"
-    
-    # Create backup if target directory exists
-    local cleanup_msg=""
-    if [ -d "$target" ]; then
-        mv "$target" "$target.backup.$(date +%Y%m%d_%H%M%S)"
-        echo "Backed up existing $name directory"
+    # Validate input
+    if [ ! -d "$source" ]; then
+        log_error "Source directory not found: $source"
+        return 1
     fi
 
+    # Create target parent directory
+    if ! ensure_dir "$(dirname "$target")"; then
+        return 1
+    fi
+    
+    # Create backup if target exists
+    if [ -d "$target" ]; then
+        local backup_path="$target.backup.$timestamp"
+        if ! mv "$target" "$backup_path"; then
+            log_error "Failed to create backup for $target"
+            return 1
+        fi
+        log_info "Created backup for $name directory"
+        # Clean old directory backups
+        clean_old_backups "$target" "true"
+    fi
+
+    # Copy directory
     if cp -r "$source" "$target"; then
-        echo "Copied $name directory"
+        log_info "Successfully copied $name directory"
+        
+        # Verify directory copy
+        if ! diff -r "$source" "$target" >/dev/null 2>&1; then
+            log_error "Directory verification failed for $name"
+            return 1
+        fi
     else
-        echo "Failed to copy $name directory"
+        log_error "Failed to copy $name directory"
+        return 1
     fi
 }
 
@@ -121,28 +216,51 @@ linux_configs=(
     # "command -v i3|.config/linux/i3/config|~/.config/i3/config|i3wm"
 )
 
-# Process configurations
-for config in "${shared_configs[@]}"; do
-    IFS='|' read -r check_cmd source target name <<< "$config"
-    process_config "$check_cmd" "$source" "$target" "$name"
-done
+# Main installation function
+main() {
+    local start_time=$(date +%s)
+    
+    # Check for required dependencies
+    check_dependencies find cp mv diff date dirname basename xargs
 
-# Process directory configurations
-for config in "${shared_dir_configs[@]}"; do
-    IFS='|' read -r check_cmd source target name <<< "$config"
-    process_config_dir "$check_cmd" "$source" "$target" "$name"
-done
+    log_info "Starting configuration installation..."
+    log_info "Operating System: $os"
 
-if [[ "$os" == "Darwin" ]]; then
-    for config in "${macos_configs[@]}"; do
+    # Process shared configurations
+    log_info "Processing shared configurations..."
+    for config in "${shared_configs[@]}"; do
         IFS='|' read -r check_cmd source target name <<< "$config"
         process_config "$check_cmd" "$source" "$target" "$name"
     done
-elif [[ "$os" == "Linux" ]]; then
-    for config in "${linux_configs[@]}"; do
-        IFS='|' read -r check_cmd source target name <<< "$config"
-        process_config "$check_cmd" "$source" "$target" "$name"
-    done
-fi
 
-echo "Done"
+    # Process directory configurations
+    log_info "Processing directory configurations..."
+    for config in "${shared_dir_configs[@]}"; do
+        IFS='|' read -r check_cmd source target name <<< "$config"
+        process_config_dir "$check_cmd" "$source" "$target" "$name"
+    done
+
+    # Process OS-specific configurations
+    if [[ "$os" == "Darwin" ]]; then
+        log_info "Processing macOS configurations..."
+        for config in "${macos_configs[@]}"; do
+            IFS='|' read -r check_cmd source target name <<< "$config"
+            process_config "$check_cmd" "$source" "$target" "$name"
+        done
+    elif [[ "$os" == "Linux" ]]; then
+        log_info "Processing Linux configurations..."
+        for config in "${linux_configs[@]}"; do
+            IFS='|' read -r check_cmd source target name <<< "$config"
+            process_config "$check_cmd" "$source" "$target" "$name"
+        done
+    else
+        log_warn "Unsupported operating system: $os"
+    fi
+
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    log_info "Installation completed in $duration seconds"
+}
+
+# Run main function
+main "$@"
