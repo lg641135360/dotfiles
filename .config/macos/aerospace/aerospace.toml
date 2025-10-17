@@ -86,7 +86,7 @@ outer.right = 5
 
 # You can uncomment this line to open up terminal with alt + enter shortcut
 # See: https://nikitabobko.github.io/AeroSpace/commands#exec-and-forget
-alt-enter = 'exec-and-forget alacritty --config-file ~/.config/alacritty/alacritty.toml'
+alt-enter = 'exec-and-forget alacritty'
 alt-e = 'exec-and-forget open -a Finder'
 
 # See: https://nikitabobko.github.io/AeroSpace/commands#layout
