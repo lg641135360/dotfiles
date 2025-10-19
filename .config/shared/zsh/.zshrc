@@ -44,25 +44,35 @@ setopt AUTO_CD GLOB_DOTS EXTENDED_GLOB
 
 # Linux specific configurations
 if [[ "$(uname)" == "Linux" ]]; then
-    # >>> conda initialize >>>
-    # !! Contents within this block are managed by 'conda init' !!
-    __conda_setup="$('/opt/miniforge/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-    if [ $? -eq 0 ]; then
-        eval "$__conda_setup"
-    else
-        if [ -f "/opt/miniforge/etc/profile.d/conda.sh" ]; then
-            . "/opt/miniforge/etc/profile.d/conda.sh"
-        else
-            export PATH="/opt/miniforge/bin:$PATH"
-        fi
+    # >>> conda lazy initialize >>>
+    # Lazy load conda to speed up shell startup
+    # Only initialize when conda command is actually used
+    if [ -f "/opt/miniforge/bin/conda" ]; then
+        export PATH="/opt/miniforge/bin:$PATH"
+        
+        # Lazy load function
+        conda() {
+            unset -f conda
+            __conda_setup="$('/opt/miniforge/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+            if [ $? -eq 0 ]; then
+                eval "$__conda_setup"
+            else
+                if [ -f "/opt/miniforge/etc/profile.d/conda.sh" ]; then
+                    . "/opt/miniforge/etc/profile.d/conda.sh"
+                fi
+            fi
+            unset __conda_setup
+            conda "$@"
+        }
     fi
-    unset __conda_setup
-    # <<< conda initialize <<<
+    # <<< conda lazy initialize <<<
 
     # cuda env
     export PATH=/opt/cuda/bin:$PATH
     export LD_LIBRARY_PATH=/opt/cuda/lib64:$LD_LIBRARY_PATH
 
-    # cargo
-    [ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
+    # cargo (lazy load)
+    if [ -f "$HOME/.cargo/env" ]; then
+        export PATH="$HOME/.cargo/bin:$PATH"
+    fi
 fi

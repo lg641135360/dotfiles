@@ -12,7 +12,11 @@ my config files
   - aerospace
   - borders[JanyBorders]
 - linux
-  - TODO
+  - xmonad
+  - xmobar
+  - dunst
+  - picom
+  - rofi
 
 # how to use
 ```shell

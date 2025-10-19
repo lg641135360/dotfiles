@@ -1,0 +1,49 @@
+[global]
+    # Display position
+    monitor = 0
+    follow = mouse
+    # Geometry position (top-right corner)
+    width = (300, 600)
+    height = 300
+    origin = top-right
+    offset = 20x60
+    # Scaling (for 4K display)
+    scale = 2
+    # Notification timeout (milliseconds)
+    timeout = 5
+    # Font (larger font for 4K display)
+    font = WenQuanYi Zen Hei 12
+    # Frame
+    frame_width = 2
+    frame_color = "#61afef"
+    # Background and foreground
+    background = "#282c34"
+    foreground = "#abb2bf"
+    # Icon
+    icon_position = left
+    max_icon_size = 64
+    # Format
+    markup = full
+    format = "<b>%s</b>\n%b"
+    # Transparency
+    transparency = 10
+    # Mouse actions
+    mouse_left_click = close_current
+    mouse_middle_click = do_action
+    mouse_right_click = close_all
+
+[urgency_low]
+    background = "#282c34"
+    foreground = "#abb2bf"
+    timeout = 5
+
+[urgency_normal]
+    background = "#282c34"
+    foreground = "#abb2bf"
+    timeout = 10
+
+[urgency_critical]
+    background = "#e06c75"
+    foreground = "#ffffff"
+    frame_color = "#e06c75"
+    timeout = 0

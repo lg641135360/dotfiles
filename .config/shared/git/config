@@ -10,6 +10,13 @@
     autocrlf = input
     whitespace = error
     excludesfile = ~/.config/git/ignore
+    pager = cat
+    editor = nvim
+
+[pager]
+    diff = cat
+    log = cat
+    show = cat
 
 [init]
     defaultBranch = dev

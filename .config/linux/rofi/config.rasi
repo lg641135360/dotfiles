@@ -1,0 +1,120 @@
+/*******************************************************************************
+ * ROFI One Dark Theme
+ * 配色与 XMonad One Dark 主题保持一致
+ *******************************************************************************/
+
+configuration {
+    display-drun: "Applications";
+    display-window: "Windows";
+    drun-display-format: "{icon} {name}";
+    font: "JetBrainsMono Nerd Font Medium 14";
+    modi: "drun,window,run";
+    show-icons: true;
+    icon-theme: "Papirus-Dark";
+}
+
+* {
+    /* One Dark 配色 */
+    bg: #282c34;
+    bg-alt: #21252b;
+    fg: #abb2bf;
+    fg-alt: #565c64;
+    blue: #61afef;
+    cyan: #56b6c2;
+    green: #98c379;
+    red: #e06c75;
+    yellow: #e5c07b;
+    magenta: #c678dd;
+    background-color: transparent;
+    text-color: @fg;
+    margin: 0;
+    padding: 0;
+    spacing: 0;
+}
+
+window {
+    background-color: @bg;
+    border: 2px;
+    border-color: @blue;
+    border-radius: 10px;
+    width: 50%;
+    padding: 20px;
+}
+
+mainbox {
+    children: [inputbar, listview];
+    spacing: 20px;
+}
+
+inputbar {
+    children: [prompt, entry];
+    background-color: @bg-alt;
+    border-radius: 8px;
+    padding: 12px;
+    spacing: 12px;
+}
+
+prompt {
+    text-color: @blue;
+    font: "JetBrainsMono Nerd Font Bold 14";
+}
+
+entry {
+    placeholder: "搜索应用程序...";
+    placeholder-color: @fg-alt;
+}
+
+listview {
+    lines: 8;
+    columns: 1;
+    fixed-height: true;
+    scrollbar: true;
+    spacing: 5px;
+}
+
+scrollbar {
+    handle-width: 8px;
+    handle-color: @blue;
+    background-color: @bg-alt;
+    border-radius: 4px;
+    padding: 0;
+}
+
+element {
+    children: [element-icon, element-text];
+    spacing: 12px;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+element normal normal {
+    background-color: transparent;
+    text-color: @fg;
+}
+
+element normal active {
+    background-color: @bg-alt;
+    text-color: @blue;
+}
+
+element selected normal {
+    background-color: @blue;
+    text-color: @bg;
+}
+
+element selected active {
+    background-color: @blue;
+    text-color: @bg;
+}
+
+element-icon {
+    size: 32px;
+}
+
+element-text {
+    vertical-align: 0.5;
+}
+
+element-text selected {
+    text-color: @bg;
+}
