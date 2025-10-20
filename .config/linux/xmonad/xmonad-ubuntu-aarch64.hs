@@ -36,7 +36,7 @@ myTrayerCmd = "killall trayer 2>/dev/null; sleep 0.1; \
   \--SetPartialStrut true \
   \--expand true \
   \--transparent true \
-  \--alpha 80 \
+  \--alpha 100 \
   \--tint 0x282c34 \
   \--iconspacing 16 \
   \--distance 0"
