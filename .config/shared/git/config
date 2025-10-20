@@ -12,6 +12,7 @@
     excludesfile = ~/.config/git/ignore
     pager = cat
     editor = nvim
+    quotepath = false
 
 [pager]
     diff = cat
