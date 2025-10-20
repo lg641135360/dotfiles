@@ -36,7 +36,7 @@ myTrayerCmd = "killall trayer 2>/dev/null; sleep 0.1; \
   \--SetPartialStrut true \
   \--expand true \
   \--transparent true \
-  \--alpha 80 \
+  \--alpha 100 \
   \--tint 0x282c34 \
   \--iconspacing 16 \
   \--distance 0"
@@ -62,8 +62,8 @@ main = do
         , handleEventHook    = handleEventHook def <+> fullscreenEventHook
         }
       `additionalKeysP`
-        [ ("M-S-z", spawn "betterlockscreen -l -u /usr/share/backgrounds/")
-        , ("M-f"  , spawn "microsoft-edge-stable")
+        [ ("C-M-l", spawn "~/.config/scripts/lock")
+        , ("M-f"  , spawn "microsoft-edge")
         , ("M-b"  , sendMessage ToggleStruts)
         , ("M-p"  , spawn "rofi -show drun")
         , ("M-<Return>", spawn "alacritty")

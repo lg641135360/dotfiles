@@ -5,7 +5,7 @@ Config
         ]
     , bgColor = "#282c34"
     , fgColor = "#abb2bf"
-    , position = TopSize L 90 56
+    , position = TopSize L 90 28
     , alpha = 255
     , allDesktops = True
     , overrideRedirect = True
@@ -18,22 +18,31 @@ Config
     , persistent = False
     , hideOnStart = False
     , iconRoot = "."
-    , commands = 
+    , commands =
         [ Run StdinReader
-        , Run Cpu 
+        , Run Cpu
             [ "-t", "CPU: <total>%"
             , "-L", "3"
             , "-H", "50"
             , "--normal", "#98c379"
             , "--high", "#e06c75"
             ] 10
-        , Run Memory 
+        , Run Memory
             [ "--template", "Mem: <usedratio>%"
             , "--Low", "20"
             , "--High", "90"
             , "--low", "#98c379"
             , "--normal", "#e5c07b"
             , "--high", "#e06c75"
+            ] 60
+        , Run Battery
+            [ "-t", "<acstatus>: <left>%"
+            , "--"
+            , "-o", "Bat"
+            , "-O", "AC"
+            , "-i", "Full"
+            , "-h", "#98c379"
+            , "-l", "#e06c75"
             ] 60
         , Run Com "date" ["+%a %b %_d %H:%M"] "date" 60
         ]
