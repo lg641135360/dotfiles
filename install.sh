@@ -7,7 +7,6 @@ arch=$(uname -m)
 cur_path=$(pwd)
 backup_limit=5
 timestamp=$(date +%Y%m%d_%H%M%S)
-current_user=$(whoami)
 
 # Detect Linux distribution
 if [[ "$os" == "Linux" ]]; then
@@ -236,7 +235,7 @@ arch_x86_64_configs=(
 
 # Ubuntu aarch64 (ARM 64-bit)
 ubuntu_aarch64_configs=(
-    "command -v xmonad|.config/linux/xmonad/xmonad-ubuntu-aarch64.hs|~/.config/xmonad/xmonad.hs|XMonad"
+    "command -v xmonad|.config/linux/xmonad/xmonad-ubuntu-aarch64.hs|~/.xmonad/xmonad.hs|XMonad"
     "command -v xmobar|.config/linux/xmobar/xmobarrc-ubuntu-aarch64|~/.config/xmobar/xmobarrc|Xmobar"
     "command -v dunst|.config/linux/dunst/dunstrc-ubuntu-aarch64|~/.config/dunst/dunstrc|Dunst"
 )
