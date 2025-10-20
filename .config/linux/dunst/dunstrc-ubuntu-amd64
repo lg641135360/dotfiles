@@ -2,47 +2,32 @@
     # Display position
     monitor = 0
     follow = mouse
-    
     # Geometry (for dunst 1.5.0)
     # Format: "widthxheight-x_offset+y_offset"
-    # Scaled for high DPI display (scale=2)
-    geometry = "600x5-40+100"
-    
+    geometry = "300x5-20+50"
     # Shrink window if message is shorter
     shrink = yes
-    
-    # Scaling (for high DPI display)
-    scale = 2
-    
     # Notification timeout (seconds in 1.5.0)
     timeout = 5
-    
-    # Font (larger for high DPI display)
+    # Font
     font = WenQuanYi Zen Hei 12
-    
     # Frame
     frame_width = 2
     frame_color = "#61afef"
-    
     # Background and foreground
     background = "#282c34"
     foreground = "#abb2bf"
-    
     # Icon
     icon_position = left
-    max_icon_size = 64
-    
+    max_icon_size = 32
     # Format
     markup = full
     format = "<b>%s</b>\n%b"
-    
     # Transparency (0-100)
     transparency = 10
-    
-    # Padding (scaled for high DPI)
-    horizontal_padding = 16
-    padding = 16
-    
+    # Padding
+    horizontal_padding = 8
+    padding = 8
     # Mouse actions
     mouse_left_click = close_current
     mouse_middle_click = do_action
