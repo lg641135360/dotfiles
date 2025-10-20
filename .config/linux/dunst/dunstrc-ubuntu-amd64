@@ -48,3 +48,38 @@
     foreground = "#ffffff"
     frame_color = "#e06c75"
     timeout = 0
+
+# dingtalk notifications
+[dingtalk]
+    appname = "com.alibabainc.dingtalk"
+    background = "#1890ff"      # 钉钉蓝色
+    foreground = "#ffffff"
+    frame_color = "#0050b3"
+    timeout = 15
+    urgency = normal
+
+[dingtalk_important]
+    appname = "com.alibabainc.dingtalk"
+    summary = "*@*"             # @ 消息
+    background = "#ff4d4f"
+    foreground = "#ffffff"
+    frame_color = "#ff0000"
+    timeout = 20
+    urgency = critical
+
+[dingtalk_call]
+    appname = "com.alibabainc.dingtalk"
+    summary = "*来电*"
+    background = "#faad14"
+    foreground = "#000000"
+    timeout = 30
+    urgency = critical
+    script = notify_sound.sh    # 可选：播放声音
+
+[dingtalk_meeting]
+    appname = "com.alibabainc.dingtalk"
+    summary = "*会议*"
+    background = "#52c41a"
+    foreground = "#ffffff"
+    timeout = 20
+    urgency = normal
