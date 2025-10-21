@@ -5,29 +5,29 @@ Config
         ]
     , bgColor = "#282c34"
     , fgColor = "#abb2bf"
-    , position = TopSize L 90 56
+    , position = TopSize L 100 56
     , alpha = 255
     , allDesktops = True
-    , overrideRedirect = True
+    , overrideRedirect = False
     , lowerOnStart = True
-    , borderColor = "#61afef"
-    , border = BottomB
+    , borderColor = "#282c34"
+    , border = NoBorder
     , textOffset = -1
     , iconOffset = -1
     , pickBroadest = False
     , persistent = False
     , hideOnStart = False
-    , iconRoot = "."
-    , commands = 
+    , iconRoot = ".config/xmonad/"  -- default: "."
+    , commands =
         [ Run StdinReader
-        , Run Cpu 
+        , Run Cpu
             [ "-t", "CPU: <total>%"
             , "-L", "3"
             , "-H", "50"
             , "--normal", "#98c379"
             , "--high", "#e06c75"
             ] 10
-        , Run Memory 
+        , Run Memory
             [ "--template", "Mem: <usedratio>%"
             , "--Low", "20"
             , "--High", "90"
@@ -35,18 +35,17 @@ Config
             , "--normal", "#e5c07b"
             , "--high", "#e06c75"
             ] 60
-        , Run Battery 
-            [ "-t", "<acstatus>: <left>%"
-            , "--"
-            , "-o", "Bat"
-            , "-O", "AC"
-            , "-i", "Full"
-            , "-h", "#98c379"
-            , "-l", "#e06c75"
-            ] 60
+        , Run Network "enp5s0"
+            [ "--template", "Net: <tx>KB↑ <rx>KB↓"
+            , "--Low", "100"
+            , "--High", "1000"
+            , "--low", "#98c379"
+            , "--normal", "#e5c07b"
+            , "--high", "#e06c75"
+            ] 10
         , Run Com "date" ["+%a %b %_d %H:%M"] "date" 60
         ]
     , sepChar = "%"
     , alignSep = "}{"
-    , template = " %StdinReader% }{ %cpu% | %memory% | %battery% | %date% "
+    , template = " %StdinReader% }{ %enp5s0% | %cpu% | %memory% | %date% "
     }

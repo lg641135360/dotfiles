@@ -29,17 +29,17 @@ myTrayerCmd = "killall trayer 2>/dev/null; sleep 0.1; \
   \trayer \
   \--edge top \
   \--align right \
-  \--widthtype percent \
-  \--width 10 \
-  \--height 56 \
+  \--widthtype request \
+  \--heighttype request \
   \--SetDockType true \
   \--SetPartialStrut true \
-  \--expand true \
+  \--expand false \
   \--transparent true \
-  \--alpha 80 \
+  \--alpha 40 \
   \--tint 0x282c34 \
-  \--iconspacing 16 \
-  \--distance 0"
+  \--iconspacing 10 \
+  \--padding 2 \
+  \--distance 56"
 
 -- Main entry point
 main :: IO ()
@@ -79,7 +79,7 @@ myStartupHook = do
     spawn "killall Snipaste 2>/dev/null; sleep 0.2; Snipaste"
     spawn "killall fcitx5 2>/dev/null; sleep 0.1; fcitx5"
     spawn "killall picom 2>/dev/null; sleep 0.1; picom --config ~/.config/picom/picom.conf"
-    spawn "killall -9 redshift 2>/dev/null; sleep 1; redshift -l 30.6:114.3 -t 6500:5000"
+    spawn "killall -9 redshift 2>/dev/null; sleep 1; redshift -x; redshift -l 30.6:114.3 -t 6500:5000"
     spawn myTrayerCmd
     -- spawn "killall nm-applet 2>/dev/null; sleep 0.1; nm-applet" -- network manager
     spawn "killall pasystray 2>/dev/null; sleep 0.1; pasystray"
