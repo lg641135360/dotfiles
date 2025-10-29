@@ -222,7 +222,6 @@ linux_configs=(
     # "command -v i3|.config/linux/i3/config|~/.config/i3/config|i3wm"
     "command -v alacritty|.config/shared/alacritty/keys.linux.toml|~/.config/alacritty/keys.toml|Alacritty"
     "command -v rofi|.config/linux/rofi/config.rasi|~/.config/rofi/config.rasi|Rofi"
-    "command -v picom|.config/linux/picom/picom.conf|~/.config/picom/picom.conf|Picom"
 )
 
 # Architecture and distro-specific configurations
@@ -231,6 +230,7 @@ arch_x86_64_configs=(
     "command -v xmonad|.config/linux/xmonad/xmonad-arch-pc.hs|~/.config/xmonad/xmonad.hs|XMonad"
     "command -v xmobar|.config/linux/xmobar/xmobarrc-arch-pc|~/.config/xmobar/xmobarrc|Xmobar"
     "command -v dunst|.config/linux/dunst/dunstrc-arch-pc|~/.config/dunst/dunstrc|Dunst"
+    "command -v picom|.config/linux/picom/picom-best-power.conf|~/.config/picom/picom.conf|Picom"
 )
 
 # Ubuntu aarch64 (ARM 64-bit)
@@ -238,6 +238,7 @@ ubuntu_aarch64_configs=(
     "command -v xmonad|.config/linux/xmonad/xmonad-ubuntu-aarch64.hs|~/.xmonad/xmonad.hs|XMonad"
     "command -v xmobar|.config/linux/xmobar/xmobarrc-ubuntu-aarch64|~/.config/xmobar/xmobarrc|Xmobar"
     "command -v dunst|.config/linux/dunst/dunstrc-ubuntu-aarch64|~/.config/dunst/dunstrc|Dunst"
+    "command -v picom|.config/linux/picom/picom-lower-power.conf|~/.config/picom/picom.conf|Picom"
 )
 
 # Ubuntu amd64 (x86_64)
@@ -245,6 +246,7 @@ ubuntu_amd64_configs=(
     "command -v xmonad|.config/linux/xmonad/xmonad-ubuntu-amd64.hs|~/.config/xmonad/xmonad.hs|XMonad"
     "command -v xmobar|.config/linux/xmobar/xmobarrc-ubuntu-amd64|~/.config/xmobar/xmobarrc|Xmobar"
     "command -v dunst|.config/linux/dunst/dunstrc-ubuntu-amd64|~/.config/dunst/dunstrc|Dunst"
+    "command -v picom|.config/linux/picom/picom-lower-power.conf|~/.config/picom/picom.conf|Picom"
 )
 
 # Main installation function
