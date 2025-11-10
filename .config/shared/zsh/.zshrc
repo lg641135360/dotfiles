@@ -76,3 +76,5 @@ if [[ "$(uname)" == "Linux" ]]; then
         export PATH="$HOME/.cargo/bin:$PATH"
     fi
 fi
+
+export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
