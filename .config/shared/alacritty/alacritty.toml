@@ -9,7 +9,7 @@ blur = true
 opacity = 0.75
 title = "alacritty"
 dynamic_title = false
-startup_mode = "Maximized"
+startup_mode = "Windowed"
 option_as_alt = "Both"
 
 [scrolling]
