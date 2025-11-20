@@ -8,6 +8,7 @@ my config files
   - git
   - nvim
   - zsh(on ~/.config/zsh)
+  - zed settings
 - macintosh
   - aerospace
   - borders[JanyBorders]
