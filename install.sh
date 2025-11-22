@@ -121,7 +121,7 @@ copy_config() {
     fi
 
     # Copy file
-    if cp "$source" "$target"; then
+    if cp -p "$source" "$target"; then
         log_info "Successfully copied $name"
     else
         log_error "Failed to copy $name"
@@ -162,7 +162,7 @@ copy_config_dir() {
     fi
 
     # Copy directory
-    if cp -r "$source" "$target"; then
+    if cp -a "$source" "$target"; then
         log_info "Successfully copied $name directory"
         # Verify directory copy
         if ! diff -r "$source" "$target" >/dev/null 2>&1; then
@@ -222,6 +222,7 @@ linux_configs=(
     # "command -v i3|.config/linux/i3/config|~/.config/i3/config|i3wm"
     "command -v alacritty|.config/shared/alacritty/keys.linux.toml|~/.config/alacritty/keys.toml|Alacritty"
     "command -v rofi|.config/linux/rofi/config.rasi|~/.config/rofi/config.rasi|Rofi"
+    "command -v awesome|.config/linux/awesome/theme/default.lua|~/.config/awesome/theme.lua|AwesomeWM theme"
 )
 
 # Architecture and distro-specific configurations
@@ -231,6 +232,9 @@ arch_x86_64_configs=(
     "command -v xmobar|.config/linux/xmobar/xmobarrc-arch-pc|~/.config/xmobar/xmobarrc|Xmobar"
     "command -v dunst|.config/linux/dunst/dunstrc-arch-pc|~/.config/dunst/dunstrc|Dunst"
     "command -v picom|.config/linux/picom/picom-best-power.conf|~/.config/picom/picom.conf|Picom"
+    "command -v xrdb|.config/linux/x11/xresources/arch_x64|~/.Xresources|Xresources"
+    "command -v awesome|.config/linux/awesome/rc/arch_x64.lua|~/.config/awesome/rc.lua|AwesomeWM rc.lua"
+    "command -v awesome|.config/linux/awesome/autostart/arch_x64.sh|~/.config/awesome/autostart.sh|AwesomeWM autostart script"
 )
 
 # Ubuntu aarch64 (ARM 64-bit)
@@ -247,6 +251,9 @@ ubuntu_amd64_configs=(
     "command -v xmobar|.config/linux/xmobar/xmobarrc-ubuntu-amd64|~/.config/xmobar/xmobarrc|Xmobar"
     "command -v dunst|.config/linux/dunst/dunstrc-ubuntu-amd64|~/.config/dunst/dunstrc|Dunst"
     "command -v picom|.config/linux/picom/picom-lower-power.conf|~/.config/picom/picom.conf|Picom"
+    "command -v xrdb|.config/linux/x11/xresources/ubuntu_x64|~/.Xresources|Xresources"
+    "command -v awesome|.config/linux/awesome/rc/ubuntu_x64.lua|~/.config/awesome/rc.lua|AwesomeWM rc.lua"
+    "command -v awesome|.config/linux/awesome/autostart/ubuntu_x64.sh|~/.config/awesome/autostart.sh|AwesomeWM autostart script"
 )
 
 # Main installation function

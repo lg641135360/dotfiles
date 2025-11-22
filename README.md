@@ -10,14 +10,15 @@ my config files
   - zsh(on ~/.config/zsh)
   - zed settings
 - macintosh
-  - aerospace
-  - borders[JanyBorders]
+  - aerospace[window manager]
 - linux
-  - xmonad
-  - xmobar
-  - dunst
-  - picom
-  - rofi
+  - xmonad[window manager]
+  - xmobar[status bar]
+  - dunst[message notify]
+  - picom[animation composer]
+  - rofi[like macos's alfred]
+  - awesome[window manager]
+  - Xresources[x11 font&color user config]
 
 # how to use
 ```shell
