@@ -48,6 +48,11 @@ theme.border_focus  = palette.accent
 theme.border_marked = palette.accent_alt
 theme.border_radius = dpi(8)
 
+-- Taglist configuration
+theme.taglist_spacing = dpi(10)
+-- theme.taglist_font = "Sarasa Mono SC 11"
+-- theme.taglist_bg_focus = palette.accent .. "33"  -- Slight highlight for focused tag
+
 -- There are other variable sets
 -- overriding the default one when
 -- defined, the sets are:

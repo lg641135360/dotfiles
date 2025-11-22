@@ -65,7 +65,7 @@ modkey = "Mod4"
 
 -- Table of layouts to cover with awful.layout.inc, order matters.
 awful.layout.layouts = {
-    awful.layout.suit.tile,
+    -- awful.layout.suit.tile,
     awful.layout.suit.tile.left,
     awful.layout.suit.tile.bottom,
     awful.layout.suit.tile.top,
@@ -115,9 +115,102 @@ menubar.utils.terminal = terminal -- Set the terminal for applications that requ
 -- Keyboard map indicator and switcher
 mykeyboardlayout = awful.widget.keyboardlayout()
 
+-- Load lain library
+local lain = require("lain")
+
 -- {{{ Wibar
 -- Create a textclock widget
-mytextclock = wibox.widget.textclock()
+mytextclock = wibox.widget.textclock("<span foreground='white'>%a %m月%d日 %H:%M</span>")
+mytextclock.markup = mytextclock:get_markup()
+
+-- CPU widget using lain
+local cpu_widget = wibox.widget.textbox()
+cpu_widget:set_markup("<span foreground='#61afef'>[C] 0%</span>")
+lain.widget.cpu {
+    timeout = 2,
+    settings = function()
+        cpu_widget:set_markup("<span foreground='#61afef'>[C] " .. cpu_now.usage .. "%</span>")
+    end
+}
+
+-- Memory widget using lain
+local mem_widget = wibox.widget.textbox()
+mem_widget:set_markup("<span foreground='#56b6c2'>[M] 0%</span>")
+lain.widget.mem {
+    timeout = 2,
+    settings = function()
+        mem_widget:set_markup("<span foreground='#56b6c2'>[M] " .. mem_now.perc .. "%</span>")
+    end
+}
+
+-- Network widget using lain
+local net_widget = wibox.widget.textbox()
+net_widget:set_markup("<span foreground='#98c379'>[N] 0K/0K</span>")
+
+-- Simple network monitoring (calculate actual speed)
+local net_prev = { recv = 0, sent = 0 }
+local function format_speed(bytes_per_sec)
+    -- bytes_per_sec is already bytes/sec, no need to divide by interval
+    if bytes_per_sec < 1024 then
+        return string.format("%.0f B", bytes_per_sec)
+    elseif bytes_per_sec < 1024 * 1024 then
+        return string.format("%.1f K", bytes_per_sec / 1024)
+    else
+        return string.format("%.1f M", bytes_per_sec / 1024 / 1024)
+    end
+end
+
+local function update_net()
+    local f = io.popen("cat /proc/net/dev | grep -E 'wlan0|eth0|enp' | head -1 | awk '{printf(\"%d %d\", $2, $10)}'")
+    if f then
+        local result = f:read("*a"):gsub("\n", "")
+        f:close()
+        if result and result ~= "" then
+            local recv, sent = result:match("(%d+) (%d+)")
+            if recv and sent then
+                recv = tonumber(recv)
+                sent = tonumber(sent)
+                -- Calculate speed in bytes/sec (divide by 2 seconds interval)
+                local recv_speed = (recv - net_prev.recv) / 2
+                local sent_speed = (sent - net_prev.sent) / 2
+                
+                net_widget:set_markup("<span foreground='#98c379'>[N] ↓" .. format_speed(recv_speed) .. " ↑" .. format_speed(sent_speed) .. "</span>")
+                net_prev.recv = recv
+                net_prev.sent = sent
+            end
+        end
+    end
+end
+
+update_net()
+gears.timer {
+    timeout = 2,
+    autostart = true,
+    callback = update_net
+}
+
+-- Lock screen button widget
+local lock_button = wibox.widget.textbox()
+lock_button:set_markup(" 󰷛 ")
+lock_button:buttons(gears.table.join(
+    awful.button({ }, 1, function()
+        awful.spawn.with_shell("~/.config/scripts/lock")
+    end)
+))
+
+-- Create system info widget container
+local sysinfo_widget = wibox.widget {
+    {
+        cpu_widget,
+        mem_widget,
+        net_widget,
+        layout = wibox.layout.fixed.horizontal,
+        spacing = 12,
+    },
+    left = 5,
+    right = 5,
+    widget = wibox.container.margin,
+}
 
 -- Create a wibox for each screen and add it
 local taglist_buttons = gears.table.join(
@@ -179,7 +272,7 @@ awful.screen.connect_for_each_screen(function(s)
     set_wallpaper(s)
 
     -- Each screen has its own tag table.
-    awful.tag({ "1", "2", "3", "4", "5", "6", "7", "8", "9" }, s, awful.layout.layouts[1])
+    awful.tag({ " ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
 
     -- Create a promptbox for each screen
     s.mypromptbox = awful.widget.prompt()
@@ -198,10 +291,10 @@ awful.screen.connect_for_each_screen(function(s)
         buttons = taglist_buttons
     }
 
-    -- Create a tasklist widget
+    -- Create a tasklist widget (show only current focused client)
     s.mytasklist = awful.widget.tasklist {
         screen  = s,
-        filter  = awful.widget.tasklist.filter.currenttags,
+        filter  = awful.widget.tasklist.filter.focused,
         buttons = tasklist_buttons
     }
 
@@ -213,17 +306,19 @@ awful.screen.connect_for_each_screen(function(s)
         layout = wibox.layout.align.horizontal,
         { -- Left widgets
             layout = wibox.layout.fixed.horizontal,
-            -- mylauncher,
             s.mytaglist,
+            lock_button,
+            s.mylayoutbox,
+            s.mytasklist,  -- Current focused window (next to tags)
             s.mypromptbox,
         },
-        s.mytasklist, -- Middle widget
+        nil, -- Middle (empty space)
         { -- Right widgets
             layout = wibox.layout.fixed.horizontal,
-            mykeyboardlayout,
+            -- mykeyboardlayout,
+            sysinfo_widget,
             wibox.widget.systray(),
             mytextclock,
-            s.mylayoutbox,
         },
     }
 end)
@@ -242,7 +337,9 @@ root.buttons(gears.table.join(
 
 -- {{{ Key bindings
 globalkeys = gears.table.join(
-    awful.key({ modkey,           }, "s",      hotkeys_popup.show_help,
+    awful.key({ modkey,           }, "s",      function() awful.spawn.with_shell("maim -s ~/.cache/com.pot-app.desktop/pot_screenshot_cut.png && curl '127.0.0.1:60828/ocr_translate?screenshot=false'") end,
+              {description="screenshot and ocr", group="launcher"}),
+    awful.key({ modkey, "Shift" }, "s",      hotkeys_popup.show_help,
               {description="show help", group="awesome"}),
     awful.key({ modkey,           }, "Left",   awful.tag.viewprev,
               {description = "view previous", group = "tag"}),
@@ -492,7 +589,9 @@ awful.rules.rules = {
           "Tor Browser", -- Needs a fixed window size to avoid fingerprinting by screen size.
           "Wpa_gui",
           "veromix",
-          "xtightvncviewer"},
+          "xtightvncviewer",
+          "Pot",
+        },
 
         -- Note that the name property shown in xprop might be set slightly after creation of the client
         -- and the name shown there might not match defined rules here.
