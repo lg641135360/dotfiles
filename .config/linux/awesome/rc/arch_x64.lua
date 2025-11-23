@@ -68,7 +68,7 @@ awful.layout.layouts = {
     awful.layout.suit.tile.top,
     awful.layout.suit.fair,
     awful.layout.suit.fair.horizontal,
-    awful.layout.suit.floating,
+    -- awful.layout.suit.floating,
     awful.layout.suit.max
 }
 -- }}}
@@ -100,6 +100,7 @@ mykeyboardlayout = awful.widget.keyboardlayout()
 
 -- Load lain library
 local lain = require("lain")
+local dpi = require("beautiful.xresources").apply_dpi
 
 -- {{{ Wibar
 -- Create a textclock widget
@@ -259,14 +260,38 @@ awful.screen.connect_for_each_screen(function(s)
 
     -- Create a promptbox for each screen
     s.mypromptbox = awful.widget.prompt()
-    -- Create an imagebox widget which will contain an icon indicating which layout we're using.
-    -- We need one layoutbox per screen.
-    s.mylayoutbox = awful.widget.layoutbox(s)
+    -- Create a text-based layout indicator
+    s.mylayoutbox = wibox.widget.textbox()
+    local function update_layoutbox()
+        local layout_name = awful.layout.getname(awful.layout.get(s))
+        local layout_text = {
+            tileleft = "[]=",
+            tilebottom = "TTT",
+            tiletop = "┬┬┬",
+            fairh = "═══",
+            fairv = "|||",
+            floating = "><>",
+            max = "[M]",
+            tile = "[]=",
+            fullscreen = "[ ]",
+            magnifier = "[+]",
+            spiral = "[@]",
+            dwindle = "[\\]",
+            cornernw = "┌─┐",
+            cornerne = "┌─┐",
+            cornersw = "└─┘",
+            cornerse = "└─┘"
+        }
+        s.mylayoutbox:set_text(" " .. (layout_text[layout_name] or layout_name) .. " ")
+    end
+    update_layoutbox()
+    awful.tag.attached_connect_signal(s, "property::selected", update_layoutbox)
+    awful.tag.attached_connect_signal(s, "property::layout", update_layoutbox)
     s.mylayoutbox:buttons(gears.table.join(
-                           awful.button({ }, 1, function () awful.layout.inc( 1) end),
-                           awful.button({ }, 3, function () awful.layout.inc(-1) end),
-                           awful.button({ }, 4, function () awful.layout.inc( 1) end),
-                           awful.button({ }, 5, function () awful.layout.inc(-1) end)))
+                           awful.button({ }, 1, function () awful.layout.inc( 1) update_layoutbox() end),
+                           awful.button({ }, 3, function () awful.layout.inc(-1) update_layoutbox() end),
+                           awful.button({ }, 4, function () awful.layout.inc( 1) update_layoutbox() end),
+                           awful.button({ }, 5, function () awful.layout.inc(-1) update_layoutbox() end)))
     -- Create a taglist widget
     s.mytaglist = awful.widget.taglist {
         screen  = s,
@@ -278,7 +303,34 @@ awful.screen.connect_for_each_screen(function(s)
     s.mytasklist = awful.widget.tasklist {
         screen  = s,
         filter  = awful.widget.tasklist.filter.focused,
-        buttons = tasklist_buttons
+        buttons = tasklist_buttons,
+        widget_template = {
+            {
+                {
+                    {
+                        id     = 'icon_role',
+                        widget = wibox.widget.imagebox,
+                    },
+                    margins = dpi(4),
+                    widget  = wibox.container.margin,
+                },
+                {
+                    id     = 'text_role',
+                    widget = wibox.widget.textbox,
+                },
+                layout = wibox.layout.fixed.horizontal,
+            },
+            left  = 8,
+            right = 8,
+            widget = wibox.container.margin,
+            create_callback = function(self, c, index, objects)
+                local img = self:get_children_by_id('icon_role')[1]
+                if img then
+                    img.forced_width = dpi(20)
+                    img.forced_height = dpi(20)
+                end
+            end,
+        },
     }
 
     -- Create the wibox
@@ -290,8 +342,8 @@ awful.screen.connect_for_each_screen(function(s)
         { -- Left widgets
             layout = wibox.layout.fixed.horizontal,
             s.mytaglist,
-            lock_button,
             s.mylayoutbox,
+            lock_button,
             s.mytasklist,  -- Current focused window (next to tags)
             s.mypromptbox,
         },
@@ -300,7 +352,7 @@ awful.screen.connect_for_each_screen(function(s)
             layout = wibox.layout.fixed.horizontal,
             -- mykeyboardlayout,
             sysinfo_widget,
-            wibox.widget.systray(),
+            wibox.widget.systray({ base_size = dpi(16) }),
             mytextclock,
         },
     }
