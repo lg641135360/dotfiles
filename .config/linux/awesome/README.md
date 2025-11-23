@@ -1,3 +1,8 @@
 - requirement
     - lain (sys info)
-        - git clone https://github.com/lcpz/lain.git ~/.config/awesome/lain
+      - git clone https://github.com/lcpz/lain.git ~/.config/awesome/lain
+    - collision (float window control)
+      - git clone https://github.com/Elv13/collision ~/.config/awesome/collision
+        - mod+control+space : enter float
+        - mod+shift+⬆️⬇️⬅️➡️: move window to up down left right
+        - mod+alt+⬆️⬇️⬅️➡️: Increase a floating client size

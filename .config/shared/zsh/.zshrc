@@ -78,3 +78,6 @@ if [[ "$(uname)" == "Linux" ]]; then
 fi
 
 export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
+
+# alias
+alias wall='feh --bg-fill --randomize ~/Pictures/*'
