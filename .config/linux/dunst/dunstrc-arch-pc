@@ -4,9 +4,9 @@
     follow = mouse
     # Geometry position (top-right corner)
     width = (300, 600)
-    height = 300
+    height = (0, 300)
     origin = top-right
-    offset = 20x60
+    offset = (20, 60)
     # Scaling (for 4K display)
     scale = 2
     # Notification timeout (milliseconds)
