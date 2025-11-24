@@ -30,5 +30,5 @@ run picom
 run fcitx5
 run redshift -l 30.6:114.3 -t 6500:4000
 run pot
-run dunst
+# run dunst  # use naughty instead
 run udiskie -t

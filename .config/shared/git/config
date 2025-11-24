@@ -10,14 +10,9 @@
     autocrlf = input
     whitespace = error
     excludesfile = ~/.config/git/ignore
-    pager = cat
     editor = nvim
     quotepath = false
-
-[pager]
-    diff = cat
-    log = cat
-    show = cat
+    pager = less -R
 
 [init]
     defaultBranch = dev
@@ -41,3 +36,11 @@
 [pull]
     rebase = true
 
+[format]
+    pretty = format:%C(yellow)%h%Creset %Cgreen%ad%Creset %C(auto)%d%Creset %s %Cblue(%an)%Creset
+
+[log]
+    date = relative
+    graph = true
+    decorate = true
+    abbrevCommit = true

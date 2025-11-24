@@ -12,7 +12,6 @@ local wibox = require("wibox")
 local beautiful = require("beautiful")
 -- Notification library
 local naughty = require("naughty")
-naughty.dbus = false
 local menubar = require("menubar")
 local hotkeys_popup = require("awful.hotkeys_popup")
 -- Enable hotkeys help widget for VIM and other apps
@@ -277,7 +276,7 @@ awful.screen.connect_for_each_screen(function(s)
     set_wallpaper(s)
 
     -- Each screen has its own tag table.
-    awful.tag({ " ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
+    awful.tag({ " 󰇩 ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
 
     -- Create a promptbox for each screen
     s.mypromptbox = awful.widget.prompt()
@@ -647,6 +646,7 @@ awful.rules.rules = {
           "veromix",
           "xtightvncviewer",
           "Pot",
+          "com.alibabainc.dingtalk",
         },
 
         -- Note that the name property shown in xprop might be set slightly after creation of the client
