@@ -24,4 +24,4 @@ run udiskie -t  # automount usb drives
 run pasystray  # volume control tray icon
 run nm-applet  # network manager tray icon
 run blueman-applet  # bluetooth tray icon
-run dunst  # notification daemon
+# run dunst  # notification daemon use naughty instead
