@@ -319,10 +319,10 @@ awful.screen.connect_for_each_screen(function(s)
         buttons = taglist_buttons
     }
 
-    -- Create a tasklist widget (show only current focused client)
+    -- Create a tasklist widget (show all windows in current tag)
     s.mytasklist = awful.widget.tasklist {
         screen  = s,
-        filter  = awful.widget.tasklist.filter.focused,
+        filter  = awful.widget.tasklist.filter.currenttags,
         buttons = tasklist_buttons,
         widget_template = {
             {
@@ -349,8 +349,36 @@ awful.screen.connect_for_each_screen(function(s)
                     img.forced_width = dpi(20)
                     img.forced_height = dpi(20)
                 end
+                -- 根据窗口状态添加标记
+                local text = self:get_children_by_id('text_role')[1]
+                if c.minimized then
+                    text.markup = '<span color="#999999">[min] ' .. c.name .. '</span>'
+                elseif c == client.focus then
+                    text.markup = '<b>' .. c.name .. '</b>'
+                else
+                    text.markup = c.name
+                end
             end,
+            update_callback = function(self, c, index, objects)
+                -- 更新时也根据状态改变外观
+                local text = self:get_children_by_id('text_role')[1]
+                if c.minimized then
+                    text.markup = '<span color="#999999">[min] ' .. c.name .. '</span>'
+                elseif c == client.focus then
+                    text.markup = '<b>' .. c.name .. '</b>'
+                else
+                    text.markup = c.name
+                end
+            end
         },
+    }
+
+    -- Limit the width of the tasklist
+    s.mytasklist = wibox.widget {
+        s.mytasklist,
+        width = dpi(1000),
+        strategy = "max",
+        widget = wibox.container.constraint
     }
 
     -- Create the wibox
