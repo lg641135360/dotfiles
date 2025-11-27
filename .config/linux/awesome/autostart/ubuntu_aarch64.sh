@@ -20,9 +20,9 @@ xinput set-prop 10 "libinput Tapping Enabled" 1
 xinput set-prop 10 "libinput Click Method Enabled" 1 0
 xinput set-prop 10 "libinput Disable While Typing Enabled" 1
 
-run gestures start
+feh --bg-fill --randomize /usr/share/backgrounds/* &
 
-run feh --bg-fill --randomize /usr/share/backgrounds/*
+run gestures start
 run nm-applet
 run blueman-applet
 run pasystray
