@@ -2,7 +2,7 @@ return {
   "folke/tokyonight.nvim",
   priority = 1000,
   config = function()
-    local transparent = false -- set to true if you would like to enable transparency
+    local transparent = true -- 设为 true 启用透明背景
 
     local bg = "#011628"
     local bg_dark = "#011423"

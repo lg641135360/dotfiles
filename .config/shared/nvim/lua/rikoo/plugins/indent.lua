@@ -1,13 +1,13 @@
 -- ~/.config/nvim/lua/rikoo/plugins/indent.lua
--- indent-blankline: show indent guides
--- Helps visualize code structure and nested blocks
+-- indent-blankline: 显示缩进参考线
+-- 帮助可视化代码结构和嵌套块
 
 return {
   "lukas-reineke/indent-blankline.nvim",
-  main = "ibl", -- new API name
+  main = "ibl", -- 新版 API 名称
   opts = {
-    indent = { char = "│" }, -- character for indent line
-    scope = { enabled = true }, -- highlight current scope
+    indent = { char = "│" }, -- 缩进线字符
+    scope = { enabled = true }, -- 高亮当前作用域
   },
 }
 

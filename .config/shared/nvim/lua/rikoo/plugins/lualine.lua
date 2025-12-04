@@ -1,15 +1,15 @@
 -- ~/.config/nvim/lua/rikoo/plugins/lualine.lua
--- lualine.nvim: a fast and easy statusline
--- Shows mode, file info, position, etc.
+-- lualine.nvim: 快速美观的状态栏
+-- 显示模式、文件信息、位置等
 
 return {
   "nvim-lualine/lualine.nvim",
-  dependencies = { "nvim-tree/nvim-web-devicons" }, -- optional, for icons
+  dependencies = { "nvim-tree/nvim-web-devicons" }, -- 可选，用于显示图标
   config = function()
     require("lualine").setup({
       options = {
-        theme = "auto",      -- auto-detect colorscheme
-        section_separators = "", -- keep it minimal
+        theme = "auto",      -- 自动检测配色方案
+        section_separators = "", -- 保持简洁风格
         component_separators = "",
       },
       sections = {

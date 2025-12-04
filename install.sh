@@ -5,7 +5,7 @@ set -e  # Exit on error
 os=$(uname -s)
 arch=$(uname -m)
 cur_path=$(pwd)
-backup_limit=5
+backup_limit=3
 timestamp=$(date +%Y%m%d_%H%M%S)
 
 # Detect Linux distribution
