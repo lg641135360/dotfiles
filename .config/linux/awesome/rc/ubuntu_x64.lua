@@ -124,43 +124,124 @@ local dpi = require("beautiful.xresources").apply_dpi
 
 -- {{{ Wibar
 -- Create a textclock widget
-mytextclock = wibox.widget.textclock("<span foreground='white'>%a %m月%d日 %H:%M</span>")
-mytextclock.markup = mytextclock:get_markup()
+mytextclock = wibox.widget.textbox()
+gears.timer {
+    timeout = 60,
+    autostart = true,
+    call_now = true,
+    callback = function()
+        local time_str = os.date(" %a %m月%d日 %H:%M ")
+        mytextclock:set_markup("<span foreground='#c678dd'>" .. time_str .. "</span>")
+    end
+}
 
--- CPU widget using lain
+-- CPU widget using lain with icon
 local cpu_widget = wibox.widget.textbox()
-cpu_widget:set_markup("<span foreground='#61afef'>[C] 0%</span>")
+cpu_widget:set_markup("<span foreground='#61afef'>CPU: </span><span foreground='#abb2bf'>0%</span>")
 lain.widget.cpu {
     timeout = 2,
     settings = function()
-        cpu_widget:set_markup("<span foreground='#61afef'>[C] " .. cpu_now.usage .. "%</span>")
+        local color = "#abb2bf"
+        if tonumber(cpu_now.usage) > 80 then
+            color = "#e06c75"
+        elseif tonumber(cpu_now.usage) > 50 then
+            color = "#e5c07b"
+        end
+        cpu_widget:set_markup("<span foreground='#61afef'>CPU: </span><span foreground='" .. color .. "'>" .. cpu_now.usage .. "%</span>")
     end
 }
 
--- Memory widget using lain
+-- Memory widget using lain with icon
 local mem_widget = wibox.widget.textbox()
-mem_widget:set_markup("<span foreground='#56b6c2'>[M] 0%</span>")
+mem_widget:set_markup("<span foreground='#56b6c2'>MEM: </span><span foreground='#abb2bf'>0%</span>")
 lain.widget.mem {
     timeout = 2,
     settings = function()
-        mem_widget:set_markup("<span foreground='#56b6c2'>[M] " .. mem_now.perc .. "%</span>")
+        local color = "#abb2bf"
+        if tonumber(mem_now.perc) > 80 then
+            color = "#e06c75"
+        elseif tonumber(mem_now.perc) > 60 then
+            color = "#e5c07b"
+        end
+        mem_widget:set_markup("<span foreground='#56b6c2'>MEM: </span><span foreground='" .. color .. "'>" .. mem_now.perc .. "%</span>")
     end
 }
 
--- Network widget using lain
+-- Volume widget
+local volume_widget = wibox.widget.textbox()
+volume_widget:set_markup("<span foreground='#e5c07b'>VOL: </span><span foreground='#abb2bf'>0%</span>")
+
+local function update_volume()
+    awful.spawn.easy_async_with_shell(
+        "pactl get-sink-volume @DEFAULT_SINK@ | grep -oP '\\d+%' | head -1 | tr -d '%' && pactl get-sink-mute @DEFAULT_SINK@ | grep -oP '(yes|no)'",
+        function(stdout)
+            local volume, mute = stdout:match("(%d+)\n(%a+)")
+            if volume and mute then
+                volume = tonumber(volume)
+                local icon = "VOL:"
+                local color = "#abb2bf"
+                
+                if mute == "yes" then
+                    icon = "MUTE:"
+                    color = "#e06c75"
+                elseif volume == 0 then
+                    icon = "VOL:"
+                    color = "#3e4451"
+                elseif volume < 30 then
+                    icon = "VOL:"
+                elseif volume < 70 then
+                    icon = "VOL:"
+                else
+                    icon = "VOL:"
+                    color = "#98c379"
+                end
+                
+                volume_widget:set_markup("<span foreground='#e5c07b'>" .. icon .. " </span><span foreground='" .. color .. "'>" .. volume .. "%</span>")
+            end
+        end
+    )
+end
+
+update_volume()
+gears.timer {
+    timeout = 5,
+    autostart = true,
+    callback = update_volume
+}
+
+-- Add mouse controls for volume widget
+volume_widget:buttons(gears.table.join(
+    awful.button({ }, 1, function()
+        awful.spawn("pactl set-sink-mute @DEFAULT_SINK@ toggle")
+        gears.timer.start_new(0.1, function() update_volume() return false end)
+    end),
+    awful.button({ }, 3, function()
+        awful.spawn("pavucontrol")
+    end),
+    awful.button({ }, 4, function()
+        awful.spawn("pactl set-sink-volume @DEFAULT_SINK@ +5%")
+        gears.timer.start_new(0.1, function() update_volume() return false end)
+    end),
+    awful.button({ }, 5, function()
+        awful.spawn("pactl set-sink-volume @DEFAULT_SINK@ -5%")
+        gears.timer.start_new(0.1, function() update_volume() return false end)
+    end)
+))
+
+-- Network widget with icons
 local net_widget = wibox.widget.textbox()
-net_widget:set_markup("<span foreground='#98c379'>[N] 0K/0K</span>")
+net_widget:set_markup("<span foreground='#98c379'>NET: </span><span foreground='#abb2bf'>0K 0K</span>")
 
 -- Simple network monitoring (calculate actual speed)
 local net_prev = { recv = 0, sent = 0 }
 local function format_speed(bytes_per_sec)
     -- bytes_per_sec is already bytes/sec, no need to divide by interval
     if bytes_per_sec < 1024 then
-        return string.format("%.0f B", bytes_per_sec)
+        return string.format("%.0fB", bytes_per_sec)
     elseif bytes_per_sec < 1024 * 1024 then
-        return string.format("%.1f K", bytes_per_sec / 1024)
+        return string.format("%.1fK", bytes_per_sec / 1024)
     else
-        return string.format("%.1f M", bytes_per_sec / 1024 / 1024)
+        return string.format("%.1fM", bytes_per_sec / 1024 / 1024)
     end
 end
 
@@ -178,7 +259,7 @@ local function update_net()
                 local recv_speed = (recv - net_prev.recv) / 2
                 local sent_speed = (sent - net_prev.sent) / 2
                 
-                net_widget:set_markup("<span foreground='#98c379'>[N] ↓" .. format_speed(recv_speed) .. " ↑" .. format_speed(sent_speed) .. "</span>")
+                net_widget:set_markup("<span foreground='#98c379'>NET: </span><span foreground='#61afef'>↓" .. format_speed(recv_speed) .. "</span> <span foreground='#e06c75'>↑" .. format_speed(sent_speed) .. "</span>")
                 net_prev.recv = recv
                 net_prev.sent = sent
             end
@@ -193,26 +274,66 @@ gears.timer {
     callback = update_net
 }
 
--- Lock screen button widget
-local lock_button = wibox.widget.textbox()
-lock_button:set_markup(" 󰷛 ")
+-- Lock screen button widget with background
+local lock_button = wibox.widget {
+    {
+        markup = "<span foreground='#e5c07b'> 󰷛 </span>",
+        widget = wibox.widget.textbox,
+    },
+    left = 8,
+    right = 8,
+    top = 2,
+    bottom = 2,
+    widget = wibox.container.margin,
+}
 lock_button:buttons(gears.table.join(
     awful.button({ }, 1, function()
         awful.spawn.with_shell("~/.config/scripts/lock")
     end)
 ))
 
--- Create system info widget container
+-- Create separator
+local function make_separator()
+    return wibox.widget {
+        markup = "<span foreground='#3e4451'>│</span>",
+        widget = wibox.widget.textbox,
+    }
+end
+
+-- Create system info widget container with separators
 local sysinfo_widget = wibox.widget {
     {
         cpu_widget,
+        make_separator(),
         mem_widget,
+        make_separator(),
+        volume_widget,
+        make_separator(),
         net_widget,
         layout = wibox.layout.fixed.horizontal,
-        spacing = 12,
+        spacing = 8,
     },
-    left = 5,
-    right = 5,
+    left = 8,
+    right = 8,
+    top = 2,
+    bottom = 2,
+    widget = wibox.container.margin,
+}
+
+-- Create systray widget with styling
+local systray = wibox.widget.systray()
+systray:set_base_size(dpi(22))
+
+local systray_widget = wibox.widget {
+    {
+        systray,
+        valign = "center",
+        widget = wibox.container.place,
+    },
+    left = 8,
+    right = 8,
+    top = 2,
+    bottom = 2,
     widget = wibox.container.margin,
 }
 
@@ -276,7 +397,7 @@ awful.screen.connect_for_each_screen(function(s)
     set_wallpaper(s)
 
     -- Each screen has its own tag table.
-    awful.tag({ " 󰇩 ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
+    awful.tag({ " ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
 
     -- Create a promptbox for each screen
     s.mypromptbox = awful.widget.prompt()
@@ -384,24 +505,48 @@ awful.screen.connect_for_each_screen(function(s)
     -- Create the wibox
     s.mywibox = awful.wibar({ position = "top", screen = s })
 
-    -- Add widgets to the wibox
+    -- Add widgets to the wibox with better spacing
     s.mywibox:setup {
         layout = wibox.layout.align.horizontal,
         { -- Left widgets
             layout = wibox.layout.fixed.horizontal,
-            s.mytaglist,
+            spacing = 4,
+            {
+                s.mytaglist,
+                left = 8,
+                right = 4,
+                widget = wibox.container.margin,
+            },
             s.mylayoutbox,
             lock_button,
-            s.mytasklist,  -- Current focused window (next to tags)
+            make_separator(),
+            {
+                s.mytasklist,
+                left = 4,
+                widget = wibox.container.margin,
+            },
             s.mypromptbox,
         },
         nil, -- Middle (empty space)
         { -- Right widgets
             layout = wibox.layout.fixed.horizontal,
+            spacing = 8,
             -- mykeyboardlayout,
             sysinfo_widget,
-            wibox.widget.systray({ base_size = dpi(16) }),
-            mytextclock,
+            make_separator(),
+            {
+                systray_widget,
+                left = 4,
+                right = 4,
+                widget = wibox.container.margin,
+            },
+            make_separator(),
+            {
+                mytextclock,
+                left = 4,
+                right = 8,
+                widget = wibox.container.margin,
+            },
         },
     }
 end)
@@ -522,9 +667,22 @@ globalkeys = gears.table.join(
     -- Menubar
     awful.key({ modkey }, "c", function() menubar.show() end,
               {description = "show the menubar", group = "launcher"}),
-
     -- lock screen
-    awful.key({ modkey, "Control" }, "l", function() awful.spawn.with_shell("~/.config/scripts/lock") end, {description = "lock screen", group = "custom"})
+    awful.key({ modkey, "Control" }, "l", function() awful.spawn.with_shell("~/.config/scripts/lock") end, {description = "lock screen", group = "custom"}),
+    
+    -- Volume control
+    awful.key({ }, "XF86AudioRaiseVolume", function()
+        awful.spawn("pactl set-sink-volume @DEFAULT_SINK@ +5%")
+        gears.timer.start_new(0.1, function() update_volume() return false end)
+    end, {description = "increase volume", group = "media"}),
+    awful.key({ }, "XF86AudioLowerVolume", function()
+        awful.spawn("pactl set-sink-volume @DEFAULT_SINK@ -5%")
+        gears.timer.start_new(0.1, function() update_volume() return false end)
+    end, {description = "decrease volume", group = "media"}),
+    awful.key({ }, "XF86AudioMute", function()
+        awful.spawn("pactl set-sink-mute @DEFAULT_SINK@ toggle")
+        gears.timer.start_new(0.1, function() update_volume() return false end)
+    end, {description = "toggle mute", group = "media"})
 )
 
 clientkeys = gears.table.join(
@@ -674,7 +832,6 @@ awful.rules.rules = {
           "veromix",
           "xtightvncviewer",
           "Pot",
-          "com.alibabainc.dingtalk",
         },
 
         -- Note that the name property shown in xprop might be set slightly after creation of the client
