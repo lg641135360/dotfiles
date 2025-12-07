@@ -21,4 +21,4 @@ keymap.set("n", "<leader>to", ":tabnew<CR>", { desc = "打开新标签页 (to)" 
 keymap.set("n", "<leader>tx", ":tabclose<CR>", { desc = "关闭当前标签页 (tx)" })
 keymap.set("n", "<leader>tn", ":tabn<CR>", { desc = "下一个标签页 (tn)" })
 keymap.set("n", "<leader>tp", ":tabp<CR>", { desc = "上一个标签页 (tp)" })
-keymap.set("n", "<leader>tf", ":tabnew %<CR>", { desc = "当前文件新标签打开 (tf)" })
+keymap.set("n", "<leader>tF", ":tabnew %<CR>", { desc = "当前文件新标签打开 (tF)" }) -- 改为大写 F，避免与终端冲突

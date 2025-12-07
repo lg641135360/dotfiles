@@ -14,7 +14,8 @@ return {
       { "<leader>e", group = "文件树" },     -- nvim-tree 相关
       { "<leader>z", group = "代码折叠" },   -- 折叠命令
       { "<leader>s", group = "窗口分割" },   -- 窗口管理
-      { "<leader>t", group = "标签页" },     -- 标签页管理
+      { "<leader>t", group = "终端/标签" },  -- 终端和标签页管理
+      { "<leader>g", group = "Git" },        -- Git 操作
     })
   end,
 }

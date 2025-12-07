@@ -13,19 +13,34 @@ return {
     telescope.setup({
       defaults = {
         path_display = { "smart" },
+        prompt_prefix = " 🔍 ",
+        selection_caret = " ➜ ",
+        entry_prefix = "   ",
+        sorting_strategy = "ascending",
+        layout_strategy = "horizontal",
+        layout_config = {
+          horizontal = {
+            prompt_position = "top",
+            preview_width = 0.55,
+            results_width = 0.8,
+          },
+          width = 0.87,
+          height = 0.80,
+          preview_cutoff = 120,
+        },
+        borderchars = { "─", "│", "─", "│", "┌", "┐", "┘", "└" },
         mappings = {
           i = {
-            ["<C-k>"] = actions.move_selection_previous, -- 上一个结果
-            ["<C-j>"] = actions.move_selection_next,     -- 下一个结果
-            ["<C-q>"] = actions.send_selected_to_qflist, -- 发送到 quickfix
+            ["<C-k>"] = actions.move_selection_previous,
+            ["<C-j>"] = actions.move_selection_next,
+            ["<C-q>"] = actions.send_selected_to_qflist + actions.open_qflist,
           },
         },
       },
       pickers = {
         find_files = {
           hidden = true,     -- 显示隐藏文件
-          no_ignore = true,  -- 不受 .gitignore 限制
-          find_command = { "fd", "--type", "f", "--hidden", "--no-ignore", "--exclude", ".git" },
+          find_command = { "fd", "--type", "f", "--hidden", "--exclude", ".git" },
         },
       },
     })

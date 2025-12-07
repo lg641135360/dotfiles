@@ -1,24 +1,47 @@
 -- ~/.config/nvim/lua/rikoo/plugins/lualine.lua
 -- lualine.nvim: 快速美观的状态栏
--- 显示模式、文件信息、位置等
 
 return {
   "nvim-lualine/lualine.nvim",
-  dependencies = { "nvim-tree/nvim-web-devicons" }, -- 可选，用于显示图标
+  dependencies = { "nvim-tree/nvim-web-devicons" },
   config = function()
     require("lualine").setup({
       options = {
-        theme = "auto",      -- 自动检测配色方案
-        section_separators = "", -- 保持简洁风格
-        component_separators = "",
+        theme = "tokyonight",
+        section_separators = { left = "", right = "" },
+        component_separators = { left = "│", right = "│" },
+        globalstatus = true, -- 单一全局状态栏
       },
       sections = {
-        lualine_a = { "mode" },
-        lualine_b = { "branch" },
+        lualine_a = { { "mode", fmt = function(str) return str:sub(1,1) end } }, -- 只显示首字母
+        lualine_b = { 
+          { "branch", icon = "" },
+          { "diff", symbols = { added = " ", modified = " ", removed = " " } },
+        },
+        lualine_c = { 
+          { "filename", path = 1, symbols = { modified = " ●", readonly = " ", unnamed = "[未命名]" } }
+        },
+        lualine_x = { 
+          { "diagnostics", sources = { "nvim_diagnostic" }, symbols = { error = " ", warn = " ", info = " ", hint = " " } },
+          { "filetype", icon_only = true },
+        },
+        lualine_y = { 
+          { "progress", separator = "" },
+          { "location" }
+        },
+        lualine_z = {
+          function()
+            return " " .. os.date("%H:%M")
+          end,
+        },
+      },
+      inactive_sections = {
+        lualine_a = {},
+        lualine_b = {},
         lualine_c = { "filename" },
-        lualine_x = { "encoding", "fileformat", "filetype" },
-        lualine_y = { "progress" },
-        lualine_z = { "location" },
+        lualine_x = { "location" },
+        lualine_y = {},
+        lualine_z = {},
       },
     })
   end,
