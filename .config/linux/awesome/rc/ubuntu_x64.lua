@@ -167,67 +167,6 @@ lain.widget.mem {
     end
 }
 
--- Volume widget
-local volume_widget = wibox.widget.textbox()
-volume_widget:set_markup("<span foreground='#e5c07b'>VOL: </span><span foreground='#abb2bf'>0%</span>")
-
-local function update_volume()
-    awful.spawn.easy_async_with_shell(
-        "pactl get-sink-volume @DEFAULT_SINK@ | grep -oP '\\d+%' | head -1 | tr -d '%' && pactl get-sink-mute @DEFAULT_SINK@ | grep -oP '(yes|no)'",
-        function(stdout)
-            local volume, mute = stdout:match("(%d+)\n(%a+)")
-            if volume and mute then
-                volume = tonumber(volume)
-                local icon = "VOL:"
-                local color = "#abb2bf"
-                
-                if mute == "yes" then
-                    icon = "MUTE:"
-                    color = "#e06c75"
-                elseif volume == 0 then
-                    icon = "VOL:"
-                    color = "#3e4451"
-                elseif volume < 30 then
-                    icon = "VOL:"
-                elseif volume < 70 then
-                    icon = "VOL:"
-                else
-                    icon = "VOL:"
-                    color = "#98c379"
-                end
-                
-                volume_widget:set_markup("<span foreground='#e5c07b'>" .. icon .. " </span><span foreground='" .. color .. "'>" .. volume .. "%</span>")
-            end
-        end
-    )
-end
-
-update_volume()
-gears.timer {
-    timeout = 5,
-    autostart = true,
-    callback = update_volume
-}
-
--- Add mouse controls for volume widget
-volume_widget:buttons(gears.table.join(
-    awful.button({ }, 1, function()
-        awful.spawn("pactl set-sink-mute @DEFAULT_SINK@ toggle")
-        gears.timer.start_new(0.1, function() update_volume() return false end)
-    end),
-    awful.button({ }, 3, function()
-        awful.spawn("pavucontrol")
-    end),
-    awful.button({ }, 4, function()
-        awful.spawn("pactl set-sink-volume @DEFAULT_SINK@ +5%")
-        gears.timer.start_new(0.1, function() update_volume() return false end)
-    end),
-    awful.button({ }, 5, function()
-        awful.spawn("pactl set-sink-volume @DEFAULT_SINK@ -5%")
-        gears.timer.start_new(0.1, function() update_volume() return false end)
-    end)
-))
-
 -- Network widget with icons
 local net_widget = wibox.widget.textbox()
 net_widget:set_markup("<span foreground='#98c379'>NET: </span><span foreground='#abb2bf'>0K 0K</span>")
@@ -306,8 +245,6 @@ local sysinfo_widget = wibox.widget {
         cpu_widget,
         make_separator(),
         mem_widget,
-        make_separator(),
-        volume_widget,
         make_separator(),
         net_widget,
         layout = wibox.layout.fixed.horizontal,
@@ -397,7 +334,7 @@ awful.screen.connect_for_each_screen(function(s)
     set_wallpaper(s)
 
     -- Each screen has its own tag table.
-    awful.tag({ " ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
+    awful.tag({ "󰇩 ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
 
     -- Create a promptbox for each screen
     s.mypromptbox = awful.widget.prompt()
@@ -506,6 +443,32 @@ awful.screen.connect_for_each_screen(function(s)
     s.mywibox = awful.wibar({ position = "top", screen = s })
 
     -- Add widgets to the wibox with better spacing
+    local right_widgets = {
+        layout = wibox.layout.fixed.horizontal,
+        spacing = 8,
+        sysinfo_widget,
+        make_separator(),
+    }
+
+    -- 只在主屏幕添加托盘组件
+    if s == screen.primary then
+        table.insert(right_widgets, {
+            systray_widget,
+            left = 4,
+            right = 4,
+            widget = wibox.container.margin,
+        })
+        table.insert(right_widgets, make_separator())
+    end
+
+    -- 添加时钟组件（所有屏幕都显示）
+    table.insert(right_widgets, {
+        mytextclock,
+        left = 4,
+        right = 8,
+        widget = wibox.container.margin,
+    })
+
     s.mywibox:setup {
         layout = wibox.layout.align.horizontal,
         { -- Left widgets
@@ -528,26 +491,7 @@ awful.screen.connect_for_each_screen(function(s)
             s.mypromptbox,
         },
         nil, -- Middle (empty space)
-        { -- Right widgets
-            layout = wibox.layout.fixed.horizontal,
-            spacing = 8,
-            -- mykeyboardlayout,
-            sysinfo_widget,
-            make_separator(),
-            {
-                systray_widget,
-                left = 4,
-                right = 4,
-                widget = wibox.container.margin,
-            },
-            make_separator(),
-            {
-                mytextclock,
-                left = 4,
-                right = 8,
-                widget = wibox.container.margin,
-            },
-        },
+        right_widgets, -- Right widgets
     }
 end)
 -- }}}
@@ -668,21 +612,7 @@ globalkeys = gears.table.join(
     awful.key({ modkey }, "c", function() menubar.show() end,
               {description = "show the menubar", group = "launcher"}),
     -- lock screen
-    awful.key({ modkey, "Control" }, "l", function() awful.spawn.with_shell("~/.config/scripts/lock") end, {description = "lock screen", group = "custom"}),
-    
-    -- Volume control
-    awful.key({ }, "XF86AudioRaiseVolume", function()
-        awful.spawn("pactl set-sink-volume @DEFAULT_SINK@ +5%")
-        gears.timer.start_new(0.1, function() update_volume() return false end)
-    end, {description = "increase volume", group = "media"}),
-    awful.key({ }, "XF86AudioLowerVolume", function()
-        awful.spawn("pactl set-sink-volume @DEFAULT_SINK@ -5%")
-        gears.timer.start_new(0.1, function() update_volume() return false end)
-    end, {description = "decrease volume", group = "media"}),
-    awful.key({ }, "XF86AudioMute", function()
-        awful.spawn("pactl set-sink-mute @DEFAULT_SINK@ toggle")
-        gears.timer.start_new(0.1, function() update_volume() return false end)
-    end, {description = "toggle mute", group = "media"})
+    awful.key({ modkey, "Control" }, "l", function() awful.spawn.with_shell("~/.config/scripts/lock") end, {description = "lock screen", group = "custom"})
 )
 
 clientkeys = gears.table.join(
