@@ -211,10 +211,11 @@ reapply_app_rules_on_title_change = true
 # remaining workspaces are named "Workspace X".
 # Do not provide more names than default_workspace_count.
 workspace_names = [
-	'0',
-	'1󱉲',
-	'2󰖟',
-	'3󱃖'
+	'browser',
+	'code',
+	'note',
+	'email',
+  'others'
 ]
 
 # App rules (automatic assignment)
@@ -298,8 +299,7 @@ app_rules = [
   #{ app_id = "com.apple.iCal", workspace = 1 },
   #{ app_id = "app.zen-browser.zen", workspace = 2 },
   #{ app_id = "com.apple.Safari", workspace = 2 },
-  { ax_subrole = "AXApplicationGroup", floating = true },
-  { ax_subrole = "AXDialog", floating = true },
+  #{ ax_subrole = "AXApplicationGroup", floating = true },
   #{ app_id = "com.google.Chrome", workspace = 2 },
   #{ app_id = "com.apple.iphonesimulator", workspace = 4 },
   #{ title_regex = "Rust$", workspace = 8 },
@@ -310,7 +310,8 @@ app_rules = [
   #{ title_regex = "^CRC$", workspace = 6 },
   #{ title_regex = "^BGA$", workspace = 7 },
   { app_id = "com.tencent.xinWeChat", floating = true },
-  { app_id = "md.obsidian", workspace = 3 }
+  { app_id = "md.obsidian", workspace = 3 },
+  { ax_subrole = "AXDialog", floating = true },
 ]
 
 # Modifier combinations that can be reused in key bindings
