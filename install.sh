@@ -215,6 +215,7 @@ shared_dir_configs=(
 
 macos_configs=(
     "command -v aerospace|.config/macos/aerospace/aerospace.toml|~/.config/aerospace/aerospace.toml|Aerospace"
+    "command -v rift|.config/macos/rift/config.toml|~/.config/rift/config.toml|Rift"
     "command -v alacritty|.config/shared/alacritty/keys.macos.toml|~/.config/alacritty/keys.toml|Alacritty"
 )
 

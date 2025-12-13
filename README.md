@@ -11,6 +11,7 @@ my config files
   - zed settings
 - macintosh
   - aerospace[window manager]
+  - rift[window manager]
 - linux
   - xmonad[window manager]
   - xmobar[status bar]
