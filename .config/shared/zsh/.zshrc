@@ -29,6 +29,7 @@ plug "zsh-users/zsh-autosuggestions"
 plug "romkatv/powerlevel10k"
 plug "zap-zsh/fzf"
 plug "rupa/z"
+plug "kutsan/zsh-system-clipboard"
 plug "zsh-users/zsh-history-substring-search"
 plug "zsh-users/zsh-syntax-highlighting"  # Must be last
 
@@ -49,7 +50,6 @@ if [[ "$(uname)" == "Linux" ]]; then
     # Only initialize when conda command is actually used
     if [ -f "/opt/miniforge/bin/conda" ]; then
         export PATH="/opt/miniforge/bin:$PATH"
-        
         # Lazy load function
         conda() {
             unset -f conda
