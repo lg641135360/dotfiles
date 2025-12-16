@@ -43,13 +43,15 @@ setopt EXTENDED_GLOB             # Enable extended globbing
 # ============================================================================
 # Plugins (syntax-highlighting must be last, prompt after it)
 # ============================================================================
-plug "zap-zsh/supercharge"
-plug "zap-zsh/vim"
-plug "hlissner/zsh-autopair"
-plug "zsh-users/zsh-autosuggestions"
-plug "zap-zsh/fzf"
-plug "rupa/z"
-plug "kutsan/zsh-system-clipboard"
+plug "zap-zsh/supercharge"             # Enhanced completion, auto-cd, Ctrl+X reload
+plug "zap-zsh/vim"                     # Vim keybindings
+plug "hlissner/zsh-autopair"           # Auto-close quotes, brackets
+plug "zsh-users/zsh-autosuggestions"   # Command suggestions from history
+plug "zap-zsh/fzf"                     # Fuzzy finder integration
+plug "wfxr/forgit"                     # Interactive git operations with fzf
+plug "rupa/z"                          # Smart directory jumping
+plug "kutsan/zsh-system-clipboard"     # System clipboard integration
+plug "MichaelAquilina/zsh-you-should-use"  # Suggest aliases
 plug "zsh-users/zsh-history-substring-search"
 plug "zsh-users/zsh-syntax-highlighting"
 
