@@ -310,6 +310,7 @@ app_rules = [
   #{ title_regex = "^CRC$", workspace = 6 },
   #{ title_regex = "^BGA$", workspace = 7 },
   { app_id = "com.tencent.xinWeChat", floating = true },
+  { app_id = "com.apple.Maps", floating = true },
   { app_id = "md.obsidian", workspace = 3 },
   { ax_subrole = "AXDialog", floating = true },
 ]
