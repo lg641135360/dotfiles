@@ -593,6 +593,88 @@ globalkeys = gears.table.join(
         end,
         {description = "go back", group = "client"}),
 
+    -- Custom keybindings for switching between occupied tags
+    awful.key({ modkey,           }, "a", function ()
+            local screen = awful.screen.focused()
+            local tags = screen.tags
+            local target_tag = nil
+            local current_tag_index = 0
+
+            -- Find current tag index
+            for i, tag in ipairs(tags) do
+                if tag.selected then
+                    current_tag_index = i
+                    break
+                end
+            end
+
+            -- Look for previous occupied tag (going backwards)
+            for i = current_tag_index - 1, 1, -1 do
+                local tag = tags[i]
+                if #tag:clients() > 0 then
+                    target_tag = tag
+                    break
+                end
+            end
+
+            -- If no previous occupied tag found, wrap to end
+            if not target_tag then
+                for i = #tags, current_tag_index + 1, -1 do
+                    local tag = tags[i]
+                    if #tag:clients() > 0 then
+                        target_tag = tag
+                        break
+                    end
+                end
+            end
+
+            -- Switch to target tag if found
+            if target_tag then
+                target_tag:view_only()
+            end
+        end,
+        {description = "view previous tag with clients", group = "tag"}),
+    awful.key({ modkey,           }, "d", function ()
+            local screen = awful.screen.focused()
+            local tags = screen.tags
+            local target_tag = nil
+            local current_tag_index = 0
+
+            -- Find current tag index
+            for i, tag in ipairs(tags) do
+                if tag.selected then
+                    current_tag_index = i
+                    break
+                end
+            end
+
+            -- Look for next occupied tag (going forward)
+            for i = current_tag_index + 1, #tags do
+                local tag = tags[i]
+                if #tag:clients() > 0 then
+                    target_tag = tag
+                    break
+                end
+            end
+
+            -- If no next occupied tag found, wrap to beginning
+            if not target_tag then
+                for i = 1, current_tag_index - 1 do
+                    local tag = tags[i]
+                    if #tag:clients() > 0 then
+                        target_tag = tag
+                        break
+                    end
+                end
+            end
+
+            -- Switch to target tag if found
+            if target_tag then
+                target_tag:view_only()
+            end
+        end,
+        {description = "view next tag with clients", group = "tag"}),
+
     -- Standard program
     awful.key({ modkey,           }, "Return", function () awful.spawn(terminal) end,
               {description = "open a terminal", group = "launcher"}),
