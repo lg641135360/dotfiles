@@ -22,7 +22,7 @@ sleep 1
 xrdb merge ~/.Xresources
 
 feh --bg-fill --randomize ~/Pictures/wall/* &
-run_custom "Snipaste-2.10.8-x86_64.AppImage" ~/Documents/Snipaste-2.10.8-x86_64.AppImage
+run_custom "Snipaste-2.11.2-x86_64.AppImage" ~/Documents/Snipaste-2.11.2-x86_64.AppImage
 run nm-applet
 run blueman-applet
 run pasystray
