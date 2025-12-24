@@ -243,7 +243,7 @@ ubuntu_aarch64_configs=(
     "command -v xmonad|.config/linux/xmonad/xmonad-ubuntu-aarch64.hs|~/.xmonad/xmonad.hs|XMonad"
     "command -v xmobar|.config/linux/xmobar/xmobarrc-ubuntu-aarch64|~/.config/xmobar/xmobarrc|Xmobar"
     "command -v dunst|.config/linux/dunst/dunstrc-ubuntu-aarch64|~/.config/dunst/dunstrc|Dunst"
-    "command -v picom|.config/linux/picom/picom-lower-power.conf|~/.config/picom/picom.conf|Picom"
+    "command -v picom|.config/linux/picom/picom-aarch64.conf|~/.config/picom/picom.conf|Picom"
     "command -v xrdb|.config/linux/x11/xresources/ubuntu_aarch64|~/.Xresources|Xresources"
     "command -v awesome|.config/linux/awesome/rc/ubuntu_aarch64.lua|~/.config/awesome/rc.lua|AwesomeWM rc.lua"
     "command -v awesome|.config/linux/awesome/autostart/ubuntu_aarch64.sh|~/.config/awesome/autostart.sh|AwesomeWM autostart script"

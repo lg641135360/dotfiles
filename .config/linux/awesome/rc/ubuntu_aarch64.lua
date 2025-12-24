@@ -12,7 +12,6 @@ local wibox = require("wibox")
 local beautiful = require("beautiful")
 -- Notification library
 local naughty = require("naughty")
--- naughty.dbus = false
 local menubar = require("menubar")
 local hotkeys_popup = require("awful.hotkeys_popup")
 -- Enable hotkeys help widget for VIM and other apps
@@ -69,13 +68,7 @@ modkey = "Mod4"
 
 -- Table of layouts to cover with awful.layout.inc, order matters.
 awful.layout.layouts = {
-    -- awful.layout.suit.tile,
     awful.layout.suit.tile.left,
-    awful.layout.suit.tile.bottom,
-    awful.layout.suit.tile.top,
-    awful.layout.suit.fair,
-    awful.layout.suit.fair.horizontal,
-    -- awful.layout.suit.floating,
     awful.layout.suit.max
 }
 -- }}}
@@ -125,48 +118,69 @@ local dpi = require("beautiful.xresources").apply_dpi
 
 -- {{{ Wibar
 -- Create a textclock widget
-mytextclock = wibox.widget.textclock("<span foreground='white'>%a %m月%d日 %H:%M</span>")
-mytextclock.markup = mytextclock:get_markup()
+mytextclock = wibox.widget.textclock()
+mytextclock = wibox.widget.textbox()
+gears.timer {
+    timeout = 60,
+    autostart = true,
+    call_now = true,
+    callback = function()
+        local time_str = os.date(" %a %m月%d日 %H:%M ")
+        mytextclock:set_markup("<span foreground='#c678dd'>" .. time_str .. "</span>")
+    end
+}
 
--- CPU widget using lain
+-- CPU widget using lain with icon
 local cpu_widget = wibox.widget.textbox()
-cpu_widget:set_markup("<span foreground='#61afef'>[C] 0%</span>")
+cpu_widget:set_markup("<span foreground='#61afef'>CPU: </span><span foreground='#abb2bf'>0%</span>")
 lain.widget.cpu {
     timeout = 2,
     settings = function()
-        cpu_widget:set_markup("<span foreground='#61afef'>[C] " .. cpu_now.usage .. "%</span>")
+        local color = "#abb2bf"
+        if tonumber(cpu_now.usage) > 80 then
+            color = "#e06c75"
+        elseif tonumber(cpu_now.usage) > 50 then
+            color = "#e5c07b"
+        end
+        cpu_widget:set_markup("<span foreground='#61afef'>CPU: </span><span foreground='" .. color .. "'>" .. cpu_now.usage .. "%</span>")
     end
 }
 
--- Memory widget using lain
+-- Memory widget using lain with icon
 local mem_widget = wibox.widget.textbox()
-mem_widget:set_markup("<span foreground='#56b6c2'>[M] 0%</span>")
+mem_widget:set_markup("<span foreground='#56b6c2'>MEM: </span><span foreground='#abb2bf'>0%</span>")
 lain.widget.mem {
     timeout = 2,
     settings = function()
-        mem_widget:set_markup("<span foreground='#56b6c2'>[M] " .. mem_now.perc .. "%</span>")
+        local color = "#abb2bf"
+        if tonumber(mem_now.perc) > 80 then
+            color = "#e06c75"
+        elseif tonumber(mem_now.perc) > 60 then
+            color = "#e5c07b"
+        end
+        mem_widget:set_markup("<span foreground='#56b6c2'>MEM: </span><span foreground='" .. color .. "'>" .. mem_now.perc .. "%</span>")
     end
 }
 
--- Network widget using lain
+-- Network widget with icons
 local net_widget = wibox.widget.textbox()
-net_widget:set_markup("<span foreground='#98c379'>[N] 0K/0K</span>")
+net_widget:set_markup("<span foreground='#98c379'>NET: </span><span foreground='#abb2bf'>0K 0K</span>")
 
 -- Simple network monitoring (calculate actual speed)
 local net_prev = { recv = 0, sent = 0 }
 local function format_speed(bytes_per_sec)
     -- bytes_per_sec is already bytes/sec, no need to divide by interval
     if bytes_per_sec < 1024 then
-        return string.format("%.0f B", bytes_per_sec)
+        return string.format("%.0fB", bytes_per_sec)
     elseif bytes_per_sec < 1024 * 1024 then
-        return string.format("%.1f K", bytes_per_sec / 1024)
+        return string.format("%.1fK", bytes_per_sec / 1024)
     else
-        return string.format("%.1f M", bytes_per_sec / 1024 / 1024)
+        return string.format("%.1fM", bytes_per_sec / 1024 / 1024)
     end
 end
 
 local function update_net()
-    local f = io.popen("cat /proc/net/dev | grep -E 'wlan0|eth0|enp|wlp' | head -1 | awk '{printf(\"%d %d\", $2, $10)}'")
+    local f = io.popen("cat /proc/net/dev | grep -E 'wlan0|eth0|enp' | head -1 | awk '{printf(\"%d %d\", $2, $10)}'")
     if f then
         local result = f:read("*a"):gsub("\n", "")
         f:close()
@@ -179,7 +193,7 @@ local function update_net()
                 local recv_speed = (recv - net_prev.recv) / 2
                 local sent_speed = (sent - net_prev.sent) / 2
                 
-                net_widget:set_markup("<span foreground='#98c379'>[N] ↓" .. format_speed(recv_speed) .. " ↑" .. format_speed(sent_speed) .. "</span>")
+                net_widget:set_markup("<span foreground='#98c379'>NET: </span><span foreground='#61afef'>↓" .. format_speed(recv_speed) .. "</span> <span foreground='#e06c75'>↑" .. format_speed(sent_speed) .. "</span>")
                 net_prev.recv = recv
                 net_prev.sent = sent
             end
@@ -194,26 +208,64 @@ gears.timer {
     callback = update_net
 }
 
--- Lock screen button widget
-local lock_button = wibox.widget.textbox()
-lock_button:set_markup(" 󰷛 ")
+-- Lock screen button widget with background
+local lock_button = wibox.widget {
+    {
+        markup = "<span foreground='#e5c07b'> 󰷛 </span>",
+        widget = wibox.widget.textbox,
+    },
+    left = 8,
+    right = 8,
+    top = 2,
+    bottom = 2,
+    widget = wibox.container.margin,
+}
 lock_button:buttons(gears.table.join(
     awful.button({ }, 1, function()
         awful.spawn.with_shell("~/.config/scripts/lock")
     end)
 ))
 
--- Create system info widget container
+-- Create separator
+local function make_separator()
+    return wibox.widget {
+        markup = "<span foreground='#3e4451'>│</span>",
+        widget = wibox.widget.textbox,
+    }
+end
+
+-- Create system info widget container with separators
 local sysinfo_widget = wibox.widget {
     {
         cpu_widget,
+        make_separator(),
         mem_widget,
+        make_separator(),
         net_widget,
         layout = wibox.layout.fixed.horizontal,
-        spacing = 12,
+        spacing = 8,
     },
-    left = 5,
-    right = 5,
+    left = 8,
+    right = 8,
+    top = 2,
+    bottom = 2,
+    widget = wibox.container.margin,
+}
+
+-- Create systray widget with styling
+local systray = wibox.widget.systray()
+systray:set_base_size(dpi(22))
+
+local systray_widget = wibox.widget {
+    {
+        systray,
+        valign = "center",
+        widget = wibox.container.place,
+    },
+    left = 8,
+    right = 8,
+    top = 2,
+    bottom = 2,
     widget = wibox.container.margin,
 }
 
@@ -277,7 +329,7 @@ awful.screen.connect_for_each_screen(function(s)
     set_wallpaper(s)
 
     -- Each screen has its own tag table.
-    awful.tag({ " ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
+    awful.tag({ "󰇩 ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
 
     -- Create a promptbox for each screen
     s.mypromptbox = awful.widget.prompt()
@@ -320,10 +372,10 @@ awful.screen.connect_for_each_screen(function(s)
         buttons = taglist_buttons
     }
 
-    -- Create a tasklist widget (show only current focused client)
+    -- Create a tasklist widget (show all windows in current tag)
     s.mytasklist = awful.widget.tasklist {
         screen  = s,
-        filter  = awful.widget.tasklist.filter.focused,
+        filter  = awful.widget.tasklist.filter.currenttags,
         buttons = tasklist_buttons,
         widget_template = {
             {
@@ -350,32 +402,91 @@ awful.screen.connect_for_each_screen(function(s)
                     img.forced_width = dpi(20)
                     img.forced_height = dpi(20)
                 end
+                -- 根据窗口状态添加标记
+                local text = self:get_children_by_id('text_role')[1]
+                if c.minimized then
+                    text.markup = '<span color="#999999">[min] ' .. c.name .. '</span>'
+                elseif c == client.focus then
+                    text.markup = '<b>' .. c.name .. '</b>'
+                else
+                    text.markup = c.name
+                end
             end,
+            update_callback = function(self, c, index, objects)
+                -- 更新时也根据状态改变外观
+                local text = self:get_children_by_id('text_role')[1]
+                if c.minimized then
+                    text.markup = '<span color="#999999">[min] ' .. c.name .. '</span>'
+                elseif c == client.focus then
+                    text.markup = '<b>' .. c.name .. '</b>'
+                else
+                    text.markup = c.name
+                end
+            end
         },
+    }
+
+    -- Limit the width of the tasklist
+    s.mytasklist = wibox.widget {
+        s.mytasklist,
+        width = dpi(1000),
+        strategy = "max",
+        widget = wibox.container.constraint
     }
 
     -- Create the wibox
     s.mywibox = awful.wibar({ position = "top", screen = s })
 
-    -- Add widgets to the wibox
+    -- Add widgets to the wibox with better spacing
+    local right_widgets = {
+        layout = wibox.layout.fixed.horizontal,
+        spacing = 8,
+        sysinfo_widget,
+        make_separator(),
+    }
+
+    -- 只在主屏幕添加托盘组件
+    if s == screen.primary then
+        table.insert(right_widgets, {
+            systray_widget,
+            left = 4,
+            right = 4,
+            widget = wibox.container.margin,
+        })
+        table.insert(right_widgets, make_separator())
+    end
+
+    -- 添加时钟组件（所有屏幕都显示）
+    table.insert(right_widgets, {
+        mytextclock,
+        left = 4,
+        right = 8,
+        widget = wibox.container.margin,
+    })
+
     s.mywibox:setup {
         layout = wibox.layout.align.horizontal,
         { -- Left widgets
             layout = wibox.layout.fixed.horizontal,
-            s.mytaglist,
+            spacing = 4,
+            {
+                s.mytaglist,
+                left = 8,
+                right = 4,
+                widget = wibox.container.margin,
+            },
             s.mylayoutbox,
             lock_button,
-            s.mytasklist,  -- Current focused window (next to tags)
+            make_separator(),
+            {
+                s.mytasklist,
+                left = 4,
+                widget = wibox.container.margin,
+            },
             s.mypromptbox,
         },
         nil, -- Middle (empty space)
-        { -- Right widgets
-            layout = wibox.layout.fixed.horizontal,
-            -- mykeyboardlayout,
-            sysinfo_widget,
-            wibox.widget.systray({ base_size = dpi(16) }),
-            mytextclock,
-        },
+        right_widgets, -- Right widgets
     }
 end)
 -- }}}
@@ -439,6 +550,88 @@ globalkeys = gears.table.join(
         end,
         {description = "go back", group = "client"}),
 
+    -- Custom keybindings for switching between occupied tags
+    awful.key({ modkey,           }, "a", function ()
+            local screen = awful.screen.focused()
+            local tags = screen.tags
+            local target_tag = nil
+            local current_tag_index = 0
+
+            -- Find current tag index
+            for i, tag in ipairs(tags) do
+                if tag.selected then
+                    current_tag_index = i
+                    break
+                end
+            end
+
+            -- Look for previous occupied tag (going backwards)
+            for i = current_tag_index - 1, 1, -1 do
+                local tag = tags[i]
+                if #tag:clients() > 0 then
+                    target_tag = tag
+                    break
+                end
+            end
+
+            -- If no previous occupied tag found, wrap to end
+            if not target_tag then
+                for i = #tags, current_tag_index + 1, -1 do
+                    local tag = tags[i]
+                    if #tag:clients() > 0 then
+                        target_tag = tag
+                        break
+                    end
+                end
+            end
+
+            -- Switch to target tag if found
+            if target_tag then
+                target_tag:view_only()
+            end
+        end,
+        {description = "view previous tag with clients", group = "tag"}),
+    awful.key({ modkey,           }, "d", function ()
+            local screen = awful.screen.focused()
+            local tags = screen.tags
+            local target_tag = nil
+            local current_tag_index = 0
+
+            -- Find current tag index
+            for i, tag in ipairs(tags) do
+                if tag.selected then
+                    current_tag_index = i
+                    break
+                end
+            end
+
+            -- Look for next occupied tag (going forward)
+            for i = current_tag_index + 1, #tags do
+                local tag = tags[i]
+                if #tag:clients() > 0 then
+                    target_tag = tag
+                    break
+                end
+            end
+
+            -- If no next occupied tag found, wrap to beginning
+            if not target_tag then
+                for i = 1, current_tag_index - 1 do
+                    local tag = tags[i]
+                    if #tag:clients() > 0 then
+                        target_tag = tag
+                        break
+                    end
+                end
+            end
+
+            -- Switch to target tag if found
+            if target_tag then
+                target_tag:view_only()
+            end
+        end,
+        {description = "view next tag with clients", group = "tag"}),
+
     -- Standard program
     awful.key({ modkey,           }, "Return", function () awful.spawn(terminal) end,
               {description = "open a terminal", group = "launcher"}),
@@ -495,7 +688,6 @@ globalkeys = gears.table.join(
     -- Menubar
     awful.key({ modkey }, "c", function() menubar.show() end,
               {description = "show the menubar", group = "launcher"}),
-
     -- lock screen
     awful.key({ modkey, "Control" }, "l", function() awful.spawn.with_shell("~/.config/scripts/lock") end, {description = "lock screen", group = "custom"})
 )

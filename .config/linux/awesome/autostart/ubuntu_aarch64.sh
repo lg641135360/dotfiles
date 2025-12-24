@@ -26,9 +26,10 @@ run gestures start
 run nm-applet
 run blueman-applet
 run pasystray
-run picom
+run picom --experimental-backends
 run fcitx5
 run redshift -l 30.6:114.3 -t 6500:4000
 run pot
 # run dunst
 run udiskie -t
+run flameshot
