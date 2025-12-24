@@ -180,7 +180,7 @@ local function format_speed(bytes_per_sec)
 end
 
 local function update_net()
-    local f = io.popen("cat /proc/net/dev | grep -E 'wlan0|eth0|enp' | head -1 | awk '{printf(\"%d %d\", $2, $10)}'")
+    local f = io.popen("cat /proc/net/dev | grep -E 'wlan0|eth0|enp|wlp' | head -1 | awk '{printf(\"%d %d\", $2, $10)}'")
     if f then
         local result = f:read("*a"):gsub("\n", "")
         f:close()
