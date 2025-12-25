@@ -431,14 +431,6 @@ awful.screen.connect_for_each_screen(function(s)
         },
     }
 
-    -- Limit the width of the tasklist
-    s.mytasklist = wibox.widget {
-        s.mytasklist,
-        width = dpi(1000),
-        strategy = "max",
-        widget = wibox.container.constraint
-    }
-
     -- Create the wibox
     s.mywibox = awful.wibar({ position = "top", screen = s })
 
@@ -483,14 +475,9 @@ awful.screen.connect_for_each_screen(function(s)
             s.mylayoutbox,
             lock_button,
             make_separator(),
-            {
-                s.mytasklist,
-                left = 4,
-                widget = wibox.container.margin,
-            },
             s.mypromptbox,
         },
-        nil, -- Middle (empty space)
+        s.mytasklist, -- Middle (empty space)
         right_widgets, -- Right widgets
     }
 end)

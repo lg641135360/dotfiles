@@ -118,7 +118,6 @@ local dpi = require("beautiful.xresources").apply_dpi
 
 -- {{{ Wibar
 -- Create a textclock widget
-mytextclock = wibox.widget.textclock()
 mytextclock = wibox.widget.textbox()
 gears.timer {
     timeout = 60,
@@ -426,14 +425,6 @@ awful.screen.connect_for_each_screen(function(s)
         },
     }
 
-    -- Limit the width of the tasklist
-    s.mytasklist = wibox.widget {
-        s.mytasklist,
-        width = dpi(1000),
-        strategy = "max",
-        widget = wibox.container.constraint
-    }
-
     -- Create the wibox
     s.mywibox = awful.wibar({ position = "top", screen = s })
 
@@ -478,14 +469,9 @@ awful.screen.connect_for_each_screen(function(s)
             s.mylayoutbox,
             lock_button,
             make_separator(),
-            {
-                s.mytasklist,
-                left = 4,
-                widget = wibox.container.margin,
-            },
             s.mypromptbox,
         },
-        nil, -- Middle (empty space)
+        s.mytasklist, -- 将任务列表放在中间位置，这样它就不会扩展挤压其他组件
         right_widgets, -- Right widgets
     }
 end)
