@@ -944,15 +944,15 @@ client.connect_signal("request::titlebars", function(c)
 end)
 
 -- Enable sloppy focus, so that focus follows mouse.
-client.connect_signal("mouse::enter", function(c)
-    -- Don't focus clients if they are set to ignore mouse events
-    -- This is particularly important for applications like DingTalk that have
-    -- complex internal UI components that can cause flickering when they get focus
-    -- Also exclude popup windows that cause flickering
-    if not (c.class == "com.alibabainc.dingtalk" and c.type ~= "normal") then
-        c:emit_signal("request::activate", "mouse_enter", {raise = false})
-    end
-end)
+-- client.connect_signal("mouse::enter", function(c)
+--     -- Don't focus clients if they are set to ignore mouse events
+--     -- This is particularly important for applications like DingTalk that have
+--     -- complex internal UI components that can cause flickering when they get focus
+--     -- Also exclude popup windows that cause flickering
+--     if not (c.class == "com.alibabainc.dingtalk" and c.type ~= "normal") then
+--         c:emit_signal("request::activate", "mouse_enter", {raise = false})
+--     end
+-- end)
 
 client.connect_signal("focus", function(c)
     -- Special handling for popup windows to reduce flickering
