@@ -34,7 +34,8 @@ return {
     -- 默认: 所有折叠打开 (foldlevel=99)
     vim.o.foldmethod = "expr"
     vim.o.foldexpr = "nvim_treesitter#foldexpr()"
-    vim.o.foldlevel = 99
+    vim.o.foldlevel = 20  -- 降低默认折叠层级，提升性能
+    vim.o.foldenable = false  -- 打开文件时不自动折叠，提升大文件性能
 
     -- ===== 折叠快捷键 =====
     vim.keymap.set("n", "<leader>z",  "za", { desc = "切换折叠 (z)" })
@@ -44,4 +45,3 @@ return {
     vim.keymap.set("n", "<leader>zM", "zM", { desc = "关闭所有折叠 (zM)" })
   end,
 }
-
