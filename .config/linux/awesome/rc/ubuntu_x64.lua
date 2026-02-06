@@ -846,29 +846,10 @@ awful.rules.rules = {
       }, properties = { floating = true }},
 
 
-    -- Rule for all windows belonging to DingTalk to prevent flickering
-    { rule = { class = "com.alibabainc.dingtalk" },
-      except_any = {
-          type = "normal"  -- Only apply to non-normal windows (dialogs/popups)
-      },
-      properties = {
-          floating = true,
-          focus = false,
-          draw_borders = true,
-      }
-      -- Removed callback that was repositioning the window
+    -- Add titlebars to normal clients and dialogs
+    { rule_any = {type = { "normal", "dialog" }
+      }, properties = { titlebars_enabled = false }
     },
-
-    -- Specific rule for "Form" windows that commonly cause flickering
-    { rule = { name = "Form", class = "com.alibabainc.dingtalk" },
-      properties = {
-          floating = true,
-          focus = false,
-          draw_borders = true,
-      }
-      -- Removed callback that was repositioning the window
-    },
-
 
     -- Set Firefox to always map on the tag named "2" on screen 1.
     -- { rule = { class = "Firefox" },
@@ -883,21 +864,9 @@ client.connect_signal("manage", function (c)
     -- i.e. put it at the end of others instead of setting it master.
     -- if not awesome.startup then awful.client.setslave(c) end
 
-    -- For special popup windows like those in DingTalk, prevent management issues
-    if c.class == "com.alibabainc.dingtalk" and c.type ~= "normal" then
-        -- Ensure all DingTalk popups are floating
-        c.floating = true
-        -- Prevent these popups from getting focus which causes flickering
-        c.focusable = false
-        -- Allow the application to control the window position itself
-        -- Don't override its placement decisions
-    end
-
-    -- Only apply general placement rules to windows that don't have explicit positioning
     if awesome.startup
       and not c.size_hints.user_position
-      and not c.size_hints.program_position
-      and c.class ~= "com.alibabainc.dingtalk" then
+      and not c.size_hints.program_position then
         -- Prevent clients from being unreachable after screen count changes.
         awful.placement.no_offscreen(c)
     end
@@ -954,13 +923,9 @@ end)
 --     end
 -- end)
 
-client.connect_signal("focus", function(c)
-    -- Special handling for popup windows to reduce flickering
-    if not (c.class == "com.alibabainc.dingtalk" and c.type ~= "normal") then
-        c.border_color = beautiful.border_focus
-    else
-        c.border_color = beautiful.border_normal
-    end
-end)
+--     c:emit_signal("request::activate", "mouse_enter", {raise = false})
+-- end)
+
+client.connect_signal("focus", function(c) c.border_color = beautiful.border_focus end)
 client.connect_signal("unfocus", function(c) c.border_color = beautiful.border_normal end)
 -- }}}
