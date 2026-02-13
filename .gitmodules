@@ -1,0 +1,4 @@
+[submodule ".config/shared/nvim"]
+	path = .config/shared/nvim
+	url = https://github.com/Ja-ZZF/neovim.git
+	branch = main
