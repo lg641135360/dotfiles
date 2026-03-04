@@ -65,83 +65,31 @@ ensure_dir() {
 # Clean old backup files/directories (keep only latest N)
 clean_old_backups() {
     local target="$1"
-    local is_dir="${2:-false}"  # Optional parameter to handle directories
     local dir backup_items count removed=0
     dir="$(dirname "$target")"
-    if [ ! -d "$dir" ]; then
-        return 0
-    fi
-    # Find all backup items for this target, sorted by timestamp (newest first)
-    if [ "$is_dir" = "true" ]; then
-        backup_items=$(find "$dir" -maxdepth 1 -type d -name "$(basename "$target").backup.*" | sort -r)
-    else
-        backup_items=$(find "$dir" -maxdepth 1 -type f -name "$(basename "$target").backup.*" | sort -r)
-    fi
+    [ ! -d "$dir" ] && return 0
+
+    # Find all backup items for this target (files or directories)
+    backup_items=$(find "$dir" -maxdepth 1 -name "$(basename "$target").backup.*" | sort -r)
+    
     count=$(echo "$backup_items" | grep -c . || true)
     if [ "$count" -gt "$backup_limit" ]; then
         echo "$backup_items" | tail -n +"$((backup_limit + 1))" | while read -r item; do
-            if [ "$is_dir" = "true" ]; then
-                rm -rf "$item" && removed=$((removed + 1))
-            else
-                rm -f "$item" && removed=$((removed + 1))
-            fi
+            rm -rf "$item" && removed=$((removed + 1))
         done
         if [ $removed -gt 0 ]; then
-            if [ "$is_dir" = "true" ]; then
-                log_info "Cleaned $removed old backup directories for $(basename "$target")"
-            else
-                log_info "Cleaned $removed old backup files for $(basename "$target")"
-            fi
+            log_info "Cleaned $removed old backups for $(basename "$target")"
         fi
     fi
 }
 
-# Copy configuration file
+# Copy configuration (replaces link_config)
 copy_config() {
     local source="$1" target="$2" name="$3"
 
     # Validate input
-    if [ ! -f "$source" ]; then
-        log_error "Source file not found: $source"
-        return 1
-    fi
-
-    # Create target directory
-    if ! ensure_dir "$(dirname "$target")"; then
-        return 1
-    fi
-    # Create backup if target exists
-    if [ -f "$target" ]; then
-        if ! cp "$target" "$target.backup.$timestamp"; then
-            log_error "Failed to create backup for $target"
-            return 1
-        fi
-        log_info "Created backup for $name"
-        clean_old_backups "$target"
-    fi
-
-    # Copy file
-    if cp -p "$source" "$target"; then
-        log_info "Successfully copied $name"
-    else
-        log_error "Failed to copy $name"
-        return 1
-    fi
-
-    # Verify copy
-    if ! diff "$source" "$target" >/dev/null 2>&1; then
-        log_error "Verification failed for $name"
-        return 1
-    fi
-}
-
-# Copy configuration directory
-copy_config_dir() {
-    local source="$1" target="$2" name="$3"
-
-    # Validate input
-    if [ ! -d "$source" ]; then
-        log_error "Source directory not found: $source"
+    if [ ! -e "$source" ]; then
+        log_error "Source not found: $source"
         return 1
     fi
 
@@ -149,29 +97,54 @@ copy_config_dir() {
     if ! ensure_dir "$(dirname "$target")"; then
         return 1
     fi
+
     # Create backup if target exists
-    if [ -d "$target" ]; then
+    if [ -e "$target" ]; then
+        # Check if it's identical to source (skip if same)
+        if diff -r "$source" "$target" >/dev/null 2>&1; then
+             log_info "Skipping $name: Target is identical to source"
+             return 0
+        fi
+
         local backup_path="$target.backup.$timestamp"
         if ! mv "$target" "$backup_path"; then
             log_error "Failed to create backup for $target"
             return 1
         fi
-        log_info "Created backup for $name directory"
-        # Clean old directory backups
-        clean_old_backups "$target" "true"
+        log_info "Backed up existing $name to $(basename "$backup_path")"
+        clean_old_backups "$target"
     fi
 
-    # Copy directory
-    if cp -a "$source" "$target"; then
-        log_info "Successfully copied $name directory"
-        # Verify directory copy
-        if ! diff -r "$source" "$target" >/dev/null 2>&1; then
-            log_error "Directory verification failed for $name"
+    # Copy file or directory
+    if [ -d "$source" ]; then
+        if cp -a "$source" "$target"; then
+            log_info "Successfully copied directory $name -> $target"
+        else
+            log_error "Failed to copy directory $name"
             return 1
         fi
     else
-        log_error "Failed to copy $name directory"
-        return 1
+        if cp -p "$source" "$target"; then
+            log_info "Successfully copied file $name -> $target"
+        else
+            log_error "Failed to copy file $name"
+            return 1
+        fi
+    fi
+}
+
+# Setup Zsh Environment (ZDOTDIR)
+setup_zsh_env() {
+    local zshenv="$HOME/.zshenv"
+    local zconfig_dir="$HOME/.config/zsh"
+    
+    if command -v zsh >/dev/null 2>&1; then
+        if [ ! -f "$zshenv" ] || ! grep -q "ZDOTDIR" "$zshenv"; then
+            log_info "Configuring ZDOTDIR in ~/.zshenv..."
+            echo "export ZDOTDIR=\"$zconfig_dir\"" >> "$zshenv"
+        else
+            log_info "ZDOTDIR configuration detected in ~/.zshenv"
+        fi
     fi
 }
 
@@ -186,31 +159,20 @@ process_config() {
     copy_config "$source" "$target" "$name"
 }
 
-# Process directory configuration
-process_config_dir() {
-    local check_cmd="$1" source="$2" target="$3" name="$4"
-
-    [ -n "$check_cmd" ] && ! eval "$check_cmd" >/dev/null 2>&1 && return 0
-    [[ "$source" != /* ]] && source="$cur_path/$source"
-    target="${target/#\~/$HOME}"
-
-    copy_config_dir "$source" "$target" "$name"
-}
-
 # Configuration arrays
 # app name | source path | target path | display name
 shared_configs=(
     "command -v tmux|.config/shared/tmux/.tmux.conf|~/.tmux.conf|Tmux"
-	"command -v kitty|.config/shared/kitty/kitty.conf|~/.config/kitty/kitty.conf|Kitty"
-	"command -v kitty|.config/shared/kitty/Dracula.conf|~/.config/kitty/themes/Dracula.conf|kitty_theme"
-	"command -v zsh|.config/shared/zsh/.zshrc|~/.config/zsh/.zshrc|zsh"
+    "command -v kitty|.config/shared/kitty/kitty.conf|~/.config/kitty/kitty.conf|Kitty"
+    "command -v kitty|.config/shared/kitty/Dracula.conf|~/.config/kitty/themes/Dracula.conf|kitty_theme"
+    "command -v zsh|.config/shared/zsh/.zshrc|~/.config/zsh/.zshrc|zsh"
     "command -v alacritty|.config/shared/alacritty/alacritty.toml|~/.config/alacritty/alacritty.toml|Alacritty"
 )
 
-# Directory configurations (for copying entire directories)
+# Directory configurations
 shared_dir_configs=(
-	"command -v git|.config/shared/git|~/.config/git|git"
-	"command -v nvim|.config/shared/nvim|~/.config/nvim|nvim"
+    "command -v git|.config/shared/git|~/.config/git|git"
+    "command -v nvim|.config/shared/nvim|~/.config/nvim|nvim"
 )
 
 macos_configs=(
@@ -264,14 +226,17 @@ ubuntu_amd64_configs=(
 main() {
     local start_time=$(date +%s)
     # Check for required dependencies
-    check_dependencies find cp mv diff date dirname basename xargs
+    check_dependencies find cp mv diff date dirname basename sort grep tail
 
-    log_info "Starting configuration installation..."
+    log_info "Starting configuration installation (Copy Mode)..."
     log_info "Operating System: $os"
     log_info "Architecture: $arch"
     if [[ "$os" == "Linux" ]]; then
         log_info "Distribution: $distro"
     fi
+
+    # Setup Zsh env
+    setup_zsh_env
 
     # Process shared configurations
     log_info "Processing shared configurations..."
@@ -284,7 +249,7 @@ main() {
     log_info "Processing directory configurations..."
     for config in "${shared_dir_configs[@]}"; do
         IFS='|' read -r check_cmd source target name <<< "$config"
-        process_config_dir "$check_cmd" "$source" "$target" "$name"
+        process_config "$check_cmd" "$source" "$target" "$name"
     done
 
     # Process OS-specific configurations
