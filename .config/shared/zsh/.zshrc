@@ -100,14 +100,7 @@ if [[ "$(uname)" == "Linux" ]]; then
     [ -f "$HOME/.cargo/env" ] && export PATH="$HOME/.cargo/bin:$PATH"
 fi
 
-# ============================================================================
-# Homebrew Mirror Configuration (Tsinghua)
-# ============================================================================
-export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git"
-export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-core.git"
-export HOMEBREW_CASK_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-cask.git"
-export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles"
-
-
 # npm
 export PATH="$HOME/.npm-global/bin:$PATH"
+# homebrew
+export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
