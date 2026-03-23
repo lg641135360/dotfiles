@@ -156,7 +156,34 @@ process_config() {
     [[ "$source" != /* ]] && source="$cur_path/$source"
     target="${target/#\~/$HOME}"
 
+    # Special handling for zsh directory to preserve history
+    if [[ "$target" == *"/zsh" ]] || [[ "$target" == *"~/.config/zsh" ]]; then
+        copy_zsh_config "$source" "$target" "$name"
+    else
+        copy_config "$source" "$target" "$name"
+    fi
+}
+
+# Copy zsh configuration while preserving history
+copy_zsh_config() {
+    local source="$1" target="$2" name="$3"
+    local history_backup=""
+
+    # Save existing .zsh_history if present
+    if [ -f "$target/.zsh_history" ]; then
+        history_backup=$(mktemp /tmp/zsh_history.XXXXXX)
+        cp "$target/.zsh_history" "$history_backup"
+        log_info "Preserved existing .zsh_history"
+    fi
+
+    # Perform normal copy
     copy_config "$source" "$target" "$name"
+
+    # Restore .zsh_history after copy
+    if [ -n "$history_backup" ] && [ -f "$history_backup" ]; then
+        mv "$history_backup" "$target/.zsh_history"
+        log_info "Restored .zsh_history to $target"
+    fi
 }
 
 # Configuration arrays
@@ -165,7 +192,6 @@ shared_configs=(
     "command -v tmux|.config/shared/tmux/.tmux.conf|~/.tmux.conf|Tmux"
     "command -v kitty|.config/shared/kitty/kitty.conf|~/.config/kitty/kitty.conf|Kitty"
     "command -v kitty|.config/shared/kitty/Dracula.conf|~/.config/kitty/themes/Dracula.conf|kitty_theme"
-    "command -v zsh|.config/shared/zsh/.zshrc|~/.config/zsh/.zshrc|zsh"
     "command -v alacritty|.config/shared/alacritty/alacritty.toml|~/.config/alacritty/alacritty.toml|Alacritty"
 )
 
@@ -173,6 +199,7 @@ shared_configs=(
 shared_dir_configs=(
     "command -v git|.config/shared/git|~/.config/git|git"
     "command -v nvim|.config/shared/nvim|~/.config/nvim|nvim"
+    "command -v zsh|.config/shared/zsh|~/.config/zsh|zsh"
 )
 
 macos_configs=(

@@ -44,3 +44,17 @@
     graph = true
     decorate = true
     abbrevCommit = true
+
+[alias]
+    subinit = submodule update --init --recursive
+    subs = submodule status
+    st = status
+    br = branch
+    lg = log
+    ci = commit
+    cisn = commit -s -n
+    co = checkout
+    cob = checkout -b
+    ps = push
+    pl = pull
+    plr = pull --rebase
