@@ -4,16 +4,16 @@
 # ==============================================
 
 run() {
-    if ! pgrep -x "$1" >/dev/null; then
-        "$@" &
-    fi
+  if ! pgrep -x "$1" >/dev/null; then
+    "$@" &
+  fi
 }
 
 run_custom() {
-    if ! pgrep -f "$1" >/dev/null; then
-        shift
-        "$@" &
-    fi
+  if ! pgrep -f "$1" >/dev/null; then
+    shift
+    "$@" &
+  fi
 }
 
 # Wait for X11 to be ready
@@ -30,6 +30,6 @@ run picom
 run fcitx5
 run redshift -l 30.6:114.3 -t 6500:4000
 run pot
-run copyq
+run greenclip daemon
 # run dunst  # use naughty instead
 run udiskie -t
