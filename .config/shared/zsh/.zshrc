@@ -104,3 +104,4 @@ fi
 export PATH="$HOME/.npm-global/bin:$PATH"
 # homebrew
 export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
