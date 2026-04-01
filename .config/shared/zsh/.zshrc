@@ -30,7 +30,6 @@ setopt SHARE_HISTORY             # Share history between sessions
 # ============================================================================
 # Shell Options
 # ============================================================================
-setopt AUTO_CD                   # cd by typing directory name
 setopt GLOB_DOTS                 # Include dotfiles in glob
 setopt EXTENDED_GLOB             # Enable extended globbing
 
@@ -41,27 +40,26 @@ setopt EXTENDED_GLOB             # Enable extended globbing
 [ -r "$HOME/.config/zsh/exports.zsh" ] && plug "$HOME/.config/zsh/exports.zsh"
 
 # ============================================================================
-# Plugins (syntax-highlighting must be last, prompt after it)
+# Plugins (syntax-highlighting must be last)
 # ============================================================================
 plug "zap-zsh/supercharge"             # Enhanced completion, auto-cd, Ctrl+X reload
 plug "zap-zsh/vim"                     # Vim keybindings
+plug "rupa/z"                          # Smart directory jumping
 plug "hlissner/zsh-autopair"           # Auto-close quotes, brackets
 plug "zsh-users/zsh-autosuggestions"   # Command suggestions from history
 plug "zap-zsh/fzf"                     # Fuzzy finder integration
+plug "Aloxaf/fzf-tab"                  # fzf-powered completion menu
 plug "wfxr/forgit"                     # Interactive git operations with fzf
-plug "rupa/z"                          # Smart directory jumping
 plug "kutsan/zsh-system-clipboard"     # System clipboard integration
 plug "MichaelAquilina/zsh-you-should-use"  # Suggest aliases
 plug "zsh-users/zsh-history-substring-search"
-plug "zsh-users/zsh-syntax-highlighting"
+plug "wintermi/zsh-brew"                # Homebrew integration
+plug "wintermi/zsh-starship"            # promt
+plug "zsh-users/zsh-syntax-highlighting"  # Must be last
 
-# Load prompt theme after syntax highlighting
-plug "MAHcodes/distro-prompt"
-
-# Remove grml prompt hooks to prevent overriding custom prompt
-precmd_functions=(${precmd_functions:#prompt_grml_precmd})
-precmd_functions=(${precmd_functions:#grml_reset_screen_title})
-precmd_functions=(${precmd_functions:#grml_vcs_to_screen_title})
+# brew promt config
+autoload -Uz compinit
+compinit -d "${ZDOTDIR:-$HOME}/.zcompdump"
 
 # ============================================================================
 # Key Bindings
