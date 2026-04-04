@@ -133,21 +133,6 @@ copy_config() {
     fi
 }
 
-# Setup Zsh Environment (ZDOTDIR)
-setup_zsh_env() {
-    local zshenv="$HOME/.zshenv"
-    local zconfig_dir="$HOME/.config/zsh"
-    
-    if command -v zsh >/dev/null 2>&1; then
-        if [ ! -f "$zshenv" ] || ! grep -q "ZDOTDIR" "$zshenv"; then
-            log_info "Configuring ZDOTDIR in ~/.zshenv..."
-            echo "export ZDOTDIR=\"$zconfig_dir\"" >> "$zshenv"
-        else
-            log_info "ZDOTDIR configuration detected in ~/.zshenv"
-        fi
-    fi
-}
-
 # Process configuration
 process_config() {
     local check_cmd="$1" source="$2" target="$3" name="$4"
@@ -156,34 +141,7 @@ process_config() {
     [[ "$source" != /* ]] && source="$cur_path/$source"
     target="${target/#\~/$HOME}"
 
-    # Special handling for zsh directory to preserve history
-    if [[ "$target" == *"/zsh" ]] || [[ "$target" == *"~/.config/zsh" ]]; then
-        copy_zsh_config "$source" "$target" "$name"
-    else
-        copy_config "$source" "$target" "$name"
-    fi
-}
-
-# Copy zsh configuration while preserving history
-copy_zsh_config() {
-    local source="$1" target="$2" name="$3"
-    local history_backup=""
-
-    # Save existing .zsh_history if present
-    if [ -f "$target/.zsh_history" ]; then
-        history_backup=$(mktemp /tmp/zsh_history.XXXXXX)
-        cp "$target/.zsh_history" "$history_backup"
-        log_info "Preserved existing .zsh_history"
-    fi
-
-    # Perform normal copy
     copy_config "$source" "$target" "$name"
-
-    # Restore .zsh_history after copy
-    if [ -n "$history_backup" ] && [ -f "$history_backup" ]; then
-        mv "$history_backup" "$target/.zsh_history"
-        log_info "Restored .zsh_history to $target"
-    fi
 }
 
 # Configuration arrays
@@ -199,7 +157,12 @@ shared_configs=(
 shared_dir_configs=(
     "command -v git|.config/shared/git|~/.config/git|git"
     "command -v nvim|.config/shared/nvim|~/.config/nvim|nvim"
-    "command -v zsh|.config/shared/zsh|~/.config/zsh|zsh"
+)
+
+# File configurations (ZDOTDIR already configured by user)
+zsh_files=(
+    "|.config/shared/zsh/.zshrc|~/.config/zsh/.zshrc|.zshrc"
+    "|.config/shared/zsh/zsh-syntax-highlightin-tokyonight.zsh|~/.config/zsh/zsh-syntax-highlightin-tokyonight.zsh|zsh syntax-highlightin-tokyonight"
 )
 
 macos_configs=(
@@ -262,9 +225,6 @@ main() {
         log_info "Distribution: $distro"
     fi
 
-    # Setup Zsh env
-    setup_zsh_env
-
     # Process shared configurations
     log_info "Processing shared configurations..."
     for config in "${shared_configs[@]}"; do
@@ -275,6 +235,13 @@ main() {
     # Process directory configurations
     log_info "Processing directory configurations..."
     for config in "${shared_dir_configs[@]}"; do
+        IFS='|' read -r check_cmd source target name <<< "$config"
+        process_config "$check_cmd" "$source" "$target" "$name"
+    done
+
+    # Process Zsh file configurations
+    log_info "Processing Zsh file configurations..."
+    for config in "${zsh_files[@]}"; do
         IFS='|' read -r check_cmd source target name <<< "$config"
         process_config "$check_cmd" "$source" "$target" "$name"
     done
