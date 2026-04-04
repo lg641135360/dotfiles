@@ -27,7 +27,6 @@ zinit light Aloxaf/fzf-tab
 zinit light jeffreytse/zsh-vi-mode
 zinit light hlissner/zsh-autopair
 zinit light MichaelAquilina/zsh-you-should-use
-zinit light kutsan/zsh-system-clipboard
 
 # Add in snippets
 zinit snippet OMZP::git
@@ -40,6 +39,10 @@ zinit snippet OMZP::command-not-found
 ZVM_INSERT_MODE_CURSOR=$ZVM_CURSOR_BLINKING_BEAM
 ZVM_NORMAL_MODE_CURSOR=$ZVM_CURSOR_BLINKING_BLOCK
 ZVM_OPPEND_MODE_CURSOR=$ZVM_CURSOR_BLINKING_UNDERLINE
+
+# Enable system clipboard integration for zsh-vi-mode
+# When enabled, yy will copy to system clipboard
+ZVM_SYSTEM_CLIPBOARD_ENABLED=true
 
 # Load completions
 autoload -Uz compinit && compinit
@@ -376,10 +379,14 @@ source ~/.config/zsh/zsh-syntax-highlightin-tokyonight.zsh
 source <(fzf --zsh)
 
 # zoxide config for zsh plugins 
-eval "$(zoxide init --cmd cd zsh)"
+if command -v zoxide &> /dev/null; then
+  eval "$(zoxide init --cmd cd zsh)"
+fi
 
-# tmuxifier config for zsh plugins  
-eval "$(tmuxifier init -)"
+# tmuxifier config for zsh plugins
+if command -v tmuxifier &> /dev/null; then
+  eval "$(tmuxifier init -)"
+fi
 
 # To customize prompt, run `p10k configure` or edit ~/.config/zsh/.p10k.zsh.
 [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
