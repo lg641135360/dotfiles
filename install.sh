@@ -176,6 +176,7 @@ linux_configs=(
     "command -v alacritty|.config/shared/alacritty/keys.linux.toml|~/.config/alacritty/keys.toml|Alacritty"
     "command -v rofi|.config/linux/rofi/config.rasi|~/.config/rofi/config.rasi|Rofi"
     "command -v awesome|.config/linux/awesome/theme/default.lua|~/.config/awesome/theme.lua|AwesomeWM theme"
+    "command -v awesome|.config/linux/awesome/theme/catppuccin.lua|~/.config/awesome/theme/catppuccin.lua|AwesomeWM catppuccin theme"
 )
 
 # Architecture and distro-specific configurations
@@ -206,7 +207,7 @@ ubuntu_amd64_configs=(
     "command -v xmonad|.config/linux/xmonad/xmonad-ubuntu-amd64.hs|~/.config/xmonad/xmonad.hs|XMonad"
     "command -v xmobar|.config/linux/xmobar/xmobarrc-ubuntu-amd64|~/.config/xmobar/xmobarrc|Xmobar"
     "command -v dunst|.config/linux/dunst/dunstrc-ubuntu-amd64|~/.config/dunst/dunstrc|Dunst"
-    "command -v picom|.config/linux/picom/picom-lower-power.conf|~/.config/picom/picom.conf|Picom"
+    "command -v picom|.config/linux/picom/picom-catppuccin.conf|~/.config/picom/picom.conf|Picom"
     "command -v xrdb|.config/linux/x11/xresources/ubuntu_x64|~/.Xresources|Xresources"
     "command -v awesome|.config/linux/awesome/rc/ubuntu_x64.lua|~/.config/awesome/rc.lua|AwesomeWM rc.lua"
     "command -v awesome|.config/linux/awesome/autostart/ubuntu_x64.sh|~/.config/awesome/autostart.sh|AwesomeWM autostart script"

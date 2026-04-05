@@ -26,7 +26,7 @@ run_custom "Snipaste-2.11.2-x86_64.AppImage" ~/Documents/Snipaste-2.11.2-x86_64.
 run nm-applet
 run blueman-applet
 run pasystray
-run picom
+run picom --experimental-backends
 run fcitx5
 run redshift -l 30.6:114.3 -t 6500:4000
 run pot

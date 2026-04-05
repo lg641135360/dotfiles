@@ -52,7 +52,10 @@ end
 
 -- {{{ Variable definitions
 -- Themes define colours, icons, font and wallpapers.
-beautiful.init("~/.config/awesome/theme.lua")
+beautiful.init("~/.config/awesome/theme/catppuccin.lua")
+
+-- Get Catppuccin palette from beautiful
+local ctpp = beautiful.ctpp
 
 -- This is used later as the default terminal and editor to run.
 terminal = "alacritty"
@@ -131,45 +134,45 @@ gears.timer {
     call_now = true,
     callback = function()
         local time_str = os.date(" %a %m月%d日 %H:%M ")
-        mytextclock:set_markup("<span foreground='#c678dd'>" .. time_str .. "</span>")
+        mytextclock:set_markup("<span foreground='" .. ctpp.lavender .. "'>" .. time_str .. "</span>")
     end
 }
 
--- CPU widget using lain with icon
+-- CPU widget using lain with pure text
 local cpu_widget = wibox.widget.textbox()
-cpu_widget:set_markup("<span foreground='#61afef'>CPU: </span><span foreground='#abb2bf'>0%</span>")
+cpu_widget:set_markup("<span foreground='" .. ctpp.blue .. "'>CPU</span><span foreground='" .. ctpp.text .. "'> 0%</span>")
 lain.widget.cpu {
     timeout = 2,
     settings = function()
-        local color = "#abb2bf"
+        local color = ctpp.text
         if tonumber(cpu_now.usage) > 80 then
-            color = "#e06c75"
+            color = ctpp.red
         elseif tonumber(cpu_now.usage) > 50 then
-            color = "#e5c07b"
+            color = ctpp.yellow
         end
-        cpu_widget:set_markup("<span foreground='#61afef'>CPU: </span><span foreground='" .. color .. "'>" .. cpu_now.usage .. "%</span>")
+        cpu_widget:set_markup("<span foreground='" .. ctpp.blue .. "'>CPU</span><span foreground='" .. color .. "'> " .. cpu_now.usage .. "%</span>")
     end
 }
 
--- Memory widget using lain with icon
+-- Memory widget using lain with pure text
 local mem_widget = wibox.widget.textbox()
-mem_widget:set_markup("<span foreground='#56b6c2'>MEM: </span><span foreground='#abb2bf'>0%</span>")
+mem_widget:set_markup("<span foreground='" .. ctpp.green .. "'>MEM</span><span foreground='" .. ctpp.text .. "'> 0%</span>")
 lain.widget.mem {
     timeout = 2,
     settings = function()
-        local color = "#abb2bf"
+        local color = ctpp.text
         if tonumber(mem_now.perc) > 80 then
-            color = "#e06c75"
+            color = ctpp.red
         elseif tonumber(mem_now.perc) > 60 then
-            color = "#e5c07b"
+            color = ctpp.yellow
         end
-        mem_widget:set_markup("<span foreground='#56b6c2'>MEM: </span><span foreground='" .. color .. "'>" .. mem_now.perc .. "%</span>")
+        mem_widget:set_markup("<span foreground='" .. ctpp.green .. "'>MEM</span><span foreground='" .. color .. "'> " .. mem_now.perc .. "%</span>")
     end
 }
 
--- Network widget with icons
+-- Network widget with pure text
 local net_widget = wibox.widget.textbox()
-net_widget:set_markup("<span foreground='#98c379'>NET: </span><span foreground='#abb2bf'>0K 0K</span>")
+net_widget:set_markup("<span foreground='" .. ctpp.teal .. "'>NET</span><span foreground='" .. ctpp.text .. "'> 0K 0K</span>")
 
 -- Simple network monitoring (calculate actual speed)
 local net_prev = { recv = 0, sent = 0 }
@@ -198,7 +201,7 @@ local function update_net()
                 local recv_speed = (recv - net_prev.recv) / 2
                 local sent_speed = (sent - net_prev.sent) / 2
                 
-                net_widget:set_markup("<span foreground='#98c379'>NET: </span><span foreground='#61afef'>↓" .. format_speed(recv_speed) .. "</span> <span foreground='#e06c75'>↑" .. format_speed(sent_speed) .. "</span>")
+                net_widget:set_markup("<span foreground='" .. ctpp.teal .. "'>NET</span><span foreground='" .. ctpp.blue .. "'> ↓" .. format_speed(recv_speed) .. "</span> <span foreground='" .. ctpp.peach .. "'>↑" .. format_speed(sent_speed) .. "</span>")
                 net_prev.recv = recv
                 net_prev.sent = sent
             end
@@ -216,13 +219,17 @@ gears.timer {
 -- Lock screen button widget with background
 local lock_button = wibox.widget {
     {
-        markup = "<span foreground='#e5c07b'> 󰷛 </span>",
+        markup = "<span foreground='" .. ctpp.yellow .. "'> 󰷛 </span>",
         widget = wibox.widget.textbox,
     },
+    bg = ctpp.surface0,
+    shape = function(cr, w, h)
+        gears.shape.rounded_rect(cr, w, h, dpi(6))
+    end,
     left = 8,
     right = 8,
-    top = 2,
-    bottom = 2,
+    top = 4,
+    bottom = 4,
     widget = wibox.container.margin,
 }
 lock_button:buttons(gears.table.join(
@@ -234,10 +241,51 @@ lock_button:buttons(gears.table.join(
 -- Create separator
 local function make_separator()
     return wibox.widget {
-        markup = "<span foreground='#3e4451'>│</span>",
+        markup = "<span foreground='" .. ctpp.surface2 .. "'>│</span>",
         widget = wibox.widget.textbox,
     }
 end
+
+-- Volume widget
+local vol_widget = wibox.widget.textbox()
+vol_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>VOL</span><span foreground='" .. ctpp.text .. "'> --%</span>")
+
+local function update_volume()
+    awful.spawn.easy_async_with_shell("pactl get-sink-volume @DEFAULT_SINK@ | grep -oE '[0-9]+%' | head -1", function(out)
+        local vol = out:gsub("[\n%%]", "")
+        if vol and vol ~= "" then
+            vol_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>VOL</span><span foreground='" .. ctpp.text .. "'> " .. vol .. "%</span>")
+        else
+            vol_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>VOL</span><span foreground='" .. ctpp.text .. "'> --%</span>")
+        end
+    end)
+end
+
+update_volume()
+
+vol_widget:buttons(gears.table.join(
+    awful.button({ }, 4, function()
+        awful.spawn.with_shell("pactl set-sink-volume @DEFAULT_SINK@ +5%")
+        gears.timer.start_new(0.2, function()
+            update_volume()
+            return false
+        end)
+    end),
+    awful.button({ }, 5, function()
+        awful.spawn.with_shell("pactl set-sink-volume @DEFAULT_SINK@ -5%")
+        gears.timer.start_new(0.2, function()
+            update_volume()
+            return false
+        end)
+    end),
+    awful.button({ }, 1, function()
+        awful.spawn.with_shell("pactl set-sink-mute @DEFAULT_SINK@ toggle")
+        gears.timer.start_new(0.2, function()
+            update_volume()
+            return false
+        end)
+    end)
+))
 
 -- Create system info widget container with separators
 local sysinfo_widget = wibox.widget {
@@ -247,13 +295,19 @@ local sysinfo_widget = wibox.widget {
         mem_widget,
         make_separator(),
         net_widget,
+        make_separator(),
+        vol_widget,
         layout = wibox.layout.fixed.horizontal,
         spacing = 8,
     },
+    bg = ctpp.surface0,
+    shape = function(cr, w, h)
+        gears.shape.rounded_rect(cr, w, h, dpi(8))
+    end,
     left = 8,
     right = 8,
-    top = 2,
-    bottom = 2,
+    top = 4,
+    bottom = 4,
     widget = wibox.container.margin,
 }
 
@@ -267,10 +321,14 @@ local systray_widget = wibox.widget {
         valign = "center",
         widget = wibox.container.place,
     },
+    bg = ctpp.surface0,
+    shape = function(cr, w, h)
+        gears.shape.rounded_rect(cr, w, h, dpi(8))
+    end,
     left = 8,
     right = 8,
-    top = 2,
-    bottom = 2,
+    top = 4,
+    bottom = 4,
     widget = wibox.container.margin,
 }
 
@@ -338,8 +396,24 @@ awful.screen.connect_for_each_screen(function(s)
 
     -- Create a promptbox for each screen
     s.mypromptbox = awful.widget.prompt()
-    -- Create a text-based layout indicator
-    s.mylayoutbox = wibox.widget.textbox()
+
+    -- Create a text-based layout indicator with style
+    local mylayoutbox_widget = wibox.widget {
+        markup = " [M] ",
+        widget = wibox.widget.textbox,
+    }
+    s.mylayoutbox = wibox.widget {
+        mylayoutbox_widget,
+        bg = ctpp.surface0,
+        shape = function(cr, w, h)
+            gears.shape.rounded_rect(cr, w, h, dpi(6))
+        end,
+        left = 4,
+        right = 4,
+        top = 2,
+        bottom = 2,
+        widget = wibox.container.margin,
+    }
     local function update_layoutbox()
         local layout_name = awful.layout.getname(awful.layout.get(s))
         local layout_text = {
@@ -360,7 +434,7 @@ awful.screen.connect_for_each_screen(function(s)
             cornersw = "└─┘",
             cornerse = "└─┘"
         }
-        s.mylayoutbox:set_text(" " .. (layout_text[layout_name] or layout_name) .. " ")
+        mylayoutbox_widget.markup = " <span foreground='" .. ctpp.mauve .. "'> " .. (layout_text[layout_name] or layout_name) .. " </span>"
     end
     update_layoutbox()
     awful.tag.attached_connect_signal(s, "property::selected", update_layoutbox)
@@ -389,8 +463,8 @@ awful.screen.connect_for_each_screen(function(s)
                         id     = 'icon_role',
                         widget = wibox.widget.imagebox,
                     },
-                    margins = dpi(4),
-                    widget  = wibox.container.margin,
+                    valign = "center",
+                    widget  = wibox.container.place,
                 },
                 {
                     id     = 'text_role',
@@ -407,32 +481,35 @@ awful.screen.connect_for_each_screen(function(s)
                     img.forced_width = dpi(20)
                     img.forced_height = dpi(20)
                 end
-                -- 根据窗口状态添加标记
                 local text = self:get_children_by_id('text_role')[1]
                 if c.minimized then
-                    text.markup = '<span color="#999999">[min] ' .. c.name .. '</span>'
+                    text.markup = '<span color="' .. ctpp.overlay2 .. '">[min] ' .. c.name .. '</span>'
                 elseif c == client.focus then
-                    text.markup = '<b>' .. c.name .. '</b>'
+                    text.markup = '<span foreground="' .. ctpp.blue .. '"><b>' .. c.name .. '</b></span>'
                 else
-                    text.markup = c.name
+                    text.markup = '<span foreground="' .. ctpp.text .. '">' .. c.name .. '</span>'
                 end
             end,
             update_callback = function(self, c, index, objects)
-                -- 更新时也根据状态改变外观
                 local text = self:get_children_by_id('text_role')[1]
                 if c.minimized then
-                    text.markup = '<span color="#999999">[min] ' .. c.name .. '</span>'
+                    text.markup = '<span color="' .. ctpp.overlay2 .. '">[min] ' .. c.name .. '</span>'
                 elseif c == client.focus then
-                    text.markup = '<b>' .. c.name .. '</b>'
+                    text.markup = '<span foreground="' .. ctpp.blue .. '"><b>' .. c.name .. '</b></span>'
                 else
-                    text.markup = c.name
+                    text.markup = '<span foreground="' .. ctpp.text .. '">' .. c.name .. '</span>'
                 end
             end
         },
     }
 
     -- Create the wibox
-    s.mywibox = awful.wibar({ position = "top", screen = s })
+    s.mywibox = awful.wibar({
+        position = "top",
+        screen = s,
+        bg = ctpp.base,
+        height = dpi(32),
+    })
 
     -- Add widgets to the wibox with better spacing
     local right_widgets = {
@@ -477,7 +554,7 @@ awful.screen.connect_for_each_screen(function(s)
             make_separator(),
             s.mypromptbox,
         },
-        s.mytasklist, -- Middle (empty space)
+        s.mytasklist, -- Tasklist in the middle
         right_widgets, -- Right widgets
     }
 end)
