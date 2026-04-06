@@ -51,7 +51,7 @@ theme.hotkeys_description_font = "Maple Mono NF CN 11"
 
 -- Background colors
 theme.bg_normal     = palette.base
-theme.bg_focus      = palette.surface0
+theme.bg_focus      = palette.base  -- Same as bg_normal, no highlight on selected items
 theme.bg_urgent     = palette.red
 theme.bg_minimize   = palette.surface1
 theme.bg_systray    = theme.bg_normal
@@ -72,9 +72,10 @@ theme.border_radius = dpi(12)
 
 -- Taglist configuration
 theme.taglist_spacing = dpi(8)
-theme.taglist_bg_focus = palette.blue
-theme.taglist_fg_focus = palette.crust
-theme.taglist_fg_occupied = palette.blue
+-- No background color change on selected workspace - only icon color changes
+-- theme.taglist_bg_focus = palette.blue  -- Commented out for original behavior
+theme.taglist_fg_focus = palette.blue
+theme.taglist_fg_occupied = palette.lavender
 
 -- Generate taglist squares for occupied indicator
 local taglist_square_size = dpi(4)

@@ -20,6 +20,7 @@ run picom
 run fcitx5
 run redshift -l 30.6:114.3 -t 6500:4000  # Auto night mode for Wuhan location
 run pot
+run greenclip daemon
 run udiskie -t  # automount usb drives
 run pasystray  # volume control tray icon
 run nm-applet  # network manager tray icon

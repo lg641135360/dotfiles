@@ -508,7 +508,6 @@ awful.screen.connect_for_each_screen(function(s)
         position = "top",
         screen = s,
         bg = ctpp.base,
-        height = dpi(32),
     })
 
     -- Add widgets to the wibox with better spacing
