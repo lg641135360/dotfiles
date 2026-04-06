@@ -1,0 +1,9 @@
+# Fix fpath - grml-zsh only adds /usr/share/grml/zsh/functions but not /usr/share/zsh/functions
+# Without this, colors, compinit, vcs_info and other built-in zsh functions cannot be found in tmux
+if [[ -d /usr/share/zsh/functions ]]; then
+    fpath=( /usr/share/zsh/functions/**/*(/N) ${fpath} )
+fi
+
+# Dummy prompt function - prompt.so module is not installed on this system
+# grml-zsh tries to call 'prompt grml' which would fail without this
+prompt() { true; }

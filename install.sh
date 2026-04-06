@@ -165,6 +165,11 @@ zsh_files=(
     "|.config/shared/zsh/zsh-syntax-highlightin-tokyonight.zsh|~/.config/zsh/zsh-syntax-highlightin-tokyonight.zsh|zsh syntax-highlightin-tokyonight"
 )
 
+# .zshrc.pre is only needed when grml-zsh is installed (fixes fpath issues)
+zshrc_pre_files=(
+    "|.config/shared/zsh/.zshrc.pre|~/.config/zsh/.zshrc.pre|.zshrc.pre"
+)
+
 macos_configs=(
     "command -v aerospace|.config/macos/aerospace/aerospace.toml|~/.config/aerospace/aerospace.toml|Aerospace"
     "command -v rift|.config/macos/rift/config.toml|~/.config/rift/config.toml|Rift"
@@ -246,6 +251,17 @@ main() {
         IFS='|' read -r check_cmd source target name <<< "$config"
         process_config "$check_cmd" "$source" "$target" "$name"
     done
+
+    # Process .zshrc.pre only if grml-zsh is installed
+    if [[ -f /etc/zsh/zshrc ]] && grep -q "grml" /etc/zsh/zshrc 2>/dev/null; then
+        log_info "Detected grml-zsh, installing .zshrc.pre..."
+        for config in "${zshrc_pre_files[@]}"; do
+            IFS='|' read -r check_cmd source target name <<< "$config"
+            process_config "$check_cmd" "$source" "$target" "$name"
+        done
+    else
+        log_info "grml-zsh not detected, skipping .zshrc.pre"
+    fi
 
     # Process OS-specific configurations
     if [[ "$os" == "Darwin" ]]; then
