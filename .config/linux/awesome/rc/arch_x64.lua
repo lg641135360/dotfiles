@@ -196,47 +196,6 @@ gears.timer {
     callback = update_net
 }
 
--- Volume widget
-local vol_widget = wibox.widget.textbox()
-vol_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>VOL</span><span foreground='" .. ctpp.text .. "'> --%</span>")
-
-local function update_volume()
-    awful.spawn.easy_async_with_shell("amixer -D pulse sget Master | grep -oE '[0-9]+%' | head -1", function(out)
-        local vol = out:gsub("[\n%%]", "")
-        if vol and vol ~= "" then
-            vol_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>VOL</span><span foreground='" .. ctpp.text .. "'> " .. vol .. "%</span>")
-        else
-            vol_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>VOL</span><span foreground='" .. ctpp.text .. "'> --%</span>")
-        end
-    end)
-end
-
-update_volume()
-
-vol_widget:buttons(gears.table.join(
-    awful.button({ }, 4, function()
-        awful.spawn.with_shell("amixer -D pulse sset Master 5%+")
-        gears.timer.start_new(0.1, function()
-            update_volume()
-            return false
-        end)
-    end),
-    awful.button({ }, 5, function()
-        awful.spawn.with_shell("amixer -D pulse sset Master 5%-")
-        gears.timer.start_new(0.1, function()
-            update_volume()
-            return false
-        end)
-    end),
-    awful.button({ }, 1, function()
-        awful.spawn.with_shell("amixer -D pulse sset Master toggle")
-        gears.timer.start_new(0.1, function()
-            update_volume()
-            return false
-        end)
-    end)
-))
-
 -- Lock screen button widget with background
 local lock_button = wibox.widget {
     {
@@ -275,8 +234,6 @@ local sysinfo_widget = wibox.widget {
         mem_widget,
         make_separator(),
         net_widget,
-        make_separator(),
-        vol_widget,
         layout = wibox.layout.fixed.horizontal,
         spacing = 8,
     },
