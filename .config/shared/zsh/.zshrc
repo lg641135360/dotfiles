@@ -229,10 +229,9 @@ alias egrep='egrep --color=auto'
 
 # Alias for neovim
 if [[ -x "$(command -v nvim)" ]]; then
-	alias vi='nvim'
-	alias vim='nvim'
-	alias svi='sudo nvim'
-	alias vis='nvim "+set si"'
+	alias nv='nvim'
+	alias snv='sudo nvim'
+	alias nvis='nvim "+set si"'
 elif [[ -x "$(command -v vim)" ]]; then
 	alias vi='vim'
 	alias svi='sudo vim'
