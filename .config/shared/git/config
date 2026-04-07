@@ -46,15 +46,8 @@
     abbrevCommit = true
 
 [alias]
+    # 自定义 alias（oh-my-zsh git 插件未提供）
+    # 用法：git subinit
     subinit = submodule update --init --recursive
-    subs = submodule status
-    st = status
-    br = branch
-    lg = log
-    ci = commit
-    cisn = commit -s -n
-    co = checkout
-    cob = checkout -b
-    ps = push
-    pl = pull
-    plr = pull --rebase
+    # 用法：git cs
+    cs = commit --signoff
