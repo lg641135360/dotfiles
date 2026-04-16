@@ -159,10 +159,19 @@ shared_dir_configs=(
     "command -v nvim|.config/shared/nvim|~/.config/nvim|nvim"
 )
 
-# File configurations (ZDOTDIR already configured by user)
+# Zsh module files (all copied to ZDOTDIR)
 zsh_files=(
     "|.config/shared/zsh/.zshrc|~/.config/zsh/.zshrc|.zshrc"
-    "|.config/shared/zsh/zsh-syntax-highlightin-tokyonight.zsh|~/.config/zsh/zsh-syntax-highlightin-tokyonight.zsh|zsh syntax-highlightin-tokyonight"
+    "|.config/shared/zsh/plugins.zsh|~/.config/zsh/plugins.zsh|zsh plugins"
+    "|.config/shared/zsh/options.zsh|~/.config/zsh/options.zsh|zsh options"
+    "|.config/shared/zsh/env.zsh|~/.config/zsh/env.zsh|zsh env"
+    "|.config/shared/zsh/path.zsh|~/.config/zsh/path.zsh|zsh path"
+    "|.config/shared/zsh/keybindings.zsh|~/.config/zsh/keybindings.zsh|zsh keybindings"
+    "|.config/shared/zsh/history.zsh|~/.config/zsh/history.zsh|zsh history"
+    "|.config/shared/zsh/aliases.zsh|~/.config/zsh/aliases.zsh|zsh aliases"
+    "|.config/shared/zsh/functions.zsh|~/.config/zsh/functions.zsh|zsh functions"
+    "|.config/shared/zsh/integrations.zsh|~/.config/zsh/integrations.zsh|zsh integrations"
+    "|.config/shared/zsh/zsh-syntax-highlighting-tokyonight.zsh|~/.config/zsh/zsh-syntax-highlighting-tokyonight.zsh|zsh syntax-highlighting-tokyonight"
 )
 
 # .zshrc.pre is only needed when grml-zsh is installed (fixes fpath issues)
