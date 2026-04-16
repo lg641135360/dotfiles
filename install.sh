@@ -173,12 +173,14 @@ zshrc_pre_files=(
 macos_configs=(
     "command -v aerospace|.config/macos/aerospace/aerospace.toml|~/.config/aerospace/aerospace.toml|Aerospace"
     "command -v rift|.config/macos/rift/config.toml|~/.config/rift/config.toml|Rift"
-    "command -v alacritty|.config/shared/alacritty/keys.macos.toml|~/.config/alacritty/keys.toml|Alacritty"
+    "command -v alacritty|.config/shared/alacritty/keys.macos.toml|~/.config/alacritty/keys.toml|Alacritty keys"
+    "command -v alacritty|.config/shared/alacritty/window.macos.toml|~/.config/alacritty/window.toml|Alacritty window"
 )
 
 linux_configs=(
     # "command -v i3|.config/linux/i3/config|~/.config/i3/config|i3wm"
-    "command -v alacritty|.config/shared/alacritty/keys.linux.toml|~/.config/alacritty/keys.toml|Alacritty"
+    "command -v alacritty|.config/shared/alacritty/keys.linux.toml|~/.config/alacritty/keys.toml|Alacritty keys"
+    "command -v alacritty|.config/shared/alacritty/window.linux.toml|~/.config/alacritty/window.toml|Alacritty window"
     "command -v rofi|.config/linux/rofi/config.rasi|~/.config/rofi/config.rasi|Rofi"
 )
 
@@ -320,6 +322,22 @@ main() {
                         log_warn "Failed to clone collision, please install it manually"
                 else
                     log_warn "git not found, cannot install collision automatically"
+                fi
+            fi
+        fi
+
+        # Check and install Alacritty themes
+        if command -v alacritty >/dev/null 2>&1; then
+            alacritty_config_dir="$HOME/.config/alacritty"
+            alacritty_themes_dir="$alacritty_config_dir/themes"
+
+            if [ ! -d "$alacritty_themes_dir" ]; then
+                log_info "Installing Alacritty themes"
+                if command -v git >/dev/null 2>&1; then
+                    git clone --depth 1 https://github.com/alacritty-theme/alacritty-themes.git "$alacritty_themes_dir" || \
+                        log_warn "Failed to clone alacritty-themes, please install it manually"
+                else
+                    log_warn "git not found, cannot install alacritty-themes automatically"
                 fi
             fi
         fi
