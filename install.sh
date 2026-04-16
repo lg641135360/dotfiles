@@ -180,41 +180,26 @@ linux_configs=(
     # "command -v i3|.config/linux/i3/config|~/.config/i3/config|i3wm"
     "command -v alacritty|.config/shared/alacritty/keys.linux.toml|~/.config/alacritty/keys.toml|Alacritty"
     "command -v rofi|.config/linux/rofi/config.rasi|~/.config/rofi/config.rasi|Rofi"
-    "command -v awesome|.config/linux/awesome/theme/default.lua|~/.config/awesome/theme.lua|AwesomeWM theme"
-    "command -v awesome|.config/linux/awesome/theme/catppuccin.lua|~/.config/awesome/theme/catppuccin.lua|AwesomeWM catppuccin theme"
 )
 
-# Architecture and distro-specific configurations
+# Linux directory configurations
+linux_dir_configs=(
+    "command -v awesome|.config/linux/awesome|~/.config/awesome|AwesomeWM"
+)
+
+# Architecture and distro-specific configurations (awesome autostart only)
 # Arch Linux x86_64
 arch_x86_64_configs=(
-    "command -v xmonad|.config/linux/xmonad/xmonad-arch-pc.hs|~/.config/xmonad/xmonad.hs|XMonad"
-    "command -v xmobar|.config/linux/xmobar/xmobarrc-arch-pc|~/.config/xmobar/xmobarrc|Xmobar"
-    "command -v dunst|.config/linux/dunst/dunstrc-arch-pc|~/.config/dunst/dunstrc|Dunst"
-    "command -v picom|.config/linux/picom/picom-arch_x64.conf|~/.config/picom/picom.conf|Picom"
-    "command -v xrdb|.config/linux/x11/xresources/arch_x64|~/.Xresources|Xresources"
-    "command -v awesome|.config/linux/awesome/rc/arch_x64.lua|~/.config/awesome/rc.lua|AwesomeWM rc.lua"
     "command -v awesome|.config/linux/awesome/autostart/arch_x64.sh|~/.config/awesome/autostart.sh|AwesomeWM autostart script"
 )
 
 # Ubuntu aarch64 (ARM 64-bit)
 ubuntu_aarch64_configs=(
-    "command -v xmonad|.config/linux/xmonad/xmonad-ubuntu-aarch64.hs|~/.xmonad/xmonad.hs|XMonad"
-    "command -v xmobar|.config/linux/xmobar/xmobarrc-ubuntu-aarch64|~/.config/xmobar/xmobarrc|Xmobar"
-    "command -v dunst|.config/linux/dunst/dunstrc-ubuntu-aarch64|~/.config/dunst/dunstrc|Dunst"
-    "command -v picom|.config/linux/picom/picom-arch_aarch64.conf|~/.config/picom/picom.conf|Picom"
-    "command -v xrdb|.config/linux/x11/xresources/ubuntu_aarch64|~/.Xresources|Xresources"
-    "command -v awesome|.config/linux/awesome/rc/ubuntu_aarch64.lua|~/.config/awesome/rc.lua|AwesomeWM rc.lua"
     "command -v awesome|.config/linux/awesome/autostart/ubuntu_aarch64.sh|~/.config/awesome/autostart.sh|AwesomeWM autostart script"
 )
 
 # Ubuntu amd64 (x86_64)
 ubuntu_amd64_configs=(
-    "command -v xmonad|.config/linux/xmonad/xmonad-ubuntu-amd64.hs|~/.config/xmonad/xmonad.hs|XMonad"
-    "command -v xmobar|.config/linux/xmobar/xmobarrc-ubuntu-amd64|~/.config/xmobar/xmobarrc|Xmobar"
-    "command -v dunst|.config/linux/dunst/dunstrc-ubuntu-amd64|~/.config/dunst/dunstrc|Dunst"
-    "command -v picom|.config/linux/picom/picom-ubuntu_x64.conf|~/.config/picom/picom.conf|Picom"
-    "command -v xrdb|.config/linux/x11/xresources/ubuntu_x64|~/.Xresources|Xresources"
-    "command -v awesome|.config/linux/awesome/rc/ubuntu_x64.lua|~/.config/awesome/rc.lua|AwesomeWM rc.lua"
     "command -v awesome|.config/linux/awesome/autostart/ubuntu_x64.sh|~/.config/awesome/autostart.sh|AwesomeWM autostart script"
 )
 
@@ -276,6 +261,69 @@ main() {
             IFS='|' read -r check_cmd source target name <<< "$config"
             process_config "$check_cmd" "$source" "$target" "$name"
         done
+
+        # Save AwesomeWM external dependencies before copying
+        # (copy_config backs up the entire dir, which would overwrite freshly cloned deps)
+        awesome_deps=()
+        awesome_deps_save_dir="/tmp/awesome_deps_$$"
+        if command -v awesome >/dev/null 2>&1; then
+            awesome_config_dir="$HOME/.config/awesome"
+            if [ -d "$awesome_config_dir" ]; then
+                for dep in lain collision; do
+                    if [ -d "$awesome_config_dir/$dep" ]; then
+                        log_info "Saving AwesomeWM dependency: $dep"
+                        mkdir -p "$awesome_deps_save_dir"
+                        cp -a "$awesome_config_dir/$dep" "$awesome_deps_save_dir/$dep"
+                        awesome_deps+=("$dep")
+                    fi
+                done
+            fi
+        fi
+
+        # Process Linux directory configurations
+        log_info "Processing Linux directory configurations..."
+        for config in "${linux_dir_configs[@]}"; do
+            IFS='|' read -r check_cmd source target name <<< "$config"
+            process_config "$check_cmd" "$source" "$target" "$name"
+        done
+
+        # Restore AwesomeWM external dependencies after copying
+        if [ ${#awesome_deps[@]} -gt 0 ] && [ -d "$awesome_deps_save_dir" ]; then
+            awesome_config_dir="$HOME/.config/awesome"
+            for dep in "${awesome_deps[@]}"; do
+                if [ -d "$awesome_deps_save_dir/$dep" ]; then
+                    log_info "Restoring AwesomeWM dependency: $dep"
+                    cp -a "$awesome_deps_save_dir/$dep" "$awesome_config_dir/$dep"
+                fi
+            done
+            rm -rf "$awesome_deps_save_dir"
+        fi
+
+        # Check and install AwesomeWM external dependencies (if not in backup, clone fresh)
+        if command -v awesome >/dev/null 2>&1; then
+            awesome_config_dir="$HOME/.config/awesome"
+
+            if [ ! -d "$awesome_config_dir/lain" ]; then
+                log_info "Installing AwesomeWM dependency: lain"
+                if command -v git >/dev/null 2>&1; then
+                    git clone https://github.com/lcpz/lain.git "$awesome_config_dir/lain" || \
+                        log_warn "Failed to clone lain, please install it manually"
+                else
+                    log_warn "git not found, cannot install lain automatically"
+                fi
+            fi
+
+            if [ ! -d "$awesome_config_dir/collision" ]; then
+                log_info "Installing AwesomeWM dependency: collision"
+                if command -v git >/dev/null 2>&1; then
+                    git clone https://github.com/Elv13/collision.git "$awesome_config_dir/collision" || \
+                        log_warn "Failed to clone collision, please install it manually"
+                else
+                    log_warn "git not found, cannot install collision automatically"
+                fi
+            fi
+        fi
+
         # Process architecture and distro-specific configurations
         if [[ "$distro" == "arch" ]]; then
             log_info "Processing Arch Linux configurations..."

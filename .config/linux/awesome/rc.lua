@@ -1,5 +1,6 @@
--- If LuaRocks is installed, make sure that packages installed through it are
--- found (e.g. lgi). If LuaRocks is not installed, do nothing.
+-- Unified AwesomeWM configuration
+-- Auto-detects platform and applies appropriate settings
+
 pcall(require, "luarocks.loader")
 
 -- Standard awesome library
@@ -18,30 +19,24 @@ local hotkeys_popup = require("awful.hotkeys_popup")
 -- when client with a matching name is opened:
 require("awful.hotkeys_popup.keys")
 
--- float window controll
-require("collision")()
+-- Float window control (requires: git clone https://github.com/Elv13/collision ~/.config/awesome/collision)
+pcall(function() require("collision")() end)
 
--- Load Debian menu entries
-local debian = require("debian.menu")
-local has_fdo, freedesktop = pcall(require, "freedesktop")
+-- Platform detection and config
+local config, platform = require("config")
 
 -- {{{ Error handling
--- Check if awesome encountered an error during startup and fell back to
--- another config (This code will only ever execute for the fallback config)
 if awesome.startup_errors then
     naughty.notify({ preset = naughty.config.presets.critical,
                      title = "Oops, there were errors during startup!",
                      text = awesome.startup_errors })
 end
 
--- Handle runtime errors after startup
 do
     local in_error = false
     awesome.connect_signal("debug::error", function (err)
-        -- Make sure we don't go into an endless error loop
         if in_error then return end
         in_error = true
-
         naughty.notify({ preset = naughty.config.presets.critical,
                          title = "Oops, an error happened!",
                          text = tostring(err) })
@@ -51,23 +46,20 @@ end
 -- }}}
 
 -- {{{ Variable definitions
--- Themes define colours, icons, font and wallpapers.
-beautiful.init("~/.config/awesome/theme/catppuccin.lua")
+-- Theme
+beautiful.init(gears.filesystem.get_configuration_dir() .. "theme/catppuccin.lua")
 
 -- Get Catppuccin palette from beautiful
 local ctpp = beautiful.ctpp
 
 -- This is used later as the default terminal and editor to run.
-terminal = "alacritty"
-editor = os.getenv("EDITOR") or "editor"
-editor_cmd = terminal .. " -e " .. editor
+local terminal = "alacritty"
+local editor = config.editor
+local editor_cmd = terminal .. " -e " .. editor
 
 -- Default modkey.
 -- Usually, Mod4 is the key with a logo between Control and Alt.
--- If you do not like this or do not have such a key,
--- I suggest you to remap Mod4 to another key using xmodmap or other tools.
--- However, you can use another modifier like Mod1, but it may interact with others.
-modkey = "Mod4"
+local modkey = "Mod4"
 
 -- Table of layouts to cover with awful.layout.inc, order matters.
 awful.layout.layouts = {
@@ -83,8 +75,7 @@ awful.layout.layouts = {
 -- }}}
 
 -- {{{ Menu
--- Create a launcher widget and a main menu
-myawesomemenu = {
+local myawesomemenu = {
    { "hotkeys", function() hotkeys_popup.show_help(nil, awful.screen.focused()) end },
    { "manual", terminal .. " -e man awesome" },
    { "edit config", editor_cmd .. " " .. awesome.conffile },
@@ -95,23 +86,28 @@ myawesomemenu = {
 local menu_awesome = { "awesome", myawesomemenu, beautiful.awesome_icon }
 local menu_terminal = { "open terminal", terminal }
 
-if has_fdo then
-    mymainmenu = freedesktop.menu.build({
-        before = { menu_awesome },
-        after =  { menu_terminal }
-    })
+local mymainmenu
+if config.menu_style == "freedesktop" then
+    local has_fdo, freedesktop = pcall(require, "freedesktop")
+    if has_fdo then
+        mymainmenu = freedesktop.menu.build({
+            before = { menu_awesome },
+            after =  { menu_terminal }
+        })
+    else
+        mymainmenu = awful.menu({
+            items = {
+                      menu_awesome,
+                      { "Debian", require("debian.menu").Debian_menu.Debian },
+                      menu_terminal,
+                    }
+        })
+    end
 else
-    mymainmenu = awful.menu({
-        items = {
-                  menu_awesome,
-                  { "Debian", debian.menu.Debian_menu.Debian },
-                  menu_terminal,
-                }
-    })
+    mymainmenu = awful.menu({ items = { menu_awesome, menu_terminal } })
 end
 
-
-mylauncher = awful.widget.launcher({ image = beautiful.awesome_icon,
+local mylauncher = awful.widget.launcher({ image = beautiful.awesome_icon,
                                      menu = mymainmenu })
 
 -- Menubar configuration
@@ -119,102 +115,45 @@ menubar.utils.terminal = terminal -- Set the terminal for applications that requ
 -- }}}
 
 -- Keyboard map indicator and switcher
-mykeyboardlayout = awful.widget.keyboardlayout()
+local mykeyboardlayout = awful.widget.keyboardlayout()
 
--- Load lain library
-local lain = require("lain")
+-- {{{ Widgets
+local lain_ok, lain = pcall(require, "lain")
+if not lain_ok then
+    naughty.notify({
+        preset = naughty.config.presets.critical,
+        title = "AwesomeWM: missing dependency",
+        text = "Please install lain: git clone https://github.com/lcpz/lain.git ~/.config/awesome/lain",
+    })
+end
 local dpi = require("beautiful.xresources").apply_dpi
 
--- {{{ Wibar
--- Create a textclock widget
-mytextclock = wibox.widget.textbox()
-gears.timer {
-    timeout = 60,
-    autostart = true,
-    call_now = true,
-    callback = function()
-        local time_str = os.date(" %a %m月%d日 %H:%M ")
-        mytextclock:set_markup("<span foreground='" .. ctpp.lavender .. "'>" .. time_str .. "</span>")
+-- System info widgets (CPU, MEM, NET) — requires lain
+local sysinfo_widget
+local make_separator
+if lain_ok then
+    local system_widgets = require("widgets.system").create(config)
+    sysinfo_widget = system_widgets.sysinfo_widget
+    make_separator = system_widgets.make_separator
+
+    -- Volume widget (optional, platform-dependent)
+    local vol_widget
+    local has_volume = config.has_volume
+    if has_volume then
+        vol_widget = require("widgets.volume").create()
+        sysinfo_widget:insert(sysinfo_widget:count() - 1, make_separator())
+        sysinfo_widget:insert(sysinfo_widget:count() - 1, vol_widget)
     end
-}
-
--- CPU widget using lain with pure text
-local cpu_widget = wibox.widget.textbox()
-cpu_widget:set_markup("<span foreground='" .. ctpp.blue .. "'>CPU</span><span foreground='" .. ctpp.text .. "'> 0%</span>")
-lain.widget.cpu {
-    timeout = 2,
-    settings = function()
-        local color = ctpp.text
-        if tonumber(cpu_now.usage) > 80 then
-            color = ctpp.red
-        elseif tonumber(cpu_now.usage) > 50 then
-            color = ctpp.yellow
-        end
-        cpu_widget:set_markup("<span foreground='" .. ctpp.blue .. "'>CPU</span><span foreground='" .. color .. "'> " .. cpu_now.usage .. "%</span>")
-    end
-}
-
--- Memory widget using lain with pure text
-local mem_widget = wibox.widget.textbox()
-mem_widget:set_markup("<span foreground='" .. ctpp.green .. "'>MEM</span><span foreground='" .. ctpp.text .. "'> 0%</span>")
-lain.widget.mem {
-    timeout = 2,
-    settings = function()
-        local color = ctpp.text
-        if tonumber(mem_now.perc) > 80 then
-            color = ctpp.red
-        elseif tonumber(mem_now.perc) > 60 then
-            color = ctpp.yellow
-        end
-        mem_widget:set_markup("<span foreground='" .. ctpp.green .. "'>MEM</span><span foreground='" .. color .. "'> " .. mem_now.perc .. "%</span>")
-    end
-}
-
--- Network widget with pure text
-local net_widget = wibox.widget.textbox()
-net_widget:set_markup("<span foreground='" .. ctpp.teal .. "'>NET</span><span foreground='" .. ctpp.text .. "'> 0K 0K</span>")
-
--- Simple network monitoring (calculate actual speed)
-local net_prev = { recv = 0, sent = 0 }
-local function format_speed(bytes_per_sec)
-    -- bytes_per_sec is already bytes/sec, no need to divide by interval
-    if bytes_per_sec < 1024 then
-        return string.format("%.0fB", bytes_per_sec)
-    elseif bytes_per_sec < 1024 * 1024 then
-        return string.format("%.1fK", bytes_per_sec / 1024)
-    else
-        return string.format("%.1fM", bytes_per_sec / 1024 / 1024)
+else
+    -- Fallback: empty placeholder
+    sysinfo_widget = wibox.widget {
+        markup = "<span foreground='#666'>[lain missing]</span>",
+        widget = wibox.widget.textbox,
+    }
+    make_separator = function()
+        return wibox.widget { markup = " ", widget = wibox.widget.textbox }
     end
 end
-
-local function update_net()
-    local f = io.popen("cat /proc/net/dev | grep -E 'wlan0|eth0|enp' | head -1 | awk '{printf(\"%d %d\", $2, $10)}'")
-    if f then
-        local result = f:read("*a"):gsub("\n", "")
-        f:close()
-        if result and result ~= "" then
-            local recv, sent = result:match("(%d+) (%d+)")
-            if recv and sent then
-                recv = tonumber(recv)
-                sent = tonumber(sent)
-                -- Calculate speed in bytes/sec (divide by 2 seconds interval)
-                local recv_speed = (recv - net_prev.recv) / 2
-                local sent_speed = (sent - net_prev.sent) / 2
-                
-                net_widget:set_markup("<span foreground='" .. ctpp.teal .. "'>NET</span><span foreground='" .. ctpp.blue .. "'> ↓" .. format_speed(recv_speed) .. "</span> <span foreground='" .. ctpp.peach .. "'>↑" .. format_speed(sent_speed) .. "</span>")
-                net_prev.recv = recv
-                net_prev.sent = sent
-            end
-        end
-    end
-end
-
-update_net()
-gears.timer {
-    timeout = 2,
-    autostart = true,
-    callback = update_net
-}
 
 -- Lock screen button widget with background
 local lock_button = wibox.widget {
@@ -238,77 +177,16 @@ lock_button:buttons(gears.table.join(
     end)
 ))
 
--- Create separator
-local function make_separator()
-    return wibox.widget {
-        markup = "<span foreground='" .. ctpp.surface2 .. "'>│</span>",
-        widget = wibox.widget.textbox,
-    }
-end
-
--- Volume widget
-local vol_widget = wibox.widget.textbox()
-vol_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>VOL</span><span foreground='" .. ctpp.text .. "'> --%</span>")
-
-local function update_volume()
-    awful.spawn.easy_async_with_shell("pactl get-sink-volume @DEFAULT_SINK@ | grep -oE '[0-9]+%' | head -1", function(out)
-        local vol = out:gsub("[\n%%]", "")
-        if vol and vol ~= "" then
-            vol_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>VOL</span><span foreground='" .. ctpp.text .. "'> " .. vol .. "%</span>")
-        else
-            vol_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>VOL</span><span foreground='" .. ctpp.text .. "'> --%</span>")
-        end
-    end)
-end
-
-update_volume()
-
-vol_widget:buttons(gears.table.join(
-    awful.button({ }, 4, function()
-        awful.spawn.with_shell("pactl set-sink-volume @DEFAULT_SINK@ +5%")
-        gears.timer.start_new(0.2, function()
-            update_volume()
-            return false
-        end)
-    end),
-    awful.button({ }, 5, function()
-        awful.spawn.with_shell("pactl set-sink-volume @DEFAULT_SINK@ -5%")
-        gears.timer.start_new(0.2, function()
-            update_volume()
-            return false
-        end)
-    end),
-    awful.button({ }, 1, function()
-        awful.spawn.with_shell("pactl set-sink-mute @DEFAULT_SINK@ toggle")
-        gears.timer.start_new(0.2, function()
-            update_volume()
-            return false
-        end)
-    end)
-))
-
--- Create system info widget container with separators
-local sysinfo_widget = wibox.widget {
-    {
-        cpu_widget,
-        make_separator(),
-        mem_widget,
-        make_separator(),
-        net_widget,
-        make_separator(),
-        vol_widget,
-        layout = wibox.layout.fixed.horizontal,
-        spacing = 8,
-    },
-    bg = ctpp.surface0,
-    shape = function(cr, w, h)
-        gears.shape.rounded_rect(cr, w, h, dpi(8))
-    end,
-    left = 8,
-    right = 8,
-    top = 4,
-    bottom = 4,
-    widget = wibox.container.margin,
+-- Create a textclock widget
+local mytextclock = wibox.widget.textbox()
+gears.timer {
+    timeout = 60,
+    autostart = true,
+    call_now = true,
+    callback = function()
+        local time_str = os.date(config.date_format)
+        mytextclock:set_markup("<span foreground='" .. ctpp.lavender .. "'>" .. time_str .. "</span>")
+    end
 }
 
 -- Create systray widget with styling
@@ -331,8 +209,9 @@ local systray_widget = wibox.widget {
     bottom = 4,
     widget = wibox.container.margin,
 }
+-- }}}
 
--- Create a wibox for each screen and add it
+-- {{{ Wibar
 local taglist_buttons = gears.table.join(
                     awful.button({ }, 1, function(t) t:view_only() end),
                     awful.button({ modkey }, 1, function(t)
@@ -373,10 +252,8 @@ local tasklist_buttons = gears.table.join(
                                           end))
 
 local function set_wallpaper(s)
-    -- Wallpaper
     if beautiful.wallpaper then
         local wallpaper = beautiful.wallpaper
-        -- If wallpaper is a function, call it with the screen
         if type(wallpaper) == "function" then
             wallpaper = wallpaper(s)
         end
@@ -384,11 +261,10 @@ local function set_wallpaper(s)
     end
 end
 
--- Re-set wallpaper when a screen's geometry changes (e.g. different resolution)
+-- Re-set wallpaper when a screen's geometry changes
 screen.connect_signal("property::geometry", set_wallpaper)
 
 awful.screen.connect_for_each_screen(function(s)
-    -- Wallpaper
     set_wallpaper(s)
 
     -- Each screen has its own tag table.
@@ -444,6 +320,7 @@ awful.screen.connect_for_each_screen(function(s)
                            awful.button({ }, 3, function () awful.layout.inc(-1) update_layoutbox() end),
                            awful.button({ }, 4, function () awful.layout.inc( 1) update_layoutbox() end),
                            awful.button({ }, 5, function () awful.layout.inc(-1) update_layoutbox() end)))
+
     -- Create a taglist widget
     s.mytaglist = awful.widget.taglist {
         screen  = s,
@@ -518,7 +395,7 @@ awful.screen.connect_for_each_screen(function(s)
         make_separator(),
     }
 
-    -- 只在主屏幕添加托盘组件
+    -- Only add systray on primary screen
     if s == screen.primary then
         table.insert(right_widgets, {
             systray_widget,
@@ -529,7 +406,7 @@ awful.screen.connect_for_each_screen(function(s)
         table.insert(right_widgets, make_separator())
     end
 
-    -- 添加时钟组件（所有屏幕都显示）
+    -- Add clock (all screens)
     table.insert(right_widgets, {
         mytextclock,
         left = 4,
@@ -576,10 +453,6 @@ globalkeys = gears.table.join(
               {description="screenshot and ocr", group="launcher"}),
     awful.key({ modkey, "Shift" }, "s",      hotkeys_popup.show_help,
               {description="show help", group="awesome"}),
-    -- awful.key({ modkey,           }, "Left",   awful.tag.viewprev,
-    --           {description = "view previous", group = "tag"}),
-    -- awful.key({ modkey,           }, "Right",  awful.tag.viewnext,
-    --           {description = "view next", group = "tag"}),
     awful.key({ modkey,           }, "Escape", awful.tag.history.restore,
               {description = "go back", group = "tag"}),
 
@@ -625,7 +498,6 @@ globalkeys = gears.table.join(
             local target_tag = nil
             local current_tag_index = 0
 
-            -- Find current tag index
             for i, tag in ipairs(tags) do
                 if tag.selected then
                     current_tag_index = i
@@ -633,27 +505,22 @@ globalkeys = gears.table.join(
                 end
             end
 
-            -- Look for previous occupied tag (going backwards)
             for i = current_tag_index - 1, 1, -1 do
-                local tag = tags[i]
-                if #tag:clients() > 0 then
-                    target_tag = tag
+                if #tags[i]:clients() > 0 then
+                    target_tag = tags[i]
                     break
                 end
             end
 
-            -- If no previous occupied tag found, wrap to end
             if not target_tag then
                 for i = #tags, current_tag_index + 1, -1 do
-                    local tag = tags[i]
-                    if #tag:clients() > 0 then
-                        target_tag = tag
+                    if #tags[i]:clients() > 0 then
+                        target_tag = tags[i]
                         break
                     end
                 end
             end
 
-            -- Switch to target tag if found
             if target_tag then
                 target_tag:view_only()
             end
@@ -665,7 +532,6 @@ globalkeys = gears.table.join(
             local target_tag = nil
             local current_tag_index = 0
 
-            -- Find current tag index
             for i, tag in ipairs(tags) do
                 if tag.selected then
                     current_tag_index = i
@@ -673,27 +539,22 @@ globalkeys = gears.table.join(
                 end
             end
 
-            -- Look for next occupied tag (going forward)
             for i = current_tag_index + 1, #tags do
-                local tag = tags[i]
-                if #tag:clients() > 0 then
-                    target_tag = tag
+                if #tags[i]:clients() > 0 then
+                    target_tag = tags[i]
                     break
                 end
             end
 
-            -- If no next occupied tag found, wrap to beginning
             if not target_tag then
                 for i = 1, current_tag_index - 1 do
-                    local tag = tags[i]
-                    if #tag:clients() > 0 then
-                        target_tag = tag
+                    if #tags[i]:clients() > 0 then
+                        target_tag = tags[i]
                         break
                     end
                 end
             end
 
-            -- Switch to target tag if found
             if target_tag then
                 target_tag:view_only()
             end
@@ -730,7 +591,6 @@ globalkeys = gears.table.join(
     awful.key({ modkey, "Control" }, "n",
               function ()
                   local c = awful.client.restore()
-                  -- Focus restored client
                   if c then
                     c:emit_signal(
                         "request::activate", "key.unminimize", {raise = true}
@@ -779,8 +639,6 @@ clientkeys = gears.table.join(
               {description = "toggle keep on top", group = "client"}),
     awful.key({ modkey,           }, "n",
         function (c)
-            -- The client currently has the input focus, so it cannot be
-            -- minimized, since minimized clients can't have the focus.
             c.minimized = true
         end ,
         {description = "minimize", group = "client"}),
@@ -805,11 +663,8 @@ clientkeys = gears.table.join(
 )
 
 -- Bind all key numbers to tags.
--- Be careful: we use keycodes to make it work on any keyboard layout.
--- This should map on the top row of your keyboard, usually 1 to 9.
 for i = 1, 9 do
     globalkeys = gears.table.join(globalkeys,
-        -- View tag only.
         awful.key({ modkey }, "#" .. i + 9,
                   function ()
                         local screen = awful.screen.focused()
@@ -819,7 +674,6 @@ for i = 1, 9 do
                         end
                   end,
                   {description = "view tag #"..i, group = "tag"}),
-        -- Toggle tag display.
         awful.key({ modkey, "Control" }, "#" .. i + 9,
                   function ()
                       local screen = awful.screen.focused()
@@ -829,7 +683,6 @@ for i = 1, 9 do
                       end
                   end,
                   {description = "toggle tag #" .. i, group = "tag"}),
-        -- Move client to tag.
         awful.key({ modkey, "Shift" }, "#" .. i + 9,
                   function ()
                       if client.focus then
@@ -840,7 +693,6 @@ for i = 1, 9 do
                      end
                   end,
                   {description = "move focused client to tag #"..i, group = "tag"}),
-        -- Toggle tag on focused client.
         awful.key({ modkey, "Control", "Shift" }, "#" .. i + 9,
                   function ()
                       if client.focus then
@@ -873,7 +725,6 @@ root.keys(globalkeys)
 -- }}}
 
 -- {{{ Rules
--- Rules to apply to new clients (through the "manage" signal).
 awful.rules.rules = {
     -- All clients will match this rule.
     { rule = { },
@@ -891,8 +742,8 @@ awful.rules.rules = {
     -- Floating clients.
     { rule_any = {
         instance = {
-          "DTA",  -- Firefox addon DownThemAll.
-          "copyq",  -- Includes session name in class.
+          "DTA",
+          "copyq",
           "pinentry",
         },
         class = {
@@ -900,57 +751,42 @@ awful.rules.rules = {
           "Blueman-manager",
           "Gpick",
           "Kruler",
-          "MessageWin",  -- kalarm.
+          "MessageWin",
           "Sxiv",
-          "Tor Browser", -- Needs a fixed window size to avoid fingerprinting by screen size.
+          "Tor Browser",
           "Wpa_gui",
           "veromix",
           "xtightvncviewer",
           "Pot",
         },
-
-        -- Note that the name property shown in xprop might be set slightly after creation of the client
-        -- and the name shown there might not match defined rules here.
         name = {
-          "Event Tester",  -- xev.
+          "Event Tester",
         },
         role = {
-          "AlarmWindow",  -- Thunderbird's calendar.
-          "ConfigManager",  -- Thunderbird's about:config.
-          "pop-up",       -- e.g. Google Chrome's (detached) Developer Tools.
+          "AlarmWindow",
+          "ConfigManager",
+          "pop-up",
         }
       }, properties = { floating = true }},
-
 
     -- Add titlebars to normal clients and dialogs
     { rule_any = {type = { "normal", "dialog" }
       }, properties = { titlebars_enabled = false }
     },
-
-    -- Set Firefox to always map on the tag named "2" on screen 1.
-    -- { rule = { class = "Firefox" },
-    --   properties = { screen = 1, tag = "2" } },
 }
 -- }}}
 
 -- {{{ Signals
--- Signal function to execute when a new client appears.
 client.connect_signal("manage", function (c)
-    -- Set the windows at the slave,
-    -- i.e. put it at the end of others instead of setting it master.
-    -- if not awesome.startup then awful.client.setslave(c) end
-
     if awesome.startup
       and not c.size_hints.user_position
       and not c.size_hints.program_position then
-        -- Prevent clients from being unreachable after screen count changes.
         awful.placement.no_offscreen(c)
     end
 end)
 
 -- Add a titlebar if titlebars_enabled is set to true in the rules.
 client.connect_signal("request::titlebars", function(c)
-    -- buttons for the titlebar
     local buttons = gears.table.join(
         awful.button({ }, 1, function()
             c:emit_signal("request::activate", "titlebar", {raise = true})
@@ -987,20 +823,6 @@ client.connect_signal("request::titlebars", function(c)
         layout = wibox.layout.align.horizontal
     }
 end)
-
--- Enable sloppy focus, so that focus follows mouse.
--- client.connect_signal("mouse::enter", function(c)
---     -- Don't focus clients if they are set to ignore mouse events
---     -- This is particularly important for applications like DingTalk that have
---     -- complex internal UI components that can cause flickering when they get focus
---     -- Also exclude popup windows that cause flickering
---     if not (c.class == "com.alibabainc.dingtalk" and c.type ~= "normal") then
---         c:emit_signal("request::activate", "mouse_enter", {raise = false})
---     end
--- end)
-
---     c:emit_signal("request::activate", "mouse_enter", {raise = false})
--- end)
 
 client.connect_signal("focus", function(c) c.border_color = beautiful.border_focus end)
 client.connect_signal("unfocus", function(c) c.border_color = beautiful.border_normal end)
