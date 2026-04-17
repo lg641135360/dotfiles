@@ -234,6 +234,20 @@ main() {
         process_config "$check_cmd" "$source" "$target" "$name"
     done
 
+    # Check and install TPM (Tmux Plugin Manager)
+    if command -v tmux >/dev/null 2>&1; then
+        tpm_dir="$HOME/.tmux/plugins/tpm"
+        if [ ! -d "$tpm_dir" ]; then
+            log_info "Installing TPM (Tmux Plugin Manager)"
+            if command -v git >/dev/null 2>&1; then
+                git clone https://github.com/tmux-plugins/tpm.git "$tpm_dir" || \
+                    log_warn "Failed to clone TPM, please install it manually"
+            else
+                log_warn "git not found, cannot install TPM automatically"
+            fi
+        fi
+    fi
+
     # Process directory configurations
     log_info "Processing directory configurations..."
     for config in "${shared_dir_configs[@]}"; do
@@ -359,6 +373,13 @@ main() {
                 process_config "$check_cmd" "$source" "$target" "$name"
             done
         elif [[ "$distro" == "ubuntu" ]]; then
+            # Install redshift from apt (system version has X11 support, unlike homebrew)
+            if command -v dpkg >/dev/null 2>&1 && ! dpkg -l redshift 2>/dev/null | grep -q '^ii'; then
+                log_info "Installing redshift from apt"
+                sudo apt-get install -y redshift || \
+                    log_warn "Failed to install redshift, please install it manually"
+            fi
+
             if [[ "$arch" == "aarch64" ]]; then
                 log_info "Processing Ubuntu ARM64 configurations..."
                 for config in "${ubuntu_aarch64_configs[@]}"; do
