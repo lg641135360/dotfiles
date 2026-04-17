@@ -23,3 +23,6 @@ style = {shape="Beam", blinking="on"}
 
 [terminal]
 osc52 = "OnlyCopy"
+
+[env]
+TERM = "xterm-256color"
