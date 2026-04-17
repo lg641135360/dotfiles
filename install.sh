@@ -191,6 +191,7 @@ linux_configs=(
     "command -v alacritty|.config/shared/alacritty/keys.linux.toml|~/.config/alacritty/keys.toml|Alacritty keys"
     "command -v alacritty|.config/shared/alacritty/window.linux.toml|~/.config/alacritty/window.toml|Alacritty window"
     "command -v rofi|.config/linux/rofi/config.rasi|~/.config/rofi/config.rasi|Rofi"
+    "command -v i3lock|.config/scripts/lock|~/.config/scripts/lock|Lock screen script"
 )
 
 # Linux directory configurations
