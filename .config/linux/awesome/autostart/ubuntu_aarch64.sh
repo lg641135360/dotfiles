@@ -9,6 +9,11 @@ run() {
     fi
 }
 
+# Add Homebrew PATH (linuxbrew) so awesome-spawned scripts can find brew-installed binaries
+if [ -d /home/linuxbrew/.linuxbrew/bin ]; then
+    PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+fi
+
 # Wait for X11 to be ready
 sleep 2
 
