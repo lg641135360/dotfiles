@@ -1,18 +1,6 @@
-configuration {
-    modi: "drun,window,run";
-    display-drun: "  Applications";
-    display-window: "  Windows";
-    display-run: "  Run";
-    drun-display-format: "{name}";
-    window-format: "{w} · {c} · {t}";
-    matching: "fuzzy";
-    sort: true;
-    sorting-method: "fzf";
-    case-sensitive: false;
-    show-icons: true;
-    icon-theme: "Papirus-Dark";
-    location: 0;
-}
+/*******************************************************************************
+ * Rofi Theme - Based on yaocc.cc/rofimenu
+ *******************************************************************************/
 
 * {
     font: "JetBrainsMono Nerd Font Mono 12.5";

@@ -1,7 +1,6 @@
 local awful = require("awful")
 local gears = require("gears")
 local hotkeys_popup = require("awful.hotkeys_popup")
-local menubar = require("menubar")
 
 local M = {}
 
@@ -178,8 +177,8 @@ function M.setup(args)
             }
         end, { description = "lua execute prompt", group = "awesome" }),
         awful.key({ modkey }, "c", function()
-            menubar.show()
-        end, { description = "show the menubar", group = "launcher" }),
+            awful.spawn("rofi -show drun")
+        end, { description = "show rofi drun launcher", group = "launcher" }),
         awful.key({ modkey, "Control" }, "l", function()
             awful.spawn.with_shell("~/.config/scripts/lock")
         end, { description = "lock screen", group = "custom" })
