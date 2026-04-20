@@ -43,7 +43,3 @@ if [[ -x "$(command -v fzf)" ]]; then
     source <(fzf --zsh)
 fi
 
-# codex env
-if [[ -f "$HOME/codex_env" ]]; then
-  source "$HOME/codex_env"
-fi
