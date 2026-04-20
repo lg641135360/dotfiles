@@ -1,4 +1,5 @@
 #!/bin/sh
+set -eu
 
 BLANK='#00000000'
 CLEAR='#ffffff22'
@@ -7,30 +8,51 @@ TEXT='#00897bE6'
 WRONG='#880000bb'
 VERIFYING='#00564dE6'
 
-i3lock \
---insidever-color=$CLEAR     \
---ringver-color=$VERIFYING   \
-\
---insidewrong-color=$CLEAR   \
---ringwrong-color=$WRONG     \
-\
---inside-color=$BLANK        \
---ring-color=$DEFAULT        \
---line-color=$BLANK          \
---separator-color=$DEFAULT   \
-\
---verif-color=$TEXT          \
---wrong-color=$TEXT          \
---time-color=$TEXT           \
---date-color=$TEXT           \
---layout-color=$TEXT         \
---keyhl-color=$WRONG         \
---bshl-color=$WRONG          \
-\
---screen 1                   \
---blur 9                     \
---clock                      \
---indicator                  \
---time-str="%H:%M:%S"        \
---date-str="%A, %Y-%m-%d"    \
---keylayout 1                \
+supports_blur() {
+    help_output=$(i3lock --help 2>&1 || true)
+    case "$help_output" in
+        *--blur*)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+if command -v i3lock >/dev/null 2>&1; then
+    if supports_blur; then
+        exec i3lock \
+            --insidever-color="$CLEAR"   \
+            --ringver-color="$VERIFYING" \
+            --insidewrong-color="$CLEAR" \
+            --ringwrong-color="$WRONG"   \
+            --inside-color="$BLANK"      \
+            --ring-color="$DEFAULT"      \
+            --line-color="$BLANK"        \
+            --separator-color="$DEFAULT" \
+            --verif-color="$TEXT"        \
+            --wrong-color="$TEXT"        \
+            --time-color="$TEXT"         \
+            --date-color="$TEXT"         \
+            --layout-color="$TEXT"       \
+            --keyhl-color="$WRONG"       \
+            --bshl-color="$WRONG"        \
+            --screen 1                   \
+            --blur 9                     \
+            --clock                      \
+            --indicator                  \
+            --time-str="%H:%M:%S"        \
+            --date-str="%A, %Y-%m-%d"    \
+            --keylayout 1
+    fi
+
+    exec i3lock -n -c 000000
+fi
+
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send "Lock screen unavailable" "Install i3lock to enable Awesome lock screen."
+fi
+
+printf '%s\n' 'Lock screen unavailable: install i3lock.' >&2
+exit 127

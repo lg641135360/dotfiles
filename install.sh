@@ -102,8 +102,16 @@ copy_config() {
     if [ -e "$target" ]; then
         # Check if it's identical to source (skip if same)
         if diff -r "$source" "$target" >/dev/null 2>&1; then
-             log_info "Skipping $name: Target is identical to source"
-             return 0
+            source_exec=0
+            target_exec=0
+
+            [ -x "$source" ] && source_exec=1
+            [ -x "$target" ] && target_exec=1
+
+            if [ "$source_exec" -eq "$target_exec" ]; then
+                log_info "Skipping $name: Target is identical to source"
+                return 0
+            fi
         fi
 
         local backup_path="$target.backup.$timestamp"
@@ -192,7 +200,7 @@ linux_configs=(
     "command -v alacritty|.config/shared/alacritty/window.linux.toml|~/.config/alacritty/window.toml|Alacritty window"
     "command -v rofi|.config/linux/rofi/config.rasi|~/.config/rofi/config.rasi|Rofi"
     "command -v rofi|.config/linux/rofi/theme.rasi|~/.config/rofi/theme.rasi|Rofi theme"
-    "command -v i3lock|.config/scripts/lock|~/.config/scripts/lock|Lock screen script"
+    "|.config/scripts/lock|~/.config/scripts/lock|Lock screen script"
 )
 
 # Linux directory configurations
