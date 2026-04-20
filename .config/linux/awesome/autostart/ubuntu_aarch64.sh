@@ -37,10 +37,7 @@ run blueman-applet
 run pasystray
 run picom --experimental-backends
 run fcitx5
-# Use system redshift (apt installed), not homebrew version which lacks X11 support
-if command -v redshift >/dev/null 2>&1 && ! echo "$(command -v redshift)" | grep -q linuxbrew; then
-    run redshift -l 30.6:114.3 -t 6500:4000
-fi
+run redshift -l 30.6:114.3 -t 6500:4000
 run pot
 # run dunst
 run udiskie -t
