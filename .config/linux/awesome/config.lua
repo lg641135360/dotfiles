@@ -38,7 +38,7 @@ local config = {
     -- Network interface pattern
     net_interfaces = (platform.os == "Linux" and platform.distro == "arch")
         and "wlan0|eth0|enp|wlp"
-        or "wlan0|eth0|enp",
+        or "wlan0|eth0|enp|wlp",
 
     -- Date format
     date_format = " %a %m月%d日 %H:%M ",

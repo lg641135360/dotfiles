@@ -10,6 +10,34 @@ local function create_system_widgets(config)
     local ctpp = beautiful.ctpp
     local dpi = require("beautiful.xresources").apply_dpi
 
+    local function read_file(path)
+        local file = io.open(path, "r")
+        if not file then
+            return nil
+        end
+
+        local content = file:read("*l")
+        file:close()
+        return content
+    end
+
+    local function find_battery_path()
+        local handle = io.popen("for path in /sys/class/power_supply/*; do [ -d \"$path\" ] && printf '%s\\n' \"$path\"; done 2>/dev/null")
+        if not handle then
+            return nil
+        end
+
+        for path in handle:lines() do
+            if read_file(path .. "/type") == "Battery" and read_file(path .. "/capacity") then
+                handle:close()
+                return path
+            end
+        end
+
+        handle:close()
+        return nil
+    end
+
     -- CPU widget
     local cpu_widget = wibox.widget.textbox()
     cpu_widget:set_markup("<span foreground='" .. ctpp.blue .. "'>CPU</span><span foreground='" .. ctpp.text .. "'> 0%</span>")
@@ -21,6 +49,14 @@ local function create_system_widgets(config)
     -- Network widget
     local net_widget = wibox.widget.textbox()
     net_widget:set_markup("<span foreground='" .. ctpp.teal .. "'>NET</span><span foreground='" .. ctpp.text .. "'> 0K 0K</span>")
+
+    -- Battery widget (laptops only)
+    local battery_widget = nil
+    local battery_path = find_battery_path()
+    if battery_path then
+        battery_widget = wibox.widget.textbox()
+        battery_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>BAT</span><span foreground='" .. ctpp.text .. "'> 0%</span>")
+    end
 
     -- Load lain for CPU and MEM
     local lain = require("lain")
@@ -92,6 +128,31 @@ local function create_system_widgets(config)
         callback = update_net,
     }
 
+    if battery_widget then
+        local function update_battery()
+            local capacity = tonumber(read_file(battery_path .. "/capacity"))
+            if not capacity then
+                return
+            end
+
+            local color = ctpp.text
+            if capacity <= 15 then
+                color = ctpp.red
+            elseif capacity <= 35 then
+                color = ctpp.yellow
+            end
+
+            battery_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>BAT</span><span foreground='" .. color .. "'> " .. capacity .. "%</span>")
+        end
+
+        update_battery()
+        gears.timer {
+            timeout = 30,
+            autostart = true,
+            callback = update_battery,
+        }
+    end
+
     -- Separator
     local function make_separator()
         return wibox.widget {
@@ -100,17 +161,28 @@ local function create_system_widgets(config)
         }
     end
 
+    local system_items = {
+        cpu_widget,
+        make_separator(),
+        mem_widget,
+        make_separator(),
+        net_widget,
+    }
+
+    if battery_widget then
+        table.insert(system_items, make_separator())
+        table.insert(system_items, battery_widget)
+    end
+
+    local system_row = wibox.layout.fixed.horizontal()
+    system_row.spacing = 8
+    for _, item in ipairs(system_items) do
+        system_row:add(item)
+    end
+
     -- System info container
     local sysinfo_widget = wibox.widget {
-        {
-            cpu_widget,
-            make_separator(),
-            mem_widget,
-            make_separator(),
-            net_widget,
-            layout = wibox.layout.fixed.horizontal,
-            spacing = 8,
-        },
+        system_row,
         bg = ctpp.surface0,
         shape = function(cr, w, h)
             gears.shape.rounded_rect(cr, w, h, dpi(8))
@@ -127,6 +199,7 @@ local function create_system_widgets(config)
         cpu_widget = cpu_widget,
         mem_widget = mem_widget,
         net_widget = net_widget,
+        battery_widget = battery_widget,
         make_separator = make_separator,
     }
 end
