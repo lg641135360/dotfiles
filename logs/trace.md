@@ -2,6 +2,30 @@
 
 ## 2026-04-22
 
+- 目的：将本轮 rofi/Awesome 调整和对应回归测试提交到仓库并推送到 GitHub。
+- 已做：复核工作树，确认当前只包含 rofi/Awesome 绑定、rofi 配置、`tests/rofi_config_test.sh` 以及 `memory/`、`logs/trace.md` 的本轮相关改动；同时把“提交到 GitHub 前优先复跑轻量回归测试并确认 live 配置已同步”的偏好补入 `memory/organizing_preferences.md`。随后准备重新执行 rofi 回归测试和 Lua 语法检查，确认无误后在 `main` 分支提交并推送到 `origin/main`。
+- 后续：推送完成后，继续用当前提交作为 rofi 1.7.1 的基线；如果之后还要处理中文输入，就在此基础上另开一轮，避免把系统 rofi 版本替换和当前配置回归混进同一个提交。
+
+- 目的：在保留当前已验证缩放方案的前提下，把 rofi 字体再缩小一档。
+- 已做：用户确认选择“只降字体、不动宽度和间距”的方案后，先按 TDD 修改 `tests/rofi_config_test.sh`，把提示字体预期改为 `JetBrainsMono Nerd Font Bold 12`，把 `entry`、`element-text`、`textbox` 的 CJK 字体预期改为 `Noto Sans CJK SC 11.5`，并先执行测试确认在旧配置上失败。随后只修改 `.config/linux/rofi/theme.rasi` 的字体档位：基础 monospace 从 `12.5` 调到 `11.5`，提示粗体从 `13` 调到 `12`，CJK 字体从 `12.5` 调到 `11.5`；窗口宽度、padding、spacing、圆角和图标尺寸保持不变。最后重新执行 `tests/rofi_config_test.sh`，确认通过，并将更新后的 `theme.rasi` 同步到 live `~/.config/rofi/theme.rasi`。
+- 后续：当前 live rofi 主题已经更新，下一次按 `Mod+c` 就会使用更小一档的字体；如果仍嫌大，再考虑进一步把列表图标和部分间距一起收紧，而不是继续单独压缩窗口宽度。
+
+- 目的：把 rofi 问题拆分成“缩放异常”和“中文输入失败”两条链路，并先固化可本地验证的缩放修复。
+- 已做：先用 Awesome 会话里的 `rofi -dump-theme` 抓真实主题，发现当前系统 `/usr/bin/rofi` 1.7.1 在解析 theme 中的实数 `em` 距离值时会把 `width`、`padding`、`spacing`、`border-radius`、`size` 等字段导成非法字节，同时 stderr 连续报 `GLib-CRITICAL g_ascii_formatd`，这与实际窗口缩放失真相互印证。随后构造一次性对照实例：把 theme 改回 `px` 距离、显式 `-dpi 1`、并强制 `LANG/LC_ALL/LC_CTYPE=zh_CN.UTF-8` 与 fcitx 环境；用户反馈结果为“中文仍不能输入，但缩放正常”，从而确认缩放和中文输入不是同一个根因。基于这条证据链，先按 TDD 修改 `tests/rofi_config_test.sh`，让其改为检查 `config.rasi` 中必须固定 `dpi: 1`、Awesome 拉起 rofi 时必须显式传递 `LANG/LC_ALL/LC_CTYPE` 与 fcitx 环境、theme 中关键距离值必须回到 rofi 1.7.1 兼容的 `px`；确认测试先在旧配置上失败后，再修改 `.config/linux/rofi/config.rasi`、`.config/linux/rofi/theme.rasi`、`.config/linux/awesome/bindings.lua`，并重新执行 `tests/rofi_config_test.sh` 与 `luajit -e 'assert(loadfile(".config/linux/awesome/bindings.lua"))'`，全部通过。最后把三处更新后的文件同步到 live `~/.config`，并通过 `awesome-client` 重载 Awesome，会话启动错误仍为 `"ok"`。
+- 后续：当前 live 会话已经加载新的缩放配置，接下来只需要用户再次按 `Mod+c` 确认缩放保持正常。至于中文输入，现有对照实验已经表明它不再是 theme/DPI/locale 参数问题；如果要继续解决，需要把方向转到升级或自编译带更完整 IME/XIM 支持的新 rofi，而不是继续修改当前 1.7.1 的仓库配置。
+
+- 目的：继续完成上一轮 rofi/Awesome 调整的部署收尾，确保当前会话真正加载新的 rofi 启动链。
+- 已做：先核对仓库与 live `~/.config/rofi/config.rasi`、`~/.config/rofi/theme.rasi`、`~/.config/awesome/bindings.lua`，确认三处文件已经同步；随后发现 `tests/rofi_config_test.sh` 缺少执行位，直接运行会报“权限不够”，于是补上 `+x` 并重新执行 `tests/rofi_config_test.sh` 与 `luajit -e 'assert(loadfile(".config/linux/awesome/bindings.lua"))'`，两者都通过。最后通过 `awesome-client` 连到当前 Awesome 会话，先确认 `awesome.startup_errors` 返回 `"ok"`，再执行 `awesome.restart()`；断线后重新连接并再次确认 `awesome.startup_errors` 仍为 `"ok"`，说明新的 rofi 绑定已经进入运行中的 Awesome 会话。
+- 后续：仓库和 live 配置现在都已一致，Awesome 也已 reload；还需要在图形界面里实际按 `Mod+c` 观察 rofi 窗口比例，并验证中文输入、候选词和已输入文本显示是否正常。如果仍有异常，再继续从 rofi 运行时 locale、fcitx 注入和字体可用性排查。
+
+- 目的：让 rofi 的窗口尺寸和间距跟随当前 Xresources 中的缩放比例，而不是继续写死像素值。
+- 已做：先重新读取 rofi 配置、`~/.Xresources` 与本机 rofi 手册，确认当前 `Xft.dpi: 192`，同时 rofi theme 里窗口宽度、内边距、圆角、图标尺寸等关键尺寸仍是固定 `px`，这是缩放观感失真的根因。随后把 `tests/rofi_config_test.sh` 扩展为检查“窗口和主要布局尺寸必须使用基于字体度量的相对单位”，先让测试在 `width: 680px` 等旧写法上失败，再把 `.config/linux/rofi/theme.rasi` 的窗口宽度、主容器 padding/spacing、输入栏 padding/spacing、列表 spacing、条目 padding/spacing、圆角和图标尺寸改成 `em`；这样 rofi 会跟着字体度量变化，而字体本身又会受 `Xft.dpi` 影响。最后重新执行 `tests/rofi_config_test.sh`，确认通过。
+- 后续：仓库里的 rofi 缩放逻辑已经改成跟随字体度量，但当前 live `~/.config/rofi` 和运行中的 Awesome 会话还没同步；如果要立刻看到效果，需要把更新后的 rofi/Awesome 文件同步到 live 配置并 reload Awesome，再实际观察 `Xft.dpi: 192` 下的窗口比例是否合适。
+
+- 目的：修复 rofi 打开后中文输入不可用且输入内容不可见的问题。
+- 已做：先排查 repo/live 的 rofi 配置、Awesome 启动链和 fcitx5 运行状态，确认当前使用的是系统 `/usr/bin/rofi`，Awesome 会话里已有 `GTK_IM_MODULE`/`QT_IM_MODULE`/`XMODIFIERS`，但 `LC_CTYPE` 缺失；同时定位到 rofi 主题在最近改版后把 `width` 放进了全局 `*`，并删掉了输入框相关的显式布局配置。随后新增 `tests/rofi_config_test.sh`，先让其在“`config.rasi` 不引用单独主题文件、Awesome 启动 rofi 时不显式传递 locale/fcitx 环境、theme 中缺少显式输入框布局与 CJK 字体”这些条件下失败，再据此修改 `.config/linux/rofi/config.rasi`、`.config/linux/rofi/theme.rasi`、`.config/linux/awesome/bindings.lua`：将样式收敛到 `theme.rasi`，把窗口宽度移回 `window`，补回 `mainbox`/`inputbar` 的 `children`，为 `entry` 增加 `expand`、`cursor`、`placeholder-color` 和 `Noto Sans CJK SC` 字体，并让 Awesome 用带 `LC_CTYPE=zh_CN.UTF-8` 与 fcitx 环境变量的命令启动 rofi。最后重新执行 `tests/rofi_config_test.sh`，并用 `luajit -e 'assert(loadfile(...))'` 校验 `bindings.lua` 语法通过。
+- 后续：当前改动还只在仓库中，尚未把 rofi/awesome 文件再次同步到 live `~/.config` 并重载 Awesome；如需立刻在当前桌面生效，后续要部署更新后的配置并 reload Awesome，再实际验证中文输入与文本显示。
+
 - 目的：将本次 `redshift` 安装器调整提交到仓库并推送到 GitHub。
 - 已做：复核 `install.sh`、新增回归测试及持久化记录的 diff，确认当前工作树只包含本轮 `redshift` 相关变更，并准备在 `main` 分支上提交后推送到 `origin/main`。
 - 后续：推送完成后，如果还要继续优化安装器，可再把不同依赖的“检查并提示安装”逻辑做统一抽象，减少平台分支里的重复判断。

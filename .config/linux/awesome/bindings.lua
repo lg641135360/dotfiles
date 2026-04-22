@@ -177,7 +177,9 @@ function M.setup(args)
             }
         end, { description = "lua execute prompt", group = "awesome" }),
         awful.key({ modkey }, "c", function()
-            awful.spawn("rofi -show drun")
+            awful.spawn.with_shell(
+                "LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8 LC_CTYPE=zh_CN.UTF-8 GTK_IM_MODULE=fcitx QT_IM_MODULE=fcitx XMODIFIERS=@im=fcitx rofi -show drun"
+            )
         end, { description = "show rofi drun launcher", group = "launcher" }),
         awful.key({ modkey, "Control" }, "l", function()
             awful.spawn.with_shell("~/.config/scripts/lock")
