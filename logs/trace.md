@@ -1,5 +1,15 @@
 # Trace
 
+## 2026-04-22
+
+- 目的：将本次 `redshift` 安装器调整提交到仓库并推送到 GitHub。
+- 已做：复核 `install.sh`、新增回归测试及持久化记录的 diff，确认当前工作树只包含本轮 `redshift` 相关变更，并准备在 `main` 分支上提交后推送到 `origin/main`。
+- 后续：推送完成后，如果还要继续优化安装器，可再把不同依赖的“检查并提示安装”逻辑做统一抽象，减少平台分支里的重复判断。
+
+- 目的：调整 `install.sh` 中 `redshift` 的处理方式，避免安装脚本自动执行 `sudo apt-get install`。
+- 已做：先新增 `tests/install_redshift_test.sh`，用伪造的 `dpkg` 和 `sudo` 复现 Ubuntu 下缺少 `redshift` 的场景，并通过红绿测试确认旧逻辑会触发 `sudo`。随后修改 `install.sh` 的 Ubuntu 分支，保留 `dpkg` 检查，但把自动安装改成明确的手动安装提示 `sudo apt-get install -y redshift`；同时补充 `memory/organizing_preferences.md`，记录“只检查、不自动安装”的新偏好。最后重新执行 `tests/install_redshift_test.sh`、`tests/awesome_lock_test.sh`，确认通过。
+- 后续：如果之后还要进一步优化安装脚本，可考虑把这类“检查依赖并提示安装”的行为抽成统一函数，避免不同软件各自散落一段平台判断与提示文案。
+
 ## 2026-04-20
 
 - 目的：将本轮 AwesomeWM 相关修复及回归测试目录一起提交并推送到 GitHub。

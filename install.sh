@@ -386,11 +386,9 @@ main() {
                 process_config "$check_cmd" "$source" "$target" "$name"
             done
         elif [[ "$distro" == "ubuntu" ]]; then
-            # Install redshift from apt (system version has X11 support, unlike homebrew)
+            # Warn when the Ubuntu system package is missing, but do not install it automatically.
             if command -v dpkg >/dev/null 2>&1 && ! dpkg -l redshift 2>/dev/null | grep -q '^ii'; then
-                log_info "Installing redshift from apt"
-                sudo apt-get install -y redshift || \
-                    log_warn "Failed to install redshift, please install it manually"
+                log_warn "redshift is not installed. Please install it manually: sudo apt-get install -y redshift"
             fi
 
             if [[ "$arch" == "aarch64" ]]; then
