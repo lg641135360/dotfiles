@@ -1,5 +1,15 @@
 # Trace
 
+## 2026-04-24
+
+- 目的：将本轮 zsh PATH 修复和回归测试提交到仓库并推送到 GitHub。
+- 已做：复核工作树，确认当前只包含 `.config/shared/zsh/path.zsh`、新增的 `tests/zsh_path_test.sh`、`memory/organizing_preferences.md` 与 `logs/trace.md` 这四处本轮相关改动；同时确认 live `~/.config/zsh/path.zsh` 已与仓库同步，并重新执行 `tests/zsh_path_test.sh`，再用隔离 zsh 环境验证 `command -v omx` 可解析到 `/usr/local/nodejs/bin/omx`。随后准备在 `main` 分支提交并推送到 `origin/main`。
+- 后续：推送完成后，新的 zsh 会话就会稳定带上 `/usr/local/nodejs/bin`；如果后面还遇到其它 npm 全局 CLI 只安装未暴露的问题，可以继续沿用这条 PATH 回归测试，而不必再逐个手动排查。
+
+- 目的：修复通过 `npm install -g @openai/codex oh-my-codex` 安装后，`codex` 可用但 `omx` 在 zsh 中找不到的问题。
+- 已做：先按调试流程核对全局 npm 前缀与可执行文件，确认 `oh-my-codex` 实际安装在 `/usr/local/nodejs/lib/node_modules/oh-my-codex`，`omx` 符号链接位于 `/usr/local/nodejs/bin/omx`，而当前 zsh `PATH` 缺少 `/usr/local/nodejs/bin`，`codex` 之所以可用是因为命中了已有的 Homebrew 版本。随后按 TDD 新增 `tests/zsh_path_test.sh`，在隔离环境里只加载 `.config/shared/zsh/path.zsh` 并验证 `/usr/local/nodejs/bin` 必须进入 `PATH`；确认测试先失败后，再修改 `.config/shared/zsh/path.zsh`，在 Linux 分支中追加 `/usr/local/nodejs/bin`，同时把这条 PATH 偏好补入 `memory/organizing_preferences.md`。
+- 后续：重新载入 zsh 配置后，`omx` 应该可以直接命中 `/usr/local/nodejs/bin/omx`；如果之后还想让 `codex` 也优先走 npm 全局安装版本，再单独评估是否调整 `/usr/local/nodejs/bin` 与 Homebrew 目录的先后顺序，避免在这次修复里顺手改变现有 `codex` 来源。
+
 ## 2026-04-22
 
 - 目的：将本轮 rofi/Awesome 调整和对应回归测试提交到仓库并推送到 GitHub。

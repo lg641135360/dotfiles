@@ -17,3 +17,4 @@
 - 当 rofi 在 `LANG/LC_ALL/LC_CTYPE=zh_CN.UTF-8` 与 fcitx 环境下仍无法输入中文时，先视为当前 rofi 版本能力边界，不要继续只靠主题或 Awesome 启动参数盲改。
 - 在当前这套 rofi `px + dpi: 1` 配置上，字体默认应比 `12.5` 再小一档；优先使用基础/中文字体 `11.5`、提示粗体 `12`。
 - 当用户要求把当前桌面配置改动提交到 GitHub 时，优先先复跑轻量回归测试，并确认仓库文件与 live `~/.config` 已同步，再执行提交和推送。
+- 对通过 `npm install -g` 安装到 `/usr/local/nodejs` 前缀的 CLI，优先在共享 zsh PATH 中追加 `/usr/local/nodejs/bin`，避免只暴露到部分命令（如 `codex` 来自 Homebrew、`omx` 却缺失）。
