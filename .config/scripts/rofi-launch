@@ -1,0 +1,60 @@
+#!/bin/sh
+
+set -eu
+
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/rofi"
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/rofi"
+config_file="$config_dir/config.rasi"
+theme_source="$config_dir/theme.rasi"
+theme_output="$cache_dir/theme.scaled.rasi"
+
+mkdir -p "$cache_dir"
+
+dpi=$(
+    xrdb -query 2>/dev/null | awk '$1 == "Xft.dpi:" { print $2; exit }'
+)
+
+scale=$(awk -v dpi="${dpi:-96}" 'BEGIN {
+    value = dpi + 0
+    if (value <= 0) {
+        value = 96
+    }
+    printf "%.6f", value / 96
+}')
+
+if command -v python3 >/dev/null 2>&1; then
+    python3 - "$theme_source" "$theme_output" "$scale" <<'PY'
+import pathlib
+import re
+import sys
+
+source_path = pathlib.Path(sys.argv[1])
+output_path = pathlib.Path(sys.argv[2])
+scale = float(sys.argv[3])
+content = source_path.read_text()
+
+def scale_px(match):
+    value = int(match.group(1))
+    scaled = int(round(value * scale))
+    if value > 0 and scaled < 1:
+        scaled = 1
+    return f"{scaled}px"
+
+def scale_font(match):
+    prefix = match.group(1)
+    value = float(match.group(2))
+    suffix = match.group(3)
+    scaled = value * scale
+    formatted = f"{scaled:.4f}".rstrip("0").rstrip(".")
+    return f"{prefix}{formatted}{suffix}"
+
+content = re.sub(r'(\d+)px\b', scale_px, content)
+content = re.sub(r'(font:\s*"[^"]* )(\d+(?:\.\d+)?)(")', scale_font, content)
+output_path.write_text(content)
+PY
+else
+    cp "$theme_source" "$theme_output"
+fi
+
+LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8 LC_CTYPE=zh_CN.UTF-8 GTK_IM_MODULE=fcitx QT_IM_MODULE=fcitx XMODIFIERS=@im=fcitx \
+exec rofi -config "$config_file" -theme "$theme_output" -show drun "$@"

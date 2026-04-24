@@ -1,6 +1,6 @@
 local awful = require("awful")
 
-local ROFI_COMMAND = "LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8 LC_CTYPE=zh_CN.UTF-8 GTK_IM_MODULE=fcitx QT_IM_MODULE=fcitx XMODIFIERS=@im=fcitx rofi -show drun"
+local ROFI_COMMAND = "~/.config/scripts/rofi-launch"
 local SCREENSHOT_OCR_COMMAND = "maim -s ~/.cache/com.pot-app.desktop/pot_screenshot_cut.png && curl '127.0.0.1:60828/ocr_translate?screenshot=false'"
 local LOCK_COMMAND = "~/.config/scripts/lock"
 

@@ -16,6 +16,12 @@
 - 在当前 Ubuntu aarch64 + rofi 1.7.1 环境里，rofi theme 的实数 `em` 距离值不可靠；缩放优先回退到 `px` 距离，并在 `config.rasi` 中固定 `dpi: 1`。
 - 当 rofi 在 `LANG/LC_ALL/LC_CTYPE=zh_CN.UTF-8` 与 fcitx 环境下仍无法输入中文时，先视为当前 rofi 版本能力边界，不要继续只靠主题或 Awesome 启动参数盲改。
 - 在当前这套 rofi `px + dpi: 1` 配置上，字体默认应比 `12.5` 再小一档；优先使用基础/中文字体 `11.5`、提示粗体 `12`。
+- 对当前这套 rofi 1.7.1 配置继续做紧凑化时，优先先压列表图标和局部 spacing/padding，并顺手降低 window 模式文案噪音；不要先动窗口宽度。
+- 对 rofi 的 launcher 文案，当前偏好统一成中文短标签（如“应用 / 窗口 / 命令”）；对 window 模式，优先保留 `窗口名 + class` 的简版信息，先不要把 title 一起塞回去。
+- 对 rofi 紧凑化的下一层细调，当前优先继续从 `message` / `textbox` 这类辅助区域的 padding 下手，而不是减少可见行数或继续压窗口外框。
+- 在当前 rofi 1.7.1 + `Xft.dpi` 环境里，如果用户明确要求“跟随系统缩放”，优先改成“launch script 运行时按 `Xft.dpi / 96` 生成缩放后的 px 主题”这条路线；不要再直接把仓库主题切回 `em/ch`。
+- 对 rofi 的系统缩放实现，当前偏好是：`config.rasi` 不再固定 `dpi: 1`，Awesome 通过 `~/.config/scripts/rofi-launch` 启动 rofi，并在脚本里注入 locale/fcitx 环境、生成 `~/.cache/rofi/theme.scaled.rasi` 后再 `-theme` 拉起。
+- 对 rofi 的运行时缩放，当前偏好是字体也必须和 px 距离一起按同一倍率缩放；只放大 `width/padding/spacing/icon size` 而不放大字体，会让界面观感失衡。
 - 当用户要求把当前桌面配置改动提交到 GitHub 时，优先先复跑轻量回归测试，并确认仓库文件与 live `~/.config` 已同步，再执行提交和推送。
 - 对通过 `npm install -g` 安装到 `/usr/local/nodejs` 前缀的 CLI，优先在共享 zsh PATH 中追加 `/usr/local/nodejs/bin`，避免只暴露到部分命令（如 `codex` 来自 Homebrew、`omx` 却缺失）。
 - 对 Awesome 首轮结构重构，优先把可复用桌面动作收口到独立 `actions.lua`，并让 `bindings.lua` 通过显式注入消费 prompt runner，而不是直接读取 `screen.mypromptbox` 这类隐式字段。

@@ -201,6 +201,7 @@ linux_configs=(
     "command -v rofi|.config/linux/rofi/config.rasi|~/.config/rofi/config.rasi|Rofi"
     "command -v rofi|.config/linux/rofi/theme.rasi|~/.config/rofi/theme.rasi|Rofi theme"
     "|.config/scripts/lock|~/.config/scripts/lock|Lock screen script"
+    "command -v rofi|.config/scripts/rofi-launch|~/.config/scripts/rofi-launch|Rofi launch script"
 )
 
 # Linux directory configurations

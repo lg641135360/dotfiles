@@ -2,6 +2,26 @@
 
 ## 2026-04-24
 
+- 目的：按用户要求把当前已验证的 rofi 系统缩放改动提交到 GitHub 远端。
+- 已做：先按既有偏好复核工作树与 live 配置同步状态，确认 `.config/linux/rofi/config.rasi`、`.config/linux/rofi/theme.rasi`、`.config/scripts/rofi-launch`、`.config/linux/awesome/actions.lua` 都已经同步到 live `~/.config`；随后重新执行 `tests/rofi_config_test.sh`、`sh -n .config/scripts/rofi-launch`、`bash -n install.sh`、`luajit -e 'assert(loadfile(".config/linux/awesome/actions.lua"))'`，并实际运行 `~/.config/scripts/rofi-launch -dump-theme` 确认 runtime theme 仍可生成。验证通过后，准备按 Lore 协议在 `main` 分支提交并推送到 `origin/main`。
+- 后续：推送完成后，这套“rofi 跟随 `Xft.dpi`，并让字体/容器同步缩放”的实现就会成为新的远端基线；如果后面还要继续调观感，优先在 launch script 的倍率策略上微调，而不是再退回固定 `dpi: 1`。
+
+- 目的：修正刚切到“跟随系统缩放”后 rofi 字体相对过小的问题，让运行时缩放同时覆盖字体和 px 距离。
+- 已做：收到用户反馈“字体小了”后，先复核当前 runtime scaling 实现，确认 `~/.config/scripts/rofi-launch` 只会把主题里的 `Npx` 值按 `Xft.dpi / 96` 放大，而不会同步改写字体大小，导致容器和图标已经按 2x 放大时，字体仍停留在基础主题的 `11.5 / 12`。随后按 TDD 扩展 `tests/rofi_config_test.sh`，新增一个临时 `XDG_CONFIG_HOME/XDG_CACHE_HOME + fake xrdb(Xft.dpi=192)` 的运行时验证，要求 launch script 生成的 `theme.scaled.rasi` 里不仅 `width` 要从 `680px` 变成 `1360px`，而且基础字体也必须同步缩放为 `JetBrainsMono Nerd Font Mono 23`、`JetBrainsMono Nerd Font Bold 24`、`Noto Sans CJK SC 23`；确认测试先失败后，再修改 `.config/scripts/rofi-launch` 里的 Python 生成逻辑，在缩放 `px` 之后继续按同一倍率改写 `font: "... <size>"` 尾部字号。最后重新执行 `tests/rofi_config_test.sh`，并把更新后的脚本同步到 live `~/.config/scripts/rofi-launch` 后实际运行 `~/.config/scripts/rofi-launch -dump-theme`，确认生成主题中的字体与 `width` 都已经一起放大。
+- 后续：当前这套 rofi runtime scaling 已经做到“容器 + 图标 + 字体”同倍率缩放；如果用户接下来觉得 2x 过大或过小，下一轮优先在 launch script 里给 `scale = dpi / 96` 加一个可调系数或上下限，而不是再回退到固定 `dpi: 1`。
+
+- 目的：按用户要求把 rofi 从“固定基线”切回尽量跟随系统缩放的方案，同时避开 rofi 1.7.1 在当前环境里对 `em/ch` 单位的已知问题。
+- 已做：先重新核对当前环境，确认系统 `Xft.dpi` 仍是 `192`，并再次用 `rofi -no-config -theme-str ... -dump-theme` 验证 `em/ch` 在 rofi 1.7.1 下依旧会触发 `GLib-CRITICAL g_ascii_formatd` 且导出非法字节，因此没有直接把仓库主题切回相对单位。随后改走运行时缩放路线：先按 TDD 扩展 `tests/rofi_config_test.sh`，把新预期锁定为 `config.rasi` 不再固定 `dpi: 1`、Awesome 改为调用 `~/.config/scripts/rofi-launch`、新增 launch script 需要读取 `xrdb` 里的 `Xft.dpi`、计算 `scale = dpi / 96`、生成缩放后的 runtime theme，并通过 `-theme` 拉起 rofi；确认测试先在旧实现上失败后，再修改 `.config/linux/rofi/config.rasi`、`.config/linux/awesome/actions.lua`、`install.sh`，新增 `.config/scripts/rofi-launch`。脚本里保留 locale/fcitx 注入，同时用 Python 把基础主题里的所有 `Npx` 按当前缩放倍率重写到 `~/.cache/rofi/theme.scaled.rasi`。最后重新执行 `tests/rofi_config_test.sh`、`sh -n .config/scripts/rofi-launch`、`bash -n install.sh`、`luajit -e 'assert(loadfile(".config/linux/awesome/actions.lua"))'`，并实际运行 `~/.config/scripts/rofi-launch -dump-theme` 验证 runtime theme 已生成；在当前 `Xft.dpi: 192` 下，关键值已翻倍为 `width: 1360px`、`mainbox padding: 40px`、`element-icon size: 64px`。随后把新的 rofi config/theme、launch script 和 `actions.lua` 同步到 live `~/.config`，并通过 `awesome-client` 触发 reload，重载前后 `awesome.startup_errors` 都仍为 `"ok"`。
+- 后续：当前通过 Awesome 的 rofi 入口已经会跟随 `Xft.dpi` 生成缩放后的 runtime theme；如果还要继续打磨，下一轮优先做真实 GUI 观感复核，并决定这套 `dpi / 96` 线性放大是否需要上限/下限钳制。中文输入问题仍与这一轮分离，继续维持现有版本边界判断。
+
+- 目的：继续把 rofi 的紧凑化往辅助区域推进，在不减少可见行数和不碰窗口外框的前提下再收一轮 message/textbox 内边距。
+- 已做：延续上一轮的低风险 rofi 收紧策略，先按 TDD 扩展 `tests/rofi_config_test.sh`，新增对 `message` 区块 `padding: 8px` 和 `textbox` 区块 `padding: 6px 11px` 的预期，并先执行测试确认旧主题下会失败。随后只修改 `.config/linux/rofi/theme.rasi` 这两个辅助区域的 padding：`message` 从 `10px` 收到 `8px`，`textbox` 从 `8px 13px` 收到 `6px 11px`，其余字体、宽度、listview 行数和输入法相关配置保持不变。最后重新执行 `tests/rofi_config_test.sh`，并在把 repo 文件同步到 live `~/.config/rofi/` 后用 `rofi -config ~/.config/rofi/config.rasi -dump-theme` 复核，确认当前 rofi 1.7.1 实际解析出来的 `message/textbox` padding 已更新为新值。
+- 后续：如果还要继续压 rofi，下一轮优先考虑 `message` / `textbox` 之外的次级 spacing 或 icon/text 对齐细节；只有这些都收完仍嫌松时，再评估是否要减少 listview 可见行数，暂时不要先缩窗口宽度。
+
+- 目的：继续打磨 rofi 1.7.1 的当前基线，在不碰窗口宽度和输入法边界判断的前提下先做一轮低风险紧凑化与文案降噪。
+- 已做：先基于仓库里的 rofi 配置、回归测试和既有偏好做只读分析，确认这一轮优先级应当是“图标/spacing/padding 收紧 + window 模式信息简化 + launcher 文案统一”，而不是继续改 `dpi`、回退到 `em`，或再碰中文输入问题。随后按 TDD 先扩展 `tests/rofi_config_test.sh`，把新预期锁定为：launcher 标签改成中文短标签 `应用 / 窗口 / 命令`、`window-format` 从 `{w} · {c} · {t}` 收到 `{w} · {c}`、`mainbox`/`inputbar`/`element` 的 spacing 与 padding 进一步收紧、列表图标从 `36px` 收到 `32px`；确认测试先在旧配置上失败后，再修改 `.config/linux/rofi/config.rasi` 与 `.config/linux/rofi/theme.rasi` 落地这些调整。最后重新执行 `tests/rofi_config_test.sh`，并用 `rofi -config ... -dump-theme` 做真实解析检查，确认新主题仍能被当前系统的 rofi 1.7.1 正常读取；随后把更新后的 `config.rasi` 与 `theme.rasi` 同步到 live `~/.config/rofi/`，这样下一次直接拉起 rofi 就会吃到新配置。
+- 后续：如果用户实际使用后还觉得 rofi 偏松，下一轮仍应先从局部 spacing / icon size 继续细调，必要时再考虑 `message` / `textbox` 的 padding；只有这些都不够时，才回头讨论窗口宽度。中文输入问题继续维持现有判断，不和这一轮视觉紧凑化混在一起。
+
 - 目的：修复新的 Awesome 重构后在运行时触发的 `wibar.lua:101: attempt to call a nil value (method 'count')` 崩溃。
 - 已做：先重新核对 `ui/wibar.lua` 和 `widgets/system.lua` 的当前实现，确认根因是第二轮重构后 `create_sysinfo_bundle()` 仍然把 `widgets.system.create(config)` 返回的 `sysinfo_widget` 外层 margin 容器当成可插入子项的 layout，继续调用了旧的 `:count()` / `:insert()` 路径；随后按 TDD 扩展 `tests/awesome_ui_architecture_test.sh`，要求 `ui/wibar.lua` 不再对 `sysinfo_widget` 调用 `count/insert`，并要求 `widgets/system.lua` 显式暴露 `system_row` 给上层扩展；确认测试先失败后，修改 `widgets/system.lua` 返回 `system_row`，再把 `ui/wibar.lua` 中给 volume widget 追加分隔符和音量组件的逻辑改到 `system_row:add(...)`，从正确的 layout 层插入。最后重新执行 Awesome 相关 shell 回归测试、autostart shell 语法检查和 `luajit` 语法检查，全部通过。
 - 后续：如果还要继续给 sysinfo 区块加更多可选组件，优先延续“内部 layout 暴露、外层容器只负责包裹样式”的边界，避免再次把 margin/container 当作可变布局来操作。

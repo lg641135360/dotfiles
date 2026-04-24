@@ -1,17 +1,16 @@
 configuration {
     modi: "drun,window,run";
-    display-drun: "  Applications";
-    display-window: "  Windows";
-    display-run: "  Run";
+    display-drun: "  应用";
+    display-window: "  窗口";
+    display-run: "  命令";
     drun-display-format: "{name}";
-    window-format: "{w} · {c} · {t}";
+    window-format: "{w} · {c}";
     matching: "fuzzy";
     sort: true;
     sorting-method: "fzf";
     case-sensitive: false;
     show-icons: true;
     icon-theme: "Papirus-Dark";
-    dpi: 1;
     location: 0;
 }
 
