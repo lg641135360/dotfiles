@@ -1,12 +1,12 @@
 -- System info widgets: CPU, MEM, NET
 -- Returns a container with all system widgets and helper functions
 
-local awful = require("awful")
 local gears = require("gears")
 local wibox = require("wibox")
 local beautiful = require("beautiful")
 
-local function create_system_widgets(config)
+local function create_system_widgets(config, options)
+    local compact = options and options.compact
     local ctpp = beautiful.ctpp
     local dpi = require("beautiful.xresources").apply_dpi
 
@@ -38,24 +38,91 @@ local function create_system_widgets(config)
         return nil
     end
 
+    local function interface_matches(interface)
+        for token in string.gmatch(config.net_interfaces or "", "[^|]+") do
+            if interface == token or interface:match("^" .. token) then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    local function read_network_totals()
+        local dev_file = io.open("/proc/net/dev", "r")
+        if not dev_file then
+            return nil
+        end
+
+        for line in dev_file:lines() do
+            local interface, rest = line:match("^%s*([^:]+):%s*(.+)$")
+            if interface and rest and interface_matches(interface) then
+                local fields = {}
+                for value in rest:gmatch("%S+") do
+                    fields[#fields + 1] = value
+                end
+
+                local recv = tonumber(fields[1])
+                local sent = tonumber(fields[9])
+
+                if recv and sent then
+                    dev_file:close()
+                    return {
+                        interface = interface,
+                        recv = recv,
+                        sent = sent,
+                    }
+                end
+            end
+        end
+
+        dev_file:close()
+        return nil
+    end
+
+    local function render_metric_markup(label, label_color, value_text, value_color)
+        return "<span foreground='" .. label_color .. "'>" .. label .. ":</span><span foreground='" .. value_color .. "'>" .. value_text .. "</span>"
+    end
+
     -- CPU widget
     local cpu_widget = wibox.widget.textbox()
-    cpu_widget:set_markup("<span foreground='" .. ctpp.blue .. "'>CPU</span><span foreground='" .. ctpp.text .. "'> 0%</span>")
+    cpu_widget:set_markup(render_metric_markup("C", ctpp.blue, "0%", ctpp.text))
 
     -- Memory widget
     local mem_widget = wibox.widget.textbox()
-    mem_widget:set_markup("<span foreground='" .. ctpp.green .. "'>MEM</span><span foreground='" .. ctpp.text .. "'> 0%</span>")
+    mem_widget:set_markup(render_metric_markup("M", ctpp.green, "0%", ctpp.text))
+
+    local function format_speed(bytes_per_sec)
+        if bytes_per_sec < 1024 then
+            return string.format("%.0fB", bytes_per_sec)
+        elseif bytes_per_sec < 10 * 1024 then
+            return string.format("%.1fK", bytes_per_sec / 1024)
+        elseif bytes_per_sec < 1024 * 1024 then
+            return string.format("%.0fK", bytes_per_sec / 1024)
+        elseif bytes_per_sec < 10 * 1024 * 1024 then
+            return string.format("%.1fM", bytes_per_sec / 1024 / 1024)
+        elseif bytes_per_sec < 1024 * 1024 * 1024 then
+            return string.format("%.0fM", bytes_per_sec / 1024 / 1024)
+        else
+            return string.format("%.1fG", bytes_per_sec / 1024 / 1024 / 1024)
+        end
+    end
 
     -- Network widget
     local net_widget = wibox.widget.textbox()
-    net_widget:set_markup("<span foreground='" .. ctpp.teal .. "'>NET</span><span foreground='" .. ctpp.text .. "'> 0K 0K</span>")
+
+    local function render_net_markup(recv_speed, sent_speed)
+        return "<span foreground='" .. ctpp.blue .. "'>↓" .. format_speed(recv_speed) .. "</span> <span foreground='" .. ctpp.peach .. "'>↑" .. format_speed(sent_speed) .. "</span>"
+    end
+
+    net_widget:set_markup(render_net_markup(0, 0))
 
     -- Battery widget (laptops only)
     local battery_widget = nil
     local battery_path = find_battery_path()
     if battery_path then
         battery_widget = wibox.widget.textbox()
-        battery_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>BAT</span><span foreground='" .. ctpp.text .. "'> 0%</span>")
+        battery_widget:set_markup(render_metric_markup("B", ctpp.yellow, "0%", ctpp.text))
     end
 
     -- Load lain for CPU and MEM
@@ -70,7 +137,7 @@ local function create_system_widgets(config)
             elseif tonumber(cpu_now.usage) > 50 then
                 color = ctpp.yellow
             end
-            cpu_widget:set_markup("<span foreground='" .. ctpp.blue .. "'>CPU</span><span foreground='" .. color .. "'> " .. cpu_now.usage .. "%</span>")
+            cpu_widget:set_markup(render_metric_markup("C", ctpp.blue, cpu_now.usage .. "%", color))
         end,
     }
 
@@ -83,42 +150,32 @@ local function create_system_widgets(config)
             elseif tonumber(mem_now.perc) > 60 then
                 color = ctpp.yellow
             end
-            mem_widget:set_markup("<span foreground='" .. ctpp.green .. "'>MEM</span><span foreground='" .. color .. "'> " .. mem_now.perc .. "%</span>")
+            mem_widget:set_markup(render_metric_markup("M", ctpp.green, mem_now.perc .. "%", color))
         end,
     }
 
     -- Network monitoring
-    local net_prev = { recv = 0, sent = 0 }
-
-    local function format_speed(bytes_per_sec)
-        if bytes_per_sec < 1024 then
-            return string.format("%.0fB", bytes_per_sec)
-        elseif bytes_per_sec < 1024 * 1024 then
-            return string.format("%.1fK", bytes_per_sec / 1024)
-        else
-            return string.format("%.1fM", bytes_per_sec / 1024 / 1024)
-        end
-    end
+    local net_prev = {}
 
     local function update_net()
-        local f = io.popen("cat /proc/net/dev | grep -E '" .. config.net_interfaces .. "' | head -1 | awk '{printf(\"%d %d\", $2, $10)}'")
-        if f then
-            local result = f:read("*a"):gsub("\n", "")
-            f:close()
-            if result and result ~= "" then
-                local recv, sent = result:match("(%d+) (%d+)")
-                if recv and sent then
-                    recv = tonumber(recv)
-                    sent = tonumber(sent)
-                    local recv_speed = (recv - net_prev.recv) / 2
-                    local sent_speed = (sent - net_prev.sent) / 2
-
-                    net_widget:set_markup("<span foreground='" .. ctpp.teal .. "'>NET</span><span foreground='" .. ctpp.blue .. "'> ↓" .. format_speed(recv_speed) .. "</span> <span foreground='" .. ctpp.peach .. "'>↑" .. format_speed(sent_speed) .. "</span>")
-                    net_prev.recv = recv
-                    net_prev.sent = sent
-                end
-            end
+        local totals = read_network_totals()
+        if not totals then
+            return
         end
+
+        if not net_prev.recv or not net_prev.sent then
+            net_prev.recv = totals.recv
+            net_prev.sent = totals.sent
+            net_widget:set_markup(render_net_markup(0, 0))
+            return
+        end
+
+        local recv_speed = math.max(totals.recv - net_prev.recv, 0) / 2
+        local sent_speed = math.max(totals.sent - net_prev.sent, 0) / 2
+
+        net_widget:set_markup(render_net_markup(recv_speed, sent_speed))
+        net_prev.recv = totals.recv
+        net_prev.sent = totals.sent
     end
 
     update_net()
@@ -142,7 +199,7 @@ local function create_system_widgets(config)
                 color = ctpp.yellow
             end
 
-            battery_widget:set_markup("<span foreground='" .. ctpp.yellow .. "'>BAT</span><span foreground='" .. color .. "'> " .. capacity .. "%</span>")
+            battery_widget:set_markup(render_metric_markup("B", ctpp.yellow, capacity .. "%", color))
         end
 
         update_battery()
@@ -162,12 +219,15 @@ local function create_system_widgets(config)
     end
 
     local system_items = {
-        cpu_widget,
-        make_separator(),
-        mem_widget,
-        make_separator(),
         net_widget,
+        make_separator(),
+        cpu_widget,
     }
+
+    if not compact then
+        table.insert(system_items, make_separator())
+        table.insert(system_items, mem_widget)
+    end
 
     if battery_widget then
         table.insert(system_items, make_separator())
@@ -175,7 +235,7 @@ local function create_system_widgets(config)
     end
 
     local system_row = wibox.layout.fixed.horizontal()
-    system_row.spacing = 8
+    system_row.spacing = 2
     for _, item in ipairs(system_items) do
         system_row:add(item)
     end
@@ -187,8 +247,8 @@ local function create_system_widgets(config)
         shape = function(cr, w, h)
             gears.shape.rounded_rect(cr, w, h, dpi(8))
         end,
-        left = 8,
-        right = 8,
+        left = 4,
+        right = 4,
         top = 4,
         bottom = 4,
         widget = wibox.container.margin,
@@ -196,6 +256,7 @@ local function create_system_widgets(config)
 
     return {
         sysinfo_widget = sysinfo_widget,
+        system_row = system_row,
         cpu_widget = cpu_widget,
         mem_widget = mem_widget,
         net_widget = net_widget,

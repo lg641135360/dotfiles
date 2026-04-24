@@ -1,5 +1,36 @@
 local M = {}
 
+local function build_basic_menu(awful, menu_awesome, menu_terminal)
+    return awful.menu({ items = { menu_awesome, menu_terminal } })
+end
+
+local function build_debian_menu(awful, menu_awesome, menu_terminal)
+    local has_debian, debian_menu = pcall(require, "debian.menu")
+    if has_debian and debian_menu and debian_menu.Debian_menu and debian_menu.Debian_menu.Debian then
+        return awful.menu({
+            items = {
+                menu_awesome,
+                { "Debian", debian_menu.Debian_menu.Debian },
+                menu_terminal,
+            }
+        })
+    end
+
+    return build_basic_menu(awful, menu_awesome, menu_terminal)
+end
+
+local function build_auto_menu(awful, menu_awesome, menu_terminal)
+    local has_fdo, freedesktop = pcall(require, "freedesktop")
+    if has_fdo and freedesktop and freedesktop.menu and freedesktop.menu.build then
+        return freedesktop.menu.build({
+            before = { menu_awesome },
+            after = { menu_terminal },
+        })
+    end
+
+    return build_debian_menu(awful, menu_awesome, menu_terminal)
+end
+
 function M.build(args)
     local terminal = args.terminal
     local editor_cmd = args.editor_cmd
@@ -21,24 +52,10 @@ function M.build(args)
     local menu_terminal = { "open terminal", terminal }
 
     local mymainmenu
-    if config.menu_style == "freedesktop" then
-        local has_fdo, freedesktop = pcall(require, "freedesktop")
-        if has_fdo then
-            mymainmenu = freedesktop.menu.build({
-                before = { menu_awesome },
-                after =  { menu_terminal }
-            })
-        else
-            mymainmenu = awful.menu({
-                items = {
-                    menu_awesome,
-                    { "Debian", require("debian.menu").Debian_menu.Debian },
-                    menu_terminal,
-                }
-            })
-        end
+    if config.menu_style == "basic" then
+        mymainmenu = build_basic_menu(awful, menu_awesome, menu_terminal)
     else
-        mymainmenu = awful.menu({ items = { menu_awesome, menu_terminal } })
+        mymainmenu = build_auto_menu(awful, menu_awesome, menu_terminal)
     end
 
     menubar.utils.terminal = terminal

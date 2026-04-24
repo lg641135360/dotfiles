@@ -199,10 +199,7 @@ theme.icon_theme = nil
 -- Custom colors for widgets (export for use in rc.lua)
 theme.ctpp = palette  -- Export full palette for custom widgets
 
--- Wallpapers (optional - can be overridden)
-theme.wallpaper = function(s)
-    return palette.crust
-end
+-- Wallpaper is managed externally by autostart/feh.
 
 return theme
 

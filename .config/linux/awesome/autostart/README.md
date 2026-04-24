@@ -6,6 +6,7 @@
 
 | 文件 | 目标平台 | 说明 |
 |------|----------|------|
+| `common.sh` | 全平台共享 | 公共 helper、Xresources 初始化与公共后台服务启动函数 |
 | `arch_x64.sh` | Arch Linux x86_64 | 桌面端，使用 Snipaste + greenclip |
 | `ubuntu_aarch64.sh` | Ubuntu ARM64 | ARM 笔记本，设置 120Hz 分辨率 + 触摸板 |
 | `ubuntu_x64.sh` | Ubuntu x86_64 | 桌面端，使用 Snipaste + greenclip |
@@ -22,6 +23,8 @@ Ubuntu x86_64      → ubuntu_x64.sh
 
 ## 公共功能
 
+三份平台脚本都会先加载 `common.sh`，由它提供 `run()` / `run_custom()`、`prepare_xresources()` 以及公共服务启动函数。
+
 所有脚本都启动以下服务：
 
 - `picom` — 窗口合成器（圆角/阴影/模糊）
@@ -34,6 +37,9 @@ Ubuntu x86_64      → ubuntu_x64.sh
 - `feh` — 壁纸设置
 
 ## 平台差异
+
+平台脚本现在只保留各自的差异逻辑，例如壁纸路径、分辨率/触摸板、Snipaste/greenclip/flameshot 等。
+
 
 ### ubuntu_aarch64.sh
 

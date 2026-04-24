@@ -18,3 +18,23 @@
 - 在当前这套 rofi `px + dpi: 1` 配置上，字体默认应比 `12.5` 再小一档；优先使用基础/中文字体 `11.5`、提示粗体 `12`。
 - 当用户要求把当前桌面配置改动提交到 GitHub 时，优先先复跑轻量回归测试，并确认仓库文件与 live `~/.config` 已同步，再执行提交和推送。
 - 对通过 `npm install -g` 安装到 `/usr/local/nodejs` 前缀的 CLI，优先在共享 zsh PATH 中追加 `/usr/local/nodejs/bin`，避免只暴露到部分命令（如 `codex` 来自 Homebrew、`omx` 却缺失）。
+- 对 Awesome 首轮结构重构，优先把可复用桌面动作收口到独立 `actions.lua`，并让 `bindings.lua` 通过显式注入消费 prompt runner，而不是直接读取 `screen.mypromptbox` 这类隐式字段。
+- 对 Awesome 顶栏结构，优先让 `ui/wibar.lua` 自己创建每屏 widget（如 lock button、clock、sysinfo）并只把 `actions`、`config`、能力标志从 `rc.lua` 注入进去，避免在 `rc.lua` 里长期保留共享实例。
+- 对 Awesome 的 NET 组件，优先直接用 Lua 解析 `/proc/net/dev` 并先初始化上一轮计数，再显示速率；不要继续在 2 秒轮询里依赖 `cat|grep|awk` 这类 shell pipeline。
+- 对 Awesome 的 volume widget，优先至少提供 2 秒级周期刷新与显式静音态展示，避免只有点击 widget 自己时才更新。
+- 对 Awesome 的 autostart 脚本，优先抽出共享 `common.sh` 收口 `run()`、Xresources 初始化和公共后台服务启动；平台脚本只保留壁纸、显示器/触摸板、Snipaste/greenclip/flameshot 等差异逻辑。
+- 对 Ubuntu aarch64 的 Awesome autostart，显示输出名优先运行时探测内部屏（如 `eDP`/`LVDS`/`DSI`），Linuxbrew 路径若必须保留也应追加到 PATH 末尾，避免再次把系统二进制遮蔽掉。
+- 对 Awesome 的 `config.lua`，优先把 `has_volume` 这类能力开关改成命令/能力探测（如 `pactl` 是否存在），而不是继续只按 Ubuntu/Arch 这类发行版标签判断。
+- 对 Awesome 的主菜单，优先在 `menu.lua` 里按运行时能力自动选择 `freedesktop -> debian.menu -> basic` fallback，不再按 Ubuntu 等发行版标签硬编码菜单样式。
+- 对 Awesome 的 volume widget，若 `pactl` 命令失败、默认 sink 缺失或输出异常，优先显式降级为 `N/A`，不要继续保留可能误导的旧音量百分比。
+- 对 Awesome 的 volume widget，点击滚轮或左键后的 `pactl set-sink-*` 写操作若失败，优先立即回退到 `N/A` 并再触发一次读刷新，而不是静默保留旧状态。
+- 对 Awesome 的壁纸，优先由 `autostart/*.sh` 里的 `feh` 管理；`theme/*.lua` 和 `ui/wibar.lua` 不要再回写 `theme.wallpaper` 或 `gears.wallpaper.maximized()` 覆盖外部壁纸。
+- 对 Awesome 的壁纸恢复策略，优先保留 `~/.fehbg` 中的用户上次 feh 选择；只有在没有可恢复状态时，才回退到用户壁纸目录，再最后回退到 `/usr/share/backgrounds`。
+- 对 Awesome 的平铺布局，默认 client 规则优先设置 `size_hints_honor = false`，避免某些应用的最小宽度/尺寸提示把 `mod+h`、`mod+l` 的主区域宽度调整卡死。
+- 对 Awesome 的 NET widget，在空间紧张时优先去掉固定 `NET` 文本标签，保留彩色上下行箭头和速率值，减少横向占用而不引入屏幕/应用特判。
+- 对 Awesome 的 sysinfo 区块，压缩优先级先从内部 spacing 和左右 padding 下手；当前小屏优化基线为 `system_row.spacing = 4`、容器 `left/right = 6`。
+- 对 Awesome 的小屏 sysinfo，当前紧凑基线升级为：CPU/MEM/BAT 使用短标签 `C/M/B`，NET 用箭头速率，`system_row.spacing = 2`，sysinfo 容器 `left/right = 4`，右侧 wibar spacing = 6。
+- 对 Awesome 的紧凑 sysinfo，当前顺序优先为 `NET -> CPU -> MEM -> BAT`；同时 CPU/BAT/VOL 的标签和值之间默认不再插入前导空格。
+- 对 Awesome 的紧凑 sysinfo，标签和值之间优先使用冒号分隔（如 `C:12%`、`B:87%`、`V:35%`），不要纯粘连也不要退回空格。
+- 对 Awesome 的小屏右侧状态栏，优先按 `screen.geometry.width <= compact_wibar_max_width` 自动切到 compact 模式；compact 模式默认使用短时钟 ` %m/%d %H:%M `，并优先保留 `NET / CPU / BAT / VOL / clock`，其中 MEM 可先隐藏。
+- 对 Awesome 的自启动入口，根目录 `autostart.sh` 应保持为平台分发 wrapper，再转发到 `autostart/*.sh`；不要再让安装脚本用平台脚本直接覆盖它，否则 `common.sh` 相对路径会失效。

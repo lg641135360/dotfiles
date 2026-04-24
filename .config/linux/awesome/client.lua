@@ -21,6 +21,7 @@ function M.setup(args)
                 buttons = clientbuttons,
                 screen = awful.screen.preferred,
                 placement = awful.placement.no_overlap + awful.placement.no_offscreen,
+                size_hints_honor = false,
             },
         },
         {
@@ -66,6 +67,7 @@ function M.setup(args)
             and not c.size_hints.program_position then
             awful.placement.no_offscreen(c)
         end
+
     end)
 
     client.connect_signal("request::titlebars", function(c)

@@ -2,6 +2,38 @@
 
 ## 2026-04-24
 
+- 目的：修复新的 Awesome 重构后在运行时触发的 `wibar.lua:101: attempt to call a nil value (method 'count')` 崩溃。
+- 已做：先重新核对 `ui/wibar.lua` 和 `widgets/system.lua` 的当前实现，确认根因是第二轮重构后 `create_sysinfo_bundle()` 仍然把 `widgets.system.create(config)` 返回的 `sysinfo_widget` 外层 margin 容器当成可插入子项的 layout，继续调用了旧的 `:count()` / `:insert()` 路径；随后按 TDD 扩展 `tests/awesome_ui_architecture_test.sh`，要求 `ui/wibar.lua` 不再对 `sysinfo_widget` 调用 `count/insert`，并要求 `widgets/system.lua` 显式暴露 `system_row` 给上层扩展；确认测试先失败后，修改 `widgets/system.lua` 返回 `system_row`，再把 `ui/wibar.lua` 中给 volume widget 追加分隔符和音量组件的逻辑改到 `system_row:add(...)`，从正确的 layout 层插入。最后重新执行 Awesome 相关 shell 回归测试、autostart shell 语法检查和 `luajit` 语法检查，全部通过。
+- 后续：如果还要继续给 sysinfo 区块加更多可选组件，优先延续“内部 layout 暴露、外层容器只负责包裹样式”的边界，避免再次把 margin/container 当作可变布局来操作。
+
+- 目的：继续把 Awesome 的平台抽象往 capability detection 推进，先处理 `config.lua` 里最明显的 volume/distro 硬编码。
+- 已做：先新增 `tests/awesome_config_test.sh`，要求 `.config/linux/awesome/config.lua` 提供 `command_exists()` helper、`has_volume` 改成基于 `pactl` 是否存在的能力检测、以及已收敛完成的 `net_interfaces` 常量化；确认测试先失败后，重构 `config.lua`：新增 `read_command_output()` 与 `command_exists()`，用前者替代裸 `io.popen(...):read()`，让 `has_volume` 从“Ubuntu 才开启”改成“Linux 且存在 `pactl` 就开启”，并把 `net_interfaces` 退化分支直接收平成常量；同时把 distro 正则放宽到支持连字符/下划线。随后调整 `tests/awesome_net_test.sh` 以匹配新的常量写法，并重新执行 Awesome 相关 shell 回归测试、autostart shell 语法检查和 `luajit` 语法检查，全部通过。
+- 后续：下一轮如果继续推进 capability detection，更值得处理的是 `menu_style` / freedesktop 菜单 fallback 和 volume widget 对 `pactl` 命令失败时的降级行为；结构性收口已经比较完整，后面适合转向异常路径与能力缺失场景。
+
+- 目的：继续压缩 Ubuntu aarch64 Awesome autostart 的硬编码风险，先处理显示输出名写死和 Linuxbrew PATH 前置这两个最容易复发的平台问题。
+- 已做：先扩展 `tests/awesome_autostart_test.sh`，要求 `common.sh` 提供 `append_path_if_exists()`，并要求 `ubuntu_aarch64.sh` 改为显式定义 `detect_laptop_display()`、运行时探测内部屏后再执行 `xrandr`，同时不再使用 `PATH=...:$PATH` 的 Linuxbrew 前置写法；确认测试先失败后，修改 `.config/linux/awesome/autostart/common.sh` 新增 `append_path_if_exists()`，并重写 `ubuntu_aarch64.sh`：先加载 `common.sh`，再把 `/home/linuxbrew/.linuxbrew/bin` 追加到 PATH 末尾，新增 `detect_laptop_display()` 通过 `xrandr --query` 探测 `eDP/LVDS/DSI` 内部屏，只有探测成功时才应用 2880x1800@120Hz 模式，原有 touchpad、壁纸、gestures、flameshot 与公共后台服务逻辑保持不变。最后重新执行 autostart 结构测试、Awesome 相关 shell 回归测试、autostart shell 语法检查和 `luajit` 语法检查，全部通过。
+- 后续：下一轮如果继续收口 Awesome，最值得推进的是把 `config.lua` 中的 `has_volume` 等 distro 判断改成更细的 capability 检测；对于 autostart 本身，显示器模式也许还可以继续从“固定分辨率+刷新率”升级为“探测支持后再应用”，但那会改变更多运行时策略，适合单独一轮。
+
+- 目的：继续 Awesome 下一轮收口，把三份 autostart 脚本中的公共 helper 与公共后台服务启动逻辑抽到共享脚本里，降低平台脚本漂移。
+- 已做：先新增 `tests/awesome_autostart_test.sh`，要求存在 `.config/linux/awesome/autostart/common.sh`，三份平台脚本都改为 `source` 该共享脚本、不再各自定义 `run()`，并且仍显式保留各自的平台差异行为；确认测试先失败后，新增 `.config/linux/awesome/autostart/common.sh`，集中提供 `run()`、`run_custom()`、`prepare_xresources()`、`run_common_tray_services()`、`run_common_desktop_services()`；随后重写 `arch_x64.sh`、`ubuntu_aarch64.sh`、`ubuntu_x64.sh`，让它们只保留 sleep、PATH、xrandr/xinput、壁纸、Snipaste/greenclip/flameshot 等差异项，并调用共享入口启动公共服务。最后同步更新 `.config/linux/awesome/autostart/README.md` 说明新的 `common.sh` 结构，并重新执行 autostart 结构测试、Awesome 相关 shell 回归测试、autostart shell 语法检查和 `luajit` 语法检查，全部通过。
+- 后续：下一轮如果继续清理 Awesome，最值得处理的是 Ubuntu aarch64 autostart 里的显示输出名与 PATH 硬编码，或者把 `config.lua`/`widgets.volume.lua` 从 distro 判断继续推进到更细的 capability 检测；这两项都比继续细拆当前 autostart 更有收益。
+
+- 目的：按计划继续处理 Awesome 的 volume widget，让音量组件不再只在点击自身后更新，并显式展示静音态。
+- 已做：先新增 `tests/awesome_volume_test.sh`，要求 `.config/linux/awesome/widgets/volume.lua` 同时查询 `pactl get-sink-volume` 和 `pactl get-sink-mute`、提供 2 秒周期刷新定时器、并在代码中显式渲染 `MUTE` 状态；确认测试先失败后，重构 `widgets/volume.lua`，新增 `render_volume_markup()`、把刷新逻辑改为同时解析音量和静音状态，并保留点击滚轮/左键后的 0.2 秒延迟刷新。最后重新执行 Awesome 相关 shell 回归测试和 `luajit` 语法检查，全部通过。
+- 后续：如果继续打磨 Awesome，下一步更值得处理的是 `autostart/*.sh` 的公共逻辑收口和 Ubuntu aarch64 自启动硬编码；当前 volume widget 虽然已经更稳，但仍是轮询方案，如果未来要再提体验，可以再考虑基于 PulseAudio/PipeWire 事件做真正事件驱动刷新。
+
+- 目的：继续 Awesome 第三轮调整，先处理 `widgets/system.lua` 里 NET 组件的热路径，把 2 秒一次的 shell pipeline 轮询改成 Lua 直接解析 `/proc/net/dev`。
+- 已做：先扩展 `tests/awesome_net_test.sh`，要求 NET 组件不再使用 `cat /proc/net/dev | grep -E ... | awk ...`，而是提供 `read_network_totals()` 直接读取 `/proc/net/dev`，并在首次刷新时先初始化上一轮计数再显示 `0B` 速率；确认测试先失败后，重构 `.config/linux/awesome/widgets/system.lua`，新增 `interface_matches()` 与 `read_network_totals()`，在 Lua 中按字段解析网络计数，并把首轮刷新改成只播种 `net_prev`、避免把开机累计字节数误当作瞬时速度；随后修正发送字节解析实现，改为显式拆分 `/proc/net/dev` 行字段，避免使用不可靠的模式表达式。最后重新执行 Awesome 相关 shell 回归测试和 `luajit` 语法检查，全部通过。
+- 后续：下一轮如果继续优化 Awesome，优先处理 `widgets/volume.lua` 的外部音量变化不同步问题，或者开始收口 `autostart/*.sh` 的公共逻辑；这两项都比继续微调当前 NET 实现的收益更高。
+
+- 目的：继续 Awesome 第二轮结构收口，把顶部栏 widget 的创建职责从 `rc.lua` 继续下沉到 `ui/wibar.lua`，并顺手消除共享实例边界。
+- 已做：先扩展 `tests/awesome_ui_architecture_test.sh`，要求 `rc.lua` 不再本地创建 `lock_button` / `mytextclock` / `systray_widget` / `widgets.system`，同时要求 `ui/wibar.lua` 接管 `config`、`actions`、`lain_ok` 注入并负责创建 lock button、clock、systray 与 sysinfo bundle；确认测试先失败后，再重构 `.config/linux/awesome/ui/wibar.lua`，新增 `create_lock_button`、`create_textclock`、`create_systray_widget`、`create_sysinfo_bundle`，让每个 screen 在 wibar setup 内部创建自己的 lock button、clock、sysinfo，而 systray 只保留一个 primary 实例；同步收窄 `.config/linux/awesome/rc.lua`，让它只负责能力检测、theme 初始化、主菜单与 bindings 装配。最后重新执行 Awesome 相关 shell 回归测试和 `luajit` 语法检查，全部通过。
+- 后续：下一轮如果继续改 Awesome，优先进入 `widgets/system.lua`，把网络监控从 2 秒一次的 shell pipeline 改成 Lua 直接解析 `/proc/net/dev`，再决定是否继续把 autostart 公共逻辑做合并，避免同时扩大 UI 和平台脚本两个变更面。
+
+- 目的：启动 Awesome 配置第一轮结构收口，在不改变已验证桌面行为的前提下先降低隐式耦合和 UI 运行时风险。
+- 已做：先新增 `tests/awesome_ui_architecture_test.sh`，锁定本轮结构目标：新增 `actions.lua`、`bindings.lua` 不再直接读取 `awful.screen.focused().mypromptbox`、`ui/wibar.lua` 需要暴露显式 prompt runner 且 tasklist 标题必须走 `gears.string.xml_escape`。确认测试先失败后，新增 `.config/linux/awesome/actions.lua` 收口锁屏、rofi、截图 OCR、文件管理器动作；修改 `.config/linux/awesome/bindings.lua`，改为消费注入的 `actions` / `run_prompt` / `run_lua_prompt`；修改 `.config/linux/awesome/ui/wibar.lua`，补上 tasklist 文本渲染 helper 与 prompt runner 返回值；同步修改 `.config/linux/awesome/rc.lua` 完成装配；同时更新 `tests/rofi_config_test.sh` 以跟随新的 rofi action 位置，并补上 `tests/install_redshift_test.sh` 的可执行位。最后重新执行 `tests/*.sh` 与 `luajit` 语法检查，全部通过。
+- 后续：下一轮如果继续清理 Awesome，优先把 `rc.lua` 中残留的 bar/widget 创建职责继续回收到 `ui/wibar.lua`，再处理 `widgets/system.lua` 的网络轮询 shell pipeline 与 autostart 公共逻辑收口，避免这次把运行时行为改动铺得过大。
+
 - 目的：将本轮 zsh PATH 修复和回归测试提交到仓库并推送到 GitHub。
 - 已做：复核工作树，确认当前只包含 `.config/shared/zsh/path.zsh`、新增的 `tests/zsh_path_test.sh`、`memory/organizing_preferences.md` 与 `logs/trace.md` 这四处本轮相关改动；同时确认 live `~/.config/zsh/path.zsh` 已与仓库同步，并重新执行 `tests/zsh_path_test.sh`，再用隔离 zsh 环境验证 `command -v omx` 可解析到 `/usr/local/nodejs/bin/omx`。随后准备在 `main` 分支提交并推送到 `origin/main`。
 - 后续：推送完成后，新的 zsh 会话就会稳定带上 `/usr/local/nodejs/bin`；如果后面还遇到其它 npm 全局 CLI 只安装未暴露的问题，可以继续沿用这条 PATH 回归测试，而不必再逐个手动排查。
@@ -89,3 +121,63 @@
 - 目的：将 `redshift` 处理结果持久化到仓库和 GitHub。
 - 已做：检查工作树，确认本次仅包含 Awesome 自启动回退以及新增的 `memory/`、`logs/` 记录，并据此准备在 `main` 分支上提交和推送。
 - 后续：把这些变更提交并推送到 `origin/main`；只有在 fresh login 后 `redshift` 仍然不起作用时，才重新回头修改 Awesome 脚本。
+
+- 目的：继续把 Awesome 的 capability detection 从 `config.lua` 往菜单构建链路推进，减少 `menu_style` 对发行版标签的依赖并补安全 fallback。
+- 已做：先新增 `tests/awesome_menu_test.sh`，锁定两件事：`config.lua` 的 `menu_style` 默认改成 `auto`，以及 `menu.lua` 在 `freedesktop` 缺失时必须安全退回 `debian.menu` 再退回基础菜单，不能再直接裸 `require("debian.menu")`；确认测试先失败后，重构 `.config/linux/awesome/menu.lua`，抽出 `build_basic_menu()`、`build_debian_menu()`、`build_auto_menu()` 三层 helper，并把 `.config/linux/awesome/config.lua` 的菜单样式从 Ubuntu 专属的 `freedesktop` 改成 capability-oriented 的 `auto`。最后重新执行 Awesome 相关 shell 回归测试（含新增 menu 测试）、rofi/install/zsh 轻量回归，以及相关 Awesome Lua 文件的 `loadfile` 语法检查，全部通过。
+- 后续：如果继续推进异常路径，下一轮更值得处理的是 volume widget 在 `pactl` 存在但命令失败、默认 sink 缺失或输出异常时的降级逻辑；菜单链路目前已经从“按 distro 猜测”收敛到了“按能力探测 + 分层 fallback”。
+
+- 目的：继续补齐 Awesome volume widget 的异常路径，让 `pactl` 存在但查询失败时也能稳定降级，而不是显示含糊的占位值或保留旧状态。
+- 已做：先扩展 `tests/awesome_volume_test.sh`，要求 `.config/linux/awesome/widgets/volume.lua` 新增 `parse_volume_percent()`、`parse_mute_state()`、`render_unavailable_markup()`，并要求 `pactl` 查询显式吞掉 stderr 后在无有效输出时走 `N/A` 降级；确认测试先失败后，重构 volume widget：把音量与静音解析 helper 提到独立函数，初始化与异常路径统一显示 `V N/A`，并将 `update_volume()` 改成分别抓取 `get-sink-volume` / `get-sink-mute` 原始输出再做 Lua 侧解析。这样默认 sink 缺失、命令失败或输出格式异常时不会继续渲染误导性的百分比；静音态仍然优先显示 `MUTE`。最后重新执行 Awesome 相关 shell 回归测试和相关 Lua 文件的 `loadfile` 语法检查，全部通过。
+- 后续：如果继续打磨 volume 组件，下一轮更值得处理的是把点击后的 `pactl set-sink-*` 操作也补上失败兜底或事件驱动刷新；当前读路径已经从“命令存在即可乐观展示”收敛到了“解析成功才展示数值”。
+
+- 目的：继续补齐 Awesome volume widget 的写路径异常处理，避免滚轮调音或左键静音失败后仍保留旧的显示状态。
+- 已做：先扩展 `tests/awesome_volume_test.sh`，要求 `.config/linux/awesome/widgets/volume.lua` 新增 `run_volume_action()` helper，并要求点击后的 `pactl set-sink-volume` / `set-sink-mute` 改为走 `easy_async_with_shell` 回调拿到 `exit_code`，失败时立即回退 `V N/A`；确认测试先失败后，重构 volume widget 的按钮处理逻辑：把三个写操作统一收口到 `run_volume_action()`，在回调里对非 0 退出码先显示 `render_unavailable_markup()`，再执行原有的 0.2 秒延迟读刷新。这样默认 sink 消失、PulseAudio/PipeWire 临时不可用或命令执行失败时，不会继续把旧百分比误当成最新状态。最后重新执行 Awesome 相关 shell 回归测试和相关 Lua 文件的 `loadfile` 语法检查，全部通过。
+- 后续：如果继续深挖 volume 组件，下一轮更值得评估的是是否改成基于 `pactl subscribe` / PipeWire 事件的真正事件驱动刷新；当前读写两条路径都已经具备明确的失败降级，但仍然是轮询 + 操作后延迟刷新模式。
+
+- 目的：排查并修复 Awesome 会话里壁纸始终停留在主题默认背景、`feh` 设置看起来不生效的问题。
+- 已做：先沿着 `rc.lua -> ui/wibar.lua -> theme/catppuccin.lua -> autostart/*.sh` 核对壁纸链路，确认根因不是 `feh` 路径本身，而是 `ui/wibar.lua` 在每个 screen 初始化和 geometry 变化时都会调用 `gears.wallpaper.maximized()`，而 `theme/catppuccin.lua` 又把 `theme.wallpaper` 固定成 `palette.crust` 纯色，导致 Awesome 持续把外部 `feh` 壁纸覆盖回主题背景。随后按 TDD 新增 `tests/awesome_wallpaper_test.sh`，锁定“theme 不再强制内建壁纸、wibar 不再接管 wallpaper”；确认测试先失败后，删除 `theme/catppuccin.lua` 中的 `theme.wallpaper` 纯色函数，并从 `ui/wibar.lua` 去掉 `set_wallpaper()`、`gears.wallpaper.maximized()` 和 `property::geometry` 壁纸 hook，让壁纸所有权回到 autostart 里的 `feh`。最后重新执行 Awesome 相关 shell 回归测试、相关 Lua 文件 `loadfile` 语法检查，并把 `ui/wibar.lua` 与 `theme/catppuccin.lua` 同步到 live `~/.config/awesome` 后通过 `awesome-client` 触发重载。
+- 后续：如果后面还想支持“主题自带壁纸”和“外部 feh 壁纸”两种模式，优先显式做成可切换配置，而不要再让 theme/wibar 和 autostart 同时抢占 wallpaper 所有权。
+
+- 目的：继续修复 Awesome 壁纸行为，解决“放开主题纯色覆盖后，又因为平台脚本始终随机 `/usr/share/backgrounds` 而丢掉用户之前壁纸”的问题。
+- 已做：先检查 live `~/.config/awesome/autostart.sh`、`~/.fehbg` 和家目录壁纸候选目录，确认当前 Ubuntu aarch64 会话确实直接执行 `feh --bg-fill --randomize /usr/share/backgrounds/*`，而 `~/Pictures`、`~/Pictures/wall`、`~/.local/share/backgrounds` 目前都是空的，所以一旦取消 Awesome 自己的纯色覆盖，就只会回退到系统壁纸。随后按 TDD 扩展 `tests/awesome_autostart_test.sh`，要求 `common.sh` 新增 `restore_or_randomize_wallpaper()`，并要求平台脚本改为通过该 helper 恢复 `~/.fehbg` 或在用户目录/系统目录之间分层回退；确认测试先失败后，修改 `.config/linux/awesome/autostart/common.sh`，新增 `has_wallpaper_files()` 与 `restore_or_randomize_wallpaper()`，并把三份平台脚本的裸 `feh --bg-fill --randomize ...` 调用改成 helper。最后重新执行 Awesome/autostart 回归测试与 shell 语法检查，并把 `common.sh` 与 live `~/.config/awesome/autostart.sh` 同步到当前会话。
+- 后续：当前 `~/.fehbg` 已经在前一轮被系统壁纸覆盖，所以旧的那张“以前的壁纸”如果不在别的目录里，已经无法从现有状态自动反推；后续如果要彻底固定某一张图，优先显式给 autostart 增加单文件壁纸配置，而不要再只靠随机目录。
+
+- 目的：修复 Awesome 默认 `tile.left` 布局下，左侧主区域有时被应用最小宽度卡住、导致 `mod+h` / `mod+l` 看起来失效的问题。
+- 已做：先核对 `.config/linux/awesome/bindings.lua`，确认 `mod+h` / `mod+l` 仍然正确绑定到 `awful.tag.incmwfact(-0.05 / +0.05)`，再检查 `.config/linux/awesome/client.lua` 的默认规则，发现当前并没有关闭 `size_hints_honor`。结合用户描述的“左边窗口固定最小宽度、右边无法继续扩张”的现象，根因可归到某些应用把最小尺寸 hint 强加给平铺布局。随后按 TDD 新增 `tests/awesome_layout_test.sh`，锁定默认布局仍是 `tile.left`、布局快捷键仍调用 `incmwfact`，且默认 client 规则必须包含 `size_hints_honor = false`；确认测试先失败后，在 `client.lua` 的默认 rule properties 中补上 `size_hints_honor = false`。最后重新执行 Awesome 相关 shell 回归测试、`client.lua` 的 `loadfile` 语法检查，并把修改后的 `client.lua` 同步到 live `~/.config/awesome` 后触发 Awesome reload。
+- 后续：如果后面还遇到个别应用在平铺时行为特殊，可以再单独为它们做例外 rule；默认全局忽略 size hints 更符合当前这套以 `tile.left` 为主的桌面操作习惯。
+
+- 目的：继续修复 Awesome 默认平铺布局下钉钉主窗口默认比半屏更宽、且分栏观感异常的问题。
+- 已做：在上一轮全局关闭 `size_hints_honor` 后继续做运行时取证：先通过 `xwininfo`/`xprop` 抓到钉钉主窗口 `WM_NORMAL_HINTS`，确认它会主动上报 `program specified minimum size: 1966 by 1200`；再通过 `awesome-client` 检查钉钉所在 tag，确认当时该 tag 运行在 `tileleft`，但 `master_width_factor` 已经漂到 `0.75`，因此钉钉默认宽度明显大于半屏。随后按 TDD 扩展 `tests/awesome_layout_test.sh`，要求 `client.lua` 新增 `maybe_reset_master_width_for_dingtalk()`，在钉钉主窗口（`class=com.alibabainc.dingtalk`、`type=normal`、`min_width >= 1600`）manage 时把所在 tag 的 `master_width_factor` 重置为 `0.5`，并立即调用 `awful.layout.arrange()`；确认测试先失败后，在 `.config/linux/awesome/client.lua` 落地该 helper，并接入 `client.connect_signal("manage", ...)`。最后重新执行 Awesome 相关 shell 回归测试与 `client.lua` 语法检查，同步 live `~/.config/awesome/client.lua`，并通过 `awesome-client` 把当前钉钉 tag 的 `mwfact` 直接拉回 `0.5` 后重载 Awesome。
+- 后续：如果后面发现不是只有钉钉会把分栏挤偏，可以再把这个“异常大最小宽度 -> 回正 mwfact”的策略抽成更通用的 helper；当前先对钉钉做精准兜底，避免影响其它正常应用的个性化布局。
+
+- 目的：按用户要求移除 Awesome 中对钉钉的单独处理，回到只保留通用布局规则的状态。
+- 已做：删除 `.config/linux/awesome/client.lua` 中上一轮新增的 `maybe_reset_master_width_for_dingtalk()` 及其 `manage` hook 接入，保留通用的 `size_hints_honor = false`；同步改写 `tests/awesome_layout_test.sh`，不再要求存在钉钉专项逻辑，转而锁定“默认平铺布局仍是 `tile.left`、`mod+h/mod+l` 仍调用 `incmwfact`、且 `client.lua` 不含 DingTalk 专项分支”。随后重新执行 Awesome 相关 shell 回归测试和 `client.lua` 的 `loadfile` 语法检查，并把更新后的 `client.lua` 同步到 live `~/.config/awesome` 后重载 Awesome。
+- 后续：当前已完全移除钉钉专项兜底；如果后续还要继续解决钉钉宽度异常，只能从更通用的 Awesome 布局/规则策略入手，不能再回到应用特判。
+
+- 目的：优化小屏笔记本上 Awesome 状态栏里 NET 项的横向占用，避免固定 `NET` 标签挤压任务列表和其它状态项。
+- 已做：先检查 `.config/linux/awesome/widgets/system.lua` 当前渲染方式，确认 NET 组件一直输出 `NET ↓x ↑y`，在窄屏上属于固定冗余文本；随后按 TDD 扩展 `tests/awesome_net_test.sh`，要求 system widget 新增 `render_net_markup()`，保留 `↓/↑` 与速率值，同时去掉硬编码的 `NET` 文本标签。确认测试先失败后，重构 `widgets/system.lua`：把 `format_speed()` 前置，新增 `render_net_markup(recv_speed, sent_speed)`，让初始态和定时刷新都走紧凑箭头样式（例如 `↓12.3K ↑1.2K`），不再额外占用 `NET` 三个字符和相关前缀间距。最后重新执行 Awesome 相关 shell 回归测试、`widgets/system.lua` 的 `loadfile` 语法检查，并把更新后的文件同步到 live `~/.config/awesome/widgets/system.lua` 后重载 Awesome。
+- 后续：如果后面还觉得 sysinfo 区块偏宽，可以继续从更通用的压缩策略入手，例如缩小 system_row spacing、在低流量时收敛小数位，或给 CPU/MEM/NET 做可切换的 icon-only 模式；当前这一轮先做最小风险的 NET 文本压缩。
+
+- 目的：继续压缩小屏笔记本上的 Awesome sysinfo 区块，在去掉 `NET` 文本标签后再收紧 CPU/MEM/NET/BAT 之间的空白。
+- 已做：按上一轮思路继续从通用压缩策略入手，先扩展 `tests/awesome_net_test.sh`，要求 `.config/linux/awesome/widgets/system.lua` 把 `system_row.spacing` 从 8 缩到 4，并把 sysinfo 外层容器左右 padding 从 8 缩到 6；确认测试先失败后，修改 `widgets/system.lua`，收紧 system row 的内部 spacing 和 margin。最后重新执行 Awesome 相关 shell 回归测试、`widgets/system.lua` 的 `loadfile` 语法检查，并把更新后的文件同步到 live `~/.config/awesome/widgets/system.lua` 后重载 Awesome。
+- 后续：如果后面还需要继续压缩状态栏，可再评估是否把 CPU/MEM 也改成 icon-only、低流量时减少速率小数位，或让 systray/clock 的 margin 跟着屏宽进一步自适应；当前这一轮先维持文本可读性不变，只减少空白占用。
+
+- 目的：按用户要求继续压缩小屏上的 Awesome 右侧状态栏，把 sysinfo 改成短标签并把还能安全收紧的空白一起收掉。
+- 已做：先扩展 `tests/awesome_net_test.sh`，锁定几项新预期：CPU/MEM/BAT 要改成短标签 `C/M/B`，`format_speed()` 在较高 K/M 速率时改用整数格式以缩短文本，`system_row.spacing` 从 4 继续缩到 2，sysinfo 容器左右 padding 从 6 缩到 4，同时 `ui/wibar.lua` 右侧 `right_widgets.spacing` 从 8 缩到 6，并收紧 systray/clock margin。确认测试先失败后，重构 `.config/linux/awesome/widgets/system.lua`：新增 `render_metric_markup()`，把 CPU/MEM/BAT 统一收口到短标签渲染；将 NET 的速率格式改成“低速保留一位小数、高速用整数”的更紧凑模式；再同步收紧 `.config/linux/awesome/ui/wibar.lua` 右侧 spacing 与 margin。最后重新执行 Awesome 相关 shell 回归测试、`widgets/system.lua`/`ui/wibar.lua` 的 `loadfile` 语法检查，并把两个文件同步到 live `~/.config/awesome` 后重载 Awesome。
+- 后续：这一轮已经把我认为低风险且普适的小屏压缩项基本做完；如果后面还想继续极限压缩，就该进入更强取舍的模式，例如给 CPU/MEM/BAT 换成 Nerd Font 图标、低流量时隐藏上传速率、或让时钟在小屏切到更短日期格式，但这些都会更明显影响辨识度。
+
+- 目的：继续按用户反馈微调小屏状态栏，把 NET 挪到 CPU 左边，并进一步收紧 CPU/BAT/VOL 标签和值之间的空隙。
+- 已做：先扩展 `tests/awesome_net_test.sh` 与 `tests/awesome_volume_test.sh`，锁定两类新预期：`widgets/system.lua` 里的 `system_items` 顺序改成 `net_widget -> cpu_widget -> mem_widget`，并且通用 `render_metric_markup()` 以及 `widgets/volume.lua` 的可用/静音/不可用渲染都不再在标签和值之间插入前导空格。确认测试先失败后，修改 `.config/linux/awesome/widgets/system.lua`：把 `render_metric_markup()` 改成紧贴数值输出，并调整 sysinfo 顺序为 `NET -> CPU -> MEM -> BAT`；同时修改 `.config/linux/awesome/widgets/volume.lua`，去掉 `V` 与 `N/A` / `MUTE` / 百分比之间的前导空格。最后重新执行 Awesome 相关 shell 回归测试、`widgets/system.lua`/`widgets/volume.lua` 的 `loadfile` 语法检查，并把两个文件同步到 live `~/.config/awesome` 后重载 Awesome。
+- 后续：当前右侧 sysinfo 已经进入非常紧凑的文本布局；如果后面还要继续压缩，下一步就只剩更激进的 UI 取舍，例如把 `V` 静音态改成单字母、让 BAT 低电量时才显示，或把 clock 日期部分进一步裁短。
+
+- 目的：按用户反馈微调紧凑 sysinfo 的可读性，把过于贴紧的 `C12%` / `B87%` / `V35%` 改成更平衡的 `标签:数值` 形式。
+- 已做：修改 `.config/linux/awesome/widgets/system.lua` 的 `render_metric_markup()`，让 CPU/MEM/BAT 从无分隔的紧贴样式改成带冒号分隔的紧凑样式（如 `C:12%`）；同时修改 `.config/linux/awesome/widgets/volume.lua`，把 `V` 与 `N/A` / `MUTE` / 百分比也统一改成 `V:` 前缀。随后重新执行 `tests/awesome_net_test.sh`、`tests/awesome_volume_test.sh` 与相关 Lua `loadfile` 语法检查，并把更新后的 widget 文件同步到 live `~/.config/awesome` 后重载 Awesome。
+- 后续：当前右侧 sysinfo 的信息密度和可读性已经比较均衡；如果还要继续调整，优先做视觉细调（颜色、separator 明度、clock 格式），而不是继续压缩标签和值之间的可读分隔。
+
+- 目的：继续优化 Awesome 小屏状态栏，在不做应用特判的前提下加入更通用的 compact 自适应，进一步压缩右侧信息区。
+- 已做：先读取 `memory/organizing_preferences.md` 与 `logs/trace.md`，确认当前偏好已经收敛到“紧凑 sysinfo + 冒号分隔 + 不再询问直接推进”；随后沿用 TDD，先运行新扩展的 `tests/awesome_config_test.sh`，确认缺少 `compact_wibar_max_width` / `compact_date_format` 配置而失败，再补齐 `.config/linux/awesome/config.lua`。接着修改 `.config/linux/awesome/ui/wibar.lua`：新增 `is_compact_screen(screen, config)`、让 `create_textclock()` 按屏宽在普通日期格式与短日期格式之间切换，并让 `create_sysinfo_bundle()` 把 `compact` 显式下传给 `widgets.system.create(...)`；同时在 compact 下继续收紧右侧 spacing 与 systray/clock margin。最后修改 `.config/linux/awesome/widgets/system.lua`，将签名升级为 `create(config, options)`，读取 `local compact = options and options.compact`，并在 compact 模式下隐藏 MEM，只保留 `NET -> CPU -> BAT` 这一更高价值的信息顺序。完成后重新执行 Awesome 相关 shell 回归测试与 Lua `loadfile` 语法检查，全部通过，并已同步 repo 文件到 live `~/.config/awesome` 后触发 Awesome reload。
+- 后续：如果用户继续觉得右侧仍偏宽，下一步优先考虑让 compact 模式按电量/网络活跃度动态显示 BAT 或上传速率，或者继续缩短 tasklist 文本，而不是重新引入应用专项特判。
+
+- 目的：继续修复 Awesome 壁纸仍未生效的问题，定位并修正实际自启动链路中的断点。
+- 已做：先检查 repo 与 live 配置，确认 `rc.lua` 始终执行的是根目录 `~/.config/awesome/autostart.sh`，但当前 live 的这个文件其实被安装脚本直接替换成了 `ubuntu_aarch64.sh` 内容；该脚本内部又使用 `. "$(dirname "$0")/common.sh"`，于是运行时会错误地去找 `~/.config/awesome/common.sh`，而真实文件在 `~/.config/awesome/autostart/common.sh`，导致整个自启动链路在壁纸步骤之前就断掉。随后按 TDD 扩展 `tests/awesome_autostart_test.sh`，新增根级 `autostart.sh` wrapper 的结构要求，并锁定 `install.sh` 不能再把平台脚本直接覆盖到 `~/.config/awesome/autostart.sh`。确认测试先失败后，新增 `.config/linux/awesome/autostart.sh`，让它按 `OS+distro+arch` 分发到 `autostart/ubuntu_aarch64.sh` / `ubuntu_x64.sh` / `arch_x64.sh`，并删除 `install.sh` 中三条会覆盖 root wrapper 的平台脚本安装项。完成后重新执行 Awesome/autostart/wallpaper 相关回归测试与 shell 语法检查，全部通过；再把新的 wrapper 同步到 live `~/.config/awesome/autostart.sh` 并手动执行一次，随后通过 `xprop -root _XROOTPMAP_ID ESETROOT_PMAP_ID` 看到 pixmap id 已存在，说明 feh 已成功把壁纸写到 X root。
+- 后续：如果用户后面要恢复“以前那张壁纸”，还需要重新提供或放回具体图片文件；当前这次修复解决的是“壁纸设置链路失效”，不是自动找回已不存在的旧图片。

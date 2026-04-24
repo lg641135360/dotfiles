@@ -5,6 +5,7 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 CONFIG_FILE=$REPO_ROOT/.config/linux/rofi/config.rasi
 THEME_FILE=$REPO_ROOT/.config/linux/rofi/theme.rasi
 BINDINGS_FILE=$REPO_ROOT/.config/linux/awesome/bindings.lua
+ACTIONS_FILE=$REPO_ROOT/.config/linux/awesome/actions.lua
 
 fail() {
     printf 'FAIL: %s\n' "$1" >&2
@@ -49,7 +50,9 @@ test_rofi_config_pins_monitor_dpi_for_rofi_1_7_1() {
 }
 
 test_rofi_launcher_sets_locale_and_input_method() {
-    assert_contains 'LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8 LC_CTYPE=zh_CN.UTF-8 GTK_IM_MODULE=fcitx QT_IM_MODULE=fcitx XMODIFIERS=@im=fcitx rofi -show drun' "$BINDINGS_FILE"
+    assert_contains 'LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8 LC_CTYPE=zh_CN.UTF-8 GTK_IM_MODULE=fcitx QT_IM_MODULE=fcitx XMODIFIERS=@im=fcitx rofi -show drun' "$ACTIONS_FILE"
+    assert_contains 'local actions = args.actions or {}' "$BINDINGS_FILE"
+    assert_contains 'local launch_rofi = actions.launch_rofi or function() end' "$BINDINGS_FILE"
 }
 
 test_rofi_theme_uses_rofi_1_7_1_compatible_pixel_distances() {

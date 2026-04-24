@@ -3,26 +3,16 @@
 # AwesomeWM autostart script
 # ==============================================
 
-run() {
-    if ! pgrep -x "$1" >/dev/null; then
-        "$@" &
-    fi
-}
+. "$(dirname "$0")/common.sh"
 
 # Wait for X11 to be ready
 sleep 1
 
-xrdb merge ~/.Xresources
+prepare_xresources
 
-feh --bg-fill --randomize ~/Pictures/* &
+restore_or_randomize_wallpaper "$HOME/Pictures" "/usr/share/backgrounds"
 run Snipaste
-run picom
-run fcitx5
-run redshift -l 30.6:114.3 -t 6500:4000  # Auto night mode for Wuhan location
-run pot
+run_common_desktop_services picom
 run greenclip daemon
-run udiskie -t  # automount usb drives
-run pasystray  # volume control tray icon
-run nm-applet  # network manager tray icon
-run blueman-applet  # bluetooth tray icon
+run_common_tray_services
 # run dunst  # notification daemon use naughty instead

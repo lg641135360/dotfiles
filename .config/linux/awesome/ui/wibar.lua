@@ -6,6 +6,136 @@ local dpi = require("beautiful.xresources").apply_dpi
 
 local M = {}
 
+local xml_escape = gears.string.xml_escape
+
+local function render_task_text(c, ctpp)
+    local name = xml_escape(c.name or "")
+
+    if name == "" then
+        name = "untitled"
+    end
+
+    if c.minimized then
+        return '<span color="' .. ctpp.overlay2 .. '">[min] ' .. name .. '</span>'
+    end
+
+    if c == client.focus then
+        return '<span foreground="' .. ctpp.blue .. '"><b>' .. name .. '</b></span>'
+    end
+
+    return '<span foreground="' .. ctpp.text .. '">' .. name .. '</span>'
+end
+
+local function create_lock_button(ctpp, actions)
+    local lock = actions.lock or function() end
+
+    local lock_button = wibox.widget {
+        {
+            markup = "<span foreground='" .. ctpp.yellow .. "'> 󰷛 </span>",
+            widget = wibox.widget.textbox,
+        },
+        bg = ctpp.surface0,
+        shape = function(cr, w, h)
+            gears.shape.rounded_rect(cr, w, h, dpi(6))
+        end,
+        left = 8,
+        right = 8,
+        top = 4,
+        bottom = 4,
+        widget = wibox.container.margin,
+    }
+
+    lock_button:buttons(gears.table.join(
+        awful.button({ }, 1, lock)
+    ))
+
+    return lock_button
+end
+
+local function is_compact_screen(screen, config)
+    local max_width = (config and config.compact_wibar_max_width) or 3000
+    return screen and screen.geometry and screen.geometry.width <= max_width
+end
+
+local function create_textclock(ctpp, config, screen)
+    local textclock = wibox.widget.textbox()
+
+    gears.timer {
+        timeout = 60,
+        autostart = true,
+        call_now = true,
+        callback = function()
+            local date_format = config.date_format
+            if is_compact_screen(screen, config) and config.compact_date_format then
+                date_format = config.compact_date_format
+            end
+
+            local time_str = os.date(date_format)
+            textclock:set_markup("<span foreground='" .. ctpp.lavender .. "'>" .. time_str .. "</span>")
+        end
+    }
+
+    return textclock
+end
+
+local function create_systray_widget(ctpp)
+    local systray = wibox.widget.systray()
+    systray:set_base_size(dpi(22))
+
+    return wibox.widget {
+        {
+            systray,
+            valign = "center",
+            widget = wibox.container.place,
+        },
+        bg = ctpp.surface0,
+        shape = function(cr, w, h)
+            gears.shape.rounded_rect(cr, w, h, dpi(8))
+        end,
+        left = 8,
+        right = 8,
+        top = 4,
+        bottom = 4,
+        widget = wibox.container.margin,
+    }
+end
+
+local function create_sysinfo_bundle(config, ctpp, lain_ok, screen)
+    local compact = is_compact_screen(screen, config)
+
+    if lain_ok then
+        local system_widgets = require("widgets.system").create(config, {
+            compact = is_compact_screen(screen, config),
+        })
+        local sysinfo_widget = system_widgets.sysinfo_widget
+        local system_row = system_widgets.system_row
+        local make_separator = system_widgets.make_separator
+
+        if config.has_volume then
+            local vol_widget = require("widgets.volume").create()
+            system_row:add(make_separator())
+            system_row:add(vol_widget)
+        end
+
+        return {
+            sysinfo_widget = sysinfo_widget,
+            make_separator = make_separator,
+            compact = compact,
+        }
+    end
+
+    return {
+        compact = compact,
+        sysinfo_widget = wibox.widget {
+            markup = "<span foreground='" .. ctpp.overlay0 .. "'>[lain missing]</span>",
+            widget = wibox.widget.textbox,
+        },
+        make_separator = function()
+            return wibox.widget { markup = " ", widget = wibox.widget.textbox }
+        end,
+    }
+end
+
 local function create_layoutbox(ctpp, screen)
     local mylayoutbox_widget = wibox.widget {
         markup = " [M] ",
@@ -105,23 +235,11 @@ local function create_tasklist(ctpp, screen, tasklist_buttons)
                     img.forced_height = dpi(20)
                 end
                 local text = self:get_children_by_id("text_role")[1]
-                if c.minimized then
-                    text.markup = '<span color="' .. ctpp.overlay2 .. '">[min] ' .. c.name .. '</span>'
-                elseif c == client.focus then
-                    text.markup = '<span foreground="' .. ctpp.blue .. '"><b>' .. c.name .. '</b></span>'
-                else
-                    text.markup = '<span foreground="' .. ctpp.text .. '">' .. c.name .. '</span>'
-                end
+                text.markup = render_task_text(c, ctpp)
             end,
             update_callback = function(self, c)
                 local text = self:get_children_by_id("text_role")[1]
-                if c.minimized then
-                    text.markup = '<span color="' .. ctpp.overlay2 .. '">[min] ' .. c.name .. '</span>'
-                elseif c == client.focus then
-                    text.markup = '<span foreground="' .. ctpp.blue .. '"><b>' .. c.name .. '</b></span>'
-                else
-                    text.markup = '<span foreground="' .. ctpp.text .. '">' .. c.name .. '</span>'
-                end
+                text.markup = render_task_text(c, ctpp)
             end,
         },
     }
@@ -130,11 +248,9 @@ end
 function M.setup(args)
     local modkey = args.modkey
     local ctpp = args.ctpp
-    local sysinfo_widget = args.sysinfo_widget
-    local make_separator = args.make_separator
-    local lock_button = args.lock_button
-    local mytextclock = args.mytextclock
-    local systray_widget = args.systray_widget
+    local config = args.config
+    local actions = args.actions or {}
+    local lain_ok = args.lain_ok
 
     local taglist_buttons = gears.table.join(
         awful.button({}, 1, function(t)
@@ -178,20 +294,15 @@ function M.setup(args)
         end)
     )
 
-    local function set_wallpaper(screen)
-        if beautiful.wallpaper then
-            local wallpaper = beautiful.wallpaper
-            if type(wallpaper) == "function" then
-                wallpaper = wallpaper(screen)
-            end
-            gears.wallpaper.maximized(wallpaper, screen, true)
-        end
-    end
-
-    screen.connect_signal("property::geometry", set_wallpaper)
+    local primary_systray_widget = create_systray_widget(ctpp)
 
     awful.screen.connect_for_each_screen(function(s)
-        set_wallpaper(s)
+        local system_bundle = create_sysinfo_bundle(config, ctpp, lain_ok, s)
+        local sysinfo_widget = system_bundle.sysinfo_widget
+        local make_separator = system_bundle.make_separator
+        local lock_button = create_lock_button(ctpp, actions)
+        local compact = system_bundle.compact
+        local mytextclock = create_textclock(ctpp, config, s)
 
         awful.tag({ "󰇩 ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
 
@@ -212,16 +323,20 @@ function M.setup(args)
 
         local right_widgets = {
             layout = wibox.layout.fixed.horizontal,
-            spacing = 8,
+            spacing = 6,
             sysinfo_widget,
             make_separator(),
         }
 
+        if compact then
+            right_widgets.spacing = 4
+        end
+
         if s == screen.primary then
             table.insert(right_widgets, {
-                systray_widget,
-                left = 4,
-                right = 4,
+                primary_systray_widget,
+                left = compact and 1 or 2,
+                right = compact and 1 or 2,
                 widget = wibox.container.margin,
             })
             table.insert(right_widgets, make_separator())
@@ -229,8 +344,8 @@ function M.setup(args)
 
         table.insert(right_widgets, {
             mytextclock,
-            left = 4,
-            right = 8,
+            left = compact and 1 or 2,
+            right = compact and 4 or 6,
             widget = wibox.container.margin,
         })
 
@@ -254,6 +369,26 @@ function M.setup(args)
             right_widgets,
         }
     end)
+
+    return {
+        run_prompt = function()
+            local promptbox = awful.screen.focused().mypromptbox
+            if promptbox then
+                promptbox:run()
+            end
+        end,
+        run_lua_prompt = function()
+            local promptbox = awful.screen.focused().mypromptbox
+            if promptbox and promptbox.widget then
+                awful.prompt.run {
+                    prompt = "Run Lua code: ",
+                    textbox = promptbox.widget,
+                    exe_callback = awful.util.eval,
+                    history_path = awful.util.get_cache_dir() .. "/history_eval",
+                }
+            end
+        end,
+    }
 end
 
 return M

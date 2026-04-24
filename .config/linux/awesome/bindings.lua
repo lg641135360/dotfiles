@@ -76,11 +76,18 @@ function M.setup(args)
     local modkey = args.modkey
     local terminal = args.terminal
     local mymainmenu = args.mymainmenu
+    local run_prompt = args.run_prompt
+    local run_lua_prompt = args.run_lua_prompt
+    local actions = args.actions or {}
+
+    local screenshot_ocr = actions.screenshot_ocr or function() end
+    local open_file_manager = actions.open_file_manager or function() end
+    local launch_rofi = actions.launch_rofi or function() end
+    local lock = actions.lock or function() end
 
     local globalkeys = gears.table.join(
-        awful.key({ modkey }, "s", function()
-            awful.spawn.with_shell("maim -s ~/.cache/com.pot-app.desktop/pot_screenshot_cut.png && curl '127.0.0.1:60828/ocr_translate?screenshot=false'")
-        end, { description = "screenshot and ocr", group = "launcher" }),
+        awful.key({ modkey }, "s", screenshot_ocr,
+            { description = "screenshot and ocr", group = "launcher" }),
         awful.key({ modkey, "Shift" }, "s", hotkeys_popup.show_help,
             { description = "show help", group = "awesome" }),
         awful.key({ modkey }, "Escape", awful.tag.history.restore,
@@ -125,9 +132,8 @@ function M.setup(args)
         awful.key({ modkey }, "Return", function()
             awful.spawn(terminal)
         end, { description = "open a terminal", group = "launcher" }),
-        awful.key({ modkey }, "e", function()
-            awful.spawn("dolphin")
-        end, { description = "open a file manager[dolphin]", group = "launcher" }),
+        awful.key({ modkey }, "e", open_file_manager,
+            { description = "open a file manager[dolphin]", group = "launcher" }),
         awful.key({ modkey, "Control" }, "r", awesome.restart,
             { description = "reload awesome", group = "awesome" }),
         awful.key({ modkey, "Shift" }, "q", awesome.quit,
@@ -166,24 +172,19 @@ function M.setup(args)
         end, { description = "restore minimized", group = "client" }),
 
         awful.key({ modkey }, "r", function()
-            awful.screen.focused().mypromptbox:run()
+            if run_prompt then
+                run_prompt()
+            end
         end, { description = "run prompt", group = "launcher" }),
         awful.key({ modkey }, "x", function()
-            awful.prompt.run {
-                prompt = "Run Lua code: ",
-                textbox = awful.screen.focused().mypromptbox.widget,
-                exe_callback = awful.util.eval,
-                history_path = awful.util.get_cache_dir() .. "/history_eval",
-            }
+            if run_lua_prompt then
+                run_lua_prompt()
+            end
         end, { description = "lua execute prompt", group = "awesome" }),
-        awful.key({ modkey }, "c", function()
-            awful.spawn.with_shell(
-                "LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8 LC_CTYPE=zh_CN.UTF-8 GTK_IM_MODULE=fcitx QT_IM_MODULE=fcitx XMODIFIERS=@im=fcitx rofi -show drun"
-            )
-        end, { description = "show rofi drun launcher", group = "launcher" }),
-        awful.key({ modkey, "Control" }, "l", function()
-            awful.spawn.with_shell("~/.config/scripts/lock")
-        end, { description = "lock screen", group = "custom" })
+        awful.key({ modkey }, "c", launch_rofi,
+            { description = "show rofi drun launcher", group = "launcher" }),
+        awful.key({ modkey, "Control" }, "l", lock,
+            { description = "lock screen", group = "custom" })
     )
 
     local clientkeys = gears.table.join(

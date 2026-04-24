@@ -211,19 +211,16 @@ linux_dir_configs=(
 # Architecture and distro-specific configurations (awesome autostart only)
 # Arch Linux x86_64
 arch_x86_64_configs=(
-    "command -v awesome|.config/linux/awesome/autostart/arch_x64.sh|~/.config/awesome/autostart.sh|AwesomeWM autostart script"
     "command -v picom|.config/linux/picom/picom-arch_x64.conf|~/.config/picom.conf|picom configuration"
 )
 
 # Ubuntu aarch64 (ARM 64-bit)
 ubuntu_aarch64_configs=(
-    "command -v awesome|.config/linux/awesome/autostart/ubuntu_aarch64.sh|~/.config/awesome/autostart.sh|AwesomeWM autostart script"
     "command -v picom|.config/linux/picom/picom-arch_aarch64.conf|~/.config/picom.conf|picom configuration"
 )
 
 # Ubuntu amd64 (x86_64)
 ubuntu_amd64_configs=(
-    "command -v awesome|.config/linux/awesome/autostart/ubuntu_x64.sh|~/.config/awesome/autostart.sh|AwesomeWM autostart script"
     "command -v picom|.config/linux/picom/picom-ubuntu_x64.conf|~/.config/picom.conf|picom configuration"
 )
 
