@@ -1,5 +1,27 @@
 # Trace
 
+## 2026-04-26
+
+- 目的：按用户确认直接隐藏 tmux 状态栏左侧的 session 名，避免 OMX 自动生成的长 session 名出现在 tab 列表左边。
+- 已做：先按项目约束读取 `memory/organizing_preferences.md` 与 `logs/trace.md`，再按 TDD 修改 `tests/tmux_status_test.sh`，要求 `status-left` 为空、`status-left-length` 为 0，并且隐藏配置必须放在 TPM 之后以覆盖 Catppuccin 默认 session 模块；确认旧配置因缺少 `set -g status-left ""` 失败。随后修改 `.config/shared/tmux/.tmux.conf`，移除前置 `@catppuccin_status_session` 左侧模块，改为在 TPM 后设置 `status-left ""` 与 `status-left-length 0`；同步更新 `.config/shared/tmux/README.md` 和 `memory/organizing_preferences.md`，记录“左侧隐藏 session 名”的偏好。
+- 后续：如果后续仍觉得 tab 区域拥挤，优先继续缩短单个 tab 的路径显示长度，而不是重新启用左侧 session 名。
+
+- 目的：按用户反馈继续优化 tmux 状态栏，让每个 tab 标题更短、更有用，并去掉当前 shell/application 这类噪音信息。
+- 已做：先按项目约束读取 `memory/organizing_preferences.md` 与 `logs/trace.md`，再用 TDD 扩展 `tests/tmux_status_test.sh`，新增对“右侧不显示 application、tab 标题走短路径/远程辅助脚本、helper 可格式化本地路径与远程名路径、README 文档同步”的断言，并确认旧配置先失败。随后新增 `.config/shared/tmux/tmux-tab-title`：本地 pane 显示截断短路径，SSH/终端标题能提供远程上下文时显示 `远程名:路径`，并通过 `TMUX_TAB_TITLE_MAX` 控制最大长度；修改 `.config/shared/tmux/.tmux.conf` 让 Catppuccin window text 调用该 helper，同时把 `status-right` 收敛为 Prefix/Copy 状态 + 日期时间，移除 `@catppuccin_status_application`。同步更新 `install.sh`，确保 helper 会随 tmux 配置安装到 `~/.config/tmux/tmux-tab-title`，并更新 README 与记忆文件记录新的状态栏偏好。
+- 后续：如果还要继续提高远程路径准确度，可在远程 shell 侧补 OSC 7 / 终端标题更新；当前本地仅能稳定识别 SSH 目标名和 tmux 已收到的路径信息，无法凭空读取远程 shell 当前目录。
+
+- 目的：继续细调 tmux 的日常导航体验，在不增加插件、不改变现有状态栏显示效果的前提下补齐 session/window/pane 跳转入口。
+- 已做：按 TDD 先扩展 `tests/tmux_status_test.sh`，新增对 `bind w choose-tree -Zw`、`bind Tab last-window` 以及 README 快捷键说明的断言，并确认旧配置因缺少 `choose-tree` 绑定而失败。随后修改 `.config/shared/tmux/.tmux.conf`，新增 `C-a w` 打开 tmux 内置树状选择器、`C-a Tab` 回到上一个窗口；同步更新 `.config/shared/tmux/README.md` 和 `memory/organizing_preferences.md`，记录“优先使用 tmux 内置导航能力，不增加插件”的偏好。
+- 后续：如果继续优化 tmux 观感/体验，可考虑是否增加一个轻量 popup 命令菜单或常用会话 attach helper，但应先保持当前内置快捷键基线稳定，并避免一次引入过多新交互。
+
+- 目的：继续按用户确认落地 tmux 日常体验增强，在不增加插件、不继续堆状态栏信息的前提下提升分屏、嵌套 tmux、复制和 pane 调整手感。
+- 已做：基于上一轮已确认的“低风险 tmux 日常体验增强”设计，按 TDD 扩展 `tests/tmux_status_test.sh`，新增对 `set-clipboard on`、`C-a C-a` 发送 prefix、分屏/新窗口继承 `#{pane_current_path}`、`H/J/K/L` 调整 pane 大小，以及 Catppuccin pane 边框颜色配置的断言，并先运行确认旧配置会失败。随后修改 `.config/shared/tmux/.tmux.conf`：启用 `set-clipboard on`，新增 `bind C-a send-prefix`，让 `bind c`、`bind |`、`bind -` 都带 `-c "#{pane_current_path}"`，新增 `H/J/K/L` 每次 5 格 resize，并通过 `@catppuccin_pane_border_style` / `@catppuccin_pane_active_border_style` 让普通/活动 pane 边框使用 Catppuccin 主题色。同步更新 `.config/shared/tmux/README.md` 与 `memory/organizing_preferences.md` 记录新的 tmux 交互偏好。最后把仓库 tmux 配置同步到 live `~/.tmux.conf` 并执行 `tmux source-file`，确认 live 里 `set-clipboard=on`、pane border 颜色、以及新增 key binding 都已经生效。
+- 后续：如果继续优化 tmux，可以优先考虑内置 `choose-tree -Zw` / popup 形式的 session-window-pane 跳转；这会改变交互模型，适合单独一轮，不和当前无插件基础体验增强混在一起。
+
+- 目的：按用户要求开始优化 tmux 状态栏，让当前 Catppuccin 状态栏信息更均衡并减少旧配置项带来的失效风险。
+- 已做：先按仓库约束完整读取 `memory/organizing_preferences.md` 与 `logs/trace.md`，再用只读检查确认 tmux 状态栏集中在 `.config/shared/tmux/.tmux.conf`。随后按 TDD 新增 `tests/tmux_status_test.sh`，先锁定失败预期：Catppuccin 配置需使用新版 `@catppuccin_flavor` / `@catppuccin_window_flags` / `@catppuccin_window_text` 等变量，状态栏左侧需使用 `session` 模块，右侧需保留 Prefix/Copy 状态并加入 `application + date_time`，且不引入 CPU/RAM/Battery 额外插件依赖。确认测试先失败后，修改 `.config/shared/tmux/.tmux.conf`：清理旧变量，统一窗口列表为手动窗口名 `#W`，把日期时间收成 `%m/%d %H:%M`，补上 `status-left`，并将 `status-interval 15` 放到 TPM 加载之后，避免被 `tmux-sensible` 重置回 5 秒。同时更新 `.config/shared/tmux/README.md` 和 `memory/organizing_preferences.md` 记录新的状态栏策略。最后把仓库 tmux 配置同步到 live `~/.tmux.conf` 并执行 `tmux source-file`，确认 live 中 `status-interval=15`、`status-left` 与 `status-right` 已按新配置生效。
+- 后续：如果后面继续打磨 tmux 状态栏，优先在现有 `session / application / date_time` 轻量模块上微调间距、图标和时间格式；只有明确需要系统监控时，再单独评估是否引入 `tmux-cpu` 或 `tmux-battery` 这类额外插件。
+
 ## 2026-04-24
 
 - 目的：按用户要求把当前已验证的 rofi 系统缩放改动提交到 GitHub 远端。

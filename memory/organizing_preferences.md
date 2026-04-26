@@ -44,3 +44,6 @@
 - 对 Awesome 的紧凑 sysinfo，标签和值之间优先使用冒号分隔（如 `C:12%`、`B:87%`、`V:35%`），不要纯粘连也不要退回空格。
 - 对 Awesome 的小屏右侧状态栏，优先按 `screen.geometry.width <= compact_wibar_max_width` 自动切到 compact 模式；compact 模式默认使用短时钟 ` %m/%d %H:%M `，并优先保留 `NET / CPU / BAT / VOL / clock`，其中 MEM 可先隐藏。
 - 对 Awesome 的自启动入口，根目录 `autostart.sh` 应保持为平台分发 wrapper，再转发到 `autostart/*.sh`；不要再让安装脚本用平台脚本直接覆盖它，否则 `common.sh` 相对路径会失效。
+- 对 tmux 状态栏，左侧优先隐藏 session 名，避免 OMX / 自动生成的长 session 名挤占 tab 区域；右侧只保留 Prefix/Copy 状态和日期时间，不显示当前 shell/application 这类噪音；窗口列表标题优先显示短路径，远程 SSH 场景显示 `远程名:路径`，并保持截断以避免 tab 过长；不要为了状态栏额外引入 CPU/RAM/Battery 插件依赖。
+- 对 tmux 日常交互增强，优先不增加插件：分屏/新窗口继承当前 pane 目录、保留 `C-a C-a` 发送 prefix、用 `H/J/K/L` 调整 pane 大小，并让复制模式尽量走终端剪贴板。
+- 对 tmux 窗口/会话导航增强，优先使用内置能力而不是插件：`C-a w` 打开 `choose-tree -Zw` 树状选择器，`C-a Tab` 快速回到上一个窗口。

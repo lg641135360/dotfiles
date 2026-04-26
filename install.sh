@@ -156,6 +156,7 @@ process_config() {
 # app name | source path | target path | display name
 shared_configs=(
     "command -v tmux|.config/shared/tmux/.tmux.conf|~/.tmux.conf|Tmux"
+    "command -v tmux|.config/shared/tmux/tmux-tab-title|~/.config/tmux/tmux-tab-title|Tmux tab title script"
     "command -v kitty|.config/shared/kitty/kitty.conf|~/.config/kitty/kitty.conf|Kitty"
     "command -v kitty|.config/shared/kitty/Dracula.conf|~/.config/kitty/themes/Dracula.conf|kitty_theme"
     "command -v alacritty|.config/shared/alacritty/alacritty.toml|~/.config/alacritty/alacritty.toml|Alacritty"
