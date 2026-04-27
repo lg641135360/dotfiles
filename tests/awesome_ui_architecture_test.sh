@@ -59,12 +59,23 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'local config = args.config' "$WIBAR_FILE"
     assert_contains 'local actions = args.actions or {}' "$WIBAR_FILE"
     assert_contains 'local lain_ok = args.lain_ok' "$WIBAR_FILE"
+    assert_contains 'local dpi = require("beautiful.xresources").apply_dpi' "$WIBAR_FILE"
+    assert_not_contains 'local xresources = require("beautiful.xresources")' "$WIBAR_FILE"
+    assert_not_contains 'local function configure_screen_dpi(screen, config)' "$WIBAR_FILE"
+    assert_not_contains 'screen.dpi = dpi_value' "$WIBAR_FILE"
+    assert_not_contains 'output:match("^(eDP|LVDS|DSI)")' "$WIBAR_FILE"
     assert_contains 'local function is_compact_screen(screen, config)' "$WIBAR_FILE"
     assert_contains 'local function create_lock_button(ctpp, actions)' "$WIBAR_FILE"
     assert_contains 'local function create_textclock(ctpp, config, screen)' "$WIBAR_FILE"
     assert_contains 'local function create_systray_widget(ctpp)' "$WIBAR_FILE"
     assert_contains 'local function create_sysinfo_bundle(config, ctpp, lain_ok, screen)' "$WIBAR_FILE"
     assert_contains 'compact = is_compact_screen(screen, config),' "$WIBAR_FILE"
+    assert_not_contains 'configure_screen_dpi(s, config)' "$WIBAR_FILE"
+    assert_contains 'systray:set_base_size(dpi(22))' "$WIBAR_FILE"
+    assert_contains 'img.forced_width = dpi(20)' "$WIBAR_FILE"
+    assert_contains 'img.forced_height = dpi(20)' "$WIBAR_FILE"
+    assert_not_contains 'dpi(22, screen)' "$WIBAR_FILE"
+    assert_not_contains 'dpi(20, screen)' "$WIBAR_FILE"
 }
 
 test_wibar_escapes_task_titles() {
@@ -84,6 +95,9 @@ test_wibar_avoids_container_insert_on_sysinfo_widget() {
 test_system_widget_exposes_row_for_extension() {
     assert_contains 'system_row = system_row,' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'local compact = options and options.compact' "$SYSTEM_WIDGETS_FILE"
+    assert_not_contains 'local screen = options and options.screen' "$SYSTEM_WIDGETS_FILE"
+    assert_contains 'gears.shape.rounded_rect(cr, w, h, dpi(8))' "$SYSTEM_WIDGETS_FILE"
+    assert_not_contains 'dpi(8, screen)' "$SYSTEM_WIDGETS_FILE"
 }
 
 test_actions_module_exists

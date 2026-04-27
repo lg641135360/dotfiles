@@ -47,3 +47,7 @@
 - 对 tmux 状态栏，左侧优先隐藏 session 名，避免 OMX / 自动生成的长 session 名挤占 tab 区域；右侧只保留 Prefix/Copy 状态和日期时间，不显示当前 shell/application 这类噪音；窗口列表标题优先显示短路径，远程 SSH 场景显示 `远程名:路径`，并保持截断以避免 tab 过长；不要为了状态栏额外引入 CPU/RAM/Battery 插件依赖。
 - 对 tmux 日常交互增强，优先不增加插件：分屏/新窗口继承当前 pane 目录、保留 `C-a C-a` 发送 prefix、用 `H/J/K/L` 调整 pane 大小，并让复制模式尽量走终端剪贴板。
 - 对 tmux 窗口/会话导航增强，优先使用内置能力而不是插件：`C-a w` 打开 `choose-tree -Zw` 树状选择器，`C-a Tab` 快速回到上一个窗口。
+- 对 Awesome 的 autostart 可选服务，优先在共享 `run()` / `run_custom()` 层做命令可用性检查；缺失时静默跳过，避免在启动阶段输出 `not found` 噪音，平台脚本继续只声明各自想启动的服务。
+- 对 Ubuntu aarch64 的 Awesome autostart，当前外接屏持久方案是：先运行时检测内屏、首个外接屏和外接屏首选物理模式；内屏保持 `2880x1800@120Hz` 主屏；外接屏使用首选物理模式（当前 Dell P2722H 为 `1920x1080`）并通过 `1.5x1.5` XRandR scaling 放在笔记本左侧，同时显式设置 framebuffer/position 避免重叠；不要在这里改全局 `Xft.dpi`、Awesome per-screen DPI 或 rofi focused-screen `ROFI_SCALE`。
+- 对当前笔记本内屏，`Xft.dpi: 192` 是合适基线；不要为了外接 1080p 屏幕把全局 Xresources DPI 降到折中值，但当前显示策略下也不要在 Awesome/rofi 强行做 per-screen DPI 或 focused-screen 缩放覆盖，后续若重试需单独确认。
+- 对当前 dotfiles 仓库，`.omx/` 属于本地 OMX 运行状态目录，应放入 `.gitignore`，不要提交到远端仓库。

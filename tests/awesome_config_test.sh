@@ -46,9 +46,16 @@ test_config_exposes_compact_wibar_thresholds() {
     assert_contains 'compact_date_format = " %m/%d %H:%M ",' "$CONFIG_FILE"
 }
 
+test_config_keeps_xft_dpi_global_without_per_screen_overrides() {
+    assert_not_contains 'screen_dpi = {' "$CONFIG_FILE"
+    assert_not_contains 'internal = 192,' "$CONFIG_FILE"
+    assert_not_contains 'external = 96,' "$CONFIG_FILE"
+}
+
 test_config_exposes_command_capability_helper
 test_volume_widget_uses_capability_detection
 test_net_interfaces_are_flattened_after_convergence
 test_config_exposes_compact_wibar_thresholds
+test_config_keeps_xft_dpi_global_without_per_screen_overrides
 
 printf 'PASS: awesome config tests\n'

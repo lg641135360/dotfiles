@@ -13,14 +13,7 @@ sleep 2
 
 prepare_xresources
 
-detect_laptop_display() {
-    xrandr --query 2>/dev/null | awk '/ connected/ && $1 ~ /^(eDP|LVDS|DSI)/ { print $1; exit }'
-}
-
-display_output=$(detect_laptop_display)
-if [ -n "$display_output" ]; then
-    xrandr --output "$display_output" --mode 2880x1800 --rate 120
-fi
+configure_laptop_display_layout 2880x1800 120 left 1.5x1.5
 
 # set touchpad natural scrolling and tap-to-click
 touchpad_id=$(xinput list 2>/dev/null | grep -i 'Touchpad' | sed 's/.*id=\([0-9]*\).*/\1/')

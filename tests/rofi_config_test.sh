@@ -62,10 +62,14 @@ test_rofi_launcher_sets_locale_and_input_method() {
     assert_contains 'local ROFI_COMMAND = "~/.config/scripts/rofi-launch"' "$ACTIONS_FILE"
     assert_contains 'local actions = args.actions or {}' "$BINDINGS_FILE"
     assert_contains 'local launch_rofi = actions.launch_rofi or function() end' "$BINDINGS_FILE"
+    assert_contains 'awful.spawn.with_shell(ROFI_COMMAND)' "$ACTIONS_FILE"
+    assert_not_contains 'local function rofi_scale_for_focused_screen()' "$ACTIONS_FILE"
+    assert_not_contains 'ROFI_SCALE=' "$ACTIONS_FILE"
 }
 
 test_rofi_launcher_script_scales_theme_from_xft_dpi() {
     [ -f "$SCRIPT_FILE" ] || fail "expected rofi launch script to exist"
+    assert_not_contains 'ROFI_SCALE' "$SCRIPT_FILE"
     assert_contains 'xrdb -query' "$SCRIPT_FILE"
     assert_contains 'Xft.dpi' "$SCRIPT_FILE"
     assert_contains 'scale=$(awk' "$SCRIPT_FILE"

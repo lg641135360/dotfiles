@@ -1,5 +1,54 @@
 # Trace
 
+## 2026-04-27
+
+- 目的：按用户要求把当前项目的 `.omx/` 本地运行状态目录加入 Git 忽略，并将当前显示/autostart 相关修改提交推送到 GitHub。
+- 已做：在仓库根 `.gitignore` 增加 `# OMX runtime state` 与 `.omx/`，并用 `git check-ignore -v .omx` 确认该目录会被 `.gitignore` 忽略；同步更新 `memory/organizing_preferences.md` 记录 `.omx/` 不应提交到远端。
+- 后续：提交前继续复跑 Awesome/rofi 回归测试、shell/Lua 语法检查和 `git diff --check`；验证通过后按 Lore commit 协议提交并推送到 `origin/main`。
+
+- 目的：按用户确认“先就这样用”，把当前外接屏 `1.5x1.5` XRandR 缩放方案持久化到 Ubuntu aarch64 Awesome autostart，同时不调整全局 DPI。
+- 已做：先按 TDD 更新 `tests/awesome_autostart_test.sh`，要求 `common.sh` 暴露 `detect_display_preferred_mode()`，并在调用 `configure_laptop_display_layout 2880x1800 120 left 1.5x1.5` 时生成 `--fb 5760x1800 --output DP-2 --mode 1920x1080 --scale 1.5x1.5 --pos 0x0 --output eDP-1 --primary --mode 2880x1800 --rate 120 --scale 1x1 --pos 2880x0`；确认旧实现先失败后，扩展 `.config/linux/awesome/autostart/common.sh`：检测外接屏首选模式、解析模式尺寸、按缩放系数计算逻辑尺寸和 framebuffer/position，并在有第四个缩放参数时走 scaled layout。随后把 `.config/linux/awesome/autostart/ubuntu_aarch64.sh` 改为 `configure_laptop_display_layout 2880x1800 120 left 1.5x1.5`，并更新 autostart README 与 memory。
+- 验证：`tests/awesome_*_test.sh` 全部通过，`tests/rofi_config_test.sh` 通过；`sh -n` 覆盖 autostart/rofi 脚本、`bash -n install.sh`、Awesome Lua `loadfile` 均通过。已同步 live `~/.config/awesome/autostart/{common.sh,ubuntu_aarch64.sh}`，并用持久化 helper 重新应用当前布局；`xrandr` 显示 `DP-2 2880x1620+0+0`、`eDP-1 primary 2880x1800+2880+0`，外接屏 Transform 为 `1.500000` / `bilinear`，Awesome `startup_errors` 为 `ok`。
+- 后续：如果实际观感能接受，这套会在下次 Awesome autostart 时自动恢复；如果后续觉得发虚不可接受，再回退到 `--auto` 或改走应用/字体局部缩放，不要同时叠加全局 DPI 改动。
+
+- 目的：按用户要求临时试用外接屏 `1.5x1.5` XRandR 缩放，观察是否比原生 `--auto` 更接近可用大小。
+- 已做：未修改 autostart 持久配置，仅对当前 X11 会话执行 `xrandr --fb 5760x1800 --output DP-2 --mode 1920x1080 --scale 1.5x1.5 --pos 0x0 --output eDP-1 --primary --mode 2880x1800 --rate 120 --scale 1x1 --pos 2880x0`。
+- 验证：当前 `xrandr --listmonitors` 显示 `DP-2 2880x1620+0+0`、`eDP-1 2880x1800+2880+0`；`DP-2` Transform 为 `1.500000` 且 filter 为 `bilinear`，内屏 Transform 仍为 `1.000000`。
+- 后续：若观感仍发虚或大小不合适，可临时回退到 `--auto --left-of`；若大小合适但发虚不可接受，下一步应改走应用/字体局部缩放而不是持久化 XRandR scaling。
+
+- 目的：按用户要求先恢复显示到简单稳定状态，外接屏只使用 `xrandr --auto` 并保持 `1920x1080`，放在笔记本屏幕左侧。
+- 已做：先用 TDD 把回退目标写进 `tests/awesome_autostart_test.sh`、`tests/awesome_config_test.sh`、`tests/awesome_ui_architecture_test.sh` 与 `tests/rofi_config_test.sh`，确认旧实现分别因为显式 `--fb/--scale/--pos`、`screen_dpi`、per-screen `apply_dpi`、`ROFI_SCALE` override 而失败。随后回退 `.config/linux/awesome/autostart/common.sh`，删除外接屏首选模式解析、缩放尺寸计算和显式 framebuffer/position 逻辑，使 `configure_laptop_display_layout 2880x1800 120 left` 生成 `--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --auto --left-of eDP-1`；同时删除 Awesome `config.lua` / `ui/wibar.lua` / `widgets/system.lua` 中的 per-screen DPI，删除 `actions.lua` 与 `rofi-launch` 里的 `ROFI_SCALE` focused-screen 覆盖。已同步 live `~/.config/awesome` 与 `~/.config/scripts/rofi-launch`，执行当前布局并重载 Awesome；虽然 `awesome-client 'awesome.restart()'` 因 DBus 连接被重启断开返回 NoReply，但重连后 `awesome.startup_errors` 为 `ok`。
+- 验证：`tests/awesome_*_test.sh` 全部通过，`tests/rofi_config_test.sh` 通过；`sh -n` 覆盖 rofi/autostart 脚本、`bash -n install.sh` 通过；`luajit loadfile` 覆盖 `config.lua`、`ui/wibar.lua`、`widgets/system.lua`、`actions.lua` 通过；当前 `xrandr` 为 `DP-2 1920x1080+0+0`、`eDP-1 primary 2880x1800+1920+0`，两者 Transform 都是 `1.000000`。
+- 后续：如果之后还觉得外接屏观感不合适，下一轮先单独确认目标再尝试；当前基线不要重新引入 XRandR scaling、显式 framebuffer/position、Awesome per-screen DPI 或 rofi focused-screen `ROFI_SCALE`。
+
+- 目的：继续推进“保留内屏 `Xft.dpi: 192`，外接屏局部处理”的方案，先覆盖 Awesome 自身 UI 与从 Awesome 启动的 rofi。
+- 已做：按 TDD 扩展 `tests/awesome_config_test.sh` 与 `tests/awesome_ui_architecture_test.sh`，要求 `config.lua` 提供 `screen_dpi = { internal = 192, external = 96 }`，`ui/wibar.lua` 在每个 screen 初始化时按输出名设置 `screen.dpi`，并让 wibar/tasklist/sysinfo 的 `apply_dpi` 传入当前 screen；首次 reload 后发现 Lua pattern 不支持 `^(eDP|LVDS|DSI)` 这种 alternation，导致内屏也被设成 96，于是补测试并修成显式 `output:match("^eDP") or ...`。随后扩展 `tests/rofi_config_test.sh`，让 Awesome `actions.lua` 启动 rofi 时按 focused screen 的 `screen.dpi / 96` 注入 `ROFI_SCALE`，并让 `rofi-launch` 优先使用 `ROFI_SCALE`，无覆盖时才回退读取全局 `Xft.dpi`。已同步 live `~/.config/awesome/{config.lua,ui/wibar.lua,widgets/system.lua,actions.lua}` 与 `~/.config/scripts/rofi-launch` 并重载 Awesome。
+- 后续：当前运行中 `eDP-1 dpi=192`、`DP-2 dpi=96`，rofi override smoke test 在 `Xft.dpi=192` 且 `ROFI_SCALE=1` 时生成原生 `width: 680px`。如果外接屏上的普通 GTK/Qt/Electron 应用仍显得过大，需要继续按应用单独调缩放或字体；X11 无法让所有应用自动使用不同 `Xft.dpi`。
+
+- 目的：记录用户确认“`Xft.dpi: 192` 在笔记本内屏上很适合”的约束，避免后续误把全局 DPI 降低成折中值。
+- 已做：用 `xrdb -query` 确认当前全局 `Xft.dpi` 仍为 `192`，并通过 `awesome-client` 确认当前 Awesome 两个 screen（`eDP-1` 与 `DP-2`）都继承 `dpi=192`；据此将偏好写入 `memory/organizing_preferences.md`。
+- 后续：外接屏观感问题不再优先通过降低全局 Xresources DPI 解决；下一步若继续优化，应保留内屏 `192`，再按 Awesome screen/output 或具体应用（rofi、终端、浏览器等）做局部 DPI/字体策略。
+
+- 目的：按用户确认试用“外接屏原生输出 + 桌面字体/应用再调”的方案，优先解决 2x2 缩放导致字体发虚的问题。
+- 已做：先把 `tests/awesome_autostart_test.sh` 的默认外接屏预期从 `2x2` 改为原生 `1x1`，要求生成 `--fb 4800x1800`、`DP-2 --mode 1920x1080 --scale 1x1 --pos 0x0`、`eDP-1 --pos 1920x0`，并保留一个可选 `2x2` 测试以防以后临时放大逻辑空间时重新引入重叠问题；确认旧实现先失败后，修改 `common.sh` 让有外接屏时即使不缩放也显式设置 framebuffer/position，从而清掉之前 2x2 的残留布局。随后把 `ubuntu_aarch64.sh` 默认调用改回 `configure_laptop_display_layout 2880x1800 120 left`，更新 README 与 `memory/organizing_preferences.md`，同步 live autostart 文件并立即应用当前布局。
+- 后续：当前 `DP-2` 已恢复原生 `1920x1080+0+0` 且 Transform 为 `1.0`，字体清晰度应优先恢复；如果用户觉得外接屏内容过大，下一步不要再先回到 XRandR 缩放，而应单独调终端/Awesome/rofi 字体和控件尺寸，必要时才临时试 `1.5x1.5` 或 `2x2`。
+
+- 目的：继续调整外接屏“分辨率不太对”的问题，区分硬件物理模式和 X11 逻辑缩放。
+- 已做：用 `xrandr --query/--verbose` 与 `/sys/class/drm/card0-DP-2` 取证，确认当前外接屏 EDID 为 Dell P2722H，硬件首选模式确实是 `1920x1080@60`，问题更可能来自内屏高 DPI + 外接 1080p 在 X11 全局 DPI 下显示内容过大。先运行时尝试 `--scale 2x2 --left-of`，发现 XRandR 会把 `DP-2` 逻辑尺寸变成 `3840x2160` 但仍按物理宽度定位内屏，导致屏幕区域重叠；随后改成显式 `--fb 6720x2160`、`DP-2 --scale 2x2 --pos 0x0`、`eDP-1 --pos 3840x0`，当前布局变为外接屏逻辑 `3840x2160+0+0`、内屏 `2880x1800+3840+0`。按 TDD 更新 `tests/awesome_autostart_test.sh` 锁定 2x 缩放与显式 framebuffer/position，再修改 `common.sh` 增加外接屏首选模式解析、缩放尺寸计算和显式定位逻辑，`ubuntu_aarch64.sh` 改为 `configure_laptop_display_layout 2880x1800 120 left 2x2`；同步 README、memory 与 live autostart 文件。
+- 后续：如果 2x 逻辑缩放后外接屏内容变得过小或模糊，可把第五个参数从 `2x2` 微调为 `1.5x1.5` 或改成 per-output 配置；由于当前物理显示器 EDID 不提供高于 1080p 的真实模式，不应把问题继续归因为 xrandr 没选到更高物理分辨率。
+
+- 目的：按用户要求优化 Awesome autostart 的显示器配置，让外接屏自动检测并默认放在笔记本屏幕左侧。
+- 已做：基于上一轮 `DP-2 connected 但 disabled` 的取证，先按 TDD 扩展 `tests/awesome_autostart_test.sh`：新增 fake `xrandr` 场景，要求 `common.sh` 暴露 `detect_laptop_display()`、`detect_external_display()`、`configure_laptop_display_layout()`，并验证有外接屏时生成 `--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --auto --left-of eDP-1`，无外接屏时只配置内屏。确认旧实现先失败后，修改 `.config/linux/awesome/autostart/common.sh` 收口显示检测与布局 helper，修改 `ubuntu_aarch64.sh` 调用 `configure_laptop_display_layout 2880x1800 120 left`，更新 autostart README 与 `memory/organizing_preferences.md` 记录“外接屏默认在笔记本左侧”的偏好。随后同步 `common.sh`、`ubuntu_aarch64.sh`、README 到 live `~/.config/awesome/autostart/`，并立即应用当前布局。
+- 后续：如果以后接入多个外接屏，当前策略只选择第一个非内屏 connected 输出；届时可再扩展为按输出名优先级或用户配置文件排列。若某台外接屏 `--auto` 选出的模式不理想，再考虑增加 per-output 覆盖配置，而不是回到硬编码单一输出名。
+
+- 目的：排查当前外接显示器已连接但没有画面的问题，并先恢复当前会话可用显示输出。
+- 已做：按项目约束读取 `memory/organizing_preferences.md` 与 `logs/trace.md`，再用 `xrandr` 与 `/sys/class/drm` 取证：当前 X11/Awesome 会话只启用了内屏 `eDP-1`，外接屏 `DP-2` 已被识别为 connected 且有 `1920x1080` 模式，但处于 disabled。随后执行 `xrandr --output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --mode 1920x1080 --rate 60 --right-of eDP-1`，把外接屏临时启用为内屏右侧扩展屏；复查 `xrandr --listmonitors` 已显示 `eDP-1` 与 `DP-2` 两个 monitor，DRM 状态也显示 `DP-2 enabled=enabled`。
+- 后续：如果重启 Awesome 或重新登录后外接屏再次不显示，下一步应把显示器布局策略持久化到 Awesome autostart（例如按 connected 输出自动启用外接屏，或引入一份明确的用户布局脚本）；如果系统已显示 `DP-2 enabled=enabled` 但物理显示器仍黑屏，再检查显示器输入源、线材/转接头和显示器自身电源/唤醒状态。
+
+- 目的：按用户选择先优化 Awesome autostart 的命令可用性保护，减少缺少可选托盘/后台服务时的启动噪音。
+- 已做：按项目约束读取 `memory/organizing_preferences.md` 与 `logs/trace.md`，并用 TDD 先扩展 `tests/awesome_autostart_test.sh`：要求 `common.sh` 暴露 `command_available()`，且 `run missing-autostart-command` / `run_custom` 指向缺失路径时不输出 shell 错误、可用命令仍能启动。确认旧实现先失败后，修改 `.config/linux/awesome/autostart/common.sh`，让 `run()` 和 `run_custom()` 在启动前检查命令或可执行路径，缺失则直接返回；同步更新 autostart README 和 `memory/organizing_preferences.md` 记录新的偏好；最后把 `common.sh` 同步到 live `~/.config/awesome/autostart/common.sh` 并用 `cmp` 确认一致。
+- 后续：如果继续收口 Awesome autostart，下一步更适合处理 `prepare_xresources()` 对 `xrdb` / `~/.Xresources` 缺失的容错，或把平台依赖说明和安装覆盖范围再对齐。
+
 ## 2026-04-26
 
 - 目的：按用户确认直接隐藏 tmux 状态栏左侧的 session 名，避免 OMX 自动生成的长 session 名出现在 tab 列表左边。

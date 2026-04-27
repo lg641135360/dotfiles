@@ -294,8 +294,6 @@ function M.setup(args)
         end)
     )
 
-    local primary_systray_widget = create_systray_widget(ctpp)
-
     awful.screen.connect_for_each_screen(function(s)
         local system_bundle = create_sysinfo_bundle(config, ctpp, lain_ok, s)
         local sysinfo_widget = system_bundle.sysinfo_widget
@@ -303,6 +301,7 @@ function M.setup(args)
         local lock_button = create_lock_button(ctpp, actions)
         local compact = system_bundle.compact
         local mytextclock = create_textclock(ctpp, config, s)
+        local systray_widget = create_systray_widget(ctpp)
 
         awful.tag({ "󰇩 ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
 
@@ -334,7 +333,7 @@ function M.setup(args)
 
         if s == screen.primary then
             table.insert(right_widgets, {
-                primary_systray_widget,
+                systray_widget,
                 left = compact and 1 or 2,
                 right = compact and 1 or 2,
                 widget = wibox.container.margin,

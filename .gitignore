@@ -5,3 +5,6 @@
 .claude
 
 .codex
+
+# OMX runtime state
+.omx/

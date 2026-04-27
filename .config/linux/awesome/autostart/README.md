@@ -23,9 +23,9 @@ Ubuntu x86_64      → ubuntu_x64.sh
 
 ## 公共功能
 
-三份平台脚本都会先加载 `common.sh`，由它提供 `run()` / `run_custom()`、`prepare_xresources()` 以及公共服务启动函数。
+三份平台脚本都会先加载 `common.sh`，由它提供 `run()` / `run_custom()`、`prepare_xresources()`、显示器检测/布局 helper 以及公共服务启动函数。`run()` / `run_custom()` 会先检查目标命令或可执行路径是否存在；缺失的可选服务会被静默跳过，避免 Awesome 自启动阶段输出 `not found` 噪音。
 
-所有脚本都启动以下服务：
+所有脚本都会按需尝试启动以下服务：
 
 - `picom` — 窗口合成器（圆角/阴影/模糊）
 - `fcitx5` — 中文输入法
@@ -43,7 +43,7 @@ Ubuntu x86_64      → ubuntu_x64.sh
 
 ### ubuntu_aarch64.sh
 
-- **分辨率**：`xrandr --output eDP-1 --mode 2880x1800 --rate 120`
+- **显示器**：运行时检测内屏（`eDP`/`LVDS`/`DSI`）和首个外接屏；内屏设置为 `2880x1800@120Hz` 主屏，外接屏读取首选物理模式（当前 Dell P2722H 为 `1920x1080`）后用 `1.5x1.5` XRandR scaling 放在笔记本屏幕左侧，并显式设置 framebuffer/position，避免缩放后与内屏重叠；全局 `Xft.dpi` 不在这里调整
 - **触摸板**：动态检测 Touchpad 设备 ID，配置自然滚动、轻触点击、clickfinger 模式、光标加速、打字时禁用
 - **壁纸**：`/usr/share/backgrounds/*`
 
@@ -57,7 +57,7 @@ Ubuntu x86_64      → ubuntu_x64.sh
 
 以下包需要手动或通过 `install.sh` 安装：
 
-- `xorg-xrandr` / `xorg-xinput` — 分辨率和触摸板配置
+- `xorg-xrandr` / `xorg-xinput` — 分辨率和触摸板配置（仅相关平台需要）
 - `redshift` — 色温调节（Ubuntu: `sudo apt install redshift`）
 - `picom` — 窗口合成器
 - `fcitx5` — 中文输入法
