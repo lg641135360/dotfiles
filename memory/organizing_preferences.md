@@ -52,3 +52,5 @@
 - 对当前笔记本内屏，`Xft.dpi: 192` 是合适基线；不要为了外接 1080p 屏幕把全局 Xresources DPI 降到折中值，但当前显示策略下也不要在 Awesome/rofi 强行做 per-screen DPI 或 focused-screen 缩放覆盖，后续若重试需单独确认。
 - 对当前 dotfiles 仓库，`.omx/` 属于本地 OMX 运行状态目录，应放入 `.gitignore`，不要提交到远端仓库。
 - 对当前 Neovim 0.12 配置，注释快捷键优先使用内置 `gc/gcc` 能力；不要让 `Comment.nvim` 覆盖这组快捷键。TOML/YAML/JSONC 等本身可注释配置文件应支持 `gcc`，但不要为标准 `.json` 强制启用注释。
+- 对当前 Neovim 0.12 原生化迁移，第一阶段优先最大限度保留现有体验，只清重复/过时配置；即使核心插件数量减少很少，只要启动、补全、搜索、文件树、诊断和 LSP 快捷键体验不回退，也算成功。替换 `blink.cmp`、`snacks.nvim`、`neo-tree`、`bufferline`、`lualine`、`tiny-inline-diagnostic`、`inc-rename` 或从 `lazy.nvim` 迁移到 `vim.pack` 前必须单独确认。
+- 对当前 Neovim 的 Mason 工具安装，优先保持交互式 Neovim 启动后自动补齐 `mason-tool-installer` 工具；但 headless 测试、脚本和 smoke 验证中必须跳过自动安装，避免网络/写入副作用和隐藏 traceback。

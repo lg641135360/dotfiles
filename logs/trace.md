@@ -2,6 +2,49 @@
 
 ## 2026-04-28
 
+- 目的：按用户要求将本轮 Neovim 0.12 第一阶段清理与 Mason 自动安装调整提交并推送到 GitHub。
+- 已做：提交前复核根仓库和 `.config/shared/nvim` 子仓库状态，确认本轮待提交内容包含 nvim 第一阶段清理、Mason 工具交互式自动安装/headless 跳过逻辑、对应回归测试、memory 偏好和 trace 记录；重新执行 `tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_comment_test.sh tests/nvim_0_12_cleanup_test.sh`、`luajit loadfile` 覆盖 `misc.lua`、`mason.lua`、`lsp.lua`，以及根仓库和 nvim 子仓库 `git diff --check`，均通过。
+- 后续：按 Lore commit 协议先提交并推送 `.config/shared/nvim` 子仓库到 `lg641135360/neovim`，再提交 dotfiles 根仓库中的子仓库指针、测试和记录文件并推送到 `lg641135360/dotfiles`。
+
+- 目的：响应 Stop hook 提示，清理残留的 OMX Ralph 活跃状态并补充新鲜验证证据。
+- 已做：检查 `.omx/state` 后发现 `.omx/state/sessions/019dd35b-1707-7af3-a8a3-2ae432257e7c/ralph-state.json` 仍停在 `active=true`、`current_phase=starting`，同时相关 `skill-active-state.json` 与主执行会话的 `skill-active-state.json` 仍标记为活跃；在复跑验证通过后，将这些 Ralph/skill-active 状态更新为 `active=false`、`phase/current_phase=complete` 并写入完成时间，同时把 `.omx/state/native-stop-state.json` 中对应 stop 签名的结尾从 `starting` 更新为 `complete`，避免 Stop hook 继续误判任务未完成。
+- 验证：重新执行 `tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_comment_test.sh tests/nvim_0_12_cleanup_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/mason.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check`，均通过。
+- 后续：若 Stop hook 仍提示 Ralph 活跃，应优先检查其它旧 session 的 `skill-active-state.json` 是否属于当前任务；不要清理无关历史 session，除非确认它们来自本轮任务。
+
+- 目的：按用户要求恢复 `mason-tool-installer` 的自动安装体验，同时保留 headless 验证稳定性。
+- 已做：修改 `.config/shared/nvim/lua/plugins/mason.lua`，取消 `mason-tool-installer.nvim` 的 `cmd` 命令懒加载，让它在正常交互式 Neovim 启动时加载并执行 `run_on_start`；新增 `is_headless()` 检测 `vim.v.argv` 中的 `--headless`，使 headless 测试/脚本启动时 `run_on_start = false`，正常启动时自动安装缺失工具，并设置 `start_delay = 3000` 延迟到启动后执行。同步扩展 `tests/nvim_0_12_cleanup_test.sh`，要求 Mason 工具安装保持非命令门控、非 headless 自动运行和启动延迟。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_comment_test.sh tests/nvim_0_12_cleanup_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/mason.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过。
+- 后续：首次在新机器交互式打开 Neovim 时会自动补齐 Mason 工具；若要在纯 headless 环境安装工具，仍应显式运行 `:MasonToolsInstallSync` 或相应命令，而不是依赖启动自动安装。
+
+- 目的：完成 nvim 0.12 原生化迁移第一阶段 `$ralph` 执行、去噪复核和收尾验证。
+- 已做：按已批准 PRD 删除 `.config/shared/nvim` 中的 `Comment.nvim` 残留和 `lazyvim.json`，清理 `options.lua`、`keymaps.lua`、`autocmds.lua`、`lazy.lua` 里的 LazyVim 过时注释，并更新 README 说明 Neovim 0.12 默认 `gc/gcc`、LSP `gr*` 能力以及当前 `gr nowait` / `<leader>rn` 双路径边界；清理 Mason 重复配置，移除 `mason-lspconfig` 重复 spec 和 `:MasonUpdate` 构建钩子，让 `mason-tool-installer` 改为手动命令触发并关闭启动自动安装，同时在 `lsp.lua` 显式保留 `mason.nvim` 与 `mason-lspconfig.nvim` 依赖关系，避免去重后丢失原有加载边界；补强 `tests/nvim_comment_test.sh` 并新增 `tests/nvim_0_12_cleanup_test.sh`，覆盖 Comment 移除、核心插件保留、LazyVim 残留清理、仓库配置 startup smoke、keymap 边界与失败输出捕获。Ralph 架构复核先指出测试脚本在 `set -e` 下可能吞掉失败输出，已修复后复核通过。
+- 验证：`tests/nvim_comment_test.sh`、`tests/nvim_0_12_cleanup_test.sh`、`bash -n tests/nvim_comment_test.sh tests/nvim_0_12_cleanup_test.sh` 通过；`luajit loadfile` 覆盖 `plugins/misc.lua`、`plugins/mason.lua`、`plugins/lsp.lua`、`config/options.lua`、`config/keymaps.lua`、`config/autocmds.lua`、`config/lazy.lua` 通过；`git diff --check` 与 `git -C .config/shared/nvim diff --check` 通过；对 `.config/shared/nvim` 扫描 `LazyVim|lazyvim|Comment.nvim|numToStr/Comment|require("Comment")|vim.pack.add` 无匹配；Architect 最终 APPROVE。
+- 后续：第一阶段没有替换 `blink.cmp`、`snacks.nvim`、`neo-tree`、`bufferline`、`lualine`、`tiny-inline-diagnostic`、`inc-rename` 或 `lazy.nvim`。后续若继续原生化，应单独规划 `gr` / `gr*` 键位整理、`vim.lsp.config()` / `vim.lsp.enable()` 迁移、`winborder/pumborder` 视觉验证和 Mason 工具安装策略；本轮未做真实 UI 截图或实际 LSP server 启动验证。
+
+- 目的：完成 nvim 0.12 原生化迁移第一阶段的 `$ralplan` 共识规划。
+- 已做：基于 deep-interview 规格与本地 Neovim 0.12.2 runtime 证据，产出并审查第一阶段保守清理方案；Architect 先指出 `<leader>rn` 的 LSP buffer-local / IncRename global 双路径、Snacks `gr` + `nowait` 可能影响 0.12 `gr*` 默认键位、startup smoke 需显式验证仓库配置等问题，修订后通过；Critic 再指出 headless smoke 不能只看退出码且必须捕获 stdout/stderr 错误信号，修订后通过。最终写入 `.omx/plans/prd-nvim-0-12-default-migration.md` 与 `.omx/plans/test-spec-nvim-0-12-default-migration.md`，并将 ralplan 状态标记为完成。
+- 后续：执行阶段应按 PRD 先补强 `tests/nvim_comment_test.sh` 和新增 `tests/nvim_0_12_cleanup_test.sh`，再删除 `Comment.nvim` 残留、清理 LazyVim 过时注释/README；不得在本阶段替换 `blink.cmp`、`snacks.nvim`、`neo-tree`、`bufferline`、`lualine`、`tiny-inline-diagnostic`、`inc-rename` 或迁移到 `vim.pack`。
+
+- 目的：完成 nvim 0.12 原生化迁移 `$deep-interview` 的压力追问、规格化交接和偏好持久化。
+- 已做：用户确认第一阶段即使几乎不替换核心插件、插件数量减少很少，只要清掉重复/过时配置，且启动、补全、搜索、文件树、诊断、LSP 快捷键体验都不回退，就算成功。已写入访谈摘要 `.omx/interviews/nvim-0-12-default-migration-20260428T080120Z.md` 与执行规格 `.omx/specs/deep-interview-nvim-0-12-default-migration.md`；更新 `memory/organizing_preferences.md`，记录当前 Neovim 0.12 原生化迁移的第一阶段偏好和必须单独确认的核心插件替换边界；将当前 deep-interview 会话状态标记为完成。
+- 后续：推荐使用 `$ralplan` 读取该规格，产出第一阶段清理计划；执行阶段应优先处理 `Comment.nvim` 残留、过期 LazyVim 注释/README、LSP 默认键位文档/alias、`winborder/pumborder` 这类不改变工作流的清理点，并用 headless nvim 与既有注释测试验证无回退。
+
+- 目的：记录 nvim 0.12 原生化迁移访谈第三轮答案，明确第一阶段默认执行权限边界。
+- 已做：用户确认可以默认纳入并执行不改变核心工作流的清理项，包括删除无实际价值的插件/注释、清理过期 LazyVim 描述、让 LSP 文档/推荐键位对齐 0.12 默认但保留旧快捷键 alias、统一 `winborder/pumborder` 等全局 UI 默认；同时确认凡是会替换 `blink.cmp`、`snacks`、`neo-tree`、`bufferline`、`lualine`、`tiny-inline-diagnostic`、`inc-rename` 等体验插件的改动必须单独确认。已更新 deep-interview 状态，决策边界标记为已明确。
+- 后续：还需完成一次压力追问，确认验收标准：这轮迁移是以“无体验回归 + 清掉重复/过时项”为成功，还是必须实际减少插件数量才算成功；完成后可写访谈规格并交给规划流程。
+
+- 目的：记录 nvim 0.12 原生化迁移访谈第二轮答案，收窄本轮非目标与体验保留边界。
+- 已做：用户确认虽然允许规划更激进的原生化迁移，但实际目标应是“最大限度保留现有体验，只清重复/过时配置”；据此更新 deep-interview 状态，将非目标标记为已明确：第一阶段不应为了原生化替换 `blink.cmp`、`snacks`、`neo-tree`、`bufferline`、`lualine`、`tiny-inline-diagnostic`、`inc-rename` 等核心体验插件，除非后续单独确认。
+- 后续：下一轮需要明确决策边界：哪些清理项 Codex 可以默认纳入计划并执行，哪些涉及快捷键、UI、插件替换的变更必须再次确认。
+
+- 目的：记录 nvim 0.12 原生化迁移访谈第一轮答案，明确用户愿意接受更激进的迁移规划。
+- 已做：用户确认目标不是只做低风险清单，而是允许规划更激进的 Neovim 0.12 原生化迁移；据此更新当前 deep-interview 会话状态，将意图清晰度上调，同时标记非目标、决策边界和压力追问仍未完成。
+- 后续：下一轮需要明确哪些现有 nvim 体验或插件必须保留、不允许为了原生化而牺牲；随后再确认 Codex 可自行决策的删除/替换边界。
+
+- 目的：按用户 `$deep-interview` 要求，对当前 nvim 配置与 Neovim 0.12 默认能力做迁移访谈预检。
+- 已做：完整读取 `memory/organizing_preferences.md` 与 `logs/trace.md`；确认本机 Neovim 为 `NVIM v0.12.2`；读取 `.config/shared/nvim` 的入口、options/keymaps/autocmds/lazy 配置及 LSP、blink-cmp、snacks、neo-tree、noice、formatter、mason、bufferline、lualine/treesitter、inline diagnostic、renamer、aerial、Comment.nvim 等插件配置；对照本机 Neovim 0.12 官方运行时文档和默认运行时，确认候选迁移点包括内置 `gc/gcc` 注释、LSP 默认 `gr*`/`gO` 键位、默认诊断跳转、默认 `statusline`、`vim.pack`、`autocomplete`/`pumborder`/`winborder` 等 0.12 能力；创建上下文快照 `.omx/context/nvim-0-12-default-migration-20260428T074513Z.md` 并更新当前 deep-interview 会话状态。
+- 后续：继续访谈确认本轮目标是低风险清理、原生化重构，还是只输出迁移建议；明确非目标与决策边界后再产出规格或交给规划流程，不在 deep-interview 阶段直接改 nvim 配置。
+
 - 目的：按用户 `$deep-interview` 要求，先对当前 nvim 配置做需求访谈预检，聚焦后续如何优化文件编辑体验。
 - 已做：按项目约束读取 `memory/organizing_preferences.md` 与 `logs/trace.md`；定位 `.config/shared/nvim` 配置结构，读取 `init.lua`、`config/keymaps.lua`、`config/options.lua`、`config/autocmds.lua` 以及 Snacks、Neo-tree、bufferline、blink-cmp、LSP、formatter、inline diagnostic、Aerial、Noice、renamer、neoscroll 等编辑体验相关插件配置；尝试 `omx explore` 时因当前 Codex App surface 的只读会话目录失败，已回退为直接文件读取；创建 deep-interview 上下文快照 `.omx/context/nvim-editing-experience-20260428T032233Z.md`，并更新本轮 deep-interview 本地状态。
 - 后续：继续通过访谈明确用户最想优化的编辑摩擦、非目标与决策边界；在需求澄清完成后再交给规划或执行流程，不在 deep-interview 阶段直接修改 nvim 配置。
