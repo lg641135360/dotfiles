@@ -2,6 +2,11 @@
 
 ## 2026-04-28
 
+- 目的：继续 Neovim 0.12 LSP 键位迁移，按用户确认“没有裸 `gr` 肌肉记忆”清理 `gr` + `nowait` 对 0.12 `gr*` 默认键位族的潜在冲突。
+- 已做：更新 `memory/organizing_preferences.md` 记录用户没有裸 `gr` 肌肉记忆、references 应迁到默认语义 `grr` 的偏好；按 TDD 修改 `tests/nvim_0_12_cleanup_test.sh`，先要求移除裸 `"gr"` 映射、移除 `nowait = true`、保留 `Snacks.picker.lsp_references()` 并迁到 `"grr"`，同时 runtime 断言裸 `gr` 不再映射、`grr` 指向 callback；确认测试先因旧裸 `gr` 映射失败后，修改 `.config/shared/nvim/lua/plugins/snacks.lua` 将 references picker 从 `gr` 改到 `grr` 并删除 `nowait = true`，同步更新 `.config/shared/nvim/Readme.md`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_comment_test.sh tests/nvim_0_12_cleanup_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/snacks.lua"))'`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/config/options.lua"))'`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/lsp.lua"))'`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/mason.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过。
+- 后续：下一步可评估更高影响的原生化切片，例如是否替换 `inc-rename` 或 `tiny-inline-diagnostic`；替换前应继续保留 `<leader>rn`、`<leader>ca`、`K` 等入口，并用 runtime 测试证明无回退。
+
 - 目的：按推荐顺序继续 Neovim 0.12 原生化迁移，先完成当前 LSP/neodev 改动的本地 checkpoint，再执行低风险的 `winborder` / `pumborder` / 诊断浮窗默认配置切片。
 - 已做：提交前复跑 nvim 回归测试与 Lua/shell/diff 检查，通过后分别提交 `.config/shared/nvim` 子仓库与 dotfiles 根仓库，固定上一轮 `neodev.nvim` 移除和 `lua_ls` 显式 runtime 配置。随后按 TDD 扩展 `tests/nvim_0_12_cleanup_test.sh`，先锁定 0.12 UI 默认要求：`winborder=rounded`、`pumborder=rounded`、诊断浮窗 `border=rounded` 且 `source=if_many`，并要求 README 记录该边界；确认测试先因缺少 `winborder` 失败后，修改 `.config/shared/nvim/lua/config/options.lua` 设置全局 `vim.opt.winborder` / `vim.opt.pumborder` 和 `vim.diagnostic.config().float`，并更新 `.config/shared/nvim/Readme.md`。
 - 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_comment_test.sh tests/nvim_0_12_cleanup_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/config/options.lua"))'`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/lsp.lua"))'`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/mason.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过。

@@ -216,10 +216,13 @@ require_pattern 'start_delay = 3000' "$NVIM/lua/plugins/mason.lua" "Mason tools 
 reject_pattern 'cmd = .*MasonToolsInstall' "$NVIM/lua/plugins/mason.lua" "mason-tool-installer should not be command-gated"
 require_pattern 'inc_rename' "$NVIM/lua/plugins/renamer.lua" "IncRename setup must remain"
 require_pattern '<leader>rn' "$NVIM/lua/plugins/renamer.lua" "IncRename global rename mapping must remain"
-require_pattern '"gr"' "$NVIM/lua/plugins/snacks.lua" "Snacks references mapping must remain"
-require_pattern 'nowait = true' "$NVIM/lua/plugins/snacks.lua" "Snacks gr nowait risk should stay visible in phase one"
-require_pattern 'nowait' "$NVIM/Readme.md" "README should document the gr nowait boundary"
-require_pattern '`gr`' "$NVIM/Readme.md" "README should document the gr mapping boundary"
+reject_pattern '"gr"' "$NVIM/lua/plugins/snacks.lua" "bare gr mapping should be removed to avoid gr* prefix conflicts"
+require_pattern '"grr"' "$NVIM/lua/plugins/snacks.lua" "Snacks references mapping should move to Neovim 0.12 grr"
+require_pattern 'Snacks\.picker\.lsp_references' "$NVIM/lua/plugins/snacks.lua" "Snacks references picker should stay available on grr"
+reject_pattern 'nowait = true' "$NVIM/lua/plugins/snacks.lua" "LSP gr* mappings should not rely on nowait after grr migration"
+reject_pattern 'nowait' "$NVIM/Readme.md" "README should no longer document the old gr nowait boundary"
+reject_pattern '当前 `gr` 仍' "$NVIM/Readme.md" "README should not say bare gr still owns references"
+require_pattern '`grr`' "$NVIM/Readme.md" "README should document grr references"
 require_pattern '`grn`' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP defaults"
 require_pattern '<leader>rn' "$NVIM/Readme.md" "README should document rename mapping boundary"
 require_pattern 'vim\.lsp\.config\(\)' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP config shape"
@@ -264,7 +267,9 @@ if [[ "$keymap_rc" -ne 0 ]]; then
 fi
 assert_clean_nvim_output
 
-require_pattern 'KEYMAP gr .*nowait=1' "$out_file" "runtime keymap output should record gr nowait"
+require_pattern 'KEYMAP gr lhs=nil .*nowait=nil' "$out_file" "bare gr should not be mapped at runtime"
+reject_pattern 'KEYMAP gr .*nowait=1' "$out_file" "bare gr should not use nowait at runtime"
+require_pattern 'KEYMAP grr lhs=grr .*callback=true' "$out_file" "grr should invoke the references picker callback"
 for lhs in grn gra grr gri grt grx gO; do
   require_pattern "KEYMAP $lhs " "$out_file" "runtime keymap output should include $lhs"
 done
