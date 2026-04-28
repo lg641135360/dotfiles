@@ -120,12 +120,18 @@ LUA
 cat >"$ui_check" <<'LUA'
 local diagnostic = vim.diagnostic.config()
 local float = diagnostic.float or {}
+local virtual_text = diagnostic.virtual_text or {}
 
 print("UI_WINBORDER=" .. vim.o.winborder)
 print("UI_PUMBORDER=" .. vim.o.pumborder)
 print("UI_DIAGNOSTIC_SIGNS=" .. tostring(diagnostic.signs))
 print("UI_DIAGNOSTIC_FLOAT_BORDER=" .. tostring(float.border))
 print("UI_DIAGNOSTIC_FLOAT_SOURCE=" .. tostring(float.source))
+print("UI_DIAGNOSTIC_VIRTUAL_TEXT=" .. type(diagnostic.virtual_text))
+print("UI_DIAGNOSTIC_VTEXT_POS=" .. tostring(virtual_text.virt_text_pos))
+print("UI_DIAGNOSTIC_VTEXT_SOURCE=" .. tostring(virtual_text.source))
+print("UI_DIAGNOSTIC_VLINES=" .. tostring(diagnostic.virtual_lines))
+print("UI_DIAGNOSTIC_SEVERITY_SORT=" .. tostring(diagnostic.severity_sort))
 LUA
 
 require_pattern() {
@@ -162,12 +168,17 @@ require_pattern 'folke/snacks.nvim' "$NVIM/lua/plugins/snacks.lua" "snacks.nvim 
 require_pattern 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree.nvim must remain"
 require_pattern 'akinsho/bufferline.nvim' "$NVIM/lua/plugins/bufferline.lua" "bufferline.nvim must remain"
 require_pattern 'nvim-lualine/lualine.nvim' "$NVIM/lua/plugins/ui.lua" "lualine.nvim must remain"
-require_pattern 'rachartier/tiny-inline-diagnostic.nvim' "$NVIM/lua/plugins/inline-diagno.lua" "tiny-inline-diagnostic.nvim must remain"
+if [[ -e "$NVIM/lua/plugins/inline-diagno.lua" ]]; then
+  echo "tiny-inline-diagnostic plugin spec should be removed"
+  exit 1
+fi
 if [[ -e "$NVIM/lua/plugins/renamer.lua" ]]; then
   echo "inc-rename plugin spec should be removed"
   exit 1
 fi
 
+reject_pattern 'tiny-inline-diagnostic|tiny%-inline%-diagnostic|tiny_inline' "$NVIM/lua/plugins" "tiny-inline-diagnostic references should not remain in plugin specs"
+reject_pattern 'tiny-inline-diagnostic\.nvim' "$NVIM/lazy-lock.json" "tiny-inline-diagnostic should not remain in lazy-lock after plugin removal"
 reject_pattern 'inc-rename\.nvim|inc_rename|IncRename' "$NVIM/lua/plugins" "inc-rename references should not remain in plugin specs"
 reject_pattern 'inc-rename\.nvim' "$NVIM/lazy-lock.json" "inc-rename should not remain in lazy-lock after plugin removal"
 require_pattern 'folke/lazy.nvim.git' "$NVIM/lua/config/lazy.lua" "lazy.nvim must remain the plugin manager"
@@ -188,6 +199,10 @@ require_pattern 'vim\.opt\.pumborder = "rounded"' "$NVIM/lua/config/options.lua"
 require_pattern 'float = \{' "$NVIM/lua/config/options.lua" "diagnostic float config should be explicit"
 require_pattern 'border = "rounded"' "$NVIM/lua/config/options.lua" "diagnostic floating windows should use the rounded border default"
 require_pattern 'source = "if_many"' "$NVIM/lua/config/options.lua" "diagnostic floating windows should show source only when useful"
+require_pattern 'virtual_text = \{' "$NVIM/lua/config/options.lua" "native diagnostic virtual_text should replace tiny-inline-diagnostic"
+require_pattern 'virt_text_pos = "inline"' "$NVIM/lua/config/options.lua" "native diagnostic virtual_text should render inline"
+require_pattern 'virtual_lines = false' "$NVIM/lua/config/options.lua" "native diagnostic virtual_lines should stay disabled to avoid shifting code"
+require_pattern 'severity_sort = true' "$NVIM/lua/config/options.lua" "diagnostics should sort higher severity first"
 
 require_pattern '<leader>rn' "$NVIM/lua/plugins/lsp.lua" "LSP rename alias must remain"
 require_pattern '<leader>ca' "$NVIM/lua/plugins/lsp.lua" "LSP code action alias must remain"
@@ -235,6 +250,8 @@ require_pattern 'vim\.lsp\.config\(\)' "$NVIM/Readme.md" "README should document
 require_pattern 'vim\.lsp\.enable\(\)' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP enable shape"
 require_pattern '`winborder`' "$NVIM/Readme.md" "README should document Neovim 0.12 winborder default"
 require_pattern '`pumborder`' "$NVIM/Readme.md" "README should document Neovim 0.12 pumborder default"
+reject_pattern 'tiny-inline-diagnostic|tiny_inline|tiny%-inline%-diagnostic' "$NVIM/Readme.md" "README should not describe removed tiny-inline-diagnostic behavior"
+require_pattern 'virt_text_pos = "inline"' "$NVIM/Readme.md" "README should document native inline diagnostic virtual text"
 
 set +e
 XDG_CONFIG_HOME="$ROOT/.config/shared" \
@@ -335,3 +352,8 @@ require_pattern 'UI_PUMBORDER=rounded' "$out_file" "pumborder should be rounded 
 require_pattern 'UI_DIAGNOSTIC_SIGNS=false' "$out_file" "diagnostic signs should stay disabled"
 require_pattern 'UI_DIAGNOSTIC_FLOAT_BORDER=rounded' "$out_file" "diagnostic float border should be rounded at runtime"
 require_pattern 'UI_DIAGNOSTIC_FLOAT_SOURCE=if_many' "$out_file" "diagnostic float source should be if_many at runtime"
+require_pattern 'UI_DIAGNOSTIC_VIRTUAL_TEXT=table' "$out_file" "diagnostic virtual_text should be enabled with native options at runtime"
+require_pattern 'UI_DIAGNOSTIC_VTEXT_POS=inline' "$out_file" "diagnostic virtual_text should render inline at runtime"
+require_pattern 'UI_DIAGNOSTIC_VTEXT_SOURCE=if_many' "$out_file" "diagnostic virtual_text source should be if_many at runtime"
+require_pattern 'UI_DIAGNOSTIC_VLINES=false' "$out_file" "diagnostic virtual_lines should be disabled at runtime"
+require_pattern 'UI_DIAGNOSTIC_SEVERITY_SORT=true' "$out_file" "diagnostics should sort by severity at runtime"
