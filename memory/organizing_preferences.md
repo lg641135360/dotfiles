@@ -56,3 +56,4 @@
 - 对当前 Neovim 0.12 原生化迁移，第一阶段优先最大限度保留现有体验，只清重复/过时配置；即使核心插件数量减少很少，只要启动、补全、搜索、文件树、诊断和 LSP 快捷键体验不回退，也算成功。替换 `blink.cmp`、`snacks.nvim`、`neo-tree`、`bufferline`、`lualine`、`tiny-inline-diagnostic`、`inc-rename` 或从 `lazy.nvim` 迁移到 `vim.pack` 前必须单独确认。
 - 对当前 Neovim 的 Mason 工具安装，优先保持交互式 Neovim 启动后自动补齐 `mason-tool-installer` 工具；但 headless 测试、脚本和 smoke 验证中必须跳过自动安装，避免网络/写入副作用和隐藏 traceback。
 - 对当前 Neovim 0.12 LSP 键位迁移，用户没有裸 `gr` 肌肉记忆；优先移除裸 `gr` + `nowait` 风险，把 references 入口迁到默认语义的 `grr`，同时继续保留 `<leader>rn`、`<leader>ca`、`K` 等已有入口。
+- 对当前 Neovim rename 体验，优先使用 Neovim 原生 LSP rename（`grn` 与 LSP buffer-local `<leader>rn`），不再保留 `inc-rename.nvim` 插件；非 LSP buffer 不需要全局 `<leader>rn` rename 兜底。

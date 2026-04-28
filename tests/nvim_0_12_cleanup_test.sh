@@ -163,7 +163,13 @@ require_pattern 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua" "
 require_pattern 'akinsho/bufferline.nvim' "$NVIM/lua/plugins/bufferline.lua" "bufferline.nvim must remain"
 require_pattern 'nvim-lualine/lualine.nvim' "$NVIM/lua/plugins/ui.lua" "lualine.nvim must remain"
 require_pattern 'rachartier/tiny-inline-diagnostic.nvim' "$NVIM/lua/plugins/inline-diagno.lua" "tiny-inline-diagnostic.nvim must remain"
-require_pattern 'smjonas/inc-rename.nvim' "$NVIM/lua/plugins/renamer.lua" "inc-rename.nvim must remain"
+if [[ -e "$NVIM/lua/plugins/renamer.lua" ]]; then
+  echo "inc-rename plugin spec should be removed"
+  exit 1
+fi
+
+reject_pattern 'inc-rename\.nvim|inc_rename|IncRename' "$NVIM/lua/plugins" "inc-rename references should not remain in plugin specs"
+reject_pattern 'inc-rename\.nvim' "$NVIM/lazy-lock.json" "inc-rename should not remain in lazy-lock after plugin removal"
 require_pattern 'folke/lazy.nvim.git' "$NVIM/lua/config/lazy.lua" "lazy.nvim must remain the plugin manager"
 reject_pattern 'vim\.pack\.add' "$NVIM/lua/config/lazy.lua" "vim.pack must not manage plugins in phase one"
 
@@ -214,8 +220,6 @@ require_pattern 'diagnosticMode = "workspace"' "$NVIM/lua/plugins/lsp.lua" "pyri
 require_pattern 'run_on_start = not is_headless\(\)' "$NVIM/lua/plugins/mason.lua" "Mason tools should auto-install outside headless runs"
 require_pattern 'start_delay = 3000' "$NVIM/lua/plugins/mason.lua" "Mason tools auto-install should be delayed after startup"
 reject_pattern 'cmd = .*MasonToolsInstall' "$NVIM/lua/plugins/mason.lua" "mason-tool-installer should not be command-gated"
-require_pattern 'inc_rename' "$NVIM/lua/plugins/renamer.lua" "IncRename setup must remain"
-require_pattern '<leader>rn' "$NVIM/lua/plugins/renamer.lua" "IncRename global rename mapping must remain"
 reject_pattern '"gr"' "$NVIM/lua/plugins/snacks.lua" "bare gr mapping should be removed to avoid gr* prefix conflicts"
 require_pattern '"grr"' "$NVIM/lua/plugins/snacks.lua" "Snacks references mapping should move to Neovim 0.12 grr"
 require_pattern 'Snacks\.picker\.lsp_references' "$NVIM/lua/plugins/snacks.lua" "Snacks references picker should stay available on grr"
@@ -225,6 +229,8 @@ reject_pattern '当前 `gr` 仍' "$NVIM/Readme.md" "README should not say bare g
 require_pattern '`grr`' "$NVIM/Readme.md" "README should document grr references"
 require_pattern '`grn`' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP defaults"
 require_pattern '<leader>rn' "$NVIM/Readme.md" "README should document rename mapping boundary"
+reject_pattern 'IncRename|inc-rename' "$NVIM/Readme.md" "README should not describe removed inc-rename behavior"
+require_pattern 'LSP buffer-local rename' "$NVIM/Readme.md" "README should document that <leader>rn is now LSP buffer-local"
 require_pattern 'vim\.lsp\.config\(\)' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP config shape"
 require_pattern 'vim\.lsp\.enable\(\)' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP enable shape"
 require_pattern '`winborder`' "$NVIM/Readme.md" "README should document Neovim 0.12 winborder default"
