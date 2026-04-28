@@ -9,6 +9,7 @@ state_home="$(mktemp -d)"
 cache_home="$(mktemp -d)"
 keymap_check="$(mktemp)"
 lsp_check="$(mktemp)"
+ui_check="$(mktemp)"
 lock_file="$NVIM/lazy-lock.json"
 lock_backup="$(mktemp)"
 
@@ -16,7 +17,7 @@ cp "$lock_file" "$lock_backup"
 
 cleanup() {
   cp "$lock_backup" "$lock_file"
-  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$lsp_check"
+  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$lsp_check" "$ui_check"
   rm -f "$lock_backup"
 }
 trap cleanup EXIT
@@ -116,6 +117,17 @@ print(
 )
 LUA
 
+cat >"$ui_check" <<'LUA'
+local diagnostic = vim.diagnostic.config()
+local float = diagnostic.float or {}
+
+print("UI_WINBORDER=" .. vim.o.winborder)
+print("UI_PUMBORDER=" .. vim.o.pumborder)
+print("UI_DIAGNOSTIC_SIGNS=" .. tostring(diagnostic.signs))
+print("UI_DIAGNOSTIC_FLOAT_BORDER=" .. tostring(float.border))
+print("UI_DIAGNOSTIC_FLOAT_SOURCE=" .. tostring(float.source))
+LUA
+
 require_pattern() {
   local pattern="$1"
   local file="$2"
@@ -165,6 +177,11 @@ reject_pattern 'LazyVim|lazyvim_' "$NVIM/lua/config/keymaps.lua" "keymaps.lua sh
 reject_pattern 'LazyVim|lazyvim_' "$NVIM/lua/config/autocmds.lua" "autocmds.lua should not reference LazyVim defaults"
 reject_pattern 'LazyVim|lazyvim\.plugins|add LazyVim' "$NVIM/lua/config/lazy.lua" "lazy.lua should not keep LazyVim import comments"
 reject_pattern 'lazyvim\.json|LazyVim' "$NVIM/Readme.md" "README should not describe LazyVim residue"
+require_pattern 'vim\.opt\.winborder = "rounded"' "$NVIM/lua/config/options.lua" "winborder should be configured through Neovim 0.12 option defaults"
+require_pattern 'vim\.opt\.pumborder = "rounded"' "$NVIM/lua/config/options.lua" "pumborder should be configured through Neovim 0.12 option defaults"
+require_pattern 'float = \{' "$NVIM/lua/config/options.lua" "diagnostic float config should be explicit"
+require_pattern 'border = "rounded"' "$NVIM/lua/config/options.lua" "diagnostic floating windows should use the rounded border default"
+require_pattern 'source = "if_many"' "$NVIM/lua/config/options.lua" "diagnostic floating windows should show source only when useful"
 
 require_pattern '<leader>rn' "$NVIM/lua/plugins/lsp.lua" "LSP rename alias must remain"
 require_pattern '<leader>ca' "$NVIM/lua/plugins/lsp.lua" "LSP code action alias must remain"
@@ -207,6 +224,8 @@ require_pattern '`grn`' "$NVIM/Readme.md" "README should document Neovim 0.12 LS
 require_pattern '<leader>rn' "$NVIM/Readme.md" "README should document rename mapping boundary"
 require_pattern 'vim\.lsp\.config\(\)' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP config shape"
 require_pattern 'vim\.lsp\.enable\(\)' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP enable shape"
+require_pattern '`winborder`' "$NVIM/Readme.md" "README should document Neovim 0.12 winborder default"
+require_pattern '`pumborder`' "$NVIM/Readme.md" "README should document Neovim 0.12 pumborder default"
 
 set +e
 XDG_CONFIG_HOME="$ROOT/.config/shared" \
@@ -280,3 +299,28 @@ require_pattern 'LSP_LUA_LIBRARY_COUNT=[1-9]' "$out_file" "lua_ls should expose 
 require_pattern 'LSP_LUA_LIBRARY_VIMRUNTIME=true' "$out_file" "lua_ls runtime library should include VIMRUNTIME"
 require_pattern 'LSP_CLANGD_CMD=.*--clang-tidy' "$out_file" "clangd command flags should survive migration"
 require_pattern 'LSP_PYRIGHT_TYPECHECK=basic' "$out_file" "pyright analysis settings should survive migration"
+
+: >"$out_file"
+set +e
+XDG_CONFIG_HOME="$ROOT/.config/shared" \
+  XDG_DATA_HOME="$data_home" \
+  XDG_STATE_HOME="$state_home" \
+  XDG_CACHE_HOME="$cache_home" \
+  nvim --headless -i NONE -u "$NVIM/init.lua" \
+    --cmd 'set noswapfile' \
+    "+luafile $ui_check" \
+    '+qa!' >"$out_file" 2>&1
+ui_rc=$?
+set -e
+
+if [[ "$ui_rc" -ne 0 ]]; then
+  cat "$out_file"
+  exit 1
+fi
+assert_clean_nvim_output
+
+require_pattern 'UI_WINBORDER=rounded' "$out_file" "winborder should be rounded at runtime"
+require_pattern 'UI_PUMBORDER=rounded' "$out_file" "pumborder should be rounded at runtime"
+require_pattern 'UI_DIAGNOSTIC_SIGNS=false' "$out_file" "diagnostic signs should stay disabled"
+require_pattern 'UI_DIAGNOSTIC_FLOAT_BORDER=rounded' "$out_file" "diagnostic float border should be rounded at runtime"
+require_pattern 'UI_DIAGNOSTIC_FLOAT_SOURCE=if_many' "$out_file" "diagnostic float source should be if_many at runtime"
