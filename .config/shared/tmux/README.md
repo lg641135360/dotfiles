@@ -19,7 +19,9 @@ Catppuccin Mocha，与桌面主题保持一致。
 
 - 左侧隐藏 session 名，避免 OMX / 自动生成的长 session 名挤占 tab 区域。
 - 右侧显示 Prefix/Copy 状态和日期时间，不显示当前 shell 或命令名。
-- 窗口列表标题显示短路径；如果当前 pane 是远程连接（SSH）或终端标题提供 `host:path`，优先显示 `远程名:路径`。
+- 本地 tab 不加 `L:` 前缀；本地默认显示项目名，路径末尾是 `current` 等通用名称时，必要时显示父级/项目名。
+- 远程优先显示 SSH `Host` 别名；如果没有可匹配的简单 `Host`/`HostName` 配置，无别名的 IPv4 只显示最后两段，例如 `192.168.1.1` 显示为 `1.1`。
+- 如果远程主机是 FQDN 且没有别名，则只显示短主机名；标题格式保持为 `远程名:路径`。
 - 标题会自动截断，避免单个 tab 过长挤占其它窗口。
 - 远程当前目录的准确度取决于远端 shell 是否通过终端标题或 OSC 7 上报路径；否则会退回 tmux 当前能看到的路径信息。
 - 暂不引入 CPU / RAM / Battery 状态栏模块，避免为了状态栏额外增加 tmux 插件依赖。
@@ -62,7 +64,6 @@ Catppuccin Mocha，与桌面主题保持一致。
 | `tmux-prefix-highlight` | 前缀键激活时高亮状态栏 |
 | `catppuccin/tmux` | Catppuccin Mocha 主题 |
 | `tmux-resurrect` | 手动保存/恢复会话状态 |
-| `tmux-continuum` | 每 15 分钟自动保存，不自动恢复（防止误删 session 恢复） |
 
 ### Resurrect 快捷键
 
@@ -77,9 +78,9 @@ Catppuccin Mocha，与桌面主题保持一致。
 
 ## 常见问题
 
-**自动恢复导致已删 session 反复出现？**
+**是否自动保存 session？**
 
-`@continuum-restore` 已设为 `off`，不会自动恢复。如需手动恢复上次保存的状态，按 `Ctrl+a + Ctrl+r`。
+不自动保存。当前只保留 `tmux-resurrect` 的手动保存/恢复；需要保存时按 `Ctrl+a + Ctrl+s`，需要恢复时按 `Ctrl+a + Ctrl+r`。
 
 **彻底清除保存的状态：**
 ```bash

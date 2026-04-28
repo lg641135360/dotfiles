@@ -2,6 +2,44 @@
 
 ## 2026-04-28
 
+- 目的：按用户要求将当前 tmux 状态栏/tab 标题优化和移除自动保存 session 插件的改动提交并推送到 GitHub 远端。
+- 已做：提交前复核工作树，确认当前待提交范围为 `.config/shared/tmux/.tmux.conf`、`.config/shared/tmux/README.md`、`.config/shared/tmux/tmux-tab-title`、`tests/tmux_status_test.sh`、`memory/organizing_preferences.md` 与 `logs/trace.md`，均属于本轮 tmux 相关改动；重新执行 `tests/tmux_status_test.sh`、`bash -n .config/shared/tmux/.tmux.conf .config/shared/tmux/tmux-tab-title tests/tmux_status_test.sh`、`git diff --check`，均通过；确认仓库 `.tmux.conf` 与 live `/home/rikoo/.tmux.conf` 无差异，仓库 helper 与 live `/home/rikoo/.config/tmux/tmux-tab-title` 无差异。
+- 后续：按 Lore commit 协议提交到 `main` 并推送到 `origin/main`；推送后如果还要清理本机残留的 `~/.tmux/plugins/tmux-continuum` 插件目录，应单独处理。
+
+- 目的：按用户反馈移除 tmux 自动保存 session 插件，避免 `tmux-continuum` 的自动保存行为和状态栏注入影响日常使用。
+- 已做：从 `.config/shared/tmux/.tmux.conf` 删除 `tmux-plugins/tmux-continuum` 插件声明和 `@continuum-*` 设置，只保留 `tmux-resurrect` 的手动保存/恢复；更新 `tests/tmux_status_test.sh`，要求 tmux 配置不再包含 `tmux-continuum`、`@continuum-*`，README 不再宣传每 15 分钟自动保存；更新 `.config/shared/tmux/README.md`，说明当前不自动保存 session，只通过 `Ctrl+a + Ctrl+s` / `Ctrl+a + Ctrl+r` 手动保存恢复；更新 `memory/organizing_preferences.md`，记录 tmux session 持久化偏好为手动 `tmux-resurrect`，不要启用 `tmux-continuum`。随后将 `.tmux.conf` 同步到 live `/home/rikoo/.tmux.conf`，执行 `tmux source-file /home/rikoo/.tmux.conf`，并清理当前 tmux server 中残留的 `@continuum-restore`、`@continuum-save-interval`、`@continuum-save-last-timestamp` 运行态选项。
+- 验证：`tests/tmux_status_test.sh` 通过；`bash -n .config/shared/tmux/.tmux.conf .config/shared/tmux/tmux-tab-title tests/tmux_status_test.sh` 通过；`git diff --check` 通过；`diff -u .config/shared/tmux/.tmux.conf /home/rikoo/.tmux.conf` 无差异；当前 tmux `status-right` 已不再包含 `continuum_save.sh`，相关运行态选项里没有 `@continuum-*`，`@plugin` 当前为 `tmux-plugins/tmux-resurrect`。
+- 后续：`~/.tmux/plugins/tmux-continuum` 目录可能仍留在本机 TPM 插件目录中，但当前配置不会加载它；若后续要物理清理插件目录，可通过 TPM clean 或手动删除单独处理，避免和配置改动混在一起。
+
+- 目的：响应 Stop hook 关于 OMX Ralph 仍处于 `starting` 的提示，为 tmux 配置分析与 tab 标题优化收尾补齐新鲜验证证据。
+- 已做：重新执行 `tests/tmux_status_test.sh`、`bash -n .config/shared/tmux/.tmux.conf .config/shared/tmux/tmux-tab-title tests/tmux_status_test.sh`、`git diff --check`，均通过；确认 `.config/shared/tmux/.tmux.conf` 与 live `/home/rikoo/.tmux.conf` 无差异，`.config/shared/tmux/tmux-tab-title` 与 live `/home/rikoo/.config/tmux/tmux-tab-title` 无差异；读取当前 tmux 运行态，确认 `status-left` 为空、`status-left-length` 为 `0`，`status-right` 为 `tmux-continuum` 注入的 autosave 命令加 `tmux-prefix-highlight` 展开的 Prefix/Copy 状态和 Catppuccin 日期时间模块。随后用 `omx state clear --input '{"mode":"ralph","all_sessions":true}' --json` 清理残留 `.omx/state/sessions/019dd3cd-247d-7243-b2a6-73d390e6ed76/ralph-state.json`，并确认 `omx state list-active --json` 返回空、`omx state get-status --input '{"mode":"ralph"}' --json` 返回空、`.omx/state` 下不再有 `ralph-state.json`。
+- 后续：若 Stop hook 仍提示 Ralph 活跃，下一步应检查 `skill-active-state.json` 或 `native-stop-state.json` 是否还有旧签名残留；tmux 插件侧目前未发现安装或加载错误，后续可只围绕 tab 标题唯一性或复杂 SSH config 支持单独规划。
+
+- 目的：按用户 `$deep-interview` 要求分析当前 tmux 配置，重点检查状态栏显示是否存在问题。
+- 已做：读取 `memory/organizing_preferences.md` 与 `logs/trace.md` 后，定位 `.config/shared/tmux/.tmux.conf`、`.config/shared/tmux/tmux-tab-title`、`.config/shared/tmux/README.md` 与 `tests/tmux_status_test.sh`；执行 `tests/tmux_status_test.sh` 通过；确认仓库 tmux 配置和 live `/home/rikoo/.tmux.conf` 一致、标题脚本和 live `/home/rikoo/.config/tmux/tmux-tab-title` 一致；连接当前 tmux server 核对运行态，确认 `status-left` 为空且长度为 0，右侧显示 Prefix/Copy 与日期时间，但 `tmux-continuum` 会在 `status-right` 前注入保存脚本；标题脚本对当前长路径可输出截断后的短路径。已写入 deep-interview 预检快照 `.omx/context/tmux-status-bar-analysis-20260428T104536Z.md` 并更新本轮 deep-interview 状态。
+- 后续：需要用户确认实际看到的问题类型（例如 tab 标题空白、右侧延迟/闪烁、图标乱码、宽度拥挤或只是做健康检查），再决定是否只输出诊断结论或进入后续规划/执行修复。
+
+- 目的：记录 tmux 状态栏 deep-interview 第一轮答案，明确实际痛点。
+- 已做：用户确认实际问题是 tab 在路径太长时太拥挤，无法分辨是远程还是本地；已把该答案写入 `.omx/state/sessions/019dd3ac-f511-7b42-8d4b-6387df734e2b/deep-interview-state.json`，并补充到 `.omx/context/tmux-status-bar-analysis-20260428T104536Z.md`。
+- 后续：下一轮需要确认修复取舍：是牺牲部分路径细节换取本地/远程一眼可分，还是保留更多路径细节并仅做轻量标记。
+
+- 目的：记录 tmux 状态栏 deep-interview 第二轮答案，明确 tab 标题的易用性取舍。
+- 已做：用户确认优先选择“远程/本地一眼可分，路径只保留项目名或最后 1-2 级”，且易用是主要目标；已更新 deep-interview 状态和 `.omx/context/tmux-status-bar-analysis-20260428T104536Z.md`，将决策边界标记为“可以牺牲路径细节换取扫读辨识度”。
+- 后续：还需做一次压力追问，确认最小保留信息是否足够，例如本地只显示本地标记和项目名、远程显示远程标记、主机短名和项目名。
+
+- 目的：完成 tmux 状态栏 deep-interview 规格化交接，并持久化新的 tab 标题偏好。
+- 已做：用户确认本地 tab 不需要 `L:` 前缀，远程 tab 需要优先保留 `~/.ssh/config` 中的远程别名；若没有别名且是 IPv4，则只显示最后两段，例如 `192.168.1.1` 显示 `1.1`。已更新 `memory/organizing_preferences.md` 中 tmux 状态栏偏好；写入访谈摘要 `.omx/interviews/tmux-status-bar-analysis-20260428T105150Z.md` 与执行规格 `.omx/specs/deep-interview-tmux-status-bar-analysis.md`；将 deep-interview 状态标记为完成。
+- 后续：执行阶段应先扩展 `tests/tmux_status_test.sh`，覆盖本地无前缀、SSH config Host 别名、IPv4 fallback 最后两段和长路径压缩，再修改 `.config/shared/tmux/tmux-tab-title`、README，并同步 live 配置验证当前 tmux server 显示。
+
+- 目的：按用户 `$ralplan` 要求，为 tmux tab 标题扫读优化制定可 review 的共识计划。
+- 已做：基于 `.omx/specs/deep-interview-tmux-status-bar-analysis.md` 和现有文件证据制定计划；Planner 初稿后，Architect 首轮要求补清 host 解析流水线、SSH config 支持子集、路径默认 basename 和临时 HOME fixture 测试；Planner 修订后 Architect 通过；Critic 首轮要求把 README 更新纳入实施、拒绝方案写清理由、复杂 SSH config skip 的 fallback 输出写死；Planner 再修订后 Architect 与 Critic 均 APPROVE。最终写入 `.omx/plans/prd-tmux-tab-title-readability.md` 与 `.omx/plans/test-spec-tmux-tab-title-readability.md`，并将 ralplan 状态标记为完成。
+- 后续：等待用户 review 计划；若批准执行，推荐走 `$ralph .omx/plans/prd-tmux-tab-title-readability.md`，按 TDD 先改 `tests/tmux_status_test.sh`，再改 `.config/shared/tmux/tmux-tab-title` 和 README，最后同步 live tmux 配置并验证运行态。
+
+- 目的：按用户 `$ralph` 要求，直接执行已批准的 tmux tab 标题扫读优化 PRD。
+- 已做：先清理阻塞执行的旧 deep-interview/skill-active OMX 状态，再按 TDD 扩展 `tests/tmux_status_test.sh`，覆盖本地无 `L:`、本地 basename、`current` 父级回退、根目录/空路径/`.` 回退、临时 HOME 下的 SSH `Host`/`HostName` 别名、无别名 IPv4 后两段、FQDN 短名、复杂 SSH config skip、长度限制、README 文档和 `.tmux.conf` 状态栏边界。随后重构 `.config/shared/tmux/tmux-tab-title`，把远程 host 处理拆成完整 host 归一化、简单 SSH config alias 解析、IPv4 fallback 和 FQDN 短名显示；本地路径默认显示项目名；远程保持 `host:path` 并优先保留 host。同步更新 `.config/shared/tmux/README.md` 说明新规则，并在 deslop pass 中修正 SSH 进程探测路径可能对 IPv4 后两段二次缩短的边界。最后将 helper 同步到 live `/home/rikoo/.config/tmux/tmux-tab-title`，重新 source `~/.tmux.conf`，确认 live helper 与仓库一致。
+- 验证：`tests/tmux_status_test.sh`、`bash -n .config/shared/tmux/tmux-tab-title tests/tmux_status_test.sh`、`git diff --check` 均通过；架构复核 APPROVE；`diff -u .config/shared/tmux/.tmux.conf /home/rikoo/.tmux.conf` 与 helper live diff 均无差异；`tmux show-options -gqv status-left` 为空、`status-left-length` 为 `0`、`status-right` 仍为 `#{prefix_highlight} #{E:@catppuccin_status_date_time}`；live helper 样例 `/home/rikoo/Documents/dotfiles` 输出 `dotfiles`，`192.168.1.1:/srv/api` 输出 `1.1:api`。
+- 后续：若后面仍遇到同名项目 tab 难分，再单独规划跨 tab 最短唯一后缀；若大量依赖复杂 SSH config，再单独扩展解析子集，不把完整 OpenSSH parser 混入本轮。
+
 - 目的：按用户要求将本轮 Neovim 0.12 第一阶段清理与 Mason 自动安装调整提交并推送到 GitHub。
 - 已做：提交前复核根仓库和 `.config/shared/nvim` 子仓库状态，确认本轮待提交内容包含 nvim 第一阶段清理、Mason 工具交互式自动安装/headless 跳过逻辑、对应回归测试、memory 偏好和 trace 记录；重新执行 `tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_comment_test.sh tests/nvim_0_12_cleanup_test.sh`、`luajit loadfile` 覆盖 `misc.lua`、`mason.lua`、`lsp.lua`，以及根仓库和 nvim 子仓库 `git diff --check`，均通过。
 - 后续：按 Lore commit 协议先提交并推送 `.config/shared/nvim` 子仓库到 `lg641135360/neovim`，再提交 dotfiles 根仓库中的子仓库指针、测试和记录文件并推送到 `lg641135360/dotfiles`。

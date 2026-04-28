@@ -25,25 +25,6 @@ truncate_tail() {
     printf '%s\n' "$value" | awk -v max="$max" '{ print "..." substr($0, length($0) - (max - 3) + 1) }'
 }
 
-clean_remote_host() {
-    host=$1
-
-    host=${host#ssh://}
-    host=${host#file://}
-    host=${host%%/*}
-    host=${host#*@}
-    host=${host%%:*}
-    host=${host%%.*}
-
-    case "$host" in
-        ''|localhost|127|0)
-            return 1
-            ;;
-    esac
-
-    printf '%s\n' "$host"
-}
-
 normalize_uri_path_and_host() {
     path=$1
     detected_host=''
@@ -59,31 +40,213 @@ normalize_uri_path_and_host() {
     printf '%s\t%s\n' "$path" "$detected_host"
 }
 
+normalize_raw_host() {
+    target=$1
+
+    case "$target" in
+        *://*) target=${target#*://} ;;
+    esac
+
+    target=${target%%/*}
+    target=${target%%:*}
+    target=${target#*@}
+
+    [ -n "$target" ] || return 1
+    printf '%s\n' "$target"
+}
+
+is_local_host() {
+    case "$1" in
+        localhost|localhost.*|127|127.*|0|0.0.0.0)
+            return 0
+            ;;
+    esac
+
+    return 1
+}
+
+resolve_ssh_config_alias() {
+    host=$1
+    config=${HOME:-}/.ssh/config
+
+    [ -r "$config" ] || return 1
+
+    alias=$(
+        awk -v target="$host" '
+            function invalid_alias(value) {
+                return value == "*" || value ~ /[*?]/
+            }
+
+            BEGIN {
+                wanted = tolower(target)
+                alias = ""
+                valid = 0
+            }
+
+            {
+                line = $0
+                sub(/^[[:space:]]+/, "", line)
+                sub(/[[:space:]]+#.*/, "", line)
+                sub(/[[:space:]]+$/, "", line)
+                if (line == "" || line ~ /^#/) {
+                    next
+                }
+
+                field_count = split(line, fields, /[[:space:]]+/)
+                key = tolower(fields[1])
+
+                if (key == "host") {
+                    alias = ""
+                    valid = 0
+                    if (field_count == 2 && !invalid_alias(fields[2])) {
+                        alias = fields[2]
+                        valid = 1
+                    }
+                    next
+                }
+
+                if (key == "match" || key == "include") {
+                    alias = ""
+                    valid = 0
+                    next
+                }
+
+                if (valid && key == "hostname" && field_count >= 2) {
+                    if (tolower(fields[2]) == wanted) {
+                        print alias
+                        exit
+                    }
+                }
+            }
+        ' "$config"
+    )
+
+    [ -n "$alias" ] || return 1
+    printf '%s\n' "$alias"
+}
+
+ipv4_last_two() {
+    host=$1
+    value=$(
+        printf '%s\n' "$host" |
+            awk -F. '
+                NF == 4 {
+                    for (i = 1; i <= 4; i++) {
+                        if ($i !~ /^[0-9]+$/ || $i < 0 || $i > 255) {
+                            exit
+                        }
+                    }
+                    print $(NF - 1) "." $NF
+                }
+            '
+    )
+
+    [ -n "$value" ] || return 1
+    printf '%s\n' "$value"
+}
+
+ipv4_tail_pair() {
+    host=$1
+    value=$(
+        printf '%s\n' "$host" |
+            awk -F. '
+                NF == 2 {
+                    for (i = 1; i <= 2; i++) {
+                        if ($i !~ /^[0-9]+$/ || $i < 0 || $i > 255) {
+                            exit
+                        }
+                    }
+                    print $1 "." $2
+                }
+            '
+    )
+
+    [ -n "$value" ] || return 1
+    printf '%s\n' "$value"
+}
+
+display_remote_host() {
+    raw=$1
+    host=$(normalize_raw_host "$raw" || true)
+
+    [ -n "$host" ] || return 1
+    is_local_host "$host" && return 1
+
+    tail_pair=$(ipv4_tail_pair "$host" || true)
+    if [ -n "$tail_pair" ]; then
+        printf '%s\n' "$tail_pair"
+        return 0
+    fi
+
+    alias=$(resolve_ssh_config_alias "$host" || true)
+    if [ -n "$alias" ]; then
+        printf '%s\n' "$alias"
+        return 0
+    fi
+
+    ipv4=$(ipv4_last_two "$host" || true)
+    if [ -n "$ipv4" ]; then
+        printf '%s\n' "$ipv4"
+        return 0
+    fi
+
+    printf '%s\n' "${host%%.*}"
+}
+
+trim_trailing_slashes() {
+    path=$1
+
+    while [ "$path" != "/" ] && [ "${path%/}" != "$path" ]; do
+        path=${path%/}
+    done
+
+    printf '%s\n' "$path"
+}
+
 shorten_path() {
     path=$1
     max=$2
 
-    [ -n "$path" ] || path='~'
-
-    case "$path" in
-        "$HOME") path='~' ;;
-        "$HOME"/*) path="~/${path#"$HOME"/}" ;;
-    esac
-
-    [ "$(strlen "$path")" -le "$max" ] && {
-        printf '%s\n' "$path"
+    [ -n "$path" ] || {
+        printf '~\n'
         return 0
     }
 
+    path=$(trim_trailing_slashes "$path")
+
+    case "$path" in
+        '.'|'/'|'~')
+            printf '~\n'
+            return 0
+            ;;
+    esac
+
+    if [ -n "${HOME:-}" ] && [ "$path" = "$HOME" ]; then
+        printf '~\n'
+        return 0
+    fi
+
     base=${path##*/}
     dir=${path%/*}
-    parent=${dir##*/}
 
-    if [ -n "$parent" ] && [ "$parent" != "$dir" ]; then
-        compact=".../$parent/$base"
-    else
-        compact=$path
-    fi
+    case "$base" in
+        ''|'.'|'/')
+            compact='~'
+            ;;
+        current)
+            parent=${dir##*/}
+            if [ -n "$parent" ] && [ "$parent" != "$dir" ]; then
+                compact="$parent/$base"
+            else
+                compact=$base
+            fi
+            ;;
+        *)
+            compact=$base
+            ;;
+    esac
+
+    [ -n "$compact" ] || compact='~'
 
     truncate_tail "$compact" "$max"
 }
@@ -118,7 +281,7 @@ extract_ssh_host_from_args() {
                 continue
                 ;;
             *)
-                clean_remote_host "$token" || true
+                normalize_raw_host "$token" || true
                 return 0
                 ;;
         esac
@@ -144,10 +307,10 @@ remote_from_title() {
 
     case "$title" in
         *@*:*)
-            clean_remote_host "${title%%:*}" || true
+            display_remote_host "${title%%:*}" || true
             ;;
         [A-Za-z0-9_.-]*:*)
-            clean_remote_host "${title%%:*}" || true
+            display_remote_host "${title%%:*}" || true
             ;;
     esac
 }
@@ -175,9 +338,9 @@ format_label() {
     IFS=$old_ifs
 
     if [ -z "$remote_host" ] && [ -n "$uri_host" ]; then
-        remote_host=$(clean_remote_host "$uri_host" || true)
+        remote_host=$(display_remote_host "$uri_host" || true)
     else
-        remote_host=$(clean_remote_host "$remote_host" || true)
+        remote_host=$(display_remote_host "$remote_host" || true)
     fi
 
     if [ -z "$remote_host" ] && [ -n "$title" ]; then
@@ -189,7 +352,10 @@ format_label() {
     if [ -n "$remote_host" ]; then
         host_len=$(strlen "$remote_host")
         path_max=$((MAX_LABEL_LEN - host_len - 1))
-        [ "$path_max" -lt 8 ] && path_max=8
+        if [ "$path_max" -lt 1 ]; then
+            truncate_tail "$remote_host" "$MAX_LABEL_LEN"
+            return 0
+        fi
         short_path=$(shorten_path "$path" "$path_max")
         printf '%s:%s\n' "$remote_host" "$short_path" | awk -v max="$MAX_LABEL_LEN" '{ if (length($0) > max) print substr($0, 1, max); else print }'
         return 0
