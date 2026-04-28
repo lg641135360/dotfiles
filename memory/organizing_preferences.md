@@ -51,3 +51,4 @@
 - 对 Ubuntu aarch64 的 Awesome autostart，当前外接屏持久方案是：先运行时检测内屏、首个外接屏和外接屏首选物理模式；内屏保持 `2880x1800@120Hz` 主屏；外接屏使用首选物理模式（当前 Dell P2722H 为 `1920x1080`）并通过 `1.5x1.5` XRandR scaling 放在笔记本左侧，同时显式设置 framebuffer/position 避免重叠；不要在这里改全局 `Xft.dpi`、Awesome per-screen DPI 或 rofi focused-screen `ROFI_SCALE`。
 - 对当前笔记本内屏，`Xft.dpi: 192` 是合适基线；不要为了外接 1080p 屏幕把全局 Xresources DPI 降到折中值，但当前显示策略下也不要在 Awesome/rofi 强行做 per-screen DPI 或 focused-screen 缩放覆盖，后续若重试需单独确认。
 - 对当前 dotfiles 仓库，`.omx/` 属于本地 OMX 运行状态目录，应放入 `.gitignore`，不要提交到远端仓库。
+- 对当前 Neovim 0.12 配置，注释快捷键优先使用内置 `gc/gcc` 能力；不要让 `Comment.nvim` 覆盖这组快捷键。TOML/YAML/JSONC 等本身可注释配置文件应支持 `gcc`，但不要为标准 `.json` 强制启用注释。

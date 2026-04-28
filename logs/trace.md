@@ -1,5 +1,32 @@
 # Trace
 
+## 2026-04-28
+
+- 目的：按用户 `$deep-interview` 要求，先对当前 nvim 配置做需求访谈预检，聚焦后续如何优化文件编辑体验。
+- 已做：按项目约束读取 `memory/organizing_preferences.md` 与 `logs/trace.md`；定位 `.config/shared/nvim` 配置结构，读取 `init.lua`、`config/keymaps.lua`、`config/options.lua`、`config/autocmds.lua` 以及 Snacks、Neo-tree、bufferline、blink-cmp、LSP、formatter、inline diagnostic、Aerial、Noice、renamer、neoscroll 等编辑体验相关插件配置；尝试 `omx explore` 时因当前 Codex App surface 的只读会话目录失败，已回退为直接文件读取；创建 deep-interview 上下文快照 `.omx/context/nvim-editing-experience-20260428T032233Z.md`，并更新本轮 deep-interview 本地状态。
+- 后续：继续通过访谈明确用户最想优化的编辑摩擦、非目标与决策边界；在需求澄清完成后再交给规划或执行流程，不在 deep-interview 阶段直接修改 nvim 配置。
+
+- 目的：记录 nvim 文件编辑体验访谈答案，并用本地事实确认注释快捷键问题的技术边界。
+- 已做：用户明确优先想解决“非 C/C++ 文件也能用 `gcc` 等快捷键快速注释”，示例包括 `toml`、`json` 等配置文件；随后确认纯 `.json` 不应被强制按 `//` 注释处理，目标只覆盖 TOML/YAML/JSONC 等本身可注释的配置文件。用 `rg` 确认当前 `gcc` 来自 `.config/shared/nvim/lua/plugins/misc.lua` 的 `Comment.nvim`；用 `nvim --clean --headless` 探测到 `toml/yaml` 原生 `commentstring` 为 `# %s`，`jsonc` 为 `// %s`，纯 `json` 为空；进一步对照发现 `nvim --clean` 下 Neovim 0.12 内置 `gcc` 能正确注释 TOML 行，而完整配置下 `gcc` 被 `Comment.nvim` 覆盖，测试 TOML 行未被注释。
+- 后续：下一轮确认实现边界：是优先禁用/移除 `Comment.nvim` 的 `gcc/gc` 映射、改用 Neovim 内置注释能力，还是必须保留 `Comment.nvim` 并定向修补它。
+
+- 目的：完成 nvim 注释快捷键体验的 `$deep-interview` 规格化交接。
+- 已做：用户确认实现边界为“移除 `Comment.nvim` 的 `gc/gcc` 覆盖”；据此写入访谈摘要 `.omx/interviews/nvim-editing-experience-20260428T034040Z.md` 和执行规格 `.omx/specs/deep-interview-nvim-editing-experience.md`；同步更新 `memory/organizing_preferences.md`，记录当前 Neovim 0.12 配置优先使用内置 `gc/gcc`、不为标准 `.json` 强制注释的偏好。
+- 后续：执行阶段应修改 `.config/shared/nvim/lua/plugins/misc.lua`，移除或禁用 `Comment.nvim` 的注释映射覆盖，并用 TOML/YAML/JSONC/JSON 的 headless 用例验证。
+
+- 目的：按已澄清的 nvim 注释体验规格执行改动，让 `gc/gcc` 回到 Neovim 0.12 内置注释能力。
+- 已做：修改 `.config/shared/nvim/lua/plugins/misc.lua`，保留 `Comment.nvim` 插件条目但设置 `mappings = false`，不再创建 `gc/gcc` 覆盖；新增 `tests/nvim_comment_test.sh`，静态检查插件不再定义 `gc/gcc`，并用 headless Neovim 验证内置 `gcc` 可注释 TOML/YAML/JSONC、标准 JSON 不被强制加入 `//` 注释。确认 `.config/shared/nvim` 是独立 Git 工作树/子模块样式，内部 diff 只包含 `lua/plugins/misc.lua`。
+- 验证：`tests/nvim_comment_test.sh` 通过；`bash -n tests/nvim_comment_test.sh` 通过；`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/misc.lua"))'` 通过；`git diff --check` 与 `git -C .config/shared/nvim diff --check` 均通过。
+- 后续：若要让当前 live `~/.config/nvim` 立即生效，需要按仓库安装/同步流程更新 live 配置；当前验证已针对仓库配置本身完成。
+
+- 目的：完成 nvim 注释快捷键改动的 live 配置同步，确保当前正在使用的 `~/.config/nvim` 也不再由 `Comment.nvim` 覆盖 `gc/gcc`。
+- 已做：将仓库中的 `.config/shared/nvim/lua/plugins/misc.lua` 同步到 live `~/.config/nvim/lua/plugins/misc.lua`，并用 `cmp` 确认两者一致；随后在 live 配置下用 headless Neovim 查看 `gcc` / `gc` 映射，确认来源已经变为 Neovim 内置 `vim/_core/defaults.lua`，不再指向 `Comment.nvim`。
+- 后续：下次打开 Neovim 后，TOML/YAML/JSONC 等文件应直接使用内置 `gcc` 注释；如果后续还需要完全移除 `Comment.nvim` 插件条目，可以单独评估是否仍依赖它的 `gco/gcO` 等附加行为。
+
+- 目的：将本轮 nvim 注释快捷键调整提交并推送到远端仓库。
+- 已做：复核根仓库和 `.config/shared/nvim` 子仓库状态，确认本轮相关改动只包含 nvim `Comment.nvim` 映射调整、对应回归测试、memory 偏好记录与 trace 记录；提交前复跑 `tests/nvim_comment_test.sh`、`bash -n tests/nvim_comment_test.sh`、`luajit` 语法检查以及根仓库/子仓库 `git diff --check`，均通过。
+- 后续：按 Lore commit 协议先提交并推送 `.config/shared/nvim` 子仓库，再在 dotfiles 根仓库提交新的子模块指针与本轮记录/测试文件并推送到 `origin/main`。
+
 ## 2026-04-27
 
 - 目的：按用户要求把当前项目的 `.omx/` 本地运行状态目录加入 Git 忽略，并将当前显示/autostart 相关修改提交推送到 GitHub。
