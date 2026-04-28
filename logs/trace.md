@@ -2,6 +2,11 @@
 
 ## 2026-04-28
 
+- 目的：继续 Neovim 0.12 迁移的下一个小目标，修复上一轮 LSP 原生 API 迁移后 `neodev.nvim` 依赖旧 `lspconfig.util.on_setup` hook、可能不再增强 `lua_ls` workspace 的剩余风险。
+- 已做：先只读确认本地 `neodev.nvim` 实现仍通过 `lspconfig.util.on_setup` 挂到 `lua_ls`，而当前配置已切到 `vim.lsp.config()` / `vim.lsp.enable()`；按测试先行扩展 `tests/nvim_0_12_cleanup_test.sh`，要求移除 `folke/neodev.nvim`，并在 runtime 中断言 `lua_ls` 显式拥有 `runtime.version = "LuaJIT"`、`diagnostics.globals = { "vim" }`、`workspace.checkThirdParty = false`、`workspace.library` 且包含 `VIMRUNTIME`。随后修改 `.config/shared/nvim/lua/plugins/lsp.lua`，删除 `neodev.nvim` 依赖，改由 `lua_ls` settings 显式暴露 Neovim runtime/library；更新 `.config/shared/nvim/Readme.md` 说明不再依赖旧 neodev hook。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_comment_test.sh tests/nvim_0_12_cleanup_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/lsp.lua"))'`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/mason.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过。
+- 后续：若后续想恢复更完整的插件库类型提示，可单独评估 `lazydev.nvim` 或手写更窄的 plugin library 列表；当前不新增依赖，先保证 Neovim runtime 与 `vim` global 在 0.12 原生 LSP 路线下稳定可见。
+
 - 目的：按用户要求将当前 tmux 状态栏/tab 标题优化和移除自动保存 session 插件的改动提交并推送到 GitHub 远端。
 - 已做：提交前复核工作树，确认当前待提交范围为 `.config/shared/tmux/.tmux.conf`、`.config/shared/tmux/README.md`、`.config/shared/tmux/tmux-tab-title`、`tests/tmux_status_test.sh`、`memory/organizing_preferences.md` 与 `logs/trace.md`，均属于本轮 tmux 相关改动；重新执行 `tests/tmux_status_test.sh`、`bash -n .config/shared/tmux/.tmux.conf .config/shared/tmux/tmux-tab-title tests/tmux_status_test.sh`、`git diff --check`，均通过；确认仓库 `.tmux.conf` 与 live `/home/rikoo/.tmux.conf` 无差异，仓库 helper 与 live `/home/rikoo/.config/tmux/tmux-tab-title` 无差异。
 - 后续：按 Lore commit 协议提交到 `main` 并推送到 `origin/main`；推送后如果还要清理本机残留的 `~/.tmux/plugins/tmux-continuum` 插件目录，应单独处理。
@@ -380,3 +385,46 @@
 - 目的：继续修复 Awesome 壁纸仍未生效的问题，定位并修正实际自启动链路中的断点。
 - 已做：先检查 repo 与 live 配置，确认 `rc.lua` 始终执行的是根目录 `~/.config/awesome/autostart.sh`，但当前 live 的这个文件其实被安装脚本直接替换成了 `ubuntu_aarch64.sh` 内容；该脚本内部又使用 `. "$(dirname "$0")/common.sh"`，于是运行时会错误地去找 `~/.config/awesome/common.sh`，而真实文件在 `~/.config/awesome/autostart/common.sh`，导致整个自启动链路在壁纸步骤之前就断掉。随后按 TDD 扩展 `tests/awesome_autostart_test.sh`，新增根级 `autostart.sh` wrapper 的结构要求，并锁定 `install.sh` 不能再把平台脚本直接覆盖到 `~/.config/awesome/autostart.sh`。确认测试先失败后，新增 `.config/linux/awesome/autostart.sh`，让它按 `OS+distro+arch` 分发到 `autostart/ubuntu_aarch64.sh` / `ubuntu_x64.sh` / `arch_x64.sh`，并删除 `install.sh` 中三条会覆盖 root wrapper 的平台脚本安装项。完成后重新执行 Awesome/autostart/wallpaper 相关回归测试与 shell 语法检查，全部通过；再把新的 wrapper 同步到 live `~/.config/awesome/autostart.sh` 并手动执行一次，随后通过 `xprop -root _XROOTPMAP_ID ESETROOT_PMAP_ID` 看到 pixmap id 已存在，说明 feh 已成功把壁纸写到 X root。
 - 后续：如果用户后面要恢复“以前那张壁纸”，还需要重新提供或放回具体图片文件；当前这次修复解决的是“壁纸设置链路失效”，不是自动找回已不存在的旧图片。
+
+
+- 目的：按用户 `$deep-interview` 要求，重新解析当前 nvim 配置并为继续迁移到最新 Neovim 0.12 做访谈预检。
+- 已做：完整读取 `memory/organizing_preferences.md` 与 `logs/trace.md`；尝试使用 `omx explore` 做只读仓库画像但长时间无输出，已终止并回退为直接只读检查；确认根仓库与 `.config/shared/nvim` 子仓库工作树干净，本机 Neovim 为 `NVIM v0.12.2`；读取 nvim 入口、lazy、options、keymaps、autocmds、LSP、Mason、blink.cmp、snacks、neo-tree、diagnostic、rename、README、既有 nvim 测试和上一轮 0.12 规格/计划；对照官方 neovim.io 与本地 0.12.2 runtime 文档，整理候选迁移点为 `vim.lsp.config()/vim.lsp.enable()`、默认 `gr*` 键位、`winborder/pumborder`、`autocomplete`、`vim.pack` 等。已写入 deep-interview 预检快照 `.omx/context/nvim-0-12-latest-migration-20260428T130834Z.md` 并初始化本轮状态。
+- 后续：通过 OMX 结构化提问先确认本轮迁移的真实目标：继续第二阶段可执行迁移、只输出分析路线图，还是重新审视是否允许替换核心体验插件；在非目标与决策边界明确前不直接实现。
+
+
+- 目的：发起 nvim 0.12 最新迁移 deep-interview 第一轮结构化提问，先澄清本轮真实目标。
+- 已做：根据预检证据在 OMX 提问面板中打开 Round 1，问题聚焦“第二阶段可执行迁移 / 只要分析路线图 / 重新评估核心替换”三种目标取向；问题状态文件位于 `.omx/state/sessions/omx-1777381386745-fl0mts/questions/`。
+- 后续：等待用户在结构化提问面板中回答；收到回答后需要更新 deep-interview 状态、重算歧义分数，并继续追问非目标与决策边界。
+
+- 目的：记录 nvim 0.12 最新迁移 deep-interview 第一轮答案并重算澄清进度。
+- 已做：用户选择“第二阶段可执行迁移”，即本轮目标是在保留核心体验前提下产出下一步可执行迁移规格/计划；已更新 deep-interview 状态，将歧义从约 57% 降到约 32%，并标记非目标与决策边界仍未明确。
+- 后续：第二轮需要锁定本阶段排除项，尤其是核心插件替换、`vim.pack`、`autocomplete`、键位肌肉记忆与浮窗 UI 变更是否必须另行确认。
+
+- 目的：记录 nvim 0.12 最新迁移 deep-interview 第二轮答案，明确本阶段非目标的一部分。
+- 已做：用户在多选排除项中只选择“不破坏肌肉记忆键位”；已更新 deep-interview 状态，将其解释为当前唯一明确 out-of-scope，不能移除或破坏现有 `gr`、`<leader>rn`、`<leader>ca`、`K` 等入口。由于核心插件替换、`vim.pack`、补全替换、UI 视觉变更等未被选择，已标记为需要压力追问的决策边界，而不是默认允许执行。
+- 后续：下一轮用 Contrarian 压力问题确认：只禁止破坏键位是否意味着允许评估或执行核心插件替换，只要保留键位和体验。
+
+- 目的：记录 nvim 0.12 最新迁移 deep-interview 第三轮压力测试答案，明确核心插件替换边界。
+- 已做：用户确认“可评估并可执行”核心插件替换，只要测试证明现有键位和体验不回退；已把 Contrarian 压力 pass 标记为完成，决策边界更新为“核心替换允许进入第二阶段，但必须有无回归证据”。当前歧义降至约 23%，主要剩余问题是第二阶段优先迁移切片和验收证据。
+- 后续：下一轮需要收窄第二阶段第一批执行范围，在 LSP 原生 API、keymap 对齐、UI/诊断默认、补全/文件树/statusline/插件管理器替换等候选中确定优先级。
+
+- 目的：记录 nvim 0.12 最新迁移 deep-interview 第四轮答案，确定第二阶段第一批主攻方向。
+- 已做：用户选择“LSP 原生 API 迁移”，即第一批优先把当前 `nvim-lspconfig` 手动 setup 对齐到 Neovim 0.12 的 `vim.lsp.config()` / `vim.lsp.enable()` 模式，同时保留 Mason 与 `blink.cmp` capabilities。已把未选的核心插件替换、键位整理、UI/诊断原生化和全量迁移规划标记为非第一批主线或后续评估项。歧义降至约 18%，低于 standard 阈值，但成功标准仍需明确。
+- 后续：下一轮需要确认 LSP 迁移完成的验收证据，例如 headless 启动、配置表存在、Mason 关系、capabilities、关键 server 设置、键位 alias 与无自动安装副作用等。
+
+- 目的：记录 nvim 0.12 最新迁移 deep-interview 第五轮答案，锁定 LSP 原生 API 迁移的验收标准。
+- 已做：用户选择全部验收项：仓库配置 headless 启动无错、LSP 使用 `vim.lsp.config()` / `vim.lsp.enable()` 形态、保留 Mason 与交互式自动工具安装/headless 跳过策略、保留 `blink.cmp` capabilities、保留 `lua_ls`/`clangd`/`pyright`/`ts_ls` 专项配置、保留现有键位入口，并补充回归测试和 README 文档。已将歧义降至约 8%，满足 standard 阈值和 readiness gate。
+- 后续：生成 deep-interview 访谈摘要和执行规格，推荐交给 `$ralplan` 产出 PRD 与测试规格；deep-interview 阶段不直接实现。
+
+- 目的：完成 nvim 0.12 LSP 原生 API 迁移 deep-interview 规格化交接。
+- 已做：写入访谈摘要 `.omx/interviews/nvim-0-12-lsp-native-api-migration-20260428T135738Z.md` 与执行规格 `.omx/specs/deep-interview-nvim-0-12-lsp-native-api-migration.md`；规格明确第二阶段第一批主攻 `vim.lsp.config()` / `vim.lsp.enable()` 迁移，保留 Mason、`blink.cmp` capabilities、server 专项配置和现有键位入口，并把核心插件替换/UI/`vim.pack` 等列为后续阶段或单独评估项。已将 deep-interview 状态标记为完成。
+- 后续：推荐使用 `$ralplan` 读取 `.omx/specs/deep-interview-nvim-0-12-lsp-native-api-migration.md`，产出 PRD 与测试规格；执行阶段应先补强 nvim LSP 迁移测试，再改 `.config/shared/nvim/lua/plugins/lsp.lua`，最后复跑 headless smoke、shell/Lua 语法检查和根仓库/子仓库 diff 检查。
+
+- 目的：按用户要求对 Ralph-owned 的 nvim 0.12 LSP 原生 API 迁移改动做 mandatory deslop pass，只检查指定文件并保持行为不变。
+- 已做：复核指定的 `lsp.lua`、`Readme.md`、`tests/nvim_0_12_cleanup_test.sh`、PRD、测试规格和 context；未扩大到其它 nvim 源文件。将测试脚本中两段很长的 runtime `+lua` 命令拆成临时 `luafile` 脚本，保留相同的 headless XDG 环境、`BufReadPre` 触发、keymap 输出和 LSP config/enable 断言；修正 README 中 blink/snacks 配置文件路径的 Markdown 展示和代码围栏闭合问题。`lsp.lua`、PRD、测试规格和 context 未发现高收益且可保证语义不变的进一步简化，因此未改。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_comment_test.sh tests/nvim_0_12_cleanup_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/lsp.lua"))'`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/mason.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过。
+- 后续：后续若继续简化 nvim LSP 测试，可考虑把 headless nvim 调用封成共享 helper，但本轮先不扩大测试结构，避免在 deslop pass 中改变验证语义。
+
+- 目的：响应当前会话继续提示，完成 nvim 0.12 LSP 原生 API 迁移 Ralph 模式的状态收尾，避免已完成任务继续被 Stop hook 识别为活跃。
+- 已做：复核当前 OMX 状态，确认实际代码迁移、Architect 复核、deslop pass 与 post-deslop 验证已经完成；将当前会话 `omx-1777381386745-fl0mts` 下新生成的 `ralph-state.json` 从 `starting` 终止为 `complete`，并同步把对应 `skill-active-state.json` 标记为 `active=false`。保留 PRD、测试规格和 context 路径作为完成证据，没有继续修改 nvim 源配置。
+- 后续：若后续要把本轮 nvim 迁移提交/推送，应先复跑 nvim 两个回归测试、Lua/shell 语法检查和根仓库/子仓库 `git diff --check`，再分别提交 `.config/shared/nvim` 子仓库和 dotfiles 根仓库。
