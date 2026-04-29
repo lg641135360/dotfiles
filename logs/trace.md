@@ -607,3 +607,8 @@
 - 已做：先在 `.config/shared/nvim` 子仓库本地提交 `457f5b7`（`Prefer native Neovim UI primitives`），提交内容包括移除 Noice/Trouble/lualine、原生 diagnostics quickfix、原生 statusline、README 与 lockfile 对齐；随后准备在 dotfiles 根仓库提交子仓库指针、测试护栏和 trace 记录。严格未执行 `git push`。
 - 验证：复用提交前已通过的 `tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、shell 语法检查、相关 Lua `loadfile` 检查以及根仓库/子仓库 `git diff --check`；提交后将再次复查根仓库和 nvim 子仓库状态。
 - 后续：根仓库本地提交完成后再继续下一个 Neovim 原生化候选；在用户明确要求前不推送远端，也不同步 live `~/.config/nvim`。
+
+- 目的：在完成本地提交基线后，继续推进 Neovim 0.12 原生化下一候选，将 `aerial.nvim` outline 面板替换为 Neovim 原生 LSP document symbols 入口。
+- 已做：新增本地忽略的候选 PRD/测试规格 `.omx/plans/prd-nvim-0-12-aerial-native-symbols-audit.md` 与 `.omx/plans/test-spec-nvim-0-12-aerial-native-symbols-audit.md`；删除 `.config/shared/nvim/lua/plugins/aerial.lua`，从 `.config/shared/nvim/lazy-lock.json` 移除 `aerial.nvim`，在 `.config/shared/nvim/lua/config/keymaps.lua` 保留 `<leader>o` 并改为调用 `vim.lsp.buf.document_symbol`；同步更新 `.config/shared/nvim/Readme.md` 的日常键位和插件概览，说明 outline 由原生 `gO` / `<leader>o` document symbols 承担；扩展 `tests/nvim_0_12_cleanup_test.sh` 防止 Aerial spec/lockfile/README 回归并检查 `<leader>o` runtime callback。没有修改补全、snacks、neo-tree、bufferline、live `~/.config/nvim` 或插件安装状态，也没有推送。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh`、相关 Lua `loadfile` 检查（keymaps/options/ui/snacks/avante/neo-tree）、根仓库与 nvim 子仓库 `git diff --check` 均通过。
+- 后续：若继续原生化，可评估更高视觉风险的 `bufferline.nvim` native tabline POC，或先处理 `header.nvim`/`nvim-colorizer.lua`/`neoscroll.nvim` 这类 P2 小插件；提交前仍需先提交 nvim 子仓库，再提交 dotfiles 根仓库，且不推送。

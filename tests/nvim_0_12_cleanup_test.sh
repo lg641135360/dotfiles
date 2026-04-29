@@ -117,6 +117,7 @@ for _, lhs in ipairs({
   "<leader>e",
   "<leader>ft",
   "<leader>xx",
+  "<leader>o",
 }) do
   require_mapped("n", lhs)
 end
@@ -137,6 +138,8 @@ require_rhs_contains("n", "<leader>e", "Neotree toggle")
 require_callback("n", "<leader>ft")
 require_callback("n", "<leader>xx")
 require_desc_contains("n", "<leader>xx", "Diagnostics quickfix")
+require_callback("n", "<leader>o")
+require_desc_contains("n", "<leader>o", "Document symbols")
 
 print("KEYMAP_INVENTORY_OK=true")
 LUA
@@ -361,6 +364,7 @@ for _, name in ipairs({
   "lspsaga.nvim",
   "trouble.nvim",
   "noice.nvim",
+  "aerial.nvim",
   "snacks.nvim",
   "nui.nvim",
   "lualine.nvim",
@@ -492,6 +496,9 @@ require_pattern 'saghen/blink.cmp' "$NVIM/lua/plugins/blink-cmp.lua" "blink.cmp 
 require_pattern 'folke/snacks.nvim' "$NVIM/lua/plugins/snacks.lua" "snacks.nvim must remain"
 require_pattern 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree.nvim must remain"
 require_pattern 'akinsho/bufferline.nvim' "$NVIM/lua/plugins/bufferline.lua" "bufferline.nvim must remain"
+reject_pattern 'stevearc/aerial.nvim|AerialToggle|require\("aerial"\)' "$NVIM/lua/plugins" "aerial.nvim should be removed after native document symbols replacement"
+reject_pattern '"aerial.nvim"' "$NVIM/lazy-lock.json" "aerial.nvim should not remain in lazy-lock after native document symbols replacement"
+require_pattern 'vim\.lsp\.buf\.document_symbol' "$NVIM/lua/config/keymaps.lua" "<leader>o should use native LSP document symbols"
 reject_pattern 'nvim-lualine/lualine.nvim|require\(\"lualine|lualine\.setup' "$NVIM/lua/plugins" "lualine.nvim should be removed after native statusline replacement"
 reject_pattern '"lualine.nvim"' "$NVIM/lazy-lock.json" "lualine.nvim should not remain in lazy-lock after native statusline replacement"
 require_pattern '_G\.nvim_native_statusline' "$NVIM/lua/config/options.lua" "native statusline function should be defined in options.lua"
@@ -613,6 +620,9 @@ require_pattern '<S-A-Down>' "$NVIM/Readme.md" "README should document Shift-Alt
 require_pattern 'Alacritty Linux / macOS profile' "$NVIM/Readme.md" "README should document terminal profile support for Alt line keys"
 require_pattern '<leader>tb' "$NVIM/Readme.md" "README should document the bufferline toggle"
 require_pattern '<leader>xx.*quickfix|quickfix.*<leader>xx' "$NVIM/Readme.md" "README should document native quickfix diagnostics for <leader>xx"
+require_pattern '<leader>o.*document symbols|document symbols.*<leader>o' "$NVIM/Readme.md" "README should document native document symbols for <leader>o"
+require_pattern 'Outline.*gO|gO.*Outline' "$NVIM/Readme.md" "README should document native gO outline support"
+reject_pattern 'Outline.*aerial\.nvim|`aerial.nvim`|Aerial' "$NVIM/Readme.md" "README should not list aerial.nvim as active after native symbols replacement"
 require_pattern '原生 `statusline`|statusline.*laststatus=3' "$NVIM/Readme.md" "README should document the native statusline replacement"
 reject_pattern 'UI / Picker.*lualine\.nvim|`lualine.nvim`' "$NVIM/Readme.md" "README should not list lualine.nvim as active after native statusline replacement"
 reject_pattern 'Trouble diagnostics|folke/trouble.nvim|:Trouble' "$NVIM/Readme.md" "README should not document Trouble after native diagnostics quickfix replacement"
@@ -677,6 +687,7 @@ require_pattern 'ACTIVE_PLUGIN fidget.nvim=false' "$out_file" "fidget.nvim shoul
 require_pattern 'ACTIVE_PLUGIN lspsaga.nvim=false' "$out_file" "lspsaga.nvim should not be an active spec"
 require_pattern 'ACTIVE_PLUGIN trouble.nvim=false' "$out_file" "Trouble should not remain active after native diagnostics quickfix replacement"
 require_pattern 'ACTIVE_PLUGIN noice.nvim=false' "$out_file" "Noice should not remain active after native command-line/message replacement"
+require_pattern 'ACTIVE_PLUGIN aerial.nvim=false' "$out_file" "Aerial should not remain active after native document symbols replacement"
 require_pattern 'ACTIVE_PLUGIN lualine.nvim=false' "$out_file" "lualine should not remain active after native statusline replacement"
 require_pattern 'ACTIVE_PLUGIN snacks.nvim=true' "$out_file" "snacks.nvim should remain active for picker/notifier/input coverage"
 require_pattern 'ACTIVE_PLUGIN nui.nvim=true' "$out_file" "nui.nvim should remain active as a dependency of neo-tree/avante"
