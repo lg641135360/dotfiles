@@ -617,3 +617,8 @@
 - 已做：先本地提交 `.config/shared/nvim` 子仓库 `70bed53`（Aerial -> 原生 document symbols）和 dotfiles 根仓库 `8406e55`（测试/trace/子仓库指针），均未推送；随后新增本地忽略的 Neoscroll 候选 PRD/测试规格，删除 `.config/shared/nvim/lua/plugins/neo-scroll.lua`，从 `.config/shared/nvim/lazy-lock.json` 移除 `neoscroll.nvim`，更新 `.config/shared/nvim/Readme.md` 说明滚动回到 Neovim 原生命令，并扩展 `tests/nvim_0_12_cleanup_test.sh` 拒绝 Neoscroll spec/lockfile/README/active spec 回归。没有修改补全、snacks、neo-tree、bufferline、LSP、live `~/.config/nvim` 或插件安装状态。
 - 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh`、相关 Lua `loadfile` 检查（keymaps/options/ui/snacks/avante/neo-tree）、根仓库与 nvim 子仓库 `git diff --check` 均通过。
 - 后续：当前 Neoscroll 批次尚未提交；下一步优先先整理成本地提交，再继续评估 `header.nvim` 或 `nvim-colorizer.lua`，更高风险的 `bufferline.nvim` 原生 tabline 需要单独计划和更强视觉/导航验收。
+
+- 目的：继续 Neovim 0.12 原生化/瘦身低风险候选，移除不属于日常核心体验且带有项目特定默认值的 `header.nvim` 自动文件头插件。
+- 已做：先本地提交 `.config/shared/nvim` 子仓库 `aa2149c`（Neoscroll -> 原生滚动）和 dotfiles 根仓库 `ea9cfb1`（测试/trace/子仓库指针），均未推送；随后新增本地忽略的 Header 候选 PRD/测试规格，删除 `.config/shared/nvim/lua/plugins/header.lua`，从 `.config/shared/nvim/lazy-lock.json` 移除 `header.nvim`，更新 `.config/shared/nvim/Readme.md` 说明自动文件头插件默认不启用，并扩展 `tests/nvim_0_12_cleanup_test.sh` 拒绝 Header spec/lockfile/README/active spec 回归。没有修改格式化、补全、snacks、neo-tree、bufferline、LSP、live `~/.config/nvim` 或插件安装状态。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh`、相关 Lua `loadfile` 检查（keymaps/options/ui/snacks/avante/neo-tree）、根仓库与 nvim 子仓库 `git diff --check` 均通过。
+- 后续：当前 Header 批次尚未提交；下一步优先先整理成本地提交，再继续评估 `nvim-colorizer.lua` 或进入更高风险的 `bufferline.nvim` 原生 tabline POC。
