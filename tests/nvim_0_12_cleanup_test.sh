@@ -365,6 +365,7 @@ for _, name in ipairs({
   "trouble.nvim",
   "noice.nvim",
   "aerial.nvim",
+  "neoscroll.nvim",
   "snacks.nvim",
   "nui.nvim",
   "lualine.nvim",
@@ -497,7 +498,9 @@ require_pattern 'folke/snacks.nvim' "$NVIM/lua/plugins/snacks.lua" "snacks.nvim 
 require_pattern 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree.nvim must remain"
 require_pattern 'akinsho/bufferline.nvim' "$NVIM/lua/plugins/bufferline.lua" "bufferline.nvim must remain"
 reject_pattern 'stevearc/aerial.nvim|AerialToggle|require\("aerial"\)' "$NVIM/lua/plugins" "aerial.nvim should be removed after native document symbols replacement"
+reject_pattern 'karb94/neoscroll.nvim|require\("neoscroll"\)' "$NVIM/lua/plugins" "neoscroll.nvim should be removed after native scrolling replacement"
 reject_pattern '"aerial.nvim"' "$NVIM/lazy-lock.json" "aerial.nvim should not remain in lazy-lock after native document symbols replacement"
+reject_pattern '"neoscroll.nvim"' "$NVIM/lazy-lock.json" "neoscroll.nvim should not remain in lazy-lock after native scrolling replacement"
 require_pattern 'vim\.lsp\.buf\.document_symbol' "$NVIM/lua/config/keymaps.lua" "<leader>o should use native LSP document symbols"
 reject_pattern 'nvim-lualine/lualine.nvim|require\(\"lualine|lualine\.setup' "$NVIM/lua/plugins" "lualine.nvim should be removed after native statusline replacement"
 reject_pattern '"lualine.nvim"' "$NVIM/lazy-lock.json" "lualine.nvim should not remain in lazy-lock after native statusline replacement"
@@ -622,6 +625,8 @@ require_pattern '<leader>tb' "$NVIM/Readme.md" "README should document the buffe
 require_pattern '<leader>xx.*quickfix|quickfix.*<leader>xx' "$NVIM/Readme.md" "README should document native quickfix diagnostics for <leader>xx"
 require_pattern '<leader>o.*document symbols|document symbols.*<leader>o' "$NVIM/Readme.md" "README should document native document symbols for <leader>o"
 require_pattern 'Outline.*gO|gO.*Outline' "$NVIM/Readme.md" "README should document native gO outline support"
+reject_pattern 'Editing.*neoscroll\.nvim|`neoscroll.nvim`' "$NVIM/Readme.md" "README should not list neoscroll.nvim as active after native scrolling replacement"
+require_pattern '原生.*scroll|scroll.*原生|滚动.*原生|原生.*滚动' "$NVIM/Readme.md" "README should document native scrolling after removing neoscroll"
 reject_pattern 'Outline.*aerial\.nvim|`aerial.nvim`|Aerial' "$NVIM/Readme.md" "README should not list aerial.nvim as active after native symbols replacement"
 require_pattern '原生 `statusline`|statusline.*laststatus=3' "$NVIM/Readme.md" "README should document the native statusline replacement"
 reject_pattern 'UI / Picker.*lualine\.nvim|`lualine.nvim`' "$NVIM/Readme.md" "README should not list lualine.nvim as active after native statusline replacement"
@@ -688,6 +693,7 @@ require_pattern 'ACTIVE_PLUGIN lspsaga.nvim=false' "$out_file" "lspsaga.nvim sho
 require_pattern 'ACTIVE_PLUGIN trouble.nvim=false' "$out_file" "Trouble should not remain active after native diagnostics quickfix replacement"
 require_pattern 'ACTIVE_PLUGIN noice.nvim=false' "$out_file" "Noice should not remain active after native command-line/message replacement"
 require_pattern 'ACTIVE_PLUGIN aerial.nvim=false' "$out_file" "Aerial should not remain active after native document symbols replacement"
+require_pattern 'ACTIVE_PLUGIN neoscroll.nvim=false' "$out_file" "neoscroll.nvim should not remain active after native scrolling replacement"
 require_pattern 'ACTIVE_PLUGIN lualine.nvim=false' "$out_file" "lualine should not remain active after native statusline replacement"
 require_pattern 'ACTIVE_PLUGIN snacks.nvim=true' "$out_file" "snacks.nvim should remain active for picker/notifier/input coverage"
 require_pattern 'ACTIVE_PLUGIN nui.nvim=true' "$out_file" "nui.nvim should remain active as a dependency of neo-tree/avante"
