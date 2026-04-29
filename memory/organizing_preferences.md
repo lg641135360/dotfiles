@@ -8,6 +8,7 @@
 - When debugging AwesomeWM behavior, verify both the repo copy and the live `~/.config/awesome` copy, because repo fixes do not affect the running session until they are synced and Awesome is reloaded.
 - `memory/` 和 `logs/trace.md` 中的新增记录统一使用中文，除非我明确被要求保留英文。
 - 当用户要求统一记录语言时，优先把现有 `logs/trace.md` 历史记录一并回写成中文，而不是只约束后续新增内容。
+- 每次调整会影响用户实际使用体验的地方（例如新增/修改快捷键、启动入口、UI 行为、终端按键传递等），都必须同步更新对应模块的 README 文档；例如 Neovim 新增 `Alt+上下` / `Shift+Alt+上下` 行移动复制时，应同步更新 `.config/shared/nvim/Readme.md`。
 - 对于这个 dotfiles 仓库中的 AwesomeWM 行为回归，保留 `tests/` 目录下的轻量 shell 测试比删除更合适。
 - 对 `install.sh` 里的 `redshift` 处理，保留缺失检查即可；缺失时只提示用户手动安装，不要在安装脚本里自动执行提权安装。
 - 对 rofi 配置，优先让 `config.rasi` 只保留行为配置并显式引用 `theme.rasi`；输入框相关布局保持显式 `children`，中文环境下为 `entry`/`element-text`/`textbox` 指定可显示 CJK 的字体，并在 Awesome 拉起 rofi 时显式传递 `LC_CTYPE` 与 fcitx 环境变量。

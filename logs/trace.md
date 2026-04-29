@@ -2,6 +2,16 @@
 
 ## 2026-04-29
 
+- 目的：按用户要求检查 `.config/shared/nvim/Readme.md`，根据当前 Neovim 实际配置补齐 README，并在完成后提交推送到 GitHub。
+- 已做：对照 `lua/config/keymaps.lua`、`lua/config/options.lua`、`lua/plugins/lsp.lua`、`mason.lua`、`formatter.lua`、`snacks.lua`、`blink-cmp.lua`、`neo-tree.lua`、`bufferline.lua` 等当前配置，更新 nvim README：补齐 `mason-tool-installer.nvim` 的非 headless 自动安装策略、启用的 LSP server、诊断 signs/virtual_lines 边界、行移动/复制对 Alacritty 终端 profile 的依赖、日常快捷键表、blink-cmp 常用键、snacks picker/LSP/Git 入口、conform formatter 映射、DAP 当前未启用状态，以及插件概览；同步更新 `tests/nvim_0_12_cleanup_test.sh`，把这些 README 关键点纳入回归检查；已把更新后的 `Readme.md` 同步到 live `~/.config/nvim/Readme.md`。同时保留上一条长期记忆改动，准备随根仓库一并提交。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/alacritty_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh tests/alacritty_config_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/config/keymaps.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；仓库 `.config/shared/nvim/Readme.md` 与 live `~/.config/nvim/Readme.md` 无差异。
+- 后续：已在 `.config/shared/nvim` 子仓库提交并推送 `6b8fc67`（`Make Neovim README match active config`）；下一步在根仓库提交 README 回归测试、memory/trace 和子仓库指针并推送。
+
+- 目的：按用户要求记录一条长期偏好：凡是改动影响用户实际使用体验，尤其是快捷键这类可感知行为，都要同步更新对应 README。
+- 已做：更新 `memory/organizing_preferences.md`，新增通用规则，要求修改快捷键、启动入口、UI 行为、终端按键传递等用户可感知行为时，同步维护对应模块 README，并明确引用本轮 Neovim `Alt+上下` / `Shift+Alt+上下` 行移动复制需要更新 `.config/shared/nvim/Readme.md` 作为示例。
+- 验证：`git diff --check` 通过。
+- 后续：后续实现类改动时，应把 README 是否同步纳入收尾检查，不只看代码和测试。
+
 - 目的：按用户要求把本轮 Neovim 行移动/复制、Alacritty Linux/macOS 终端按键兼容、测试和文档记录提交并推送到 GitHub。
 - 已做：提交前复核根仓库与 `.config/shared/nvim` 子仓库状态，确认待提交范围为 nvim keymaps/README、根仓库 Alacritty Linux/macOS keys、Alacritty README、Alacritty 回归测试、nvim 回归测试、memory 与 trace；已先在 `.config/shared/nvim` 子仓库提交 `527f1cd`（`Make line motion shortcuts native in Neovim`）并推送到 `lg641135360/neovim`，其中子仓库原 `origin` 为 HTTPS 且当前环境无法交互输入用户名，因此使用 SSH URL 完成推送并刷新 `origin/main` 跟踪；随后在根仓库提交 Alacritty 与子仓库指针。
 - 验证：`tests/alacritty_config_test.sh`、`bash -n tests/alacritty_config_test.sh tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh`、`diff -u .config/shared/alacritty/keys.linux.toml ~/.config/alacritty/keys.toml`、`diff -u .config/shared/nvim/lua/config/keymaps.lua ~/.config/nvim/lua/config/keymaps.lua`、`diff -u .config/shared/nvim/Readme.md ~/.config/nvim/Readme.md`、`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/config/keymaps.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；`alacritty migrate --config-file ~/.config/alacritty/alacritty.toml --dry-run --silent` 返回 0，但仍提示既有主题导入路径缺少 `/home/rikoo/.config/alacritty/themes/themes/catppuccin-mocha.toml`，与本轮提交范围无关。

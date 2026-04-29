@@ -376,6 +376,15 @@ reject_pattern 'tiny-inline-diagnostic|tiny_inline|tiny%-inline%-diagnostic' "$N
 require_pattern 'virt_text_pos = "inline"' "$NVIM/Readme.md" "README should document native inline diagnostic virtual text"
 require_pattern '<A-Up>' "$NVIM/Readme.md" "README should document Alt-Up line movement"
 require_pattern '<S-A-Down>' "$NVIM/Readme.md" "README should document Shift-Alt-Down line duplication"
+require_pattern 'Alacritty Linux / macOS profile' "$NVIM/Readme.md" "README should document terminal profile support for Alt line keys"
+require_pattern '<leader>tb' "$NVIM/Readme.md" "README should document the bufferline toggle"
+require_pattern '<leader>ff' "$NVIM/Readme.md" "README should document snacks file picker keymaps"
+require_pattern '<leader>th' "$NVIM/Readme.md" "README should document inlay hint toggle"
+require_pattern 'mason-tool-installer\.nvim' "$NVIM/Readme.md" "README should document Mason tool installer behavior"
+require_pattern 'headless 测试' "$NVIM/Readme.md" "README should document headless runs skip automatic tool installation"
+require_pattern 'conform\.nvim' "$NVIM/Readme.md" "README should document conform formatting"
+require_pattern 'DAP 当前未启用' "$NVIM/Readme.md" "README should document that DAP is currently disabled"
+reject_pattern '\| Debug[[:space:]]+\| `nvim-dap`' "$NVIM/Readme.md" "README should not list nvim-dap as an active plugin"
 
 set +e
 XDG_CONFIG_HOME="$ROOT/.config/shared" \
