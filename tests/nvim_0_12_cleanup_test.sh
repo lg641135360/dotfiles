@@ -11,6 +11,9 @@ keymap_check="$(mktemp)"
 line_edit_check="$(mktemp)"
 lsp_check="$(mktemp)"
 ui_check="$(mktemp)"
+active_spec_check="$(mktemp)"
+diagnostics_check="$(mktemp)"
+theme_check="$(mktemp)"
 lock_file="$NVIM/lazy-lock.json"
 lock_backup="$(mktemp)"
 
@@ -18,7 +21,7 @@ cp "$lock_file" "$lock_backup"
 
 cleanup() {
   cp "$lock_backup" "$lock_file"
-  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$line_edit_check" "$lsp_check" "$ui_check"
+  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$theme_check"
   rm -f "$lock_backup"
 }
 trap cleanup EXIT
@@ -29,6 +32,47 @@ if [[ -d "$HOME/.local/share/nvim/lazy" ]]; then
 fi
 
 cat >"$keymap_check" <<'LUA'
+local function describe(mode, lhs)
+  local mapping = vim.fn.maparg(lhs, mode, false, true)
+  local mapped = mapping.lhs ~= nil and mapping.lhs ~= ""
+  print(
+    ("KEYMAP_INVENTORY mode=%s lhs=%s mapped=%s rhs=%s callback=%s desc=%s nowait=%s sid=%s"):format(
+      mode,
+      lhs,
+      tostring(mapped),
+      tostring(mapping.rhs),
+      tostring(mapping.callback ~= nil),
+      tostring(mapping.desc),
+      tostring(mapping.nowait),
+      tostring(mapping.sid)
+    )
+  )
+  return mapping, mapped
+end
+
+local function require_mapped(mode, lhs)
+  local mapping, mapped = describe(mode, lhs)
+  if not mapped then
+    error(("missing %s mode mapping for %s"):format(mode, lhs))
+  end
+  return mapping
+end
+
+local function require_rhs_contains(mode, lhs, text)
+  local mapping = require_mapped(mode, lhs)
+  local rhs = tostring(mapping.rhs or "")
+  if not rhs:find(text, 1, true) then
+    error(("%s in %s mode should contain %s, got %s"):format(lhs, mode, text, rhs))
+  end
+end
+
+local function require_callback(mode, lhs)
+  local mapping = require_mapped(mode, lhs)
+  if type(mapping.callback) ~= "function" then
+    error(("%s in %s mode should be a callback mapping"):format(lhs, mode))
+  end
+end
+
 for _, lhs in ipairs({ "gr", "grn", "gra", "grr", "gri", "grt", "grx", "gO" }) do
   local mapping = vim.fn.maparg(lhs, "n", false, true)
   print(
@@ -42,6 +86,48 @@ for _, lhs in ipairs({ "gr", "grn", "gra", "grr", "gri", "grt", "grx", "gO" }) d
     )
   )
 end
+
+for _, lhs in ipairs({
+  "<leader><PageDown>",
+  "<leader><PageUp>",
+  "<leader>c",
+  "<leader><Left>",
+  "<leader><Down>",
+  "<leader><Up>",
+  "<leader><Right>",
+  "<leader>w",
+  "<leader>q",
+  "<C-a>",
+  "<C-c>",
+  "<C-x>",
+  "<C-v>",
+  "vv",
+  "vc",
+  "vl",
+  "<leader>e",
+  "<leader>ft",
+  "<leader>xx",
+}) do
+  require_mapped("n", lhs)
+end
+
+for i = 1, 9 do
+  require_rhs_contains("n", "<leader>" .. i, "BufferLineGoToBuffer " .. i)
+end
+
+for _, lhs in ipairs({ "<C-c>", "<C-x>", "<C-v>", "<Tab>", "<S-Tab>" }) do
+  require_mapped("v", lhs)
+end
+
+require_rhs_contains("n", "<leader><PageDown>", "BufferLineCycleNext")
+require_rhs_contains("n", "<leader><PageUp>", "BufferLineCyclePrev")
+require_rhs_contains("n", "<leader>c", "bdelete")
+require_callback("n", "<leader>tb")
+require_rhs_contains("n", "<leader>e", "Neotree toggle")
+require_callback("n", "<leader>ft")
+require_rhs_contains("n", "<leader>xx", "Trouble diagnostics toggle")
+
+print("KEYMAP_INVENTORY_OK=true")
 LUA
 
 cat >"$line_edit_check" <<'LUA'
@@ -256,6 +342,39 @@ print("UI_DIAGNOSTIC_VLINES=" .. tostring(diagnostic.virtual_lines))
 print("UI_DIAGNOSTIC_SEVERITY_SORT=" .. tostring(diagnostic.severity_sort))
 LUA
 
+cat >"$active_spec_check" <<'LUA'
+local plugins = require("lazy.core.config").plugins or {}
+for _, name in ipairs({
+  "Comment.nvim",
+  "fidget.nvim",
+  "lspsaga.nvim",
+  "trouble.nvim",
+  "nvim-dap",
+  "nvim-dap-ui",
+  "nvim-nio",
+  "smear-cursor.nvim",
+  "catppuccin",
+  "onedark.nvim",
+}) do
+  print(("ACTIVE_PLUGIN %s=%s"):format(name, tostring(plugins[name] ~= nil)))
+end
+LUA
+
+cat >"$diagnostics_check" <<'LUA'
+local mapping = vim.fn.maparg("<leader>xx", "n", false, true)
+print("KEYMAP_LEADER_XX_LHS=" .. tostring(mapping.lhs))
+print("KEYMAP_LEADER_XX_RHS=" .. tostring(mapping.rhs))
+print("KEYMAP_LEADER_XX_CALLBACK=" .. tostring(mapping.callback ~= nil))
+print("TROUBLE_COMMAND_EXISTS=" .. tostring(vim.fn.exists(":Trouble")))
+LUA
+
+cat >"$theme_check" <<'LUA'
+local plugins = require("lazy.core.config").plugins or {}
+print("COLORSCHEME=" .. tostring(vim.g.colors_name))
+print("THEME_CATPPUCCIN_ACTIVE=" .. tostring(plugins["catppuccin"] ~= nil))
+print("THEME_ONEDARK_ACTIVE=" .. tostring(plugins["onedark.nvim"] ~= nil))
+LUA
+
 require_pattern() {
   local pattern="$1"
   local file="$2"
@@ -285,6 +404,31 @@ assert_clean_nvim_output() {
   fi
 }
 
+run_nvim_luafile() {
+  local script="$1"
+  local label="$2"
+
+  : >"$out_file"
+  set +e
+  XDG_CONFIG_HOME="$ROOT/.config/shared" \
+    XDG_DATA_HOME="$data_home" \
+    XDG_STATE_HOME="$state_home" \
+    XDG_CACHE_HOME="$cache_home" \
+    nvim --headless -i NONE -u "$NVIM/init.lua" \
+      --cmd 'set noswapfile' \
+      "+luafile $script" \
+      '+qa!' >"$out_file" 2>&1
+  local rc=$?
+  set -e
+
+  if [[ "$rc" -ne 0 ]]; then
+    echo "$label failed"
+    cat "$out_file"
+    exit 1
+  fi
+  assert_clean_nvim_output
+}
+
 require_pattern 'saghen/blink.cmp' "$NVIM/lua/plugins/blink-cmp.lua" "blink.cmp must remain"
 require_pattern 'folke/snacks.nvim' "$NVIM/lua/plugins/snacks.lua" "snacks.nvim must remain"
 require_pattern 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree.nvim must remain"
@@ -303,6 +447,12 @@ reject_pattern 'tiny-inline-diagnostic|tiny%-inline%-diagnostic|tiny_inline' "$N
 reject_pattern 'tiny-inline-diagnostic\.nvim' "$NVIM/lazy-lock.json" "tiny-inline-diagnostic should not remain in lazy-lock after plugin removal"
 reject_pattern 'inc-rename\.nvim|inc_rename|IncRename' "$NVIM/lua/plugins" "inc-rename references should not remain in plugin specs"
 reject_pattern 'inc-rename\.nvim' "$NVIM/lazy-lock.json" "inc-rename should not remain in lazy-lock after plugin removal"
+reject_pattern '"Comment.nvim"' "$NVIM/lazy-lock.json" "Comment.nvim should not remain in lazy-lock after removal"
+reject_pattern '"fidget.nvim"' "$NVIM/lazy-lock.json" "fidget.nvim should not remain as an unexplained lock-only plugin"
+reject_pattern '"lspsaga.nvim"' "$NVIM/lazy-lock.json" "lspsaga.nvim should not remain as an unexplained lock-only plugin"
+require_pattern '"trouble.nvim"' "$NVIM/lazy-lock.json" "trouble.nvim lock entry should remain when <leader>xx documents Trouble diagnostics"
+require_pattern 'folke/trouble.nvim' "$NVIM/lua/plugins" "Trouble diagnostics must have an active plugin spec when <leader>xx maps to :Trouble"
+require_pattern 'cmd = "Trouble"' "$NVIM/lua/plugins" "Trouble should be command-loadable without changing the existing <leader>xx mapping"
 require_pattern 'folke/lazy.nvim.git' "$NVIM/lua/config/lazy.lua" "lazy.nvim must remain the plugin manager"
 reject_pattern 'vim\.pack\.add' "$NVIM/lua/config/lazy.lua" "vim.pack must not manage plugins in phase one"
 
@@ -385,6 +535,34 @@ require_pattern 'headless 测试' "$NVIM/Readme.md" "README should document head
 require_pattern 'conform\.nvim' "$NVIM/Readme.md" "README should document conform formatting"
 require_pattern 'DAP 当前未启用' "$NVIM/Readme.md" "README should document that DAP is currently disabled"
 reject_pattern '\| Debug[[:space:]]+\| `nvim-dap`' "$NVIM/Readme.md" "README should not list nvim-dap as an active plugin"
+reject_pattern 'mfussenegger/nvim-dap|rcarriga/nvim-dap-ui|nvim-neotest/nvim-nio' "$NVIM/lua/plugins" "DAP plugins must remain inactive in the safe cleanup pass"
+reject_pattern '<F5>|<F10>|<F11>|<F12>|<leader>dr|<leader>dl|<leader>du|<leader>b|<leader>B|dapui|cortex_debug' "$NVIM/lua/plugins/dap.lua" "dap.lua should be a concise disabled stub without old implementation or debug mappings"
+reject_pattern 'sphamba/smear-cursor.nvim|smear-cursor|smear_cursor' "$NVIM/lua/plugins/cursor.lua" "cursor.lua should be a concise disabled stub without smear-cursor implementation"
+
+if (( $(wc -l < "$NVIM/lua/plugins/dap.lua") > 8 )); then
+  echo "dap.lua should be a concise disabled stub"
+  exit 1
+fi
+if (( $(wc -l < "$NVIM/lua/plugins/cursor.lua") > 8 )); then
+  echo "cursor.lua should be a concise disabled stub"
+  exit 1
+fi
+
+require_pattern 'local active_theme = "catppuccin-mocha"' "$NVIM/lua/plugins/theme.lua" "active theme should be Catppuccin Mocha"
+require_pattern 'catppuccin/nvim' "$NVIM/lua/plugins/theme.lua" "Catppuccin plugin should be active"
+require_pattern 'name = "catppuccin"' "$NVIM/lua/plugins/theme.lua" "Catppuccin lock/spec name should stay stable"
+require_pattern 'priority = 1000' "$NVIM/lua/plugins/theme.lua" "Catppuccin should keep startup priority"
+require_pattern 'flavour = "mocha"' "$NVIM/lua/plugins/theme.lua" "Catppuccin should use the mocha flavour"
+require_pattern 'transparent_background = false' "$NVIM/lua/plugins/theme.lua" "Catppuccin should keep a non-transparent background"
+reject_pattern 'navarasu/onedark.nvim' "$NVIM/lua/plugins/theme.lua" "onedark should not remain in active theme config after switching to Catppuccin Mocha"
+require_pattern '"catppuccin"' "$NVIM/lazy-lock.json" "Catppuccin should be pinned in lazy-lock"
+reject_pattern '"onedark.nvim"' "$NVIM/lazy-lock.json" "onedark should not remain as a stale theme lock entry"
+require_pattern 'Catppuccin Mocha|catppuccin.*Mocha' "$NVIM/Readme.md" "README should document the active Catppuccin Mocha theme"
+
+if rg -q 'lazy = false' "$NVIM/lua/config/lazy.lua"; then
+  reject_pattern 'Fast startup.*按需加载|全面按需加载|all plugins lazy-loaded' "$NVIM/Readme.md" "README should not claim broad lazy loading while defaults.lazy=false"
+  require_pattern '核心 UX.*eager|稳定日常 UX' "$NVIM/Readme.md" "README should describe eager core UX plugin loading accurately"
+fi
 
 set +e
 XDG_CONFIG_HOME="$ROOT/.config/shared" \
@@ -404,74 +582,49 @@ if [[ "$startup_rc" -ne 0 ]]; then
 fi
 assert_clean_nvim_output
 
-: >"$out_file"
-set +e
-XDG_CONFIG_HOME="$ROOT/.config/shared" \
-  XDG_DATA_HOME="$data_home" \
-  XDG_STATE_HOME="$state_home" \
-  XDG_CACHE_HOME="$cache_home" \
-  nvim --headless -i NONE -u "$NVIM/init.lua" \
-    --cmd 'set noswapfile' \
-    "+luafile $keymap_check" \
-    '+qa!' >"$out_file" 2>&1
-keymap_rc=$?
-set -e
+run_nvim_luafile "$active_spec_check" "active spec inventory"
 
-if [[ "$keymap_rc" -ne 0 ]]; then
-  cat "$out_file"
-  exit 1
-fi
-assert_clean_nvim_output
+require_pattern 'ACTIVE_PLUGIN Comment.nvim=false' "$out_file" "Comment.nvim should not be an active spec"
+require_pattern 'ACTIVE_PLUGIN fidget.nvim=false' "$out_file" "fidget.nvim should not be an active spec"
+require_pattern 'ACTIVE_PLUGIN lspsaga.nvim=false' "$out_file" "lspsaga.nvim should not be an active spec"
+require_pattern 'ACTIVE_PLUGIN trouble.nvim=true' "$out_file" "Trouble should be active because <leader>xx and README document Trouble diagnostics"
+require_pattern 'ACTIVE_PLUGIN nvim-dap=false' "$out_file" "nvim-dap should remain disabled"
+require_pattern 'ACTIVE_PLUGIN nvim-dap-ui=false' "$out_file" "nvim-dap-ui should remain disabled"
+require_pattern 'ACTIVE_PLUGIN nvim-nio=false' "$out_file" "nvim-nio should not be pulled in by disabled DAP"
+require_pattern 'ACTIVE_PLUGIN smear-cursor.nvim=false' "$out_file" "smear-cursor should remain disabled"
+require_pattern 'ACTIVE_PLUGIN catppuccin=true' "$out_file" "Catppuccin should be the active theme spec"
+require_pattern 'ACTIVE_PLUGIN onedark.nvim=false' "$out_file" "onedark should not remain active after switching to Catppuccin Mocha"
+
+run_nvim_luafile "$diagnostics_check" "Trouble diagnostics runtime check"
+
+require_pattern 'KEYMAP_LEADER_XX_LHS=<(leader|Space)>xx' "$out_file" "<leader>xx should remain mapped"
+require_pattern 'KEYMAP_LEADER_XX_RHS=.*Trouble diagnostics toggle' "$out_file" "<leader>xx should keep Trouble diagnostics semantics"
+require_pattern 'TROUBLE_COMMAND_EXISTS=2' "$out_file" "Trouble command should exist when README documents Trouble diagnostics"
+
+run_nvim_luafile "$theme_check" "theme runtime check"
+
+require_pattern 'COLORSCHEME=catppuccin-mocha' "$out_file" "active colorscheme should be Catppuccin Mocha"
+require_pattern 'THEME_CATPPUCCIN_ACTIVE=true' "$out_file" "Catppuccin plugin should remain active at runtime"
+require_pattern 'THEME_ONEDARK_ACTIVE=false' "$out_file" "onedark plugin should not remain active at runtime"
+
+run_nvim_luafile "$keymap_check" "keymap runtime inventory"
 
 require_pattern 'KEYMAP gr lhs=nil .*nowait=nil' "$out_file" "bare gr should not be mapped at runtime"
 reject_pattern 'KEYMAP gr .*nowait=1' "$out_file" "bare gr should not use nowait at runtime"
 require_pattern 'KEYMAP grr lhs=grr .*callback=true' "$out_file" "grr should invoke the references picker callback"
+require_pattern 'KEYMAP_INVENTORY_OK=true' "$out_file" "runtime keymap inventory should pass semantic checks"
 for lhs in grn gra grr gri grt grx gO; do
   require_pattern "KEYMAP $lhs " "$out_file" "runtime keymap output should include $lhs"
 done
 
-: >"$out_file"
-set +e
-XDG_CONFIG_HOME="$ROOT/.config/shared" \
-  XDG_DATA_HOME="$data_home" \
-  XDG_STATE_HOME="$state_home" \
-  XDG_CACHE_HOME="$cache_home" \
-  nvim --headless -i NONE -u "$NVIM/init.lua" \
-    --cmd 'set noswapfile' \
-    "+luafile $line_edit_check" \
-    '+qa!' >"$out_file" 2>&1
-line_edit_rc=$?
-set -e
-
-if [[ "$line_edit_rc" -ne 0 ]]; then
-  cat "$out_file"
-  exit 1
-fi
-assert_clean_nvim_output
+run_nvim_luafile "$line_edit_check" "line edit runtime behavior"
 
 for lhs in '<A-Up>' '<A-Down>' '<S-A-Up>' '<S-A-Down>'; do
   require_pattern "LINE_KEYMAP mode=n lhs=$lhs callback=true" "$out_file" "$lhs should exist in normal mode"
   require_pattern "LINE_KEYMAP mode=x lhs=$lhs callback=true" "$out_file" "$lhs should exist in visual mode"
 done
 
-: >"$out_file"
-set +e
-XDG_CONFIG_HOME="$ROOT/.config/shared" \
-  XDG_DATA_HOME="$data_home" \
-  XDG_STATE_HOME="$state_home" \
-  XDG_CACHE_HOME="$cache_home" \
-  nvim --headless -i NONE -u "$NVIM/init.lua" \
-    --cmd 'set noswapfile' \
-    "+luafile $lsp_check" \
-    '+qa!' >"$out_file" 2>&1
-lsp_rc=$?
-set -e
-
-if [[ "$lsp_rc" -ne 0 ]]; then
-  cat "$out_file"
-  exit 1
-fi
-assert_clean_nvim_output
+run_nvim_luafile "$lsp_check" "LSP runtime check"
 
 for server in lua_ls clangd pyright ts_ls; do
   require_pattern "LSP_CONFIG $server enabled=true has_config=true" "$out_file" "$server should be enabled through vim.lsp.enable"
@@ -485,24 +638,7 @@ require_pattern 'LSP_LUA_LIBRARY_VIMRUNTIME=true' "$out_file" "lua_ls runtime li
 require_pattern 'LSP_CLANGD_CMD=.*--clang-tidy' "$out_file" "clangd command flags should survive migration"
 require_pattern 'LSP_PYRIGHT_TYPECHECK=basic' "$out_file" "pyright analysis settings should survive migration"
 
-: >"$out_file"
-set +e
-XDG_CONFIG_HOME="$ROOT/.config/shared" \
-  XDG_DATA_HOME="$data_home" \
-  XDG_STATE_HOME="$state_home" \
-  XDG_CACHE_HOME="$cache_home" \
-  nvim --headless -i NONE -u "$NVIM/init.lua" \
-    --cmd 'set noswapfile' \
-    "+luafile $ui_check" \
-    '+qa!' >"$out_file" 2>&1
-ui_rc=$?
-set -e
-
-if [[ "$ui_rc" -ne 0 ]]; then
-  cat "$out_file"
-  exit 1
-fi
-assert_clean_nvim_output
+run_nvim_luafile "$ui_check" "UI runtime check"
 
 require_pattern 'UI_WINBORDER=rounded' "$out_file" "winborder should be rounded at runtime"
 require_pattern 'UI_PUMBORDER=rounded' "$out_file" "pumborder should be rounded at runtime"
