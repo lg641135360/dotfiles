@@ -54,6 +54,8 @@ Catppuccin Mocha，与桌面主题保持一致。
 | `tmux new -s <name>` | 创建新会话 |
 | `tmux ls` | 列出所有会话 |
 
+当前 session 结束后会 detach 当前客户端，不会自动切回最近使用的其它 session。
+
 ## 插件
 
 ### 已安装

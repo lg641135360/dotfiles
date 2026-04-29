@@ -263,15 +263,10 @@ has_wallpaper_files() {
     find "$dir" -maxdepth 1 -type f \(         -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.bmp'     \) -print -quit | grep -q .
 }
 
-restore_or_randomize_wallpaper() {
-    if [ -f "$HOME/.fehbg" ]; then
-        sh "$HOME/.fehbg" >/dev/null 2>&1 &
-        return 0
-    fi
-
+randomize_wallpaper() {
     for dir in "$@"; do
         if has_wallpaper_files "$dir"; then
-            feh --bg-fill --randomize "$dir"/* &
+            feh --no-fehbg --bg-fill --randomize "$dir"/* &
             return 0
         fi
     done

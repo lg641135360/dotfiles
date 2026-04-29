@@ -7,6 +7,7 @@ COMMON_FILE=$REPO_ROOT/.config/linux/awesome/autostart/common.sh
 ARCH_FILE=$REPO_ROOT/.config/linux/awesome/autostart/arch_x64.sh
 UBUNTU_ARM_FILE=$REPO_ROOT/.config/linux/awesome/autostart/ubuntu_aarch64.sh
 UBUNTU_X64_FILE=$REPO_ROOT/.config/linux/awesome/autostart/ubuntu_x64.sh
+README_FILE=$REPO_ROOT/.config/linux/awesome/autostart/README.md
 INSTALL_FILE=$REPO_ROOT/install.sh
 
 fail() {
@@ -61,9 +62,9 @@ test_common_module_exposes_shared_helpers() {
     assert_contains 'detect_external_display() {' "$COMMON_FILE"
     assert_contains 'detect_display_preferred_mode() {' "$COMMON_FILE"
     assert_contains 'configure_laptop_display_layout() {' "$COMMON_FILE"
-    assert_contains 'restore_or_randomize_wallpaper() {' "$COMMON_FILE"
-    assert_contains '[ -f "$HOME/.fehbg" ]' "$COMMON_FILE"
-    assert_contains 'sh "$HOME/.fehbg"' "$COMMON_FILE"
+    assert_contains 'randomize_wallpaper() {' "$COMMON_FILE"
+    assert_contains 'feh --no-fehbg --bg-fill --randomize "$dir"/*' "$COMMON_FILE"
+    assert_not_contains '.fehbg' "$COMMON_FILE"
 }
 
 test_optional_autostart_commands_are_skipped_when_missing() {
@@ -233,7 +234,7 @@ EOF
 }
 
 test_platform_specific_behaviors_remain_declared() {
-    assert_contains 'restore_or_randomize_wallpaper "$HOME/Pictures"' "$ARCH_FILE"
+    assert_contains 'randomize_wallpaper "$HOME/Pictures"' "$ARCH_FILE"
     assert_contains 'run Snipaste' "$ARCH_FILE"
     assert_contains 'run greenclip daemon' "$ARCH_FILE"
     assert_contains 'configure_laptop_display_layout 2880x1800 120 left 1.5x1.5' "$UBUNTU_ARM_FILE"
@@ -241,10 +242,15 @@ test_platform_specific_behaviors_remain_declared() {
     assert_contains 'touchpad_id=$(xinput list 2>/dev/null | grep -i '\''Touchpad'\'' | sed '\''s/.*id=\([0-9]*\).*/\1/'\'')' "$UBUNTU_ARM_FILE"
     assert_contains 'append_path_if_exists "/home/linuxbrew/.linuxbrew/bin"' "$UBUNTU_ARM_FILE"
     assert_not_contains 'PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"' "$UBUNTU_ARM_FILE"
-    assert_contains 'restore_or_randomize_wallpaper "$HOME/Pictures/wall" "$HOME/Pictures" "/usr/share/backgrounds"' "$UBUNTU_X64_FILE"
-    assert_contains 'restore_or_randomize_wallpaper "$HOME/Pictures/wall" "$HOME/Pictures" "/usr/share/backgrounds"' "$UBUNTU_ARM_FILE"
+    assert_contains 'randomize_wallpaper "$HOME/Pictures/wall" "$HOME/Pictures" "/usr/share/backgrounds"' "$UBUNTU_X64_FILE"
+    assert_contains 'randomize_wallpaper "$HOME/Pictures/wall" "$HOME/Pictures" "/usr/share/backgrounds"' "$UBUNTU_ARM_FILE"
     assert_contains 'run_custom "Snipaste-2.11.2-x86_64.AppImage" ~/Documents/Snipaste-2.11.2-x86_64.AppImage' "$UBUNTU_X64_FILE"
     assert_contains 'run greenclip daemon' "$UBUNTU_X64_FILE"
+}
+
+test_readme_documents_random_wallpaper_behavior() {
+    assert_contains 'feh --no-fehbg --bg-fill --randomize' "$README_FILE"
+    assert_contains '不再优先恢复 `~/.fehbg`' "$README_FILE"
 }
 
 test_install_does_not_overwrite_root_wrapper_with_platform_script() {
@@ -262,6 +268,7 @@ test_laptop_display_layout_places_external_monitor_on_the_left
 test_laptop_display_layout_can_scale_external_monitor_on_the_left
 test_laptop_display_layout_handles_no_external_monitor
 test_platform_specific_behaviors_remain_declared
+test_readme_documents_random_wallpaper_behavior
 test_install_does_not_overwrite_root_wrapper_with_platform_script
 
 printf 'PASS: awesome autostart tests\n'

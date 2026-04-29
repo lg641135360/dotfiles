@@ -146,6 +146,13 @@ test_daily_pane_workflow_enhancements() {
     assert_contains 'bind - split-window -v -c "#{pane_current_path}"' "$TMUX_FILE"
 }
 
+test_destroyed_sessions_detach_instead_of_switching() {
+    assert_contains 'set -g detach-on-destroy on' "$TMUX_FILE"
+    assert_not_contains 'set -g detach-on-destroy off' "$TMUX_FILE"
+    assert_contains '当前 session 结束后会 detach 当前客户端' "$README_FILE"
+    assert_contains '不会自动切回最近使用的其它 session' "$README_FILE"
+}
+
 test_pane_resize_and_border_visuals() {
     assert_contains 'bind H resize-pane -L 5' "$TMUX_FILE"
     assert_contains 'bind J resize-pane -D 5' "$TMUX_FILE"
@@ -299,6 +306,7 @@ test_catppuccin_options_use_current_names
 test_status_bar_has_balanced_left_and_right_modules
 test_bottom_overrides_survive_plugin_defaults
 test_daily_pane_workflow_enhancements
+test_destroyed_sessions_detach_instead_of_switching
 test_pane_resize_and_border_visuals
 test_tab_titles_use_short_remote_path_helper
 test_tab_title_helper_formats_path_and_remote_context

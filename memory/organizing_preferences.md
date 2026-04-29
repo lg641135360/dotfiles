@@ -8,6 +8,7 @@
 - When debugging AwesomeWM behavior, verify both the repo copy and the live `~/.config/awesome` copy, because repo fixes do not affect the running session until they are synced and Awesome is reloaded.
 - `memory/` 和 `logs/trace.md` 中的新增记录统一使用中文，除非我明确被要求保留英文。
 - 当用户要求统一记录语言时，优先把现有 `logs/trace.md` 历史记录一并回写成中文，而不是只约束后续新增内容。
+- 读取 `logs/trace.md` 或其它持久化文件时，默认根据当前问题用关键词/相近主题匹配最相关的约 10 条记录即可，不要每次全量加载；只有用户明确要求完整历史、任务确实依赖全局时间线，或局部检索证据不足时才扩大读取范围。
 - 每次调整会影响用户实际使用体验的地方（例如新增/修改快捷键、启动入口、UI 行为、终端按键传递等），都必须同步更新对应模块的 README 文档；例如 Neovim 新增 `Alt+上下` / `Shift+Alt+上下` 行移动复制时，应同步更新 `.config/shared/nvim/Readme.md`。
 - 对于这个 dotfiles 仓库中的 AwesomeWM 行为回归，保留 `tests/` 目录下的轻量 shell 测试比删除更合适。
 - 对 `install.sh` 里的 `redshift` 处理，保留缺失检查即可；缺失时只提示用户手动安装，不要在安装脚本里自动执行提权安装。
@@ -36,7 +37,7 @@
 - 对 Awesome 的 volume widget，若 `pactl` 命令失败、默认 sink 缺失或输出异常，优先显式降级为 `N/A`，不要继续保留可能误导的旧音量百分比。
 - 对 Awesome 的 volume widget，点击滚轮或左键后的 `pactl set-sink-*` 写操作若失败，优先立即回退到 `N/A` 并再触发一次读刷新，而不是静默保留旧状态。
 - 对 Awesome 的壁纸，优先由 `autostart/*.sh` 里的 `feh` 管理；`theme/*.lua` 和 `ui/wibar.lua` 不要再回写 `theme.wallpaper` 或 `gears.wallpaper.maximized()` 覆盖外部壁纸。
-- 对 Awesome 的壁纸恢复策略，优先保留 `~/.fehbg` 中的用户上次 feh 选择；只有在没有可恢复状态时，才回退到用户壁纸目录，再最后回退到 `/usr/share/backgrounds`。
+- 对 Awesome 的壁纸策略，优先让 autostart 每次执行 `feh --no-fehbg --bg-fill --randomize` 从候选目录重新随机选择；不要再优先恢复 `~/.fehbg` 中的旧选择。
 - 对 Awesome 的平铺布局，默认 client 规则优先设置 `size_hints_honor = false`，避免某些应用的最小宽度/尺寸提示把 `mod+h`、`mod+l` 的主区域宽度调整卡死。
 - 对 Awesome 的 NET widget，在空间紧张时优先去掉固定 `NET` 文本标签，保留彩色上下行箭头和速率值，减少横向占用而不引入屏幕/应用特判。
 - 对 Awesome 的 sysinfo 区块，压缩优先级先从内部 spacing 和左右 padding 下手；当前小屏优化基线为 `system_row.spacing = 4`、容器 `left/right = 6`。
@@ -49,6 +50,7 @@
 - 对 tmux 日常交互增强，优先不增加插件：分屏/新窗口继承当前 pane 目录、保留 `C-a C-a` 发送 prefix、用 `H/J/K/L` 调整 pane 大小，并让复制模式尽量走终端剪贴板。
 - 对 tmux 窗口/会话导航增强，优先使用内置能力而不是插件：`C-a w` 打开 `choose-tree -Zw` 树状选择器，`C-a Tab` 快速回到上一个窗口。
 - 对 tmux session 持久化，优先只保留 `tmux-resurrect` 的手动保存/恢复；不要启用 `tmux-continuum` 这类自动保存 session 插件。
+- 对 tmux session 销毁行为，优先让当前客户端 detach，不要在退出当前 session 后自动切回最近使用的其它 session；对应 `detach-on-destroy` 保持 `on`。
 - 对 Awesome 的 autostart 可选服务，优先在共享 `run()` / `run_custom()` 层做命令可用性检查；缺失时静默跳过，避免在启动阶段输出 `not found` 噪音，平台脚本继续只声明各自想启动的服务。
 - 对 Ubuntu aarch64 的 Awesome autostart，当前外接屏持久方案是：先运行时检测内屏、首个外接屏和外接屏首选物理模式；内屏保持 `2880x1800@120Hz` 主屏；外接屏使用首选物理模式（当前 Dell P2722H 为 `1920x1080`）并通过 `1.5x1.5` XRandR scaling 放在笔记本左侧，同时显式设置 framebuffer/position 避免重叠；不要在这里改全局 `Xft.dpi`、Awesome per-screen DPI 或 rofi focused-screen `ROFI_SCALE`。
 - 对当前笔记本内屏，`Xft.dpi: 192` 是合适基线；不要为了外接 1080p 屏幕把全局 Xresources DPI 降到折中值，但当前显示策略下也不要在 Awesome/rofi 强行做 per-screen DPI 或 focused-screen 缩放覆盖，后续若重试需单独确认。

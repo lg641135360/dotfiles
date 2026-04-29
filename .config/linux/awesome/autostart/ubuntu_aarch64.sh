@@ -25,7 +25,7 @@ if [ -n "$touchpad_id" ]; then
     xinput set-prop "$touchpad_id" "libinput Disable While Typing Enabled" 1
 fi
 
-restore_or_randomize_wallpaper "$HOME/Pictures/wall" "$HOME/Pictures" "/usr/share/backgrounds"
+randomize_wallpaper "$HOME/Pictures/wall" "$HOME/Pictures" "/usr/share/backgrounds"
 
 run gestures start
 run_common_tray_services

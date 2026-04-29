@@ -2,6 +2,25 @@
 
 ## 2026-04-29
 
+- 目的：按用户要求将本轮 tmux session 销毁行为、Awesome 壁纸随机化、trace 读取偏好和相关测试/文档记录提交并推送到 GitHub。
+- 已做：按新的 trace 读取偏好只复核本轮相关记录和当前工作树范围；确认待提交文件为 `.config/shared/tmux/.tmux.conf`、`.config/shared/tmux/README.md`、`.config/linux/awesome/autostart/*`、`tests/tmux_status_test.sh`、`tests/awesome_autostart_test.sh`、`memory/organizing_preferences.md` 与 `logs/trace.md`。提交前复跑 tmux 与 Awesome 壁纸/autostart 回归测试、shell 语法检查、live 配置同步 diff 和 `git diff --check`。
+- 验证：`tests/tmux_status_test.sh`、`tests/awesome_autostart_test.sh`、`tests/awesome_wallpaper_test.sh`、autostart shell 语法检查、tmux/test shell 语法检查均通过；仓库 `.tmux.conf` 与 live `/home/rikoo/.tmux.conf` 无差异，仓库 Awesome autostart 文件与 live `/home/rikoo/.config/awesome/autostart/` 对应文件无差异。
+- 后续：按 Lore commit 协议提交到 `main` 并推送到 `origin/main`；推送后复查工作树和远端同步状态。
+
+- 目的：按用户要求修改 Awesome autostart 壁纸脚本，使每次运行 feh 都重新随机选择照片，而不是恢复 `~/.fehbg` 中的旧结果。
+- 已做：按新的 trace 读取偏好只检索 Awesome/autostart/wallpaper 相关记录；确认旧逻辑会在 `~/.fehbg` 存在时优先执行固定恢复命令。随后按 TDD 更新 `tests/awesome_autostart_test.sh`，要求共享 helper 不再引用 `.fehbg`，并要求使用 `feh --no-fehbg --bg-fill --randomize`。将 `.config/linux/awesome/autostart/common.sh` 的 helper 改为 `randomize_wallpaper()`，每次从第一个有图片的候选目录随机选择，并通过 `--no-fehbg` 避免 feh 重新生成固定恢复文件；同步更新三份平台脚本、autostart README 和 `memory/organizing_preferences.md`。最后把更新后的 autostart 文件同步到 live `/home/rikoo/.config/awesome/autostart/`，没有执行整份 autostart，避免顺手重配显示器或启动后台服务。
+- 验证：`tests/awesome_autostart_test.sh`、`tests/awesome_wallpaper_test.sh`、`sh -n .config/linux/awesome/autostart.sh .config/linux/awesome/autostart/common.sh .config/linux/awesome/autostart/arch_x64.sh .config/linux/awesome/autostart/ubuntu_x64.sh .config/linux/awesome/autostart/ubuntu_aarch64.sh`、`bash -n tests/awesome_autostart_test.sh tests/awesome_wallpaper_test.sh` 均通过；仓库 autostart 文件与 live `~/.config/awesome/autostart/` 对应文件无差异。
+- 后续：下次执行 autostart 中的壁纸逻辑时，即使 `~/.fehbg` 仍存在也会被忽略；如果希望按 `Mod+Ctrl+r` 也立刻换壁纸，还需要单独把随机壁纸调用接到 Awesome restart 或快捷键路径上。
+
+- 目的：记录用户对 trace 与其它持久化文件读取范围的新偏好，避免每次全量读取导致耗时过长。
+- 已做：按新偏好只检索 `memory/organizing_preferences.md` 中 trace/读取相关记录和 `logs/trace.md` 最新片段，没有再全量加载 trace。更新 `memory/organizing_preferences.md`，规定后续默认根据当前问题用关键词或相近主题匹配最相关的约 10 条记录；只有用户明确要求完整历史、任务依赖全局时间线或局部检索证据不足时，才扩大读取范围。
+- 后续：后续进入任务前优先走定向 `rg` / 局部片段读取，并把“是否需要扩大读取范围”作为证据不足时的判断，而不是固定预读完整 trace。
+
+- 目的：按用户反馈修正 tmux 退出当前 session 后自动切回最近 session 的行为。
+- 已做：先读取 `memory/organizing_preferences.md` 与 `logs/trace.md`，定位到 `.config/shared/tmux/.tmux.conf` 中 `set -g detach-on-destroy off` 会触发 session 被销毁后切换到最近 session。按 TDD 扩展 `tests/tmux_status_test.sh`，先确认旧配置因缺少 `detach-on-destroy on` 失败；随后把配置改为 `set -g detach-on-destroy on`，让当前 session 结束后 detach 当前客户端，不再自动切回其它 session。同步更新 `.config/shared/tmux/README.md` 说明该行为，并在 `memory/organizing_preferences.md` 记录新的 tmux session 销毁偏好。最后把仓库 `.tmux.conf` 同步到 live `/home/rikoo/.tmux.conf` 并执行 `tmux source-file /home/rikoo/.tmux.conf`。
+- 验证：`tests/tmux_status_test.sh` 通过；`bash -n .config/shared/tmux/.tmux.conf .config/shared/tmux/tmux-tab-title tests/tmux_status_test.sh` 通过；`git diff --check` 通过；`diff -u .config/shared/tmux/.tmux.conf /home/rikoo/.tmux.conf` 无差异；当前 tmux 运行态 `detach-on-destroy` 为 `on`。
+- 后续：下次关闭当前 session 或最后一个 window 时，客户端应直接 detach；如果后续还想区分“有其它 detached session 时才切换/不切换”，可再单独评估 tmux 的 `no-detached` 行为。
+
 
 - 目的：按用户要求把当前 Neovim Catppuccin Mocha 主题切换与安全清理结果提交并推送到远程。
 - 已做：提交前完整读取 `memory/organizing_preferences.md` 与 `logs/trace.md`；复跑 nvim 回归测试、注释测试、shell 语法检查、相关 Lua `loadfile` 检查、live `~/.config/nvim` 同步 diff、live headless smoke 与根仓库/子仓库 whitespace 检查，确认 `LIVE_COLORSCHEME=catppuccin-mocha`、`LIVE_CATPPUCCIN_ACTIVE=true`、`LIVE_TROUBLE_ACTIVE=true`、`LIVE_ONEDARK_ACTIVE=false`。随后在 `.config/shared/nvim` 子仓库提交并推送 `649952f`（`Make the active Neovim theme match Mocha`），其中包含 Catppuccin Mocha active theme、Trouble spec 恢复、stale lock entries 清理、disabled stub 压缩和 README 更新；由于子仓库原 `origin` 为 HTTPS，已改为 SSH `git@github.com:lg641135360/neovim.git` 后推送到远程 `main`。
