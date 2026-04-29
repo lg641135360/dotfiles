@@ -5,7 +5,7 @@
 - 目的：按用户要求检查 `.config/shared/nvim/Readme.md`，根据当前 Neovim 实际配置补齐 README，并在完成后提交推送到 GitHub。
 - 已做：对照 `lua/config/keymaps.lua`、`lua/config/options.lua`、`lua/plugins/lsp.lua`、`mason.lua`、`formatter.lua`、`snacks.lua`、`blink-cmp.lua`、`neo-tree.lua`、`bufferline.lua` 等当前配置，更新 nvim README：补齐 `mason-tool-installer.nvim` 的非 headless 自动安装策略、启用的 LSP server、诊断 signs/virtual_lines 边界、行移动/复制对 Alacritty 终端 profile 的依赖、日常快捷键表、blink-cmp 常用键、snacks picker/LSP/Git 入口、conform formatter 映射、DAP 当前未启用状态，以及插件概览；同步更新 `tests/nvim_0_12_cleanup_test.sh`，把这些 README 关键点纳入回归检查；已把更新后的 `Readme.md` 同步到 live `~/.config/nvim/Readme.md`。同时保留上一条长期记忆改动，准备随根仓库一并提交。
 - 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/alacritty_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh tests/alacritty_config_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/config/keymaps.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；仓库 `.config/shared/nvim/Readme.md` 与 live `~/.config/nvim/Readme.md` 无差异。
-- 后续：已在 `.config/shared/nvim` 子仓库提交并推送 `6b8fc67`（`Make Neovim README match active config`）；下一步在根仓库提交 README 回归测试、memory/trace 和子仓库指针并推送。
+- 后续：已在 `.config/shared/nvim` 子仓库提交并推送 `6b8fc67`（`Make Neovim README match active config`）；已在根仓库提交并推送 `e2f3ade`（`Keep Neovim README aligned with live config`），README 回归测试、memory/trace 和子仓库指针均已进入远端 `main`。
 
 - 目的：按用户要求记录一条长期偏好：凡是改动影响用户实际使用体验，尤其是快捷键这类可感知行为，都要同步更新对应 README。
 - 已做：更新 `memory/organizing_preferences.md`，新增通用规则，要求修改快捷键、启动入口、UI 行为、终端按键传递等用户可感知行为时，同步维护对应模块 README，并明确引用本轮 Neovim `Alt+上下` / `Shift+Alt+上下` 行移动复制需要更新 `.config/shared/nvim/Readme.md` 作为示例。
