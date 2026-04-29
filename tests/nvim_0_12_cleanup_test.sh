@@ -14,6 +14,7 @@ ui_check="$(mktemp)"
 active_spec_check="$(mktemp)"
 diagnostics_check="$(mktemp)"
 theme_check="$(mktemp)"
+statusline_check="$(mktemp)"
 lock_file="$NVIM/lazy-lock.json"
 lock_backup="$(mktemp)"
 
@@ -21,7 +22,7 @@ cp "$lock_file" "$lock_backup"
 
 cleanup() {
   cp "$lock_backup" "$lock_file"
-  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$theme_check"
+  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$theme_check" "$statusline_check"
   rm -f "$lock_backup"
 }
 trap cleanup EXIT
@@ -70,6 +71,15 @@ local function require_callback(mode, lhs)
   local mapping = require_mapped(mode, lhs)
   if type(mapping.callback) ~= "function" then
     error(("%s in %s mode should be a callback mapping"):format(lhs, mode))
+  end
+  return mapping
+end
+
+local function require_desc_contains(mode, lhs, text)
+  local mapping = require_mapped(mode, lhs)
+  local desc = tostring(mapping.desc or "")
+  if not desc:find(text, 1, true) then
+    error(("%s in %s mode should have desc containing %s, got %s"):format(lhs, mode, text, desc))
   end
 end
 
@@ -125,7 +135,8 @@ require_rhs_contains("n", "<leader>c", "bdelete")
 require_callback("n", "<leader>tb")
 require_rhs_contains("n", "<leader>e", "Neotree toggle")
 require_callback("n", "<leader>ft")
-require_rhs_contains("n", "<leader>xx", "Trouble diagnostics toggle")
+require_callback("n", "<leader>xx")
+require_desc_contains("n", "<leader>xx", "Diagnostics quickfix")
 
 print("KEYMAP_INVENTORY_OK=true")
 LUA
@@ -349,6 +360,10 @@ for _, name in ipairs({
   "fidget.nvim",
   "lspsaga.nvim",
   "trouble.nvim",
+  "noice.nvim",
+  "snacks.nvim",
+  "nui.nvim",
+  "lualine.nvim",
   "nvim-dap",
   "nvim-dap-ui",
   "nvim-nio",
@@ -364,8 +379,29 @@ cat >"$diagnostics_check" <<'LUA'
 local mapping = vim.fn.maparg("<leader>xx", "n", false, true)
 print("KEYMAP_LEADER_XX_LHS=" .. tostring(mapping.lhs))
 print("KEYMAP_LEADER_XX_RHS=" .. tostring(mapping.rhs))
+print("KEYMAP_LEADER_XX_DESC=" .. tostring(mapping.desc))
 print("KEYMAP_LEADER_XX_CALLBACK=" .. tostring(mapping.callback ~= nil))
 print("TROUBLE_COMMAND_EXISTS=" .. tostring(vim.fn.exists(":Trouble")))
+
+if type(mapping.callback) ~= "function" then
+  error("<leader>xx should be a native diagnostics callback")
+end
+
+local ns = vim.api.nvim_create_namespace("nvim_0_12_trouble_replacement_test")
+vim.diagnostic.set(ns, 0, {
+  {
+    lnum = 0,
+    col = 0,
+    severity = vim.diagnostic.severity.WARN,
+    message = "native quickfix diagnostic",
+    source = "nvim-test",
+  },
+})
+
+mapping.callback()
+local qf = vim.fn.getqflist()
+print("DIAGNOSTICS_QF_COUNT=" .. tostring(#qf))
+print("DIAGNOSTICS_QF_TEXT=" .. tostring(qf[1] and qf[1].text or ""))
 LUA
 
 cat >"$theme_check" <<'LUA'
@@ -373,6 +409,29 @@ local plugins = require("lazy.core.config").plugins or {}
 print("COLORSCHEME=" .. tostring(vim.g.colors_name))
 print("THEME_CATPPUCCIN_ACTIVE=" .. tostring(plugins["catppuccin"] ~= nil))
 print("THEME_ONEDARK_ACTIVE=" .. tostring(plugins["onedark.nvim"] ~= nil))
+LUA
+
+cat >"$statusline_check" <<'LUA'
+vim.bo.filetype = "lua"
+local ns = vim.api.nvim_create_namespace("nvim_0_12_statusline_test")
+vim.diagnostic.set(ns, 0, {
+  {
+    lnum = 0,
+    col = 0,
+    severity = vim.diagnostic.severity.ERROR,
+    message = "statusline diagnostic",
+    source = "nvim-test",
+  },
+})
+local rendered = _G.nvim_native_statusline()
+print("STATUSLINE_LASTSTATUS=" .. tostring(vim.o.laststatus))
+print("STATUSLINE_EXPR=" .. tostring(vim.o.statusline))
+print("STATUSLINE_RENDER=" .. rendered)
+print("STATUSLINE_HAS_MODE=" .. tostring(rendered:find("NORMAL", 1, true) ~= nil))
+print("STATUSLINE_HAS_FILE=" .. tostring(rendered:find("%t", 1, true) ~= nil))
+print("STATUSLINE_HAS_DIAG=" .. tostring(rendered:find("E:1", 1, true) ~= nil))
+print("STATUSLINE_HAS_FILETYPE=" .. tostring(rendered:find("lua", 1, true) ~= nil))
+print("STATUSLINE_HAS_POSITION=" .. tostring(rendered:find("%p%% %l:%c", 1, true) ~= nil))
 LUA
 
 require_pattern() {
@@ -433,7 +492,24 @@ require_pattern 'saghen/blink.cmp' "$NVIM/lua/plugins/blink-cmp.lua" "blink.cmp 
 require_pattern 'folke/snacks.nvim' "$NVIM/lua/plugins/snacks.lua" "snacks.nvim must remain"
 require_pattern 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree.nvim must remain"
 require_pattern 'akinsho/bufferline.nvim' "$NVIM/lua/plugins/bufferline.lua" "bufferline.nvim must remain"
-require_pattern 'nvim-lualine/lualine.nvim' "$NVIM/lua/plugins/ui.lua" "lualine.nvim must remain"
+reject_pattern 'nvim-lualine/lualine.nvim|require\(\"lualine|lualine\.setup' "$NVIM/lua/plugins" "lualine.nvim should be removed after native statusline replacement"
+reject_pattern '"lualine.nvim"' "$NVIM/lazy-lock.json" "lualine.nvim should not remain in lazy-lock after native statusline replacement"
+require_pattern '_G\.nvim_native_statusline' "$NVIM/lua/config/options.lua" "native statusline function should be defined in options.lua"
+require_pattern 'vim\.opt\.statusline = "%!v:lua\.nvim_native_statusline\(\)"' "$NVIM/lua/config/options.lua" "statusline should use native Lua statusline expression"
+require_pattern 'vim\.opt\.laststatus = 3' "$NVIM/lua/config/options.lua" "native statusline should keep global laststatus=3"
+require_pattern '"nvim-web-devicons"' "$NVIM/lazy-lock.json" "nvim-web-devicons should remain pinned for neo-tree and avante"
+reject_pattern 'folke/noice.nvim' "$NVIM/lua/plugins" "noice.nvim should be removed after Neovim 0.12 native command-line/message replacement"
+reject_pattern 'require\("noice"\)|Noice' "$NVIM/lua/plugins" "Noice setup/commands should not remain in active plugin specs"
+reject_pattern '"noice.nvim"' "$NVIM/lazy-lock.json" "noice.nvim should not remain in lazy-lock after removal"
+require_pattern '"nui.nvim"' "$NVIM/lazy-lock.json" "nui.nvim should remain pinned because neo-tree and avante still depend on it"
+require_pattern 'MunifTanjim/nui.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree should continue to declare nui.nvim dependency"
+require_pattern 'MunifTanjim/nui.nvim' "$NVIM/lua/plugins/avante.lua" "avante should continue to declare nui.nvim dependency"
+require_pattern 'nvim-tree/nvim-web-devicons' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree should continue to declare nvim-web-devicons dependency"
+require_pattern 'nvim-tree/nvim-web-devicons' "$NVIM/lua/plugins/avante.lua" "avante should continue to declare nvim-web-devicons dependency"
+if [[ -e "$NVIM/lua/plugins/noice.lua" ]]; then
+  echo "noice.lua should be removed after native Noice replacement"
+  exit 1
+fi
 if [[ -e "$NVIM/lua/plugins/inline-diagno.lua" ]]; then
   echo "tiny-inline-diagnostic plugin spec should be removed"
   exit 1
@@ -450,9 +526,14 @@ reject_pattern 'inc-rename\.nvim' "$NVIM/lazy-lock.json" "inc-rename should not 
 reject_pattern '"Comment.nvim"' "$NVIM/lazy-lock.json" "Comment.nvim should not remain in lazy-lock after removal"
 reject_pattern '"fidget.nvim"' "$NVIM/lazy-lock.json" "fidget.nvim should not remain as an unexplained lock-only plugin"
 reject_pattern '"lspsaga.nvim"' "$NVIM/lazy-lock.json" "lspsaga.nvim should not remain as an unexplained lock-only plugin"
-require_pattern '"trouble.nvim"' "$NVIM/lazy-lock.json" "trouble.nvim lock entry should remain when <leader>xx documents Trouble diagnostics"
-require_pattern 'folke/trouble.nvim' "$NVIM/lua/plugins" "Trouble diagnostics must have an active plugin spec when <leader>xx maps to :Trouble"
-require_pattern 'cmd = "Trouble"' "$NVIM/lua/plugins" "Trouble should be command-loadable without changing the existing <leader>xx mapping"
+reject_pattern '"trouble.nvim"' "$NVIM/lazy-lock.json" "trouble.nvim should not remain in lazy-lock after native diagnostics quickfix replacement"
+reject_pattern 'folke/trouble.nvim|cmd = "Trouble"' "$NVIM/lua/plugins" "Trouble plugin spec should be removed after native diagnostics quickfix replacement"
+reject_pattern ':Trouble diagnostics toggle|Trouble diagnostics' "$NVIM/lua/config/keymaps.lua" "<leader>xx should not call Trouble after native diagnostics quickfix replacement"
+require_pattern 'vim\.diagnostic\.setqflist' "$NVIM/lua/config/keymaps.lua" "<leader>xx should use native vim.diagnostic.setqflist"
+if [[ -e "$NVIM/lua/plugins/trouble.lua" ]]; then
+  echo "trouble.lua should be removed after native diagnostics quickfix replacement"
+  exit 1
+fi
 require_pattern 'folke/lazy.nvim.git' "$NVIM/lua/config/lazy.lua" "lazy.nvim must remain the plugin manager"
 reject_pattern 'vim\.pack\.add' "$NVIM/lua/config/lazy.lua" "vim.pack must not manage plugins in phase one"
 
@@ -522,12 +603,19 @@ require_pattern 'vim\.lsp\.config\(\)' "$NVIM/Readme.md" "README should document
 require_pattern 'vim\.lsp\.enable\(\)' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP enable shape"
 require_pattern '`winborder`' "$NVIM/Readme.md" "README should document Neovim 0.12 winborder default"
 require_pattern '`pumborder`' "$NVIM/Readme.md" "README should document Neovim 0.12 pumborder default"
+reject_pattern 'UI / Picker.*noice\.nvim' "$NVIM/Readme.md" "README should not list noice.nvim as an active UI plugin after native replacement"
+require_pattern 'Noice.*原生.*cmdline/messages|Noice.*native.*cmdline/messages' "$NVIM/Readme.md" "README should document the Noice native cmdline/messages replacement"
+require_pattern 'snacks\.nvim.*notifier.*input|Notifier.*input' "$NVIM/Readme.md" "README should keep snacks notifier/input coverage documented after Noice removal"
 reject_pattern 'tiny-inline-diagnostic|tiny_inline|tiny%-inline%-diagnostic' "$NVIM/Readme.md" "README should not describe removed tiny-inline-diagnostic behavior"
 require_pattern 'virt_text_pos = "inline"' "$NVIM/Readme.md" "README should document native inline diagnostic virtual text"
 require_pattern '<A-Up>' "$NVIM/Readme.md" "README should document Alt-Up line movement"
 require_pattern '<S-A-Down>' "$NVIM/Readme.md" "README should document Shift-Alt-Down line duplication"
 require_pattern 'Alacritty Linux / macOS profile' "$NVIM/Readme.md" "README should document terminal profile support for Alt line keys"
 require_pattern '<leader>tb' "$NVIM/Readme.md" "README should document the bufferline toggle"
+require_pattern '<leader>xx.*quickfix|quickfix.*<leader>xx' "$NVIM/Readme.md" "README should document native quickfix diagnostics for <leader>xx"
+require_pattern '原生 `statusline`|statusline.*laststatus=3' "$NVIM/Readme.md" "README should document the native statusline replacement"
+reject_pattern 'UI / Picker.*lualine\.nvim|`lualine.nvim`' "$NVIM/Readme.md" "README should not list lualine.nvim as active after native statusline replacement"
+reject_pattern 'Trouble diagnostics|folke/trouble.nvim|:Trouble' "$NVIM/Readme.md" "README should not document Trouble after native diagnostics quickfix replacement"
 require_pattern '<leader>ff' "$NVIM/Readme.md" "README should document snacks file picker keymaps"
 require_pattern '<leader>th' "$NVIM/Readme.md" "README should document inlay hint toggle"
 require_pattern 'mason-tool-installer\.nvim' "$NVIM/Readme.md" "README should document Mason tool installer behavior"
@@ -587,7 +675,11 @@ run_nvim_luafile "$active_spec_check" "active spec inventory"
 require_pattern 'ACTIVE_PLUGIN Comment.nvim=false' "$out_file" "Comment.nvim should not be an active spec"
 require_pattern 'ACTIVE_PLUGIN fidget.nvim=false' "$out_file" "fidget.nvim should not be an active spec"
 require_pattern 'ACTIVE_PLUGIN lspsaga.nvim=false' "$out_file" "lspsaga.nvim should not be an active spec"
-require_pattern 'ACTIVE_PLUGIN trouble.nvim=true' "$out_file" "Trouble should be active because <leader>xx and README document Trouble diagnostics"
+require_pattern 'ACTIVE_PLUGIN trouble.nvim=false' "$out_file" "Trouble should not remain active after native diagnostics quickfix replacement"
+require_pattern 'ACTIVE_PLUGIN noice.nvim=false' "$out_file" "Noice should not remain active after native command-line/message replacement"
+require_pattern 'ACTIVE_PLUGIN lualine.nvim=false' "$out_file" "lualine should not remain active after native statusline replacement"
+require_pattern 'ACTIVE_PLUGIN snacks.nvim=true' "$out_file" "snacks.nvim should remain active for picker/notifier/input coverage"
+require_pattern 'ACTIVE_PLUGIN nui.nvim=true' "$out_file" "nui.nvim should remain active as a dependency of neo-tree/avante"
 require_pattern 'ACTIVE_PLUGIN nvim-dap=false' "$out_file" "nvim-dap should remain disabled"
 require_pattern 'ACTIVE_PLUGIN nvim-dap-ui=false' "$out_file" "nvim-dap-ui should remain disabled"
 require_pattern 'ACTIVE_PLUGIN nvim-nio=false' "$out_file" "nvim-nio should not be pulled in by disabled DAP"
@@ -595,17 +687,30 @@ require_pattern 'ACTIVE_PLUGIN smear-cursor.nvim=false' "$out_file" "smear-curso
 require_pattern 'ACTIVE_PLUGIN catppuccin=true' "$out_file" "Catppuccin should be the active theme spec"
 require_pattern 'ACTIVE_PLUGIN onedark.nvim=false' "$out_file" "onedark should not remain active after switching to Catppuccin Mocha"
 
-run_nvim_luafile "$diagnostics_check" "Trouble diagnostics runtime check"
+run_nvim_luafile "$diagnostics_check" "native diagnostics runtime check"
 
 require_pattern 'KEYMAP_LEADER_XX_LHS=<(leader|Space)>xx' "$out_file" "<leader>xx should remain mapped"
-require_pattern 'KEYMAP_LEADER_XX_RHS=.*Trouble diagnostics toggle' "$out_file" "<leader>xx should keep Trouble diagnostics semantics"
-require_pattern 'TROUBLE_COMMAND_EXISTS=2' "$out_file" "Trouble command should exist when README documents Trouble diagnostics"
+require_pattern 'KEYMAP_LEADER_XX_CALLBACK=true' "$out_file" "<leader>xx should be a callback mapping for native diagnostics quickfix"
+require_pattern 'KEYMAP_LEADER_XX_DESC=.*Diagnostics quickfix' "$out_file" "<leader>xx should describe native diagnostics quickfix behavior"
+require_pattern 'TROUBLE_COMMAND_EXISTS=0' "$out_file" "Trouble command should not exist after native diagnostics quickfix replacement"
+require_pattern 'DIAGNOSTICS_QF_COUNT=[1-9]' "$out_file" "<leader>xx callback should populate the quickfix list from diagnostics"
+require_pattern 'DIAGNOSTICS_QF_TEXT=.*native quickfix diagnostic' "$out_file" "quickfix diagnostics should include the injected diagnostic text"
 
 run_nvim_luafile "$theme_check" "theme runtime check"
 
 require_pattern 'COLORSCHEME=catppuccin-mocha' "$out_file" "active colorscheme should be Catppuccin Mocha"
 require_pattern 'THEME_CATPPUCCIN_ACTIVE=true' "$out_file" "Catppuccin plugin should remain active at runtime"
 require_pattern 'THEME_ONEDARK_ACTIVE=false' "$out_file" "onedark plugin should not remain active at runtime"
+
+run_nvim_luafile "$statusline_check" "native statusline runtime check"
+
+require_pattern 'STATUSLINE_LASTSTATUS=3' "$out_file" "native statusline should keep global laststatus=3"
+require_pattern 'STATUSLINE_EXPR=%!v:lua.nvim_native_statusline()' "$out_file" "statusline should use the native Lua expression"
+require_pattern 'STATUSLINE_HAS_MODE=true' "$out_file" "statusline should render the current mode"
+require_pattern 'STATUSLINE_HAS_FILE=true' "$out_file" "statusline should include the file token"
+require_pattern 'STATUSLINE_HAS_DIAG=true' "$out_file" "statusline should include diagnostic counts"
+require_pattern 'STATUSLINE_HAS_FILETYPE=true' "$out_file" "statusline should include filetype"
+require_pattern 'STATUSLINE_HAS_POSITION=true' "$out_file" "statusline should include position tokens"
 
 run_nvim_luafile "$keymap_check" "keymap runtime inventory"
 
