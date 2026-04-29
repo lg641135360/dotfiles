@@ -8,6 +8,7 @@ data_home="$(mktemp -d)"
 state_home="$(mktemp -d)"
 cache_home="$(mktemp -d)"
 keymap_check="$(mktemp)"
+line_edit_check="$(mktemp)"
 lsp_check="$(mktemp)"
 ui_check="$(mktemp)"
 lock_file="$NVIM/lazy-lock.json"
@@ -17,7 +18,7 @@ cp "$lock_file" "$lock_backup"
 
 cleanup() {
   cp "$lock_backup" "$lock_file"
-  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$lsp_check" "$ui_check"
+  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$line_edit_check" "$lsp_check" "$ui_check"
   rm -f "$lock_backup"
 }
 trap cleanup EXIT
@@ -41,6 +42,127 @@ for _, lhs in ipairs({ "gr", "grn", "gra", "grr", "gri", "grt", "grx", "gO" }) d
     )
   )
 end
+LUA
+
+cat >"$line_edit_check" <<'LUA'
+local function assert_equal(actual, expected, label)
+  if actual ~= expected then
+    error(("%s: expected %s, got %s"):format(label, expected, actual))
+  end
+end
+
+local function assert_lines(expected, label)
+  local actual = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  assert_equal(table.concat(actual, "\n"), table.concat(expected, "\n"), label)
+end
+
+local function assert_cursor(line, label)
+  assert_equal(vim.api.nvim_win_get_cursor(0)[1], line, label)
+end
+
+local function assert_register(label)
+  assert_equal(vim.fn.getreg('"'), "keep-register", label)
+end
+
+local function escape()
+  vim.cmd("normal! " .. vim.api.nvim_replace_termcodes("<Esc>", true, false, true))
+end
+
+local function setup_buffer(lines, cursor_line)
+  escape()
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+  vim.api.nvim_win_set_cursor(0, { cursor_line, 0 })
+  vim.fn.setreg('"', "keep-register")
+end
+
+local function select_lines(start_line, end_line)
+  escape()
+  vim.api.nvim_win_set_cursor(0, { start_line, 0 })
+  vim.cmd("normal! V")
+  vim.api.nvim_win_set_cursor(0, { end_line, 0 })
+end
+
+local function callback(mode, lhs)
+  local mapping = vim.fn.maparg(lhs, mode, false, true)
+  print(("LINE_KEYMAP mode=%s lhs=%s callback=%s"):format(mode, lhs, tostring(mapping.callback ~= nil)))
+  if type(mapping.callback) ~= "function" then
+    error(("missing callback mapping for %s in %s mode"):format(lhs, mode))
+  end
+  return mapping.callback
+end
+
+local n_up = callback("n", "<A-Up>")
+local n_down = callback("n", "<A-Down>")
+local n_copy_up = callback("n", "<S-A-Up>")
+local n_copy_down = callback("n", "<S-A-Down>")
+local x_up = callback("x", "<A-Up>")
+local x_down = callback("x", "<A-Down>")
+local x_copy_up = callback("x", "<S-A-Up>")
+local x_copy_down = callback("x", "<S-A-Down>")
+
+setup_buffer({ "one", "two", "three" }, 2)
+n_up()
+assert_lines({ "two", "one", "three" }, "normal Alt-Up should move current line up")
+assert_cursor(1, "normal Alt-Up should follow moved line")
+assert_register("normal Alt-Up should not touch unnamed register")
+
+setup_buffer({ "one", "two", "three" }, 2)
+n_down()
+assert_lines({ "one", "three", "two" }, "normal Alt-Down should move current line down")
+assert_cursor(3, "normal Alt-Down should follow moved line")
+assert_register("normal Alt-Down should not touch unnamed register")
+
+setup_buffer({ "one", "two", "three" }, 2)
+n_copy_up()
+assert_lines({ "one", "two", "two", "three" }, "normal Shift-Alt-Up should duplicate current line above original")
+assert_cursor(2, "normal Shift-Alt-Up should place cursor on copied line")
+assert_register("normal Shift-Alt-Up should not touch unnamed register")
+
+setup_buffer({ "one", "two", "three" }, 2)
+n_copy_down()
+assert_lines({ "one", "two", "two", "three" }, "normal Shift-Alt-Down should duplicate current line below original")
+assert_cursor(3, "normal Shift-Alt-Down should place cursor on copied line")
+assert_register("normal Shift-Alt-Down should not touch unnamed register")
+
+setup_buffer({ "one", "two" }, 1)
+n_up()
+assert_lines({ "one", "two" }, "normal Alt-Up should be a no-op at first line")
+assert_cursor(1, "normal Alt-Up boundary should keep cursor")
+assert_register("normal Alt-Up boundary should not touch unnamed register")
+
+setup_buffer({ "one", "two" }, 2)
+n_down()
+assert_lines({ "one", "two" }, "normal Alt-Down should be a no-op at last line")
+assert_cursor(2, "normal Alt-Down boundary should keep cursor")
+assert_register("normal Alt-Down boundary should not touch unnamed register")
+
+setup_buffer({ "one", "two", "three", "four" }, 1)
+select_lines(2, 3)
+x_up()
+assert_lines({ "two", "three", "one", "four" }, "visual Alt-Up should move selected lines up")
+assert_cursor(1, "visual Alt-Up should follow moved block")
+assert_register("visual Alt-Up should not touch unnamed register")
+
+setup_buffer({ "one", "two", "three", "four" }, 1)
+select_lines(1, 2)
+x_down()
+assert_lines({ "three", "one", "two", "four" }, "visual Alt-Down should move selected lines down")
+assert_cursor(2, "visual Alt-Down should follow moved block")
+assert_register("visual Alt-Down should not touch unnamed register")
+
+setup_buffer({ "one", "two", "three", "four" }, 1)
+select_lines(2, 3)
+x_copy_up()
+assert_lines({ "one", "two", "three", "two", "three", "four" }, "visual Shift-Alt-Up should duplicate selected lines above original")
+assert_cursor(2, "visual Shift-Alt-Up should place cursor on copied block")
+assert_register("visual Shift-Alt-Up should not touch unnamed register")
+
+setup_buffer({ "one", "two", "three", "four" }, 1)
+select_lines(2, 3)
+x_copy_down()
+assert_lines({ "one", "two", "three", "two", "three", "four" }, "visual Shift-Alt-Down should duplicate selected lines below original")
+assert_cursor(4, "visual Shift-Alt-Down should place cursor on copied block")
+assert_register("visual Shift-Alt-Down should not touch unnamed register")
 LUA
 
 cat >"$lsp_check" <<'LUA'
@@ -252,6 +374,8 @@ require_pattern '`winborder`' "$NVIM/Readme.md" "README should document Neovim 0
 require_pattern '`pumborder`' "$NVIM/Readme.md" "README should document Neovim 0.12 pumborder default"
 reject_pattern 'tiny-inline-diagnostic|tiny_inline|tiny%-inline%-diagnostic' "$NVIM/Readme.md" "README should not describe removed tiny-inline-diagnostic behavior"
 require_pattern 'virt_text_pos = "inline"' "$NVIM/Readme.md" "README should document native inline diagnostic virtual text"
+require_pattern '<A-Up>' "$NVIM/Readme.md" "README should document Alt-Up line movement"
+require_pattern '<S-A-Down>' "$NVIM/Readme.md" "README should document Shift-Alt-Down line duplication"
 
 set +e
 XDG_CONFIG_HOME="$ROOT/.config/shared" \
@@ -295,6 +419,30 @@ reject_pattern 'KEYMAP gr .*nowait=1' "$out_file" "bare gr should not use nowait
 require_pattern 'KEYMAP grr lhs=grr .*callback=true' "$out_file" "grr should invoke the references picker callback"
 for lhs in grn gra grr gri grt grx gO; do
   require_pattern "KEYMAP $lhs " "$out_file" "runtime keymap output should include $lhs"
+done
+
+: >"$out_file"
+set +e
+XDG_CONFIG_HOME="$ROOT/.config/shared" \
+  XDG_DATA_HOME="$data_home" \
+  XDG_STATE_HOME="$state_home" \
+  XDG_CACHE_HOME="$cache_home" \
+  nvim --headless -i NONE -u "$NVIM/init.lua" \
+    --cmd 'set noswapfile' \
+    "+luafile $line_edit_check" \
+    '+qa!' >"$out_file" 2>&1
+line_edit_rc=$?
+set -e
+
+if [[ "$line_edit_rc" -ne 0 ]]; then
+  cat "$out_file"
+  exit 1
+fi
+assert_clean_nvim_output
+
+for lhs in '<A-Up>' '<A-Down>' '<S-A-Up>' '<S-A-Down>'; do
+  require_pattern "LINE_KEYMAP mode=n lhs=$lhs callback=true" "$out_file" "$lhs should exist in normal mode"
+  require_pattern "LINE_KEYMAP mode=x lhs=$lhs callback=true" "$out_file" "$lhs should exist in visual mode"
 done
 
 : >"$out_file"

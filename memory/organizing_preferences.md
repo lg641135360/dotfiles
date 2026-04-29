@@ -58,3 +58,5 @@
 - 对当前 Neovim 0.12 LSP 键位迁移，用户没有裸 `gr` 肌肉记忆；优先移除裸 `gr` + `nowait` 风险，把 references 入口迁到默认语义的 `grr`，同时继续保留 `<leader>rn`、`<leader>ca`、`K` 等已有入口。
 - 对当前 Neovim rename 体验，优先使用 Neovim 原生 LSP rename（`grn` 与 LSP buffer-local `<leader>rn`），不再保留 `inc-rename.nvim` 插件；非 LSP buffer 不需要全局 `<leader>rn` rename 兜底。
 - 对当前 Neovim 诊断行内展示，优先使用 0.12 原生 `vim.diagnostic.config()` 的 inline `virtual_text`（`virt_text_pos = "inline"`），保持 signs 关闭、float rounded、source `if_many`；不再保留额外诊断显示插件，除非明确需要插件的 overlay/多行高级样式。
+- 对当前 Neovim 行移动/复制快捷键，普通模式优先只处理当前行，visual 选区优先处理整块多行；第一版不新增插件、不改无关快捷键、尽量不污染寄存器，也不额外处理终端模拟器不发送 `<S-A-Up>` 等组合键的兼容问题。
+- 当前仓库维护 Linux 与 macOS 的 Alacritty 配置；Neovim 的 `Alt+上下` 与 `Shift+Alt+上下` 行移动/复制快捷键应分别在 `.config/shared/alacritty/keys.linux.toml` 与 `.config/shared/alacritty/keys.macos.toml` 中显式发送 xterm modifier 方向键序列，macOS 物理按键按 `option_as_alt = "Both"` 使用 Option。

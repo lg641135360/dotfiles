@@ -1,5 +1,27 @@
 # Trace
 
+## 2026-04-29
+
+- 目的：按用户要求把本轮 Neovim 行移动/复制、Alacritty Linux/macOS 终端按键兼容、测试和文档记录提交并推送到 GitHub。
+- 已做：提交前复核根仓库与 `.config/shared/nvim` 子仓库状态，确认待提交范围为 nvim keymaps/README、根仓库 Alacritty Linux/macOS keys、Alacritty README、Alacritty 回归测试、nvim 回归测试、memory 与 trace；已先在 `.config/shared/nvim` 子仓库提交 `527f1cd`（`Make line motion shortcuts native in Neovim`）并推送到 `lg641135360/neovim`，其中子仓库原 `origin` 为 HTTPS 且当前环境无法交互输入用户名，因此使用 SSH URL 完成推送并刷新 `origin/main` 跟踪；随后在根仓库提交 Alacritty 与子仓库指针。
+- 验证：`tests/alacritty_config_test.sh`、`bash -n tests/alacritty_config_test.sh tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh`、`diff -u .config/shared/alacritty/keys.linux.toml ~/.config/alacritty/keys.toml`、`diff -u .config/shared/nvim/lua/config/keymaps.lua ~/.config/nvim/lua/config/keymaps.lua`、`diff -u .config/shared/nvim/Readme.md ~/.config/nvim/Readme.md`、`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/config/keymaps.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；`alacritty migrate --config-file ~/.config/alacritty/alacritty.toml --dry-run --silent` 返回 0，但仍提示既有主题导入路径缺少 `/home/rikoo/.config/alacritty/themes/themes/catppuccin-mocha.toml`，与本轮提交范围无关。
+- 后续：提交并推送两个仓库后复查 `git status --short --branch`，确认本地与远端一致。
+
+- 目的：按用户要求给当前 Neovim 增加 `Alt+上下` 行移动与 `Shift+Alt+上下` 行复制能力，并通过 `$deep-interview` 明确普通模式/visual 模式范围与第一版边界。
+- 已做：先读取 `memory/organizing_preferences.md` 与 `logs/trace.md`，复用并更新 `.omx/context/nvim-alt-line-move-20260429T020209Z.md`；通过结构化访谈确认普通模式处理当前行、visual 选区处理整块多行，且第一版不新增插件、不改无关快捷键、尽量不污染寄存器、不额外处理终端模拟器组合键兼容。写入访谈摘要 `.omx/interviews/nvim-alt-line-move-20260429T025206Z.md` 与规格 `.omx/specs/deep-interview-nvim-alt-line-move.md`。随后按 TDD 扩展 `tests/nvim_0_12_cleanup_test.sh`，新增普通模式与 visual 模式的行移动/复制映射和行为验证；修改 `.config/shared/nvim/lua/config/keymaps.lua`，用 Lua buffer API 实现 `<A-Up>` / `<A-Down>` 移动当前行或选区、`<S-A-Up>` / `<S-A-Down>` 复制当前行或选区，并保持 unnamed register 不变；更新 `.config/shared/nvim/Readme.md` 与 `memory/organizing_preferences.md` 记录新键位和边界。最后把 `keymaps.lua` 与 `Readme.md` 同步到 live `~/.config/nvim`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_comment_test.sh tests/nvim_0_12_cleanup_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/config/keymaps.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；仓库 `keymaps.lua` / `Readme.md` 与 live `~/.config/nvim` 对应文件无差异；live headless Neovim 验证 `<A-Up>` 普通模式 callback 存在。
+- 后续：若实际终端无法把 `<S-A-Up>` / `<S-A-Down>` 发送给 Neovim，再单独为具体终端模拟器补按键编码兼容；不要把这类兼容问题混入当前第一版实现。
+
+- 目的：根据用户补充“当前终端是 Alacritty，且配置也在仓库里”，把前述终端组合键风险落地到 Alacritty Linux 配置，确保 `Alt+上下` 与 `Shift+Alt+上下` 能传到 Neovim。
+- 已做：检查 `.config/shared/alacritty/keys.linux.toml` 与 live `~/.config/alacritty/keys.toml` 的关系后，在 Linux Alacritty key bindings 中新增 `Alt+Up/Down` 发送 `ESC [ 1 ; 3 A/B`，`Shift+Alt+Up/Down` 发送 `ESC [ 1 ; 4 A/B`；更新 `.config/shared/alacritty/README.md` 说明这些序列只负责终端到 Neovim 的按键传递；新增 `tests/alacritty_config_test.sh` 覆盖 Alacritty Linux 按键序列和 README 文档；同步 `keys.linux.toml` 到 live `~/.config/alacritty/keys.toml`；更新 `memory/organizing_preferences.md` 记录当前 Alacritty 偏好。
+- 验证：`tests/alacritty_config_test.sh`、`bash -n tests/alacritty_config_test.sh tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh`、`diff -u .config/shared/alacritty/keys.linux.toml ~/.config/alacritty/keys.toml`、`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/config/keymaps.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；`alacritty migrate --config-file ~/.config/alacritty/alacritty.toml --dry-run --silent` 返回 0，但当前本机 Alacritty 主题导入路径仍提示缺少 `/home/rikoo/.config/alacritty/themes/themes/catppuccin-mocha.toml`，这与本轮新增 keys 无关。
+- 后续：若 Alacritty 运行中的窗口没有自动热重载键位，重启 Alacritty 后应读取 live `keys.toml`；若未来换成其他终端，再按该终端的 key binding 语法补同一组 xterm modifier 序列。
+
+- 目的：按用户要求把同一组 Neovim 行移动/复制按键序列同步到 macOS Alacritty 配置，避免 Linux 可用但 macOS profile 缺失。
+- 已做：确认 `.config/shared/alacritty/window.macos.toml` 已设置 `option_as_alt = "Both"` 后，在 `.config/shared/alacritty/keys.macos.toml` 中新增 `Option+Up/Down` 与 `Shift+Option+Up/Down` 对应的 xterm modifier 序列，同时保留原有 `Command+h/j/k/l` tmux pane 导航；更新 `.config/shared/alacritty/README.md` 的 Neovim 行移动/复制说明，把 Linux `Alt` 与 macOS `Option` 都写入表格；扩展 `tests/alacritty_config_test.sh` 同时校验 Linux 与 macOS key profile；更新 `memory/organizing_preferences.md` 记录跨平台 Alacritty 偏好。
+- 验证：`tests/alacritty_config_test.sh`、`bash -n tests/alacritty_config_test.sh tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh`、`diff -u .config/shared/alacritty/keys.linux.toml ~/.config/alacritty/keys.toml`、`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/config/keymaps.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；`alacritty migrate --config-file ~/.config/alacritty/alacritty.toml --dry-run --silent` 返回 0，但仍提示既有主题导入路径缺少 `/home/rikoo/.config/alacritty/themes/themes/catppuccin-mocha.toml`，与本轮 macOS keys 变更无关。
+- 后续：当前机器只能同步 Linux live `~/.config/alacritty/keys.toml`；macOS live 配置会在 macOS 上运行安装脚本或手动同步时使用 `.config/shared/alacritty/keys.macos.toml`。
+
 ## 2026-04-28
 
 - 目的：继续 Neovim 0.12 原生化迁移，评估并替换 `tiny-inline-diagnostic.nvim`，用 0.12 原生 diagnostics inline virtual text 减少一项诊断显示插件依赖，同时尽量保留行内提示、关闭 signs 与 rounded float 体验。
