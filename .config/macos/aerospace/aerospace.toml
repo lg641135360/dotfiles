@@ -94,6 +94,7 @@ alt-slash = 'layout tiles horizontal vertical'
 alt-comma = 'layout accordion horizontal vertical'
 
 alt-f = 'fullscreen'
+alt-q = 'close'
 
 alt-ctrl-f = 'layout floating tiling'
 

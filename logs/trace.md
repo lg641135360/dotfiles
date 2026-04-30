@@ -659,3 +659,13 @@
 - 已做：完整读取 `memory/organizing_preferences.md` 与 `logs/trace.md`；通过 `omx explore` 和本地只读检查盘点 `.config/shared/nvim/lua/plugins/*.lua`、`lazy-lock.json` 与 README 插件概览；生成本地忽略的上下文记录 `.omx/context/nvim-0-12-remaining-plugin-inventory-20260430.md`。盘点结论是当前剩余 18 个 lock 条目，核心高风险候选为 `snacks.nvim`、`blink.cmp`、`neo-tree.nvim`，低中风险候选为 `nvim-autopairs`，更推荐下一步先处理 active specs 与 lockfile/README 的一致性（例如 `avante.nvim`、`render-markdown.nvim`、`mason-lspconfig.nvim`、`mason-tool-installer.nvim` 未出现在当前 lockfile）。期间一次空临时 `XDG_DATA_HOME` headless 检查误触发 lazy.nvim 临时插件 clone/build，已终止并删除已知临时数据目录；没有改仓库 nvim 源文件、没有同步 live `~/.config/nvim`、没有推送。
 - 验证：`git status --short --branch` 与 `git -C .config/shared/nvim status --short --branch` 显示除本地领先提交和本 trace 记录外没有新的 nvim 源配置改动；本轮为盘点，不执行插件安装/更新验证。
 - 后续：建议下一步以“lock/spec/README 一致性”作为低风险迁移收尾切片，先补测试明确锁定策略，再决定是否补锁或文档化未锁定边界；暂不顺手替换 `snacks.nvim`、`blink.cmp`、`neo-tree.nvim` 等核心体验插件。
+
+- 目的：按用户要求确认 macOS AeroSpace 是否能用 `Mod+q` 对齐 Linux/AwesomeWM 的关闭当前窗口体验。
+- 已做：检查 `.config/macos/aerospace/aerospace.toml`，确认当前 AeroSpace 的 `Mod` 实际为 `alt`/Option，主模式已有 `alt-enter`、`alt-f` 等窗口管理绑定但缺少 `alt-q`。新增 `alt-q = 'close'`，让 `Mod+q` 关闭当前聚焦窗口；新增 `.config/macos/aerospace/README.md` 记录常用快捷键、`Mod` 语义以及 `close` 与可选 `close --quit-if-last-window` 的差异；新增 `tests/aerospace_config_test.sh` 锁定 `alt-q`、既有 `alt-f`/`alt-enter` 和 README 说明；更新长期偏好，记录 macOS/Linux 桌面体验对齐时 `Mod+q` 默认关闭当前窗口而非退出整个应用。
+- 验证：`tests/aerospace_config_test.sh`、`bash -n tests/aerospace_config_test.sh`、`git diff --check` 均通过；当前 Linux 主机未安装 `aerospace` CLI，因此未执行 AeroSpace 原生命令校验，也未同步 macOS live `~/.config/aerospace/aerospace.toml`。
+- 后续：在 macOS 上运行安装脚本或手动同步后，AeroSpace 应可直接使用 `Option+q` 关闭当前窗口；若用户希望更接近“最后一个窗口时退出应用”，可把命令改为 `close --quit-if-last-window` 并复跑同一测试。
+
+- 目的：按用户要求将 AeroSpace `Mod+q` 关闭当前窗口配置、文档、测试与偏好记录整理为 Git 提交。
+- 已做：提交前复核工作树范围，确认待提交文件为 `.config/macos/aerospace/aerospace.toml`、`.config/macos/aerospace/README.md`、`tests/aerospace_config_test.sh`、`memory/organizing_preferences.md` 与 `logs/trace.md`；复跑 AeroSpace 配置回归测试、测试脚本语法检查和 whitespace 检查。
+- 验证：`tests/aerospace_config_test.sh`、`bash -n tests/aerospace_config_test.sh`、`git diff --check` 均通过。
+- 后续：按 Lore commit 协议创建本地提交；若需要在 macOS 机器立即生效，还需运行安装脚本或同步到 `~/.config/aerospace/aerospace.toml` 后重载 AeroSpace 配置。
