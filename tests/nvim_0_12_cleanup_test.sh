@@ -367,6 +367,7 @@ for _, name in ipairs({
   "aerial.nvim",
   "neoscroll.nvim",
   "header.nvim",
+  "nvim-colorizer.lua",
   "snacks.nvim",
   "nui.nvim",
   "lualine.nvim",
@@ -501,9 +502,11 @@ require_pattern 'akinsho/bufferline.nvim' "$NVIM/lua/plugins/bufferline.lua" "bu
 reject_pattern 'stevearc/aerial.nvim|AerialToggle|require\("aerial"\)' "$NVIM/lua/plugins" "aerial.nvim should be removed after native document symbols replacement"
 reject_pattern 'karb94/neoscroll.nvim|require\("neoscroll"\)' "$NVIM/lua/plugins" "neoscroll.nvim should be removed after native scrolling replacement"
 reject_pattern 'attilarepka/header.nvim' "$NVIM/lua/plugins" "header.nvim should be removed after header automation cleanup"
+reject_pattern 'catgoose/nvim-colorizer.lua' "$NVIM/lua/plugins" "nvim-colorizer.lua should be removed after color preview cleanup"
 reject_pattern '"aerial.nvim"' "$NVIM/lazy-lock.json" "aerial.nvim should not remain in lazy-lock after native document symbols replacement"
 reject_pattern '"neoscroll.nvim"' "$NVIM/lazy-lock.json" "neoscroll.nvim should not remain in lazy-lock after native scrolling replacement"
 reject_pattern '"header.nvim"' "$NVIM/lazy-lock.json" "header.nvim should not remain in lazy-lock after header automation cleanup"
+reject_pattern '"nvim-colorizer.lua"' "$NVIM/lazy-lock.json" "nvim-colorizer.lua should not remain in lazy-lock after color preview cleanup"
 require_pattern 'vim\.lsp\.buf\.document_symbol' "$NVIM/lua/config/keymaps.lua" "<leader>o should use native LSP document symbols"
 reject_pattern 'nvim-lualine/lualine.nvim|require\(\"lualine|lualine\.setup' "$NVIM/lua/plugins" "lualine.nvim should be removed after native statusline replacement"
 reject_pattern '"lualine.nvim"' "$NVIM/lazy-lock.json" "lualine.nvim should not remain in lazy-lock after native statusline replacement"
@@ -632,6 +635,8 @@ reject_pattern 'Editing.*neoscroll\.nvim|`neoscroll.nvim`' "$NVIM/Readme.md" "RE
 require_pattern '原生.*scroll|scroll.*原生|滚动.*原生|原生.*滚动' "$NVIM/Readme.md" "README should document native scrolling after removing neoscroll"
 reject_pattern '`header.nvim`|header\.nvim' "$NVIM/Readme.md" "README should not list header.nvim as active after header automation cleanup"
 require_pattern '自动文件头.*不.*启用|不.*启用.*自动文件头|header.*不.*启用' "$NVIM/Readme.md" "README should document that automatic header insertion is not active by default"
+reject_pattern '`nvim-colorizer.lua`|nvim-colorizer\.lua' "$NVIM/Readme.md" "README should not list nvim-colorizer.lua as active after color preview cleanup"
+require_pattern '颜色预览.*不.*启用|不.*启用.*颜色预览|color preview.*not active' "$NVIM/Readme.md" "README should document that color preview is not active by default"
 reject_pattern 'Outline.*aerial\.nvim|`aerial.nvim`|Aerial' "$NVIM/Readme.md" "README should not list aerial.nvim as active after native symbols replacement"
 require_pattern '原生 `statusline`|statusline.*laststatus=3' "$NVIM/Readme.md" "README should document the native statusline replacement"
 reject_pattern 'UI / Picker.*lualine\.nvim|`lualine.nvim`' "$NVIM/Readme.md" "README should not list lualine.nvim as active after native statusline replacement"
@@ -700,6 +705,7 @@ require_pattern 'ACTIVE_PLUGIN noice.nvim=false' "$out_file" "Noice should not r
 require_pattern 'ACTIVE_PLUGIN aerial.nvim=false' "$out_file" "Aerial should not remain active after native document symbols replacement"
 require_pattern 'ACTIVE_PLUGIN neoscroll.nvim=false' "$out_file" "neoscroll.nvim should not remain active after native scrolling replacement"
 require_pattern 'ACTIVE_PLUGIN header.nvim=false' "$out_file" "header.nvim should not remain active after header automation cleanup"
+require_pattern 'ACTIVE_PLUGIN nvim-colorizer.lua=false' "$out_file" "nvim-colorizer.lua should not remain active after color preview cleanup"
 require_pattern 'ACTIVE_PLUGIN lualine.nvim=false' "$out_file" "lualine should not remain active after native statusline replacement"
 require_pattern 'ACTIVE_PLUGIN snacks.nvim=true' "$out_file" "snacks.nvim should remain active for picker/notifier/input coverage"
 require_pattern 'ACTIVE_PLUGIN nui.nvim=true' "$out_file" "nui.nvim should remain active as a dependency of neo-tree/avante"

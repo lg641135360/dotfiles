@@ -622,3 +622,8 @@
 - 已做：先本地提交 `.config/shared/nvim` 子仓库 `aa2149c`（Neoscroll -> 原生滚动）和 dotfiles 根仓库 `ea9cfb1`（测试/trace/子仓库指针），均未推送；随后新增本地忽略的 Header 候选 PRD/测试规格，删除 `.config/shared/nvim/lua/plugins/header.lua`，从 `.config/shared/nvim/lazy-lock.json` 移除 `header.nvim`，更新 `.config/shared/nvim/Readme.md` 说明自动文件头插件默认不启用，并扩展 `tests/nvim_0_12_cleanup_test.sh` 拒绝 Header spec/lockfile/README/active spec 回归。没有修改格式化、补全、snacks、neo-tree、bufferline、LSP、live `~/.config/nvim` 或插件安装状态。
 - 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh`、相关 Lua `loadfile` 检查（keymaps/options/ui/snacks/avante/neo-tree）、根仓库与 nvim 子仓库 `git diff --check` 均通过。
 - 后续：当前 Header 批次尚未提交；下一步优先先整理成本地提交，再继续评估 `nvim-colorizer.lua` 或进入更高风险的 `bufferline.nvim` 原生 tabline POC。
+
+- 目的：继续 Neovim 0.12 原生化/瘦身低风险候选，移除非核心体验的 `nvim-colorizer.lua` 颜色预览插件。
+- 已做：先本地提交 `.config/shared/nvim` 子仓库 `b034cae`（移除 project-specific header automation）和 dotfiles 根仓库 `341d9b4`（测试/trace/子仓库指针），均未推送；随后新增本地忽略的 Colorizer 候选 PRD/测试规格，删除 `.config/shared/nvim/lua/plugins/colorizer.lua`，从 `.config/shared/nvim/lazy-lock.json` 移除 `nvim-colorizer.lua`，更新 `.config/shared/nvim/Readme.md` 说明颜色预览插件默认不启用，并扩展 `tests/nvim_0_12_cleanup_test.sh` 拒绝 Colorizer spec/lockfile/README/active spec 回归。没有修改主题、Treesitter、补全、snacks、neo-tree、bufferline、LSP、live `~/.config/nvim` 或插件安装状态。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh`、相关 Lua `loadfile` 检查（keymaps/options/ui/snacks/avante/neo-tree）、根仓库与 nvim 子仓库 `git diff --check` 均通过。
+- 后续：当前 Colorizer 批次尚未提交；下一步优先先整理成本地提交。低风险 P2 清理基本完成后，若继续原生化，下一项应单独规划 `bufferline.nvim` -> native tabline，因为它会影响视觉和 buffer 导航体验。
