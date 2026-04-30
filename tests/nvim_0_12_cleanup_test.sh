@@ -366,7 +366,21 @@ local plugins = require("lazy.core.config").plugins or {}
 local snacks = plugins["snacks.nvim"] or {}
 local snacks_opts = type(snacks.opts) == "table" and snacks.opts or {}
 local dashboard = type(snacks_opts.dashboard) == "table" and snacks_opts.dashboard or {}
+local noice = plugins["noice.nvim"] or {}
+local noice_opts = type(noice.opts) == "table" and noice.opts or {}
+local noice_cmdline = type(noice_opts.cmdline) == "table" and noice_opts.cmdline or {}
+local noice_messages = type(noice_opts.messages) == "table" and noice_opts.messages or {}
+local noice_notify = type(noice_opts.notify) == "table" and noice_opts.notify or {}
+local noice_lsp = type(noice_opts.lsp) == "table" and noice_opts.lsp or {}
+local noice_hover = type(noice_lsp.hover) == "table" and noice_lsp.hover or {}
+local noice_signature = type(noice_lsp.signature) == "table" and noice_lsp.signature or {}
 print("SNACKS_DASHBOARD_ENABLED=" .. tostring(dashboard.enabled))
+print("NOICE_CMDLINE_ENABLED=" .. tostring(noice_cmdline.enabled))
+print("NOICE_CMDLINE_VIEW=" .. tostring(noice_cmdline.view))
+print("NOICE_MESSAGES_ENABLED=" .. tostring(noice_messages.enabled))
+print("NOICE_NOTIFY_ENABLED=" .. tostring(noice_notify.enabled))
+print("NOICE_LSP_HOVER_ENABLED=" .. tostring(noice_hover.enabled))
+print("NOICE_LSP_SIGNATURE_ENABLED=" .. tostring(noice_signature.enabled))
 for _, name in ipairs({
   "Comment.nvim",
   "fidget.nvim",
@@ -564,16 +578,20 @@ require_pattern '_G\.nvim_native_statusline' "$NVIM/lua/config/options.lua" "nat
 require_pattern 'vim\.opt\.statusline = "%!v:lua\.nvim_native_statusline\(\)"' "$NVIM/lua/config/options.lua" "statusline should use native Lua statusline expression"
 require_pattern 'vim\.opt\.laststatus = 3' "$NVIM/lua/config/options.lua" "native statusline should keep global laststatus=3"
 require_pattern '"nvim-web-devicons"' "$NVIM/lazy-lock.json" "nvim-web-devicons should remain pinned for neo-tree and avante"
-reject_pattern 'folke/noice.nvim' "$NVIM/lua/plugins" "noice.nvim should be removed after Neovim 0.12 native command-line/message replacement"
-reject_pattern 'require\("noice"\)|Noice' "$NVIM/lua/plugins" "Noice setup/commands should not remain in active plugin specs"
-reject_pattern '"noice.nvim"' "$NVIM/lazy-lock.json" "noice.nvim should not remain in lazy-lock after removal"
+require_pattern 'folke/noice.nvim' "$NVIM/lua/plugins/noice.lua" "noice.nvim should provide the preferred floating command-line popup"
+require_pattern 'view = "cmdline_popup"' "$NVIM/lua/plugins/noice.lua" "Noice should use the cmdline popup view for ':'"
+require_pattern 'messages = \{ enabled = false \}' "$NVIM/lua/plugins/noice.lua" "Noice should not take over regular messages"
+require_pattern 'notify = \{ enabled = false \}' "$NVIM/lua/plugins/noice.lua" "Snacks should remain the notification UI instead of Noice"
+require_pattern 'hover = \{ enabled = false \}' "$NVIM/lua/plugins/noice.lua" "Noice should not take over LSP hover"
+require_pattern 'signature = \{ enabled = false \}' "$NVIM/lua/plugins/noice.lua" "Noice should not take over LSP signature help"
+require_pattern '"noice.nvim"' "$NVIM/lazy-lock.json" "noice.nvim should be pinned for the floating command-line popup"
 require_pattern '"nui.nvim"' "$NVIM/lazy-lock.json" "nui.nvim should remain pinned because neo-tree and avante still depend on it"
 require_pattern 'MunifTanjim/nui.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree should continue to declare nui.nvim dependency"
 require_pattern 'MunifTanjim/nui.nvim' "$NVIM/lua/plugins/avante.lua" "avante should continue to declare nui.nvim dependency"
 require_pattern 'nvim-tree/nvim-web-devicons' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree should continue to declare nvim-web-devicons dependency"
 require_pattern 'nvim-tree/nvim-web-devicons' "$NVIM/lua/plugins/avante.lua" "avante should continue to declare nvim-web-devicons dependency"
-if [[ -e "$NVIM/lua/plugins/noice.lua" ]]; then
-  echo "noice.lua should be removed after native Noice replacement"
+if [[ ! -e "$NVIM/lua/plugins/noice.lua" ]]; then
+  echo "noice.lua should exist for the preferred floating command-line popup"
   exit 1
 fi
 if [[ -e "$NVIM/lua/plugins/inline-diagno.lua" ]]; then
@@ -669,9 +687,8 @@ require_pattern 'vim\.lsp\.config\(\)' "$NVIM/Readme.md" "README should document
 require_pattern 'vim\.lsp\.enable\(\)' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP enable shape"
 require_pattern '`winborder`' "$NVIM/Readme.md" "README should document Neovim 0.12 winborder default"
 require_pattern '`pumborder`' "$NVIM/Readme.md" "README should document Neovim 0.12 pumborder default"
-reject_pattern 'UI / Picker.*noice\.nvim' "$NVIM/Readme.md" "README should not list noice.nvim as an active UI plugin after native replacement"
-require_pattern 'Noice.*原生.*cmdline/messages|Noice.*native.*cmdline/messages' "$NVIM/Readme.md" "README should document the Noice native cmdline/messages replacement"
-require_pattern 'snacks\.nvim.*notifier.*input|Notifier.*input' "$NVIM/Readme.md" "README should keep snacks notifier/input coverage documented after Noice removal"
+require_pattern 'Noice.*cmdline_popup|cmdline_popup.*Noice|浮动命令行' "$NVIM/Readme.md" "README should document Noice as the floating command-line provider"
+require_pattern 'snacks\.nvim.*notifier.*input|Notifier.*input' "$NVIM/Readme.md" "README should keep snacks notifier/input coverage documented alongside narrow Noice cmdline usage"
 require_pattern 'Dashboard 不启用|原生空 buffer|native startup' "$NVIM/Readme.md" "README should document native startup after disabling snacks dashboard"
 reject_pattern 'tiny-inline-diagnostic|tiny_inline|tiny%-inline%-diagnostic' "$NVIM/Readme.md" "README should not describe removed tiny-inline-diagnostic behavior"
 require_pattern 'virt_text_pos = "inline"' "$NVIM/Readme.md" "README should document native inline diagnostic virtual text"
@@ -758,7 +775,7 @@ require_pattern 'ACTIVE_PLUGIN Comment.nvim=false' "$out_file" "Comment.nvim sho
 require_pattern 'ACTIVE_PLUGIN fidget.nvim=false' "$out_file" "fidget.nvim should not be an active spec"
 require_pattern 'ACTIVE_PLUGIN lspsaga.nvim=false' "$out_file" "lspsaga.nvim should not be an active spec"
 require_pattern 'ACTIVE_PLUGIN trouble.nvim=false' "$out_file" "Trouble should not remain active after native diagnostics quickfix replacement"
-require_pattern 'ACTIVE_PLUGIN noice.nvim=false' "$out_file" "Noice should not remain active after native command-line/message replacement"
+require_pattern 'ACTIVE_PLUGIN noice.nvim=true' "$out_file" "Noice should remain active for the preferred floating command-line popup"
 require_pattern 'ACTIVE_PLUGIN aerial.nvim=false' "$out_file" "Aerial should not remain active after native document symbols replacement"
 require_pattern 'ACTIVE_PLUGIN neoscroll.nvim=false' "$out_file" "neoscroll.nvim should not remain active after native scrolling replacement"
 require_pattern 'ACTIVE_PLUGIN header.nvim=false' "$out_file" "header.nvim should not remain active after header automation cleanup"
@@ -771,6 +788,12 @@ require_pattern 'ACTIVE_PLUGIN blink.cmp=true' "$out_file" "blink.cmp should rem
 require_pattern 'ACTIVE_PLUGIN lualine.nvim=false' "$out_file" "lualine should not remain active after native statusline replacement"
 require_pattern 'ACTIVE_PLUGIN snacks.nvim=true' "$out_file" "snacks.nvim should remain active for picker/notifier/input coverage"
 require_pattern 'SNACKS_DASHBOARD_ENABLED=false' "$out_file" "snacks dashboard should be disabled at runtime"
+require_pattern 'NOICE_CMDLINE_ENABLED=true' "$out_file" "Noice cmdline should be enabled at runtime"
+require_pattern 'NOICE_CMDLINE_VIEW=cmdline_popup' "$out_file" "Noice should restore the floating ':' command-line popup"
+require_pattern 'NOICE_MESSAGES_ENABLED=false' "$out_file" "Noice should not take over regular messages"
+require_pattern 'NOICE_NOTIFY_ENABLED=false' "$out_file" "Noice notifications should stay disabled"
+require_pattern 'NOICE_LSP_HOVER_ENABLED=false' "$out_file" "Noice should not take over LSP hover"
+require_pattern 'NOICE_LSP_SIGNATURE_ENABLED=false' "$out_file" "Noice should not take over LSP signature help"
 require_pattern 'ACTIVE_PLUGIN nui.nvim=true' "$out_file" "nui.nvim should remain active as a dependency of neo-tree/avante"
 require_pattern 'ACTIVE_PLUGIN nvim-dap=false' "$out_file" "nvim-dap should remain disabled"
 require_pattern 'ACTIVE_PLUGIN nvim-dap-ui=false' "$out_file" "nvim-dap-ui should remain disabled"

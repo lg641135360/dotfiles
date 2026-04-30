@@ -67,3 +67,4 @@
 - 对当前 Neovim 配置清理重构计划，优先拆成“安全清理计划”和“战略候选 backlog”两部分；第一版安全清理不能改变现有快捷键体验，验收时必须包含测试/文档清单和优先级排序。
 - 对当前 Neovim 主题，优先使用 Catppuccin Mocha（`catppuccin/nvim`，`flavour = "mocha"`，非透明背景），不再保留 onedark 作为 active theme 或 lockfile 条目。
 - 对 macOS AeroSpace 与 Linux AwesomeWM 的桌面体验对齐，当前偏好是把 `Mod+q` 统一为“关闭当前聚焦窗口”；AeroSpace 中 `Mod` 使用 `alt`/Option，默认使用 `close` 而不是退出整个应用，若要最后一个窗口时退出应用再单独切到 `close --quit-if-last-window`。
+- 对当前 Neovim 命令行体验，`:` / `/` / `?` 的浮动命令行窗口属于保留肌肉记忆；优先用 `noice.nvim` 窄配置只提供 `cmdline_popup`，不要再把它当作可完全由原生 cmdline/messages 覆盖的冗余插件。Noice 不应接管 notify、普通 messages、LSP hover 或 signature；这些继续走 snacks/原生路径。

@@ -669,3 +669,28 @@
 - 已做：提交前复核工作树范围，确认待提交文件为 `.config/macos/aerospace/aerospace.toml`、`.config/macos/aerospace/README.md`、`tests/aerospace_config_test.sh`、`memory/organizing_preferences.md` 与 `logs/trace.md`；复跑 AeroSpace 配置回归测试、测试脚本语法检查和 whitespace 检查。
 - 验证：`tests/aerospace_config_test.sh`、`bash -n tests/aerospace_config_test.sh`、`git diff --check` 均通过。
 - 后续：按 Lore commit 协议创建本地提交；若需要在 macOS 机器立即生效，还需运行安装脚本或同步到 `~/.config/aerospace/aerospace.toml` 后重载 AeroSpace 配置。
+
+- 目的：按用户要求将 AeroSpace `Mod+q` 提交推送到远端 GitHub。
+- 已做：推送前确认本地 `main` 领先 `origin/main` 1 个提交，最新提交为 `b7494ff`；执行 `git push origin main`，远端 `main` 从 `9a45a2f` 更新到 `b7494ff`。
+- 验证：推送后 `git status --short --branch` 显示 `## main...origin/main`，本地与远端分支已同步。
+- 后续：本次 trace 记录是推送后的本地追加记录，尚未包含在已推送提交中；如需保持 trace 远端完全记录推送事件，可后续单独提交该记录。
+
+- 目的：按用户反馈恢复 Neovim 中按 `:` 时的优雅浮动命令行窗口，同时尽量保留近期原生化成果。
+- 已做：先按关键词复核 Neovim/Noice/snacks 相关偏好与历史记录，确认此前浮动命令行来自 `noice.nvim` 的 `cmdline_popup`，而上一批原生化迁移把 Noice 完全移除导致体验回退。新增 `.config/shared/nvim/lua/plugins/noice.lua`，以窄配置恢复 `cmdline_popup`，同时显式关闭 Noice 的普通 messages、notify、LSP hover、signature 和 progress 接管；恢复 `lazy-lock.json` 中 Noice pin；更新 `.config/shared/nvim/Readme.md`，说明 Noice 只负责浮动命令行，snacks 继续负责 notifier/input；更新 `tests/nvim_0_12_cleanup_test.sh`，从拒绝 Noice 回归改为锁定窄配置和运行时 `NOICE_CMDLINE_VIEW=cmdline_popup`；更新长期偏好，记录 `:` / `/` / `?` 浮动命令行是保留体验。
+- 验证：已先运行 `tests/nvim_0_12_cleanup_test.sh` 通过；后续还需继续运行注释回归、shell/Lua 语法检查、root/nvim diff 检查，并同步 live `~/.config/nvim` 后做 live smoke。
+- 后续：若后续继续 Neovim 原生化，不要再无差别移除 Noice；若要替换，必须提供能等价恢复 `cmdline_popup` 体验的替代方案和交互验证。
+
+- 目的：完成 Noice 浮动命令行恢复后的验证与 live 配置同步。
+- 已做：复跑 Neovim 清理回归、注释回归、shell 语法检查、关键 Lua `loadfile`、根仓库与 nvim 子仓库 whitespace 检查；确认本机已有 `~/.local/share/nvim/lazy/noice.nvim` 且 pin 为 `7bfd942`。随后仅把新增的窄配置 `noice.lua` 同步到 live `~/.config/nvim/lua/plugins/noice.lua`，并在 live `lazy-lock.json` 中补回同一 Noice pin；同步前备份保存在 `/tmp/nvim-noice-live-backup-20260430T212557`。没有把仓库整套最新 nvim 配置覆盖到 live，以避免顺手引入其它尚未同步的原生化差异。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh`、`luajit -e 'assert(loadfile(...))'` 覆盖 `noice.lua` / `snacks.lua` / `options.lua`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；live headless smoke 输出 `LIVE_NOICE_ACTIVE=true`、`LIVE_NOICE_CMDLINE_ENABLED=true`、`LIVE_NOICE_CMDLINE_VIEW=cmdline_popup`，同时 `LIVE_NOICE_MESSAGES_ENABLED=false`、`LIVE_NOICE_NOTIFY_ENABLED=false`、`LIVE_NOICE_HOVER_ENABLED=false`、`LIVE_NOICE_SIGNATURE_ENABLED=false`。
+- 后续：交互式 Neovim 中按 `:` 应恢复 Noice 浮动命令行；如果后续提交，需先提交 `.config/shared/nvim` 子仓库的 Noice/README/lockfile 变更，再提交 dotfiles 根仓库测试、memory、trace 与子仓库指针。
+
+- 目的：按用户要求将 Noice 浮动命令行恢复改动提交并推送到远端。
+- 已做：提交前复跑 Neovim 配置回归、注释回归、shell 语法检查、关键 Lua `loadfile`、根仓库与 nvim 子仓库 whitespace 检查；确认待提交范围为 `.config/shared/nvim` 子仓库里的 `lua/plugins/noice.lua`、`lazy-lock.json`、`Readme.md`，以及根仓库的子仓库指针、`tests/nvim_0_12_cleanup_test.sh`、`memory/organizing_preferences.md`、`logs/trace.md`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh`、`luajit -e 'assert(loadfile(...))'` 覆盖 `noice.lua` / `snacks.lua` / `options.lua`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过。
+- 后续：先提交并推送 `.config/shared/nvim` 子仓库，再提交并推送 dotfiles 根仓库，确保远端包含子仓库指针和根仓库测试/偏好/trace。
+
+- 目的：记录 Noice 浮动命令行恢复在 Neovim 子仓库的提交与推送结果。
+- 已做：在 `.config/shared/nvim` 子仓库提交 `f0d2cbe`（`Restore the floating command-line popup`），包含 Noice 窄配置、lockfile pin 与 README 更新；随后推送到 `lg641135360/neovim` 的 `main`，远端从 `e5f7bf1` 更新到 `f0d2cbe`。
+- 验证：推送后 `git -C .config/shared/nvim status --short --branch` 显示 `## main...origin/main`，子仓库本地与远端已同步。
+- 后续：继续提交并推送 dotfiles 根仓库，包含子仓库指针、测试护栏、memory 与 trace。
