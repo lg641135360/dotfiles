@@ -377,6 +377,8 @@ for _, name in ipairs({
   "neoscroll.nvim",
   "header.nvim",
   "nvim-colorizer.lua",
+  "nvim-treesitter",
+  "nvim-treesitter-textobjects",
   "bufferline.nvim",
   "lspkind-nvim",
   "blink.cmp",
@@ -535,6 +537,10 @@ require_pattern 'nvim-web-devicons' "$NVIM/lua/plugins/blink-cmp.lua" "blink-cmp
 require_pattern 'folke/snacks.nvim' "$NVIM/lua/plugins/snacks.lua" "snacks.nvim must remain"
 require_pattern 'dashboard = \{ enabled = false \}' "$NVIM/lua/plugins/snacks.lua" "snacks dashboard should be disabled for native startup"
 require_pattern 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree.nvim must remain"
+require_pattern 'nvim-treesitter/nvim-treesitter' "$NVIM/lua/plugins/ui.lua" "nvim-treesitter core should remain for syntax highlighting"
+reject_pattern 'nvim-treesitter/nvim-treesitter-textobjects|nvim-treesitter-textobjects' "$NVIM/lua/plugins" "nvim-treesitter-textobjects should be removed because no textobjects are configured"
+reject_pattern '"nvim-treesitter-textobjects"' "$NVIM/lazy-lock.json" "nvim-treesitter-textobjects should not remain in lazy-lock after cleanup"
+require_pattern '"nvim-treesitter"' "$NVIM/lazy-lock.json" "nvim-treesitter core should remain pinned"
 reject_pattern 'akinsho/bufferline.nvim|BufferLine' "$NVIM/lua/plugins" "bufferline.nvim should be removed after native tabline replacement"
 reject_pattern '"bufferline.nvim"' "$NVIM/lazy-lock.json" "bufferline.nvim should not remain in lazy-lock after native tabline replacement"
 require_pattern '_G\.nvim_native_tabline' "$NVIM/lua/config/options.lua" "native tabline function should be defined in options.lua"
@@ -691,6 +697,9 @@ reject_pattern 'Trouble diagnostics|folke/trouble.nvim|:Trouble' "$NVIM/Readme.m
 require_pattern '<leader>ff' "$NVIM/Readme.md" "README should document snacks file picker keymaps"
 reject_pattern '`lspkind.nvim`|lspkind\.nvim' "$NVIM/Readme.md" "README should not list lspkind.nvim as active after inline icon cleanup"
 require_pattern 'kind icons.*本地映射|本地映射.*kind icons' "$NVIM/Readme.md" "README should document local completion kind icons"
+reject_pattern '`nvim-treesitter-textobjects`|nvim-treesitter-textobjects' "$NVIM/Readme.md" "README should not list treesitter textobjects as an active plugin after cleanup"
+require_pattern 'Syntax[[:space:]]+\| `nvim-treesitter`' "$NVIM/Readme.md" "README should list nvim-treesitter as the syntax provider"
+require_pattern '语法高亮.*/.*缩进由 Treesitter 本体负责|Treesitter 本体负责' "$NVIM/Readme.md" "README should document that Treesitter core owns syntax and indent"
 require_pattern '<leader>th' "$NVIM/Readme.md" "README should document inlay hint toggle"
 require_pattern 'mason-tool-installer\.nvim' "$NVIM/Readme.md" "README should document Mason tool installer behavior"
 require_pattern 'headless 测试' "$NVIM/Readme.md" "README should document headless runs skip automatic tool installation"
@@ -754,6 +763,8 @@ require_pattern 'ACTIVE_PLUGIN aerial.nvim=false' "$out_file" "Aerial should not
 require_pattern 'ACTIVE_PLUGIN neoscroll.nvim=false' "$out_file" "neoscroll.nvim should not remain active after native scrolling replacement"
 require_pattern 'ACTIVE_PLUGIN header.nvim=false' "$out_file" "header.nvim should not remain active after header automation cleanup"
 require_pattern 'ACTIVE_PLUGIN nvim-colorizer.lua=false' "$out_file" "nvim-colorizer.lua should not remain active after color preview cleanup"
+require_pattern 'ACTIVE_PLUGIN nvim-treesitter=true' "$out_file" "nvim-treesitter should remain active for syntax highlighting"
+require_pattern 'ACTIVE_PLUGIN nvim-treesitter-textobjects=false' "$out_file" "nvim-treesitter-textobjects should not remain active after cleanup"
 require_pattern 'ACTIVE_PLUGIN bufferline.nvim=false' "$out_file" "bufferline.nvim should not remain active after native tabline replacement"
 require_pattern 'ACTIVE_PLUGIN lspkind-nvim=false' "$out_file" "lspkind-nvim should not remain active after inline completion icon cleanup"
 require_pattern 'ACTIVE_PLUGIN blink.cmp=true' "$out_file" "blink.cmp should remain active after lspkind removal"
