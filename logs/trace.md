@@ -694,3 +694,73 @@
 - 已做：在 `.config/shared/nvim` 子仓库提交 `f0d2cbe`（`Restore the floating command-line popup`），包含 Noice 窄配置、lockfile pin 与 README 更新；随后推送到 `lg641135360/neovim` 的 `main`，远端从 `e5f7bf1` 更新到 `f0d2cbe`。
 - 验证：推送后 `git -C .config/shared/nvim status --short --branch` 显示 `## main...origin/main`，子仓库本地与远端已同步。
 - 后续：继续提交并推送 dotfiles 根仓库，包含子仓库指针、测试护栏、memory 与 trace。
+
+- 目的：记录 Noice 浮动命令行恢复在 dotfiles 根仓库的提交与推送结果。
+- 已做：在根仓库提交 `571fc08`（`Preserve the preferred Neovim cmdline popup`），包含 nvim 子仓库指针、Noice 回归测试、长期偏好和 trace；随后推送到 `lg641135360/dotfiles` 的 `main`，远端从 `b7494ff` 更新到 `571fc08`。
+- 验证：推送后根仓库与 `.config/shared/nvim` 子仓库的 `git status --short --branch` 均显示 `## main...origin/main`，说明两个远端都已同步。
+- 后续：本条 push 结果记录是推送后的本地追加 trace，尚未纳入远端；如后续需要 trace 完全记录推送事件，可单独提交该记录。
+
+- 目的：按用户要求把 Git 的默认编辑器从 Vim 调整为 Neovim。
+- 已做：检查 `.config/shared/git/config`、Git README 与现有安装映射，确认共享 Git 配置会被安装到 `~/.config/git/config`。将 `[core] editor` 从 `vim` 改为 `nvim`；新增 `tests/git_config_test.sh`，锁定 `core.editor = nvim`、保留 `commit.template` 路径并要求 README 记录默认编辑器；同步更新 `.config/shared/git/README.md` 与长期偏好，记录 Git 交互式命令默认使用 Neovim。
+- 验证：后续运行 `tests/git_config_test.sh`、shell 语法检查、`git config --file .config/shared/git/config --get core.editor`、live 同步检查和 `git diff --check`。
+- 后续：如果验证通过，将仓库 Git 配置同步到 live `~/.config/git/config`，使当前机器的 `git commit` / `git rebase -i` 立即使用 nvim。
+
+- 目的：完成 Git 默认编辑器切换到 Neovim 后的验证与 live 配置同步。
+- 已做：运行 Git 配置回归测试、测试脚本语法检查、`core.editor` 读取检查和 whitespace 检查；随后把 `.config/shared/git/config` 同步到 live `~/.config/git/config`，同步前备份到 `/tmp/git-config-live-backup-20260430T213256`。
+- 验证：`tests/git_config_test.sh`、`bash -n tests/git_config_test.sh`、`git config --file .config/shared/git/config --get core.editor`、`git diff --check` 均通过；`diff -u .config/shared/git/config ~/.config/git/config` 无差异，`git config --global --get core.editor` 输出 `nvim`。
+- 后续：当前机器的 `git commit`、`git rebase -i` 等交互式 Git 命令会默认打开 Neovim；如后续提交需包含 Git 配置、README、测试、memory 与 trace。
+
+- 目的：排查并修复用户在 Neovim 中修改文件后恢复时出现的 Neo-tree `Invalid 'width': Number is not integral` 报错。
+- 已做：只读定位报错栈到 `~/.local/share/nvim/lazy/neo-tree.nvim/plugin/neo-tree.lua:148`，该回调在有 modified buffer 阻止 `close_if_last_window` 时执行 `vim.api.nvim_win_set_width(remaining_pane, state.window.width or 40)`；仓库与 live 配置中的 `.config/shared/nvim/lua/plugins/neo-tree.lua` / `~/.config/nvim/lua/plugins/neo-tree.lua` 都把 `window.width` 配成 `0.15` 小数。由于 Neovim 窗口宽度 API 要求整数列数，导致 scheduled callback 报错。已将仓库 Neo-tree sidebar 宽度改为整数 `40`，同步更新 nvim README，扩展 `tests/nvim_0_12_cleanup_test.sh` 拒绝 `width = 0.x` 并要求 README 记录整数宽度；新增长期偏好记录此约束。
+- 验证：后续运行 Neovim 回归、注释回归、shell/Lua 语法检查、diff 检查，并同步 live `~/.config/nvim/lua/plugins/neo-tree.lua` 后做 live headless smoke。
+- 后续：如果用户以后想要相对宽度，需要在配置层换算成整数列数，而不是直接把小数传给 Neo-tree 的 `window.width`。
+
+- 目的：完成 Neo-tree 小数宽度修复后的验证与 live 同步。
+- 已做：复跑 Neovim 清理回归、注释回归、shell 语法检查、`neo-tree.lua` Lua 语法检查、root/nvim diff whitespace 检查；随后把 `.config/shared/nvim/lua/plugins/neo-tree.lua` 同步到 live `~/.config/nvim/lua/plugins/neo-tree.lua`，同步前备份到 `/tmp/nvim-neotree-live-backup-20260430T213626`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/plugins/neo-tree.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；live `~/.config/nvim/lua/plugins/neo-tree.lua` 与仓库文件无差异，且包含 `width = 40`；live headless smoke 输出 `LIVE_NEOTREE_SPEC=true`。
+- 后续：交互式 Neovim 需重启或重新加载配置后生效；再次触发 Neo-tree 在 modified buffer 场景下的 scheduled callback 时，传入 `nvim_win_set_width()` 的应为整数 `40`。
+
+- 目的：按用户反馈优化 Neovim 中 Neo-tree modified-buffer 警告的可读性，并新增更顺手的快速保存快捷键。
+- 已做：在 `.config/shared/nvim/lua/plugins/snacks.lua` 中把 Snacks notifier 默认 timeout 从 2 秒提高到 8 秒，放宽通知宽高并让 notification 弹窗换行，同时扩大 notification history 窗口；在 `.config/shared/nvim/lua/config/keymaps.lua` 中新增普通/插入/可视模式 `<C-s>` 保存，保留原有 `<leader>w` 和 `<leader>q` 肌肉记忆；更新 `.config/shared/nvim/Readme.md`、`tests/nvim_0_12_cleanup_test.sh` 与长期偏好，记录 `<leader>nh` 可查看完整警告历史。已把 snacks/keymaps/README 同步到 live `~/.config/nvim`，同步前备份到 `/tmp/nvim-notifier-save-live-backup-20260430T214645`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、相关 shell 语法检查、Lua `loadfile` 检查、根仓库与 nvim 子仓库 `git diff --check` 均通过；live headless smoke 输出 `LIVE_SNACKS_NOTIFIER_TIMEOUT=8000`、`LIVE_SNACKS_NOTIFICATION_WRAP=true`，且 `<C-s>` 在 n/i/v 三种模式都映射到 `<cmd>write<CR>`。
+- 后续：交互式 Neovim 重启或重新加载配置后生效；如果某个终端环境拦截 `<C-s>`，再针对终端关闭 XON/XOFF flow control 或调整按键转发。
+
+- 目的：解释并修复从 `nvim .` 打开目录后，打开文件再按 `<leader>q` 会退出整个 Neovim 的问题。
+- 已做：确认旧映射是 `<leader>q -> :q<CR>`，其语义是关闭当前窗口；当 Neo-tree/目录启动场景中当前文件窗口成为最后一个普通编辑窗口时，`:q` 会关闭该窗口并触发 Neovim 进程退出。将 `.config/shared/nvim/lua/config/keymaps.lua` 中 `<leader>q` 改为 `<cmd>bdelete<CR>`，让它关闭当前文件 buffer 而不是关闭窗口；保留 `<leader>c` 作为强制 `bdelete!`。同步更新 `.config/shared/nvim/Readme.md`、`tests/nvim_0_12_cleanup_test.sh` 与长期偏好；已把 keymaps/README 同步到 live `~/.config/nvim`，同步前备份到 `/tmp/nvim-leader-q-live-backup-20260430T215110`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh`、Lua `loadfile`、根仓库与 nvim 子仓库 `git diff --check` 均通过；live headless smoke 输出 `LIVE_LEADER_Q=<Space>q:<cmd>bdelete<CR>:Close current buffer`。
+- 后续：交互式 Neovim 重启或重新加载配置后，`<leader>q` 会关闭当前文件但不退出 Neovim；如需明确退出整个 Neovim，使用 `:qa` / `:qall` 等显式退出命令。
+
+- 目的：修正 `<leader>q` 改为 `bdelete` 后，未保存文件只在左下角显示 `No write since last change`、不走浮动通知的问题。
+- 已做：确认这是 `:bdelete` 对 modified buffer 抛出的 Vim 命令错误，技术上合理但体验不符合当前浮动通知偏好。将 `<leader>q` 改为 Lua callback：先检查 `vim.bo.modified`；若有未保存修改，则通过 `vim.notify(..., WARN, { title = "未保存修改", timeout = 12000 })` 触发 Snacks 浮动警告并取消关闭；只有已保存 buffer 才执行 `vim.cmd.bdelete()`。同步更新 README、测试护栏和长期偏好；已把 keymaps/README 同步到 live `~/.config/nvim`，同步前备份到 `/tmp/nvim-leader-q-unsaved-live-backup-20260430T215530`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh`、Lua `loadfile`、根仓库与 nvim 子仓库 `git diff --check` 均通过；live headless smoke 输出 `LIVE_LEADER_Q_CALLBACK=true:Close current buffer`。
+- 后续：交互式 Neovim 重启或重新加载配置后，未保存时 `<leader>q` 会显示浮动警告；保存用 `<C-s>` / `<leader>w`，放弃修改强制关闭用 `<leader>c`。
+
+- 目的：按用户反馈调整 `<leader>q` 的未保存提示文案来源，并补齐空目录空 buffer 场景的退出语义。
+- 已做：去掉上一版自定义“当前文件有未保存修改...”提示文案；`<leader>q` 现在先判断当前 buffer 是否为未命名、未修改的空 buffer，若是则执行 `vim.cmd.quit()` 退出 Neovim；否则通过 `pcall(vim.cmd.bdelete)` 执行原生命令，失败时把 `tostring(err)` 原样转给 `vim.notify(..., WARN)`，由 Snacks 以浮动通知展示 Neovim/`:bdelete` 原本错误文本。同步更新 README、测试护栏和长期偏好；已把 keymaps/README 同步到 live `~/.config/nvim`，同步前备份到 `/tmp/nvim-leader-q-original-error-live-backup-20260430T220034`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh`、Lua `loadfile`、根仓库与 nvim 子仓库 `git diff --check` 均通过；live headless smoke 输出 `LIVE_LEADER_Q_CALLBACK=true:Close current buffer`。
+- 后续：交互式 Neovim 重启或重新加载配置后，未保存文件按 `<leader>q` 应显示原生命令错误文本的浮动通知；空目录中间未命名空 buffer 上按 `<leader>q` 会直接退出 Neovim。
+
+- 目的：增强 `nvim .` 后的项目搜索能力，让它更接近 VSCode 可限定目录、排除目录、大小写/整词/普通文本/正则和大文件过滤的搜索体验。
+- 已做：检查本地 Snacks picker 文档与源码，确认 `Snacks.picker.grep()` 基于 ripgrep，支持 `dirs`、`glob`、`exclude`、`regex`、`args`，并且查询字符串可用 `--` 分隔追加 ripgrep 参数。新增 `.config/shared/nvim/lua/plugins/snacks.lua` 中的三个入口：`<leader>fd` 先输入目录再 grep，`<leader>fD` 在当前文件所在目录 grep，`<leader>fG` 输入查询并在 `--` 后追加 ripgrep 参数；更新 README 记录 `-g` include/exclude、`-i`/`-s` 大小写、`-w` 整词、`--fixed-strings` 普通文本、`--max-filesize` 大文件过滤等示例；扩展 `tests/nvim_0_12_cleanup_test.sh` 锁定 keymap、helper 与文档。已同步 snacks/README 到 live `~/.config/nvim`，同步前备份到 `/tmp/nvim-vscode-search-live-backup-20260430T220931`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh`、Lua `loadfile`、根仓库与 nvim 子仓库 `git diff --check` 均通过；live headless smoke 确认 `<leader>fg`、`<leader>fG`、`<leader>fd`、`<leader>fD` 都已注册为 callback keymap。
+- 后续：若还想更像 VSCode 的图形化“files to include/exclude”双输入框，可以继续把 `<leader>fG` 拆成多步 `vim.ui.input` 表单或自定义 Snacks picker layout；当前先保留轻量 ripgrep 参数入口，功能覆盖面更完整。
+
+- 目的：按用户反馈撤回刚新增但不好用的 Neovim 高级 grep 快捷键，只保留 `space+fg`，并把高级搜索能力记录为后续方向。
+- 已做：从 `.config/shared/nvim/lua/plugins/snacks.lua` 删除 `<leader>fd`、`<leader>fD`、`<leader>fG` 以及对应 helper 函数；更新 README，保留 `<leader>fg` 作为当前唯一日常项目 grep 入口，并说明 VSCode 风格 include/exclude/大小写/整词/普通文本/大文件限制等先作为后续优化方向；调整 `tests/nvim_0_12_cleanup_test.sh`，拒绝这些高级 grep keymap/helper 误回归；更新长期偏好。已同步 snacks/README 到 live `~/.config/nvim`，同步前备份到 `/tmp/nvim-revert-advanced-grep-live-backup-20260430T221457`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh`、Lua `loadfile`、根仓库与 nvim 子仓库 `git diff --check` 均通过；live headless smoke 确认 `<leader>fg` 仍存在，`<leader>fG`、`<leader>fd`、`<leader>fD` 均未注册。
+- 后续：如果之后重新做 VSCode 风格搜索，优先设计更顺手的 UI/交互，而不是直接暴露 ripgrep 参数快捷键。
+
+- 目的：按用户确认实现轻量 Neovim CMake 辅助命令，快速生成/刷新 clangd 需要的 `build/compile_commands.json`，替代依赖 VSCode CMake 插件的流程。
+- 已做：新增 `.config/shared/nvim/lua/config/cmake.lua` 并在 `init.lua` 注册；提供 `:CMakeUserPresetInit[!]` 生成本地 `CMakeUserPresets.json`（默认 `nvim-debug`、Ninja、`${sourceDir}/build`，无 bang 不覆盖已有文件），提供 `:CMakeConfigure [preset]`：存在 `CMakeUserPresets.json` 时执行 `cmake --preset <preset>`（默认 `nvim-debug`），否则 fallback 到 `cmake -S <root> -B <root>/build`；成功后提示 `compile_commands.json` 可供 clangd 使用，必要时 `:LspRestart clangd`。同步更新 `.config/shared/nvim/Readme.md`、`tests/nvim_0_12_cleanup_test.sh` 与长期偏好。已同步 init/cmake/README 到 live `~/.config/nvim`，同步前备份到 `/tmp/nvim-cmake-commands-live-backup-20260430T225811`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh`、Lua `loadfile`、根仓库与 nvim 子仓库 `git diff --check` 均通过；临时 CMake 项目 headless smoke 确认 `:CMakeUserPresetInit` 会生成可解析 JSON，preset 名为 `nvim-debug`、`binaryDir=${sourceDir}/build`；live headless smoke 输出 `LIVE_CMAKE_USER_PRESET_INIT=2`、`LIVE_CMAKE_CONFIGURE=2`。
+- 后续：若某些项目已有自定义 preset 名，可用 `:CMakeConfigure <preset>`；若后续想进一步接近 VSCode CMake Tools，再评估是否引入 `cmake-tools.nvim`，不要默认增加插件复杂度。
+
+- 目的：按用户要求重新整理当前 Neovim README，让文档重点从架构介绍转向“如何使用各种快捷键”。
+- 已做：重写 `.config/shared/nvim/Readme.md` 的主体结构，按文件/Buffer/窗口、保存/关闭/退出、搜索/Picker、LSP/导航/诊断、补全、编辑/选择/缩进、命令行/通知/浮动终端、CMake/clangd、工具链等使用场景分组列出快捷键和命令；保留必要状态说明，包括 `<leader>q` 关闭语义、Noice `cmdline_popup`、Snacks notifier 8 秒通知、原生 tabline/statusline/quickfix、CMake helper、Catppuccin Mocha、Neo-tree 整数宽度等。已同步 README 到 live `~/.config/nvim/Readme.md`，同步前备份到 `/tmp/nvim-readme-keymap-doc-live-backup-20260430T230252`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、相关 shell 语法检查、根仓库与 nvim 子仓库 `git diff --check` 均通过；live README 与仓库 README 无差异。
+- 后续：后续新增/修改用户可感知快捷键时，继续优先更新 README 的对应使用场景表格，而不是只在插件配置附近零散补充。
+
+- 目的：按用户反馈规范 Neovim 文档文件名为 `README.md`，并移除根目录过时的 `NEOVIM_GUIDE.md`。
+- 已做：在 `.config/shared/nvim` 子仓库中将 `Readme.md` 重命名为 `README.md`；更新 `tests/nvim_0_12_cleanup_test.sh` 里的 README 路径断言；更新长期偏好中的 Neovim README 路径写法；删除根目录 `NEOVIM_GUIDE.md`，因为当前 `.config/shared/nvim/README.md` 已覆盖快捷键与使用指南。同步 live `~/.config/nvim/README.md`，并删除 live 旧 `~/.config/nvim/Readme.md`；同步前备份到 `/tmp/nvim-readme-rename-live-backup-20260430T230648`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、相关 shell 语法检查、根仓库与 nvim 子仓库 `git diff --check` 均通过；仓库与 live 的 `README.md` 无差异，live 旧 `Readme.md` 已不存在。
+- 后续：后续 Neovim 用户文档统一维护 `.config/shared/nvim/README.md`，不要再新增根目录 `NEOVIM_GUIDE.md` 这类重复指南。

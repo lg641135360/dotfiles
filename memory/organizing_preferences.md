@@ -9,7 +9,7 @@
 - `memory/` 和 `logs/trace.md` 中的新增记录统一使用中文，除非我明确被要求保留英文。
 - 当用户要求统一记录语言时，优先把现有 `logs/trace.md` 历史记录一并回写成中文，而不是只约束后续新增内容。
 - 读取 `logs/trace.md` 或其它持久化文件时，默认根据当前问题用关键词/相近主题匹配最相关的约 10 条记录即可，不要每次全量加载；只有用户明确要求完整历史、任务确实依赖全局时间线，或局部检索证据不足时才扩大读取范围。
-- 每次调整会影响用户实际使用体验的地方（例如新增/修改快捷键、启动入口、UI 行为、终端按键传递等），都必须同步更新对应模块的 README 文档；例如 Neovim 新增 `Alt+上下` / `Shift+Alt+上下` 行移动复制时，应同步更新 `.config/shared/nvim/Readme.md`。
+- 每次调整会影响用户实际使用体验的地方（例如新增/修改快捷键、启动入口、UI 行为、终端按键传递等），都必须同步更新对应模块的 README 文档；例如 Neovim 新增 `Alt+上下` / `Shift+Alt+上下` 行移动复制时，应同步更新 `.config/shared/nvim/README.md`。
 - 对于这个 dotfiles 仓库中的 AwesomeWM 行为回归，保留 `tests/` 目录下的轻量 shell 测试比删除更合适。
 - 对 `install.sh` 里的 `redshift` 处理，保留缺失检查即可；缺失时只提示用户手动安装，不要在安装脚本里自动执行提权安装。
 - 对 rofi 配置，优先让 `config.rasi` 只保留行为配置并显式引用 `theme.rasi`；输入框相关布局保持显式 `children`，中文环境下为 `entry`/`element-text`/`textbox` 指定可显示 CJK 的字体，并在 Awesome 拉起 rofi 时显式传递 `LC_CTYPE` 与 fcitx 环境变量。
@@ -68,3 +68,14 @@
 - 对当前 Neovim 主题，优先使用 Catppuccin Mocha（`catppuccin/nvim`，`flavour = "mocha"`，非透明背景），不再保留 onedark 作为 active theme 或 lockfile 条目。
 - 对 macOS AeroSpace 与 Linux AwesomeWM 的桌面体验对齐，当前偏好是把 `Mod+q` 统一为“关闭当前聚焦窗口”；AeroSpace 中 `Mod` 使用 `alt`/Option，默认使用 `close` 而不是退出整个应用，若要最后一个窗口时退出应用再单独切到 `close --quit-if-last-window`。
 - 对当前 Neovim 命令行体验，`:` / `/` / `?` 的浮动命令行窗口属于保留肌肉记忆；优先用 `noice.nvim` 窄配置只提供 `cmdline_popup`，不要再把它当作可完全由原生 cmdline/messages 覆盖的冗余插件。Noice 不应接管 notify、普通 messages、LSP hover 或 signature；这些继续走 snacks/原生路径。
+- 对当前 Git 配置，默认编辑器优先固定为 `nvim`（`core.editor = nvim`），让 `git commit`、`git rebase -i` 等交互式 Git 命令与日常 Neovim 体验保持一致。
+- 对当前 Neovim Neo-tree 左侧 sidebar，宽度必须使用整数列数（当前 `width = 40`），不要用 `0.x` 小数比例；Neo-tree 的关闭/恢复窗口回调会把该值传给 `nvim_win_set_width()`，小数会触发 `Invalid 'width': Number is not integral`。
+- 对当前 Neovim 通知体验，Snacks notifier 警告弹窗应优先保持可读：默认保留 8 秒、使用更宽/可换行弹窗，并保留 `<leader>nh` 查看完整 notification history。
+- 对当前 Neovim 保存体验，保留 Vim 风格 `<leader>w`，同时增加现代编辑器常见的 `<C-s>` 在普通/插入/可视模式快速保存；终端若拦截 Ctrl-S 时再单独处理终端 flow control。
+- 对当前 Neovim 关闭文件体验，`<leader>q` 应表示“关闭当前文件 buffer”而不是 `:q` 关闭窗口；避免从 `nvim .` / Neo-tree 打开文件后误退出整个 Neovim。真正退出进程应使用显式退出命令。
+- 对当前 Neovim `<leader>q` 关闭文件体验，未保存修改时应主动用 Snacks/vim.notify 浮动警告提示保存与强制关闭方式，不要直接让 `:bdelete` 抛左下角 `No write since last change`。
+- 对当前 Neovim `<leader>q` 未保存提示，优先保留 Neovim/`:bdelete` 原生命令错误文本，只把该文本转给 Snacks 浮动通知；不要自定义解释性提示文案。
+- 对当前 Neovim 空目录/空 buffer 场景，若当前 buffer 是未命名、未修改的空 buffer，`<leader>q` 可以直接退出 Neovim，符合“没有文件需要关闭”的语义。
+- 对当前 Neovim 项目搜索体验，保留 Snacks picker/ripgrep 主线，同时补充 VSCode 风格搜索约束入口：`<leader>fd` 指定目录、`<leader>fD` 当前文件目录、`<leader>fG` 查询后追加 ripgrep 参数（include/exclude/case/word/fixed/max-filesize 等）。
+- 对当前 Neovim 搜索快捷键，暂时只保留 `<leader>fg` 作为项目 grep 主入口；`<leader>fd` / `<leader>fD` / `<leader>fG` 这类高级搜索入口先不启用，只记录为后续可能优化方向。
+- 对当前 Neovim/CMake/clangd 体验，优先用轻量内置命令而不是 CMake 插件：`:CMakeUserPresetInit` 生成本地 `CMakeUserPresets.json`，`:CMakeConfigure [preset]` 生成/刷新 `build/compile_commands.json`，配合 clangd 的 `--compile-commands-dir=build`。

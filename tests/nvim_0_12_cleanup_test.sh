@@ -16,6 +16,7 @@ diagnostics_check="$(mktemp)"
 theme_check="$(mktemp)"
 statusline_check="$(mktemp)"
 tabline_check="$(mktemp)"
+cmake_check="$(mktemp)"
 lock_file="$NVIM/lazy-lock.json"
 lock_backup="$(mktemp)"
 
@@ -23,7 +24,7 @@ cp "$lock_file" "$lock_backup"
 
 cleanup() {
   cp "$lock_backup" "$lock_file"
-  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$theme_check" "$statusline_check" "$tabline_check"
+  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$theme_check" "$statusline_check" "$tabline_check" "$cmake_check"
   rm -f "$lock_backup"
 }
 trap cleanup EXIT
@@ -107,6 +108,7 @@ for _, lhs in ipairs({
   "<leader><Up>",
   "<leader><Right>",
   "<leader>w",
+  "<C-s>",
   "<leader>q",
   "<C-a>",
   "<C-c>",
@@ -117,6 +119,7 @@ for _, lhs in ipairs({
   "vl",
   "<leader>e",
   "<leader>ft",
+  "<leader>fg",
   "<leader>xx",
   "<leader>o",
 }) do
@@ -128,19 +131,31 @@ for i = 1, 9 do
   require_desc_contains("n", "<leader>" .. i, "Go to buffer " .. i)
 end
 
-for _, lhs in ipairs({ "<C-c>", "<C-x>", "<C-v>", "<Tab>", "<S-Tab>" }) do
+for _, lhs in ipairs({ "<C-c>", "<C-x>", "<C-v>", "<Tab>", "<S-Tab>", "<C-s>" }) do
   require_mapped("v", lhs)
 end
+
+require_mapped("i", "<C-s>")
+require_rhs_contains("n", "<C-s>", "write")
+require_rhs_contains("i", "<C-s>", "write")
+require_rhs_contains("v", "<C-s>", "write")
+require_desc_contains("n", "<C-s>", "Save file")
+require_desc_contains("i", "<C-s>", "Save file")
+require_desc_contains("v", "<C-s>", "Save file")
 
 require_callback("n", "<leader><PageDown>")
 require_desc_contains("n", "<leader><PageDown>", "Next buffer")
 require_callback("n", "<leader><PageUp>")
 require_desc_contains("n", "<leader><PageUp>", "Previous buffer")
 require_rhs_contains("n", "<leader>c", "bdelete")
+require_callback("n", "<leader>q")
+require_desc_contains("n", "<leader>q", "Close current buffer")
 require_callback("n", "<leader>tb")
 require_desc_contains("n", "<leader>tb", "native tabline")
 require_rhs_contains("n", "<leader>e", "Neotree toggle")
 require_callback("n", "<leader>ft")
+require_callback("n", "<leader>fg")
+require_desc_contains("n", "<leader>fg", "Find Grep")
 require_callback("n", "<leader>xx")
 require_desc_contains("n", "<leader>xx", "Diagnostics quickfix")
 require_callback("n", "<leader>o")
@@ -270,6 +285,17 @@ assert_cursor(4, "visual Shift-Alt-Down should place cursor on copied block")
 assert_register("visual Shift-Alt-Down should not touch unnamed register")
 LUA
 
+
+cat >"$cmake_check" <<'LUA'
+local commands = {
+  CMakeUserPresetInit = vim.fn.exists(":CMakeUserPresetInit"),
+  CMakeConfigure = vim.fn.exists(":CMakeConfigure"),
+}
+for name, exists in pairs(commands) do
+  print(("CMAKE_COMMAND %s=%s"):format(name, tostring(exists)))
+end
+LUA
+
 cat >"$lsp_check" <<'LUA'
 vim.api.nvim_exec_autocmds("BufReadPre", { modeline = false })
 
@@ -366,6 +392,13 @@ local plugins = require("lazy.core.config").plugins or {}
 local snacks = plugins["snacks.nvim"] or {}
 local snacks_opts = type(snacks.opts) == "table" and snacks.opts or {}
 local dashboard = type(snacks_opts.dashboard) == "table" and snacks_opts.dashboard or {}
+local notifier = type(snacks_opts.notifier) == "table" and snacks_opts.notifier or {}
+local notifier_width = type(notifier.width) == "table" and notifier.width or {}
+local notifier_height = type(notifier.height) == "table" and notifier.height or {}
+local styles = type(snacks_opts.styles) == "table" and snacks_opts.styles or {}
+local notification_style = type(styles.notification) == "table" and styles.notification or {}
+local notification_wo = type(notification_style.wo) == "table" and notification_style.wo or {}
+local notification_history_style = type(styles.notification_history) == "table" and styles.notification_history or {}
 local noice = plugins["noice.nvim"] or {}
 local noice_opts = type(noice.opts) == "table" and noice.opts or {}
 local noice_cmdline = type(noice_opts.cmdline) == "table" and noice_opts.cmdline or {}
@@ -375,6 +408,13 @@ local noice_lsp = type(noice_opts.lsp) == "table" and noice_opts.lsp or {}
 local noice_hover = type(noice_lsp.hover) == "table" and noice_lsp.hover or {}
 local noice_signature = type(noice_lsp.signature) == "table" and noice_lsp.signature or {}
 print("SNACKS_DASHBOARD_ENABLED=" .. tostring(dashboard.enabled))
+print("SNACKS_NOTIFIER_TIMEOUT=" .. tostring(notifier.timeout))
+print("SNACKS_NOTIFIER_WIDTH_MIN=" .. tostring(notifier_width.min))
+print("SNACKS_NOTIFIER_WIDTH_MAX=" .. tostring(notifier_width.max))
+print("SNACKS_NOTIFIER_HEIGHT_MAX=" .. tostring(notifier_height.max))
+print("SNACKS_NOTIFICATION_WRAP=" .. tostring(notification_wo.wrap))
+print("SNACKS_NOTIFICATION_HISTORY_WIDTH=" .. tostring(notification_history_style.width))
+print("SNACKS_NOTIFICATION_HISTORY_HEIGHT=" .. tostring(notification_history_style.height))
 print("NOICE_CMDLINE_ENABLED=" .. tostring(noice_cmdline.enabled))
 print("NOICE_CMDLINE_VIEW=" .. tostring(noice_cmdline.view))
 print("NOICE_MESSAGES_ENABLED=" .. tostring(noice_messages.enabled))
@@ -549,8 +589,16 @@ require_pattern 'local kind_icons = \{' "$NVIM/lua/plugins/blink-cmp.lua" "blink
 require_pattern 'kind_icons\[ctx\.kind\]' "$NVIM/lua/plugins/blink-cmp.lua" "blink-cmp should use the local kind icon map"
 require_pattern 'nvim-web-devicons' "$NVIM/lua/plugins/blink-cmp.lua" "blink-cmp should keep devicons for path completion icons"
 require_pattern 'folke/snacks.nvim' "$NVIM/lua/plugins/snacks.lua" "snacks.nvim must remain"
+reject_pattern 'grep_with_ripgrep_args|grep_in_directory|grep_current_file_directory|<leader>fG|<leader>fd|<leader>fD' "$NVIM/lua/plugins/snacks.lua" "advanced grep helpers should not be active until reintroduced deliberately"
 require_pattern 'dashboard = \{ enabled = false \}' "$NVIM/lua/plugins/snacks.lua" "snacks dashboard should be disabled for native startup"
+require_pattern 'timeout = 8000' "$NVIM/lua/plugins/snacks.lua" "snacks notifier should keep warnings visible long enough to read"
+require_pattern 'width = \{ min = 50, max = 0\.7 \}' "$NVIM/lua/plugins/snacks.lua" "snacks notifier should use a wider notification window"
+require_pattern 'notification = \{' "$NVIM/lua/plugins/snacks.lua" "snacks notification style should be customized"
+require_pattern 'wrap = true' "$NVIM/lua/plugins/snacks.lua" "snacks notifications should wrap long warning text"
+require_pattern 'notification_history = \{' "$NVIM/lua/plugins/snacks.lua" "snacks notification history style should be customized"
 require_pattern 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree.nvim must remain"
+require_pattern 'width = 40' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree sidebar width should be an integer column count"
+reject_pattern 'width = 0\.[0-9]+' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree sidebar width must not be fractional because nvim_win_set_width requires an integer"
 require_pattern 'nvim-treesitter/nvim-treesitter' "$NVIM/lua/plugins/ui.lua" "nvim-treesitter core should remain for syntax highlighting"
 reject_pattern 'nvim-treesitter/nvim-treesitter-textobjects|nvim-treesitter-textobjects' "$NVIM/lua/plugins" "nvim-treesitter-textobjects should be removed because no textobjects are configured"
 reject_pattern '"nvim-treesitter-textobjects"' "$NVIM/lazy-lock.json" "nvim-treesitter-textobjects should not remain in lazy-lock after cleanup"
@@ -614,10 +662,28 @@ reject_pattern '"trouble.nvim"' "$NVIM/lazy-lock.json" "trouble.nvim should not 
 reject_pattern 'folke/trouble.nvim|cmd = "Trouble"' "$NVIM/lua/plugins" "Trouble plugin spec should be removed after native diagnostics quickfix replacement"
 reject_pattern ':Trouble diagnostics toggle|Trouble diagnostics' "$NVIM/lua/config/keymaps.lua" "<leader>xx should not call Trouble after native diagnostics quickfix replacement"
 require_pattern 'vim\.diagnostic\.setqflist' "$NVIM/lua/config/keymaps.lua" "<leader>xx should use native vim.diagnostic.setqflist"
+require_pattern '<C-s>' "$NVIM/lua/config/keymaps.lua" "Ctrl-S should be mapped as a quick save key"
+require_pattern '<cmd>write<CR>' "$NVIM/lua/config/keymaps.lua" "Ctrl-S should save through a mode-safe write command"
+require_pattern 'local function close_current_buffer' "$NVIM/lua/config/keymaps.lua" "<leader>q should use a wrapper to protect modified buffers"
+require_pattern 'local function is_empty_unnamed_buffer' "$NVIM/lua/config/keymaps.lua" "<leader>q should detect empty unnamed buffers"
+require_pattern 'vim\.cmd\.quit' "$NVIM/lua/config/keymaps.lua" "<leader>q should quit Neovim from an empty unnamed buffer"
+require_pattern 'pcall\(vim\.cmd\.bdelete\)' "$NVIM/lua/config/keymaps.lua" "<leader>q wrapper should preserve bdelete errors"
+require_pattern 'vim\.notify\(tostring\(err\), vim\.log\.levels\.WARN\)' "$NVIM/lua/config/keymaps.lua" "<leader>q wrapper should forward original bdelete errors to floating notifications"
+require_pattern 'vim\.cmd\.bdelete' "$NVIM/lua/config/keymaps.lua" "<leader>q wrapper should close saved buffers with bdelete"
+reject_pattern '当前文件有未保存修改|已取消关闭|强制关闭并放弃修改|未保存修改' "$NVIM/lua/config/keymaps.lua" "<leader>q should not use custom unsaved-buffer wording"
+reject_pattern '<leader>q.*:q<CR>|:q<CR>.*<leader>q' "$NVIM/lua/config/keymaps.lua" "<leader>q should not use :q because it can quit Neovim when closing the last window"
 if [[ -e "$NVIM/lua/plugins/trouble.lua" ]]; then
   echo "trouble.lua should be removed after native diagnostics quickfix replacement"
   exit 1
 fi
+require_pattern 'require\("config.cmake"\)\.setup\(\)' "$NVIM/init.lua" "init.lua should register lightweight CMake commands"
+require_pattern 'nvim_create_user_command\("CMakeUserPresetInit"' "$NVIM/lua/config/cmake.lua" "CMakeUserPresetInit command should exist"
+require_pattern 'nvim_create_user_command\("CMakeConfigure"' "$NVIM/lua/config/cmake.lua" "CMakeConfigure command should exist"
+require_pattern 'CMakeUserPresets.json' "$NVIM/lua/config/cmake.lua" "CMake helper should generate CMakeUserPresets.json"
+require_pattern '"cmake", "--preset"' "$NVIM/lua/config/cmake.lua" "CMakeConfigure should use presets when CMakeUserPresets.json exists"
+require_pattern '"cmake", "-S", root, "-B", build_dir\(root\)' "$NVIM/lua/config/cmake.lua" "CMakeConfigure should fallback to cmake -S root -B build"
+require_pattern 'compile_commands.json' "$NVIM/lua/config/cmake.lua" "CMake helper should document clangd compile database output"
+require_pattern ':LspRestart clangd' "$NVIM/lua/config/cmake.lua" "CMake helper should remind about restarting clangd"
 require_pattern 'folke/lazy.nvim.git' "$NVIM/lua/config/lazy.lua" "lazy.nvim must remain the plugin manager"
 reject_pattern 'vim\.pack\.add' "$NVIM/lua/config/lazy.lua" "vim.pack must not manage plugins in phase one"
 
@@ -630,7 +696,7 @@ reject_pattern 'LazyVim|lazyvim_' "$NVIM/lua/config/options.lua" "options.lua sh
 reject_pattern 'LazyVim|lazyvim_' "$NVIM/lua/config/keymaps.lua" "keymaps.lua should not reference LazyVim defaults"
 reject_pattern 'LazyVim|lazyvim_' "$NVIM/lua/config/autocmds.lua" "autocmds.lua should not reference LazyVim defaults"
 reject_pattern 'LazyVim|lazyvim\.plugins|add LazyVim' "$NVIM/lua/config/lazy.lua" "lazy.lua should not keep LazyVim import comments"
-reject_pattern 'lazyvim\.json|LazyVim' "$NVIM/Readme.md" "README should not describe LazyVim residue"
+reject_pattern 'lazyvim\.json|LazyVim' "$NVIM/README.md" "README should not describe LazyVim residue"
 require_pattern 'vim\.opt\.winborder = "rounded"' "$NVIM/lua/config/options.lua" "winborder should be configured through Neovim 0.12 option defaults"
 require_pattern 'vim\.opt\.pumborder = "rounded"' "$NVIM/lua/config/options.lua" "pumborder should be configured through Neovim 0.12 option defaults"
 require_pattern 'float = \{' "$NVIM/lua/config/options.lua" "diagnostic float config should be explicit"
@@ -676,54 +742,64 @@ reject_pattern '"gr"' "$NVIM/lua/plugins/snacks.lua" "bare gr mapping should be 
 require_pattern '"grr"' "$NVIM/lua/plugins/snacks.lua" "Snacks references mapping should move to Neovim 0.12 grr"
 require_pattern 'Snacks\.picker\.lsp_references' "$NVIM/lua/plugins/snacks.lua" "Snacks references picker should stay available on grr"
 reject_pattern 'nowait = true' "$NVIM/lua/plugins/snacks.lua" "LSP gr* mappings should not rely on nowait after grr migration"
-reject_pattern 'nowait' "$NVIM/Readme.md" "README should no longer document the old gr nowait boundary"
-reject_pattern '当前 `gr` 仍' "$NVIM/Readme.md" "README should not say bare gr still owns references"
-require_pattern '`grr`' "$NVIM/Readme.md" "README should document grr references"
-require_pattern '`grn`' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP defaults"
-require_pattern '<leader>rn' "$NVIM/Readme.md" "README should document rename mapping boundary"
-reject_pattern 'IncRename|inc-rename' "$NVIM/Readme.md" "README should not describe removed inc-rename behavior"
-require_pattern 'LSP buffer-local rename' "$NVIM/Readme.md" "README should document that <leader>rn is now LSP buffer-local"
-require_pattern 'vim\.lsp\.config\(\)' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP config shape"
-require_pattern 'vim\.lsp\.enable\(\)' "$NVIM/Readme.md" "README should document Neovim 0.12 LSP enable shape"
-require_pattern '`winborder`' "$NVIM/Readme.md" "README should document Neovim 0.12 winborder default"
-require_pattern '`pumborder`' "$NVIM/Readme.md" "README should document Neovim 0.12 pumborder default"
-require_pattern 'Noice.*cmdline_popup|cmdline_popup.*Noice|浮动命令行' "$NVIM/Readme.md" "README should document Noice as the floating command-line provider"
-require_pattern 'snacks\.nvim.*notifier.*input|Notifier.*input' "$NVIM/Readme.md" "README should keep snacks notifier/input coverage documented alongside narrow Noice cmdline usage"
-require_pattern 'Dashboard 不启用|原生空 buffer|native startup' "$NVIM/Readme.md" "README should document native startup after disabling snacks dashboard"
-reject_pattern 'tiny-inline-diagnostic|tiny_inline|tiny%-inline%-diagnostic' "$NVIM/Readme.md" "README should not describe removed tiny-inline-diagnostic behavior"
-require_pattern 'virt_text_pos = "inline"' "$NVIM/Readme.md" "README should document native inline diagnostic virtual text"
-require_pattern '<A-Up>' "$NVIM/Readme.md" "README should document Alt-Up line movement"
-require_pattern '<S-A-Down>' "$NVIM/Readme.md" "README should document Shift-Alt-Down line duplication"
-require_pattern 'Alacritty Linux / macOS profile' "$NVIM/Readme.md" "README should document terminal profile support for Alt line keys"
-require_pattern '<leader>tb' "$NVIM/Readme.md" "README should document the native tabline toggle"
-require_pattern '原生.*tabline|tabline.*原生' "$NVIM/Readme.md" "README should document the native tabline replacement"
-reject_pattern 'UI / Picker.*bufferline\.nvim|`bufferline.nvim`|BufferLine' "$NVIM/Readme.md" "README should not list bufferline.nvim as active after native tabline replacement"
-require_pattern '<leader>xx.*quickfix|quickfix.*<leader>xx' "$NVIM/Readme.md" "README should document native quickfix diagnostics for <leader>xx"
-require_pattern '<leader>o.*document symbols|document symbols.*<leader>o' "$NVIM/Readme.md" "README should document native document symbols for <leader>o"
-require_pattern 'Outline.*gO|gO.*Outline' "$NVIM/Readme.md" "README should document native gO outline support"
-reject_pattern 'Editing.*neoscroll\.nvim|`neoscroll.nvim`' "$NVIM/Readme.md" "README should not list neoscroll.nvim as active after native scrolling replacement"
-require_pattern '原生.*scroll|scroll.*原生|滚动.*原生|原生.*滚动' "$NVIM/Readme.md" "README should document native scrolling after removing neoscroll"
-reject_pattern '`header.nvim`|header\.nvim' "$NVIM/Readme.md" "README should not list header.nvim as active after header automation cleanup"
-require_pattern '自动文件头.*不.*启用|不.*启用.*自动文件头|header.*不.*启用' "$NVIM/Readme.md" "README should document that automatic header insertion is not active by default"
-reject_pattern '`nvim-colorizer.lua`|nvim-colorizer\.lua' "$NVIM/Readme.md" "README should not list nvim-colorizer.lua as active after color preview cleanup"
-require_pattern '颜色预览.*不.*启用|不.*启用.*颜色预览|color preview.*not active' "$NVIM/Readme.md" "README should document that color preview is not active by default"
-reject_pattern 'Outline.*aerial\.nvim|`aerial.nvim`|Aerial' "$NVIM/Readme.md" "README should not list aerial.nvim as active after native symbols replacement"
-require_pattern '原生 `statusline`|statusline.*laststatus=3' "$NVIM/Readme.md" "README should document the native statusline replacement"
-reject_pattern 'UI / Picker.*lualine\.nvim|`lualine.nvim`' "$NVIM/Readme.md" "README should not list lualine.nvim as active after native statusline replacement"
-reject_pattern 'Trouble diagnostics|folke/trouble.nvim|:Trouble' "$NVIM/Readme.md" "README should not document Trouble after native diagnostics quickfix replacement"
-require_pattern '<leader>ff' "$NVIM/Readme.md" "README should document snacks file picker keymaps"
-reject_pattern '`lspkind.nvim`|lspkind\.nvim' "$NVIM/Readme.md" "README should not list lspkind.nvim as active after inline icon cleanup"
-require_pattern 'kind icons.*本地映射|本地映射.*kind icons' "$NVIM/Readme.md" "README should document local completion kind icons"
-reject_pattern '`nvim-treesitter-textobjects`|nvim-treesitter-textobjects' "$NVIM/Readme.md" "README should not list treesitter textobjects as an active plugin after cleanup"
-require_pattern 'Syntax[[:space:]]+\| `nvim-treesitter`' "$NVIM/Readme.md" "README should list nvim-treesitter as the syntax provider"
-require_pattern '语法高亮.*/.*缩进由 Treesitter 本体负责|Treesitter 本体负责' "$NVIM/Readme.md" "README should document that Treesitter core owns syntax and indent"
-require_pattern '<leader>th' "$NVIM/Readme.md" "README should document inlay hint toggle"
-require_pattern 'mason-tool-installer\.nvim' "$NVIM/Readme.md" "README should document Mason tool installer behavior"
-require_pattern 'headless 测试' "$NVIM/Readme.md" "README should document headless runs skip automatic tool installation"
-require_pattern 'conform\.nvim' "$NVIM/Readme.md" "README should document conform formatting"
-require_pattern 'DAP 当前未启用' "$NVIM/Readme.md" "README should document that DAP is currently disabled"
-reject_pattern 'lua/plugins/dap\.lua|调试插件占位' "$NVIM/Readme.md" "README should not document removed DAP placeholder files"
-reject_pattern '\| Debug[[:space:]]+\| `nvim-dap`' "$NVIM/Readme.md" "README should not list nvim-dap as an active plugin"
+reject_pattern 'nowait' "$NVIM/README.md" "README should no longer document the old gr nowait boundary"
+reject_pattern '当前 `gr` 仍' "$NVIM/README.md" "README should not say bare gr still owns references"
+require_pattern '`grr`' "$NVIM/README.md" "README should document grr references"
+require_pattern '`grn`' "$NVIM/README.md" "README should document Neovim 0.12 LSP defaults"
+require_pattern '<leader>rn' "$NVIM/README.md" "README should document rename mapping boundary"
+reject_pattern 'IncRename|inc-rename' "$NVIM/README.md" "README should not describe removed inc-rename behavior"
+require_pattern 'LSP buffer-local rename' "$NVIM/README.md" "README should document that <leader>rn is now LSP buffer-local"
+require_pattern 'vim\.lsp\.config\(\)' "$NVIM/README.md" "README should document Neovim 0.12 LSP config shape"
+require_pattern 'vim\.lsp\.enable\(\)' "$NVIM/README.md" "README should document Neovim 0.12 LSP enable shape"
+require_pattern '`winborder`' "$NVIM/README.md" "README should document Neovim 0.12 winborder default"
+require_pattern '`pumborder`' "$NVIM/README.md" "README should document Neovim 0.12 pumborder default"
+require_pattern 'Noice.*cmdline_popup|cmdline_popup.*Noice|浮动命令行' "$NVIM/README.md" "README should document Noice as the floating command-line provider"
+require_pattern 'snacks\.nvim.*notifier.*input|Notifier.*input' "$NVIM/README.md" "README should keep snacks notifier/input coverage documented alongside narrow Noice cmdline usage"
+require_pattern 'Notifier.*8 秒|8 秒.*Notifier|notification history' "$NVIM/README.md" "README should document readable longer Snacks notifications and history"
+require_pattern '<C-s>.*保存|保存.*<C-s>' "$NVIM/README.md" "README should document Ctrl-S quick save"
+require_pattern '<leader>q.*不退出 Neovim|不退出 Neovim.*<leader>q|:bdelete' "$NVIM/README.md" "README should document that <leader>q closes buffers instead of quitting Neovim"
+require_pattern '原生命令错误文本.*Snacks 浮动通知|Snacks 浮动通知.*原生命令错误文本' "$NVIM/README.md" "README should document that original bdelete errors are forwarded to floating notifications"
+require_pattern '空 buffer.*退出 Neovim|退出 Neovim.*空 buffer' "$NVIM/README.md" "README should document that <leader>q quits from an empty unnamed buffer"
+require_pattern 'Dashboard 不启用|原生空 buffer|native startup' "$NVIM/README.md" "README should document native startup after disabling snacks dashboard"
+reject_pattern 'tiny-inline-diagnostic|tiny_inline|tiny%-inline%-diagnostic' "$NVIM/README.md" "README should not describe removed tiny-inline-diagnostic behavior"
+require_pattern 'virt_text_pos = "inline"' "$NVIM/README.md" "README should document native inline diagnostic virtual text"
+require_pattern '<A-Up>' "$NVIM/README.md" "README should document Alt-Up line movement"
+require_pattern '<S-A-Down>' "$NVIM/README.md" "README should document Shift-Alt-Down line duplication"
+require_pattern 'Alacritty Linux / macOS profile' "$NVIM/README.md" "README should document terminal profile support for Alt line keys"
+require_pattern '<leader>tb' "$NVIM/README.md" "README should document the native tabline toggle"
+require_pattern '原生.*tabline|tabline.*原生' "$NVIM/README.md" "README should document the native tabline replacement"
+reject_pattern 'UI / Picker.*bufferline\.nvim|`bufferline.nvim`|BufferLine' "$NVIM/README.md" "README should not list bufferline.nvim as active after native tabline replacement"
+require_pattern '<leader>xx.*quickfix|quickfix.*<leader>xx' "$NVIM/README.md" "README should document native quickfix diagnostics for <leader>xx"
+require_pattern '<leader>o.*document symbols|document symbols.*<leader>o' "$NVIM/README.md" "README should document native document symbols for <leader>o"
+require_pattern 'Outline.*gO|gO.*Outline' "$NVIM/README.md" "README should document native gO outline support"
+reject_pattern 'Editing.*neoscroll\.nvim|`neoscroll.nvim`' "$NVIM/README.md" "README should not list neoscroll.nvim as active after native scrolling replacement"
+require_pattern '原生.*scroll|scroll.*原生|滚动.*原生|原生.*滚动' "$NVIM/README.md" "README should document native scrolling after removing neoscroll"
+reject_pattern '`header.nvim`|header\.nvim' "$NVIM/README.md" "README should not list header.nvim as active after header automation cleanup"
+require_pattern '自动文件头.*不.*启用|不.*启用.*自动文件头|header.*不.*启用' "$NVIM/README.md" "README should document that automatic header insertion is not active by default"
+reject_pattern '`nvim-colorizer.lua`|nvim-colorizer\.lua' "$NVIM/README.md" "README should not list nvim-colorizer.lua as active after color preview cleanup"
+require_pattern '颜色预览.*不.*启用|不.*启用.*颜色预览|color preview.*not active' "$NVIM/README.md" "README should document that color preview is not active by default"
+reject_pattern 'Outline.*aerial\.nvim|`aerial.nvim`|Aerial' "$NVIM/README.md" "README should not list aerial.nvim as active after native symbols replacement"
+require_pattern '原生 `statusline`|statusline.*laststatus=3' "$NVIM/README.md" "README should document the native statusline replacement"
+reject_pattern 'UI / Picker.*lualine\.nvim|`lualine.nvim`' "$NVIM/README.md" "README should not list lualine.nvim as active after native statusline replacement"
+reject_pattern 'Trouble diagnostics|folke/trouble.nvim|:Trouble' "$NVIM/README.md" "README should not document Trouble after native diagnostics quickfix replacement"
+require_pattern '<leader>ff' "$NVIM/README.md" "README should document snacks file picker keymaps"
+reject_pattern '<leader>fG|<leader>fd|<leader>fD' "$NVIM/README.md" "advanced grep keymaps should stay backlog-only for now"
+reject_pattern '`lspkind.nvim`|lspkind\.nvim' "$NVIM/README.md" "README should not list lspkind.nvim as active after inline icon cleanup"
+require_pattern 'kind icons.*本地映射|本地映射.*kind icons' "$NVIM/README.md" "README should document local completion kind icons"
+reject_pattern '`nvim-treesitter-textobjects`|nvim-treesitter-textobjects' "$NVIM/README.md" "README should not list treesitter textobjects as an active plugin after cleanup"
+require_pattern 'Syntax[[:space:]]+\| `nvim-treesitter`' "$NVIM/README.md" "README should list nvim-treesitter as the syntax provider"
+require_pattern '语法高亮.*/.*缩进由 Treesitter 本体负责|Treesitter 本体负责' "$NVIM/README.md" "README should document that Treesitter core owns syntax and indent"
+require_pattern '<leader>th' "$NVIM/README.md" "README should document inlay hint toggle"
+require_pattern 'mason-tool-installer\.nvim' "$NVIM/README.md" "README should document Mason tool installer behavior"
+require_pattern 'CMakeUserPresetInit' "$NVIM/README.md" "README should document CMakeUserPresetInit"
+require_pattern 'CMakeConfigure' "$NVIM/README.md" "README should document CMakeConfigure"
+require_pattern 'compile_commands\.json' "$NVIM/README.md" "README should document compile_commands.json generation for clangd"
+require_pattern 'headless 测试' "$NVIM/README.md" "README should document headless runs skip automatic tool installation"
+require_pattern 'conform\.nvim' "$NVIM/README.md" "README should document conform formatting"
+require_pattern 'neo-tree.*整数宽度|整数宽度.*neo-tree|width.*40' "$NVIM/README.md" "README should document the integer neo-tree sidebar width"
+require_pattern 'DAP 当前未启用' "$NVIM/README.md" "README should document that DAP is currently disabled"
+reject_pattern 'lua/plugins/dap\.lua|调试插件占位' "$NVIM/README.md" "README should not document removed DAP placeholder files"
+reject_pattern '\| Debug[[:space:]]+\| `nvim-dap`' "$NVIM/README.md" "README should not list nvim-dap as an active plugin"
 reject_pattern 'mfussenegger/nvim-dap|rcarriga/nvim-dap-ui|nvim-neotest/nvim-nio|dapui|cortex_debug' "$NVIM/lua/plugins" "DAP plugins must remain absent after disabled stub cleanup"
 reject_pattern 'sphamba/smear-cursor.nvim|smear-cursor|smear_cursor' "$NVIM/lua/plugins" "smear-cursor must remain absent after disabled stub cleanup"
 if [[ -e "$NVIM/lua/plugins/dap.lua" ]]; then
@@ -744,11 +820,11 @@ require_pattern 'transparent_background = false' "$NVIM/lua/plugins/theme.lua" "
 reject_pattern 'navarasu/onedark.nvim' "$NVIM/lua/plugins/theme.lua" "onedark should not remain in active theme config after switching to Catppuccin Mocha"
 require_pattern '"catppuccin"' "$NVIM/lazy-lock.json" "Catppuccin should be pinned in lazy-lock"
 reject_pattern '"onedark.nvim"' "$NVIM/lazy-lock.json" "onedark should not remain as a stale theme lock entry"
-require_pattern 'Catppuccin Mocha|catppuccin.*Mocha' "$NVIM/Readme.md" "README should document the active Catppuccin Mocha theme"
+require_pattern 'Catppuccin Mocha|catppuccin.*Mocha' "$NVIM/README.md" "README should document the active Catppuccin Mocha theme"
 
 if rg -q 'lazy = false' "$NVIM/lua/config/lazy.lua"; then
-  reject_pattern 'Fast startup.*按需加载|全面按需加载|all plugins lazy-loaded' "$NVIM/Readme.md" "README should not claim broad lazy loading while defaults.lazy=false"
-  require_pattern '核心 UX.*eager|稳定日常 UX' "$NVIM/Readme.md" "README should describe eager core UX plugin loading accurately"
+  reject_pattern 'Fast startup.*按需加载|全面按需加载|all plugins lazy-loaded' "$NVIM/README.md" "README should not claim broad lazy loading while defaults.lazy=false"
+  require_pattern '核心 UX.*eager|稳定日常 UX' "$NVIM/README.md" "README should describe eager core UX plugin loading accurately"
 fi
 
 set +e
@@ -788,6 +864,13 @@ require_pattern 'ACTIVE_PLUGIN blink.cmp=true' "$out_file" "blink.cmp should rem
 require_pattern 'ACTIVE_PLUGIN lualine.nvim=false' "$out_file" "lualine should not remain active after native statusline replacement"
 require_pattern 'ACTIVE_PLUGIN snacks.nvim=true' "$out_file" "snacks.nvim should remain active for picker/notifier/input coverage"
 require_pattern 'SNACKS_DASHBOARD_ENABLED=false' "$out_file" "snacks dashboard should be disabled at runtime"
+require_pattern 'SNACKS_NOTIFIER_TIMEOUT=8000' "$out_file" "snacks notifier timeout should be longer at runtime"
+require_pattern 'SNACKS_NOTIFIER_WIDTH_MIN=50' "$out_file" "snacks notifier should have a wider minimum width at runtime"
+require_pattern 'SNACKS_NOTIFIER_WIDTH_MAX=0.7' "$out_file" "snacks notifier should have a wider maximum width at runtime"
+require_pattern 'SNACKS_NOTIFIER_HEIGHT_MAX=0.8' "$out_file" "snacks notifier should allow taller warnings at runtime"
+require_pattern 'SNACKS_NOTIFICATION_WRAP=true' "$out_file" "snacks notifications should wrap long text at runtime"
+require_pattern 'SNACKS_NOTIFICATION_HISTORY_WIDTH=0.8' "$out_file" "snacks notification history should use a wide window at runtime"
+require_pattern 'SNACKS_NOTIFICATION_HISTORY_HEIGHT=0.8' "$out_file" "snacks notification history should use a tall window at runtime"
 require_pattern 'NOICE_CMDLINE_ENABLED=true' "$out_file" "Noice cmdline should be enabled at runtime"
 require_pattern 'NOICE_CMDLINE_VIEW=cmdline_popup' "$out_file" "Noice should restore the floating ':' command-line popup"
 require_pattern 'NOICE_MESSAGES_ENABLED=false' "$out_file" "Noice should not take over regular messages"
@@ -853,6 +936,11 @@ for lhs in '<A-Up>' '<A-Down>' '<S-A-Up>' '<S-A-Down>'; do
   require_pattern "LINE_KEYMAP mode=n lhs=$lhs callback=true" "$out_file" "$lhs should exist in normal mode"
   require_pattern "LINE_KEYMAP mode=x lhs=$lhs callback=true" "$out_file" "$lhs should exist in visual mode"
 done
+
+run_nvim_luafile "$cmake_check" "CMake command runtime check"
+
+require_pattern 'CMAKE_COMMAND CMakeUserPresetInit=2' "$out_file" "CMakeUserPresetInit should be registered at runtime"
+require_pattern 'CMAKE_COMMAND CMakeConfigure=2' "$out_file" "CMakeConfigure should be registered at runtime"
 
 run_nvim_luafile "$lsp_check" "LSP runtime check"
 

@@ -10,7 +10,7 @@
     autocrlf = input
     whitespace = error
     excludesfile = ~/.config/git/ignore
-    editor = vim
+    editor = nvim
     quotepath = false
     pager = less -R
 
