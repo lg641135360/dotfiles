@@ -81,3 +81,4 @@
 - 对当前 Neovim/CMake/clangd 体验，优先用轻量内置命令而不是 CMake 插件：`:CMakeUserPresetInit` 生成本地 `CMakeUserPresets.json`，`:CMakeConfigure [preset]` 生成/刷新 `build/compile_commands.json`，配合 clangd 的 `--compile-commands-dir=build`。
 - 对当前 Neovim 关闭文件体验，交互式 `:q` / `:quit` 也应优先走安全 buffer close 语义（复用 `:bdelete` 包装），避免从 `nvim .` 打开文件后直接退出整个 Neovim；真正退出已有文件会话继续使用 `:qa` / `:qall`。
 - 修改任何子模块内容时，提交前都要考虑是否需要同步调整该子模块自己的 README/使用文档；即使判断无需修改，也应在验证或总结中说明该判断，避免代码、配置与文档脱节。
+- 对当前 Neovim/CMake 辅助命令，`:CMakeConfigure` 在已有 `CMakeUserPresets.json` 时应优先使用实际存在的 configure preset：无参数时选 `nvim-debug` 或第一个 `configurePresets[].name`，传入 build preset 时自动解析到它的 `configurePreset`，避免硬编码默认名导致 `no such preset`。

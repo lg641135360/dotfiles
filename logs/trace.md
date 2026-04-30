@@ -784,3 +784,13 @@
 - 已做：在 `.config/shared/nvim` 子仓库提交 `46844b9`（`Keep directory-launched Neovim sessions alive on close`），包含 `:BufferClose` / `:q` 安全关闭实现和 README 更新；随后推送到 `lg641135360/neovim` 的 `main`，远端从 `8749071` 更新到 `46844b9`。
 - 验证：子仓库推送成功；后续根仓库提交将包含新的 nvim 子模块指针、测试护栏、长期策略和 trace。
 - 后续：提交并推送 dotfiles 根仓库，确保 `lg641135360/dotfiles` 指向已推送的 Neovim 子仓库提交。
+
+- 目的：修复用户自定义 `CMakeUserPresets.json` 只有 `linux-base` 时，Neovim `:CMakeConfigure` 无参数仍默认执行 `cmake --preset nvim-debug` 导致 `no such preset` 的问题。
+- 已做：复核 `.config/shared/nvim/lua/config/cmake.lua`，确认旧逻辑只要存在 `CMakeUserPresets.json` 就硬编码默认 preset `nvim-debug`；改为读取 user preset JSON：无参数时若 `nvim-debug` 存在则使用它，否则自动选择第一个 `configurePresets[].name`；显式传入 configure preset 时保持直通；若传入 build preset（如 `linux-build`），则自动解析到它的 `configurePreset`（如 `linux-base`）。同时把 `:CMakeConfigure` 补全改为列出 configure/build preset 名称，更新 `.config/shared/nvim/README.md`、`tests/nvim_0_12_cleanup_test.sh` 和 `memory/organizing_preferences.md`；子模块 README 已按长期策略同步调整。已同步 cmake/README 到 live `~/.config/nvim`，同步前备份到 `/tmp/nvim-cmake-preset-live-backup-20260501T000220`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh tests/git_config_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/config/cmake.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；live headless smoke 用临时 CMake 项目和 fake cmake 确认 `:CMakeConfigure` 默认执行 `--preset linux-base`，`:CMakeConfigure linux-build` 也解析为 `--preset linux-base`。
+- 后续：交互式 Neovim 需要重启或重新加载配置后生效；用户当前 preset 文件中真正用于 configure 的名字是 `linux-base`，`linux-build` 是 build preset，若要命令行手动验证可执行 `cmake --preset linux-base`。
+
+- 目的：按用户要求将本轮 Neovim CMake preset 解析修复提交并推送到远程 GitHub。
+- 已做：提交前复跑 Neovim/Git 回归、shell/Lua 语法检查、live cmake/README 同步 diff、live fake-cmake headless smoke、root/nvim whitespace 检查；确认子模块 README 已随 CMake 行为变化同步更新。随后在 `.config/shared/nvim` 子仓库提交 `d3679a3`（`Use existing CMake presets from Neovim`），包含 `:CMakeConfigure` 读取 `CMakeUserPresets.json` 的 configure/build preset 解析和 README 更新，并推送到 `lg641135360/neovim` 的 `main`，远端从 `46844b9` 更新到 `d3679a3`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh tests/git_config_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/config/cmake.lua"))'`、live fake-cmake smoke、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；live smoke 确认默认 `:CMakeConfigure` 和 `:CMakeConfigure linux-build` 都执行 `--preset linux-base`。
+- 后续：提交并推送 dotfiles 根仓库，包含新的 nvim 子模块指针、测试护栏、memory 与 trace；推送后确认根仓库与子仓库均为 clean 同步状态。

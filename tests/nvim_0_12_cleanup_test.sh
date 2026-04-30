@@ -336,6 +336,57 @@ local commands = {
 for name, exists in pairs(commands) do
   print(("CMAKE_COMMAND %s=%s"):format(name, tostring(exists)))
 end
+
+local function write(path, lines)
+  vim.fn.mkdir(vim.fn.fnamemodify(path, ":h"), "p")
+  vim.fn.writefile(lines, path)
+end
+
+local temp_root = vim.fn.tempname()
+local fake_bin = vim.fs.joinpath(temp_root, "bin")
+local fake_cmake = vim.fs.joinpath(fake_bin, "cmake")
+local cmake_log = vim.fs.joinpath(temp_root, "cmake.log")
+vim.fn.mkdir(fake_bin, "p")
+write(vim.fs.joinpath(temp_root, "CMakeLists.txt"), { "cmake_minimum_required(VERSION 3.20)", "project(nvim_cmake_test)" })
+write(vim.fs.joinpath(temp_root, "CMakeUserPresets.json"), {
+  "{",
+  '  "version": 3,',
+  '  "configurePresets": [',
+  '    { "name": "linux-base", "generator": "Ninja", "binaryDir": "${sourceDir}/build" }',
+  "  ],",
+  '  "buildPresets": [',
+  '    { "name": "linux-build", "configurePreset": "linux-base" }',
+  "  ]",
+  "}",
+})
+write(fake_cmake, {
+  "#!/bin/sh",
+  ("printf 'cwd=%%s\\nargs=%%s\\n' \"$PWD\" \"$*\" > %q"):format(cmake_log),
+  "exit 0",
+})
+vim.fn.setfperm(fake_cmake, "rwxr-xr-x")
+
+vim.env.PATH = fake_bin .. ":" .. vim.env.PATH
+vim.cmd.cd(vim.fn.fnameescape(temp_root))
+vim.cmd.enew()
+
+vim.cmd.CMakeConfigure()
+vim.wait(1000, function()
+  return vim.uv.fs_stat(cmake_log) ~= nil
+end, 20)
+local default_log = table.concat(vim.fn.readfile(cmake_log), "\n")
+print("CMAKE_DEFAULT_PRESET_LOG=" .. default_log:gsub("\n", " "))
+
+vim.fn.delete(cmake_log)
+vim.cmd.CMakeConfigure("linux-build")
+vim.wait(1000, function()
+  return vim.uv.fs_stat(cmake_log) ~= nil
+end, 20)
+local build_log = table.concat(vim.fn.readfile(cmake_log), "\n")
+print("CMAKE_BUILD_PRESET_LOG=" .. build_log:gsub("\n", " "))
+
+local completion = table.concat(vim.fn.getcompletion("CMakeConfigure ", "cmdline"), ",")
+print("CMAKE_PRESET_COMPLETION=" .. completion)
 LUA
 
 cat >"$lsp_check" <<'LUA'
@@ -726,6 +777,9 @@ require_pattern 'nvim_create_user_command\("CMakeUserPresetInit"' "$NVIM/lua/con
 require_pattern 'nvim_create_user_command\("CMakeConfigure"' "$NVIM/lua/config/cmake.lua" "CMakeConfigure command should exist"
 require_pattern 'CMakeUserPresets.json' "$NVIM/lua/config/cmake.lua" "CMake helper should generate CMakeUserPresets.json"
 require_pattern '"cmake", "--preset"' "$NVIM/lua/config/cmake.lua" "CMakeConfigure should use presets when CMakeUserPresets.json exists"
+require_pattern 'resolve_configure_preset' "$NVIM/lua/config/cmake.lua" "CMakeConfigure should resolve an existing configure preset instead of hardcoding nvim-debug"
+require_pattern 'configurePresets' "$NVIM/lua/config/cmake.lua" "CMakeConfigure should read configurePresets from CMakeUserPresets.json"
+require_pattern 'buildPresets' "$NVIM/lua/config/cmake.lua" "CMakeConfigure should understand build presets that point at a configurePreset"
 require_pattern '"cmake", "-S", root, "-B", build_dir\(root\)' "$NVIM/lua/config/cmake.lua" "CMakeConfigure should fallback to cmake -S root -B build"
 require_pattern 'compile_commands.json' "$NVIM/lua/config/cmake.lua" "CMake helper should document clangd compile database output"
 require_pattern ':LspRestart clangd' "$NVIM/lua/config/cmake.lua" "CMake helper should remind about restarting clangd"
@@ -840,6 +894,8 @@ require_pattern 'mason-tool-installer\.nvim' "$NVIM/README.md" "README should do
 require_pattern 'CMakeUserPresetInit' "$NVIM/README.md" "README should document CMakeUserPresetInit"
 require_pattern 'CMakeConfigure' "$NVIM/README.md" "README should document CMakeConfigure"
 require_pattern 'compile_commands\.json' "$NVIM/README.md" "README should document compile_commands.json generation for clangd"
+require_pattern '第一个 `configurePresets\\[\\]\\.name`|linux-base' "$NVIM/README.md" "README should document CMakeConfigure auto-selects an existing configure preset"
+require_pattern 'build preset.*configurePreset|configurePreset.*build preset' "$NVIM/README.md" "README should document build preset to configurePreset resolution"
 require_pattern 'headless 测试' "$NVIM/README.md" "README should document headless runs skip automatic tool installation"
 require_pattern 'conform\.nvim' "$NVIM/README.md" "README should document conform formatting"
 require_pattern 'neo-tree.*整数宽度|整数宽度.*neo-tree|width.*40' "$NVIM/README.md" "README should document the integer neo-tree sidebar width"
@@ -995,6 +1051,10 @@ run_nvim_luafile "$cmake_check" "CMake command runtime check"
 
 require_pattern 'CMAKE_COMMAND CMakeUserPresetInit=2' "$out_file" "CMakeUserPresetInit should be registered at runtime"
 require_pattern 'CMAKE_COMMAND CMakeConfigure=2' "$out_file" "CMakeConfigure should be registered at runtime"
+require_pattern 'CMAKE_DEFAULT_PRESET_LOG=.*args=--preset linux-base' "$out_file" "CMakeConfigure without args should use the first configure preset when nvim-debug is absent"
+require_pattern 'CMAKE_BUILD_PRESET_LOG=.*args=--preset linux-base' "$out_file" "CMakeConfigure should resolve a build preset to its configurePreset"
+require_pattern 'CMAKE_PRESET_COMPLETION=.*linux-base' "$out_file" "CMakeConfigure completion should include configure presets"
+require_pattern 'CMAKE_PRESET_COMPLETION=.*linux-build' "$out_file" "CMakeConfigure completion should include build presets that can resolve to configurePreset"
 
 run_nvim_luafile "$lsp_check" "LSP runtime check"
 
