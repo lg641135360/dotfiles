@@ -363,6 +363,10 @@ LUA
 
 cat >"$active_spec_check" <<'LUA'
 local plugins = require("lazy.core.config").plugins or {}
+local snacks = plugins["snacks.nvim"] or {}
+local snacks_opts = type(snacks.opts) == "table" and snacks.opts or {}
+local dashboard = type(snacks_opts.dashboard) == "table" and snacks_opts.dashboard or {}
+print("SNACKS_DASHBOARD_ENABLED=" .. tostring(dashboard.enabled))
 for _, name in ipairs({
   "Comment.nvim",
   "fidget.nvim",
@@ -529,6 +533,7 @@ require_pattern 'local kind_icons = \{' "$NVIM/lua/plugins/blink-cmp.lua" "blink
 require_pattern 'kind_icons\[ctx\.kind\]' "$NVIM/lua/plugins/blink-cmp.lua" "blink-cmp should use the local kind icon map"
 require_pattern 'nvim-web-devicons' "$NVIM/lua/plugins/blink-cmp.lua" "blink-cmp should keep devicons for path completion icons"
 require_pattern 'folke/snacks.nvim' "$NVIM/lua/plugins/snacks.lua" "snacks.nvim must remain"
+require_pattern 'dashboard = \{ enabled = false \}' "$NVIM/lua/plugins/snacks.lua" "snacks dashboard should be disabled for native startup"
 require_pattern 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree.nvim must remain"
 reject_pattern 'akinsho/bufferline.nvim|BufferLine' "$NVIM/lua/plugins" "bufferline.nvim should be removed after native tabline replacement"
 reject_pattern '"bufferline.nvim"' "$NVIM/lazy-lock.json" "bufferline.nvim should not remain in lazy-lock after native tabline replacement"
@@ -661,6 +666,7 @@ require_pattern '`pumborder`' "$NVIM/Readme.md" "README should document Neovim 0
 reject_pattern 'UI / Picker.*noice\.nvim' "$NVIM/Readme.md" "README should not list noice.nvim as an active UI plugin after native replacement"
 require_pattern 'Noice.*原生.*cmdline/messages|Noice.*native.*cmdline/messages' "$NVIM/Readme.md" "README should document the Noice native cmdline/messages replacement"
 require_pattern 'snacks\.nvim.*notifier.*input|Notifier.*input' "$NVIM/Readme.md" "README should keep snacks notifier/input coverage documented after Noice removal"
+require_pattern 'Dashboard 不启用|原生空 buffer|native startup' "$NVIM/Readme.md" "README should document native startup after disabling snacks dashboard"
 reject_pattern 'tiny-inline-diagnostic|tiny_inline|tiny%-inline%-diagnostic' "$NVIM/Readme.md" "README should not describe removed tiny-inline-diagnostic behavior"
 require_pattern 'virt_text_pos = "inline"' "$NVIM/Readme.md" "README should document native inline diagnostic virtual text"
 require_pattern '<A-Up>' "$NVIM/Readme.md" "README should document Alt-Up line movement"
@@ -753,6 +759,7 @@ require_pattern 'ACTIVE_PLUGIN lspkind-nvim=false' "$out_file" "lspkind-nvim sho
 require_pattern 'ACTIVE_PLUGIN blink.cmp=true' "$out_file" "blink.cmp should remain active after lspkind removal"
 require_pattern 'ACTIVE_PLUGIN lualine.nvim=false' "$out_file" "lualine should not remain active after native statusline replacement"
 require_pattern 'ACTIVE_PLUGIN snacks.nvim=true' "$out_file" "snacks.nvim should remain active for picker/notifier/input coverage"
+require_pattern 'SNACKS_DASHBOARD_ENABLED=false' "$out_file" "snacks dashboard should be disabled at runtime"
 require_pattern 'ACTIVE_PLUGIN nui.nvim=true' "$out_file" "nui.nvim should remain active as a dependency of neo-tree/avante"
 require_pattern 'ACTIVE_PLUGIN nvim-dap=false' "$out_file" "nvim-dap should remain disabled"
 require_pattern 'ACTIVE_PLUGIN nvim-dap-ui=false' "$out_file" "nvim-dap-ui should remain disabled"
