@@ -764,3 +764,8 @@
 - 已做：在 `.config/shared/nvim` 子仓库中将 `Readme.md` 重命名为 `README.md`；更新 `tests/nvim_0_12_cleanup_test.sh` 里的 README 路径断言；更新长期偏好中的 Neovim README 路径写法；删除根目录 `NEOVIM_GUIDE.md`，因为当前 `.config/shared/nvim/README.md` 已覆盖快捷键与使用指南。同步 live `~/.config/nvim/README.md`，并删除 live 旧 `~/.config/nvim/Readme.md`；同步前备份到 `/tmp/nvim-readme-rename-live-backup-20260430T230648`。
 - 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、相关 shell 语法检查、根仓库与 nvim 子仓库 `git diff --check` 均通过；仓库与 live 的 `README.md` 无差异，live 旧 `Readme.md` 已不存在。
 - 后续：后续 Neovim 用户文档统一维护 `.config/shared/nvim/README.md`，不要再新增根目录 `NEOVIM_GUIDE.md` 这类重复指南。
+
+- 目的：按用户要求整理当前本地 Git/Neovim 配置改动，并推送到远程，确保子仓库与根仓库远端指针一致。
+- 已做：复跑 Neovim/Git 轻量回归测试、shell 语法检查和 root/nvim whitespace 检查；在 `.config/shared/nvim` 子仓库提交 `8749071`（`Make Neovim interactions safer and easier to discover`）并推送到 `lg641135360/neovim` 的 `main`；随后在 dotfiles 根仓库提交 `45518ba`（`Preserve the updated editor workflow across dotfiles`）并推送到 `lg641135360/dotfiles` 的 `main`，包含 Git 默认编辑器、nvim 子仓库指针、测试、README 规范化、偏好与 trace。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh tests/git_config_test.sh`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；推送后根仓库与 Neovim 子仓库均为 `main...origin/main` 同步状态。
+- 后续：本条 trace 作为推送结果记录单独提交；后续继续修改 Neovim 用户体验时仍需先更新 `.config/shared/nvim/README.md` 与对应回归测试，再按子仓库先推、根仓库后推的顺序发布。
