@@ -690,17 +690,16 @@ require_pattern 'mason-tool-installer\.nvim' "$NVIM/Readme.md" "README should do
 require_pattern 'headless 测试' "$NVIM/Readme.md" "README should document headless runs skip automatic tool installation"
 require_pattern 'conform\.nvim' "$NVIM/Readme.md" "README should document conform formatting"
 require_pattern 'DAP 当前未启用' "$NVIM/Readme.md" "README should document that DAP is currently disabled"
+reject_pattern 'lua/plugins/dap\.lua|调试插件占位' "$NVIM/Readme.md" "README should not document removed DAP placeholder files"
 reject_pattern '\| Debug[[:space:]]+\| `nvim-dap`' "$NVIM/Readme.md" "README should not list nvim-dap as an active plugin"
-reject_pattern 'mfussenegger/nvim-dap|rcarriga/nvim-dap-ui|nvim-neotest/nvim-nio' "$NVIM/lua/plugins" "DAP plugins must remain inactive in the safe cleanup pass"
-reject_pattern '<F5>|<F10>|<F11>|<F12>|<leader>dr|<leader>dl|<leader>du|<leader>b|<leader>B|dapui|cortex_debug' "$NVIM/lua/plugins/dap.lua" "dap.lua should be a concise disabled stub without old implementation or debug mappings"
-reject_pattern 'sphamba/smear-cursor.nvim|smear-cursor|smear_cursor' "$NVIM/lua/plugins/cursor.lua" "cursor.lua should be a concise disabled stub without smear-cursor implementation"
-
-if (( $(wc -l < "$NVIM/lua/plugins/dap.lua") > 8 )); then
-  echo "dap.lua should be a concise disabled stub"
+reject_pattern 'mfussenegger/nvim-dap|rcarriga/nvim-dap-ui|nvim-neotest/nvim-nio|dapui|cortex_debug' "$NVIM/lua/plugins" "DAP plugins must remain absent after disabled stub cleanup"
+reject_pattern 'sphamba/smear-cursor.nvim|smear-cursor|smear_cursor' "$NVIM/lua/plugins" "smear-cursor must remain absent after disabled stub cleanup"
+if [[ -e "$NVIM/lua/plugins/dap.lua" ]]; then
+  echo "dap.lua disabled placeholder should be removed"
   exit 1
 fi
-if (( $(wc -l < "$NVIM/lua/plugins/cursor.lua") > 8 )); then
-  echo "cursor.lua should be a concise disabled stub"
+if [[ -e "$NVIM/lua/plugins/cursor.lua" ]]; then
+  echo "cursor.lua disabled placeholder should be removed"
   exit 1
 fi
 
