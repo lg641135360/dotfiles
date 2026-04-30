@@ -8,6 +8,7 @@ data_home="$(mktemp -d)"
 state_home="$(mktemp -d)"
 cache_home="$(mktemp -d)"
 keymap_check="$(mktemp)"
+quit_command_check="$(mktemp)"
 line_edit_check="$(mktemp)"
 lsp_check="$(mktemp)"
 ui_check="$(mktemp)"
@@ -24,7 +25,7 @@ cp "$lock_file" "$lock_backup"
 
 cleanup() {
   cp "$lock_backup" "$lock_file"
-  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$theme_check" "$statusline_check" "$tabline_check" "$cmake_check"
+  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$quit_command_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$theme_check" "$statusline_check" "$tabline_check" "$cmake_check"
   rm -f "$lock_backup"
 }
 trap cleanup EXIT
@@ -162,6 +163,47 @@ require_callback("n", "<leader>o")
 require_desc_contains("n", "<leader>o", "Document symbols")
 
 print("KEYMAP_INVENTORY_OK=true")
+LUA
+
+cat >"$quit_command_check" <<'LUA'
+local function command_exists(name)
+  return vim.fn.exists(":" .. name)
+end
+
+local function assert_equal(actual, expected, label)
+  if actual ~= expected then
+    error(("%s: expected %s, got %s"):format(label, expected, actual))
+  end
+end
+
+assert_equal(command_exists("BufferClose"), 2, "BufferClose user command")
+
+local abbrev_q = vim.fn.execute("cnoreabbrev q")
+local abbrev_quit = vim.fn.execute("cnoreabbrev quit")
+print("COMMAND_Q_ABBREV=" .. abbrev_q:gsub("\n", " "))
+print("COMMAND_QUIT_ABBREV=" .. abbrev_quit:gsub("\n", " "))
+if not abbrev_q:find("*", 1, true) or not abbrev_q:find("BufferClose", 1, true) then
+  error(":q should be an exact command-line abbreviation to BufferClose")
+end
+if not abbrev_quit:find("*", 1, true) or not abbrev_quit:find("BufferClose", 1, true) then
+  error(":quit should be an exact command-line abbreviation to BufferClose")
+end
+
+local tmp = vim.fn.tempname()
+vim.fn.writefile({ "safe quit command" }, tmp)
+vim.cmd.edit(vim.fn.fnameescape(tmp))
+
+local initial_buf = vim.api.nvim_get_current_buf()
+local initial_name = vim.api.nvim_buf_get_name(initial_buf)
+local keys = vim.api.nvim_replace_termcodes(":q<CR>", true, false, true)
+vim.api.nvim_feedkeys(keys, "xt", false)
+
+print("COMMAND_Q_STILL_RUNNING=true")
+print("COMMAND_Q_INITIAL_NAME=" .. initial_name)
+print("COMMAND_Q_CURRENT_NAME=" .. vim.api.nvim_buf_get_name(0))
+print("COMMAND_Q_BUFFER_CHANGED=" .. tostring(vim.api.nvim_get_current_buf() ~= initial_buf))
+print("COMMAND_Q_INITIAL_BUFLISTED=" .. tostring(vim.fn.buflisted(initial_buf)))
+vim.fn.delete(tmp)
 LUA
 
 cat >"$line_edit_check" <<'LUA'
@@ -670,6 +712,9 @@ require_pattern 'vim\.cmd\.quit' "$NVIM/lua/config/keymaps.lua" "<leader>q shoul
 require_pattern 'pcall\(vim\.cmd\.bdelete\)' "$NVIM/lua/config/keymaps.lua" "<leader>q wrapper should preserve bdelete errors"
 require_pattern 'vim\.notify\(tostring\(err\), vim\.log\.levels\.WARN\)' "$NVIM/lua/config/keymaps.lua" "<leader>q wrapper should forward original bdelete errors to floating notifications"
 require_pattern 'vim\.cmd\.bdelete' "$NVIM/lua/config/keymaps.lua" "<leader>q wrapper should close saved buffers with bdelete"
+require_pattern 'nvim_create_user_command\("BufferClose"' "$NVIM/lua/config/keymaps.lua" "BufferClose command should reuse the safe buffer close wrapper"
+require_pattern 'cnoreabbrev <expr> q .*BufferClose' "$NVIM/lua/config/keymaps.lua" ":q should be routed to BufferClose when typed exactly"
+require_pattern 'cnoreabbrev <expr> quit .*BufferClose' "$NVIM/lua/config/keymaps.lua" ":quit should be routed to BufferClose when typed exactly"
 reject_pattern '当前文件有未保存修改|已取消关闭|强制关闭并放弃修改|未保存修改' "$NVIM/lua/config/keymaps.lua" "<leader>q should not use custom unsaved-buffer wording"
 reject_pattern '<leader>q.*:q<CR>|:q<CR>.*<leader>q' "$NVIM/lua/config/keymaps.lua" "<leader>q should not use :q because it can quit Neovim when closing the last window"
 if [[ -e "$NVIM/lua/plugins/trouble.lua" ]]; then
@@ -758,6 +803,7 @@ require_pattern 'snacks\.nvim.*notifier.*input|Notifier.*input' "$NVIM/README.md
 require_pattern 'Notifier.*8 秒|8 秒.*Notifier|notification history' "$NVIM/README.md" "README should document readable longer Snacks notifications and history"
 require_pattern '<C-s>.*保存|保存.*<C-s>' "$NVIM/README.md" "README should document Ctrl-S quick save"
 require_pattern '<leader>q.*不退出 Neovim|不退出 Neovim.*<leader>q|:bdelete' "$NVIM/README.md" "README should document that <leader>q closes buffers instead of quitting Neovim"
+require_pattern ':q.*关闭当前文件 buffer|关闭当前文件 buffer.*:q' "$NVIM/README.md" "README should document that :q closes the current buffer in this config"
 require_pattern '原生命令错误文本.*Snacks 浮动通知|Snacks 浮动通知.*原生命令错误文本' "$NVIM/README.md" "README should document that original bdelete errors are forwarded to floating notifications"
 require_pattern '空 buffer.*退出 Neovim|退出 Neovim.*空 buffer' "$NVIM/README.md" "README should document that <leader>q quits from an empty unnamed buffer"
 require_pattern 'Dashboard 不启用|原生空 buffer|native startup' "$NVIM/README.md" "README should document native startup after disabling snacks dashboard"
@@ -929,6 +975,14 @@ require_pattern 'KEYMAP_INVENTORY_OK=true' "$out_file" "runtime keymap inventory
 for lhs in grn gra grr gri grt grx gO; do
   require_pattern "KEYMAP $lhs " "$out_file" "runtime keymap output should include $lhs"
 done
+
+run_nvim_luafile "$quit_command_check" "safe :q command behavior"
+
+require_pattern 'COMMAND_Q_ABBREV=.*\*.*BufferClose' "$out_file" ":q should expand to BufferClose interactively"
+require_pattern 'COMMAND_QUIT_ABBREV=.*\*.*BufferClose' "$out_file" ":quit should expand to BufferClose interactively"
+require_pattern 'COMMAND_Q_STILL_RUNNING=true' "$out_file" ":q should not exit the headless Neovim process before checks run"
+require_pattern 'COMMAND_Q_BUFFER_CHANGED=true' "$out_file" ":q should close the current file buffer instead of quitting the process"
+require_pattern 'COMMAND_Q_INITIAL_BUFLISTED=0' "$out_file" ":q should remove the original file buffer from the listed buffer set"
 
 run_nvim_luafile "$line_edit_check" "line edit runtime behavior"
 

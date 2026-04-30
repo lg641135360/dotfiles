@@ -769,3 +769,18 @@
 - 已做：复跑 Neovim/Git 轻量回归测试、shell 语法检查和 root/nvim whitespace 检查；在 `.config/shared/nvim` 子仓库提交 `8749071`（`Make Neovim interactions safer and easier to discover`）并推送到 `lg641135360/neovim` 的 `main`；随后在 dotfiles 根仓库提交 `45518ba`（`Preserve the updated editor workflow across dotfiles`）并推送到 `lg641135360/dotfiles` 的 `main`，包含 Git 默认编辑器、nvim 子仓库指针、测试、README 规范化、偏好与 trace。
 - 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh tests/git_config_test.sh`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；推送后根仓库与 Neovim 子仓库均为 `main...origin/main` 同步状态。
 - 后续：本条 trace 作为推送结果记录单独提交；后续继续修改 Neovim 用户体验时仍需先更新 `.config/shared/nvim/README.md` 与对应回归测试，再按子仓库先推、根仓库后推的顺序发布。
+
+- 目的：按用户反馈修正从 `nvim .` 打开目录后进入文件再输入 `:q` 会直接退出 Neovim 进程的问题，让交互式 `:q` 与当前关闭文件偏好一致。
+- 已做：复核现有 `<leader>q` 安全关闭 buffer 逻辑、README 和测试护栏；在 `.config/shared/nvim/lua/config/keymaps.lua` 中新增 `:BufferClose` 用户命令复用同一个 `close_current_buffer()` 包装，并用精确 command-line abbreviation 将交互式 `:q` / `:quit` 路由到 `BufferClose`，避免误影响 `:qa` / `:qall` / `:wq` 等显式退出命令。同步更新 `.config/shared/nvim/README.md`、`tests/nvim_0_12_cleanup_test.sh` 和 `memory/organizing_preferences.md`，并把 keymaps/README 同步到 live `~/.config/nvim`，同步前备份到 `/tmp/nvim-safe-q-live-backup-20260430T234832`。
+- 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh tests/git_config_test.sh`、`luajit -e 'assert(loadfile(".config/shared/nvim/lua/config/keymaps.lua"))'`、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；live headless smoke 确认 `LIVE_BUFFER_CLOSE_COMMAND=2`、交互式 `:q` 后进程仍运行、当前 buffer 已切换且原文件 buffer 不再 listed。
+- 后续：交互式 Neovim 需要重启或重新加载 keymaps 后生效；以后若需要真正退出已有文件会话，继续使用 `:qa` / `:qall`，如果只想关闭窗口而不删 buffer，可另行使用 `:close`。
+
+- 目的：按用户要求把“修改子模块时考虑 README 同步”加入长期策略，并将当前 Neovim `:q` 安全关闭修复提交并推送到远程 GitHub。
+- 已做：在 `memory/organizing_preferences.md` 新增长期策略：任何子模块内容变更在提交前都要考虑是否同步更新该子模块 README/使用文档，若无需更新也要在验证或总结中说明判断。当前 Neovim 子模块改动已经同步更新 `.config/shared/nvim/README.md`，符合该策略；准备按子仓库先提交、根仓库后提交的顺序发布。
+- 验证：提交前复跑 Neovim/Git 回归测试、shell/Lua 语法检查、live 同步检查和 root/nvim whitespace 检查。
+- 后续：先提交并推送 `.config/shared/nvim` 子仓库，再提交并推送 dotfiles 根仓库，确保远端包含子模块指针、测试、memory 与 trace。
+
+- 目的：记录本轮 Neovim 子仓库提交与推送结果，便于根仓库提交时固定正确子模块指针。
+- 已做：在 `.config/shared/nvim` 子仓库提交 `46844b9`（`Keep directory-launched Neovim sessions alive on close`），包含 `:BufferClose` / `:q` 安全关闭实现和 README 更新；随后推送到 `lg641135360/neovim` 的 `main`，远端从 `8749071` 更新到 `46844b9`。
+- 验证：子仓库推送成功；后续根仓库提交将包含新的 nvim 子模块指针、测试护栏、长期策略和 trace。
+- 后续：提交并推送 dotfiles 根仓库，确保 `lg641135360/dotfiles` 指向已推送的 Neovim 子仓库提交。
