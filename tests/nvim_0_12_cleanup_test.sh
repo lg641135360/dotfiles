@@ -374,6 +374,8 @@ for _, name in ipairs({
   "header.nvim",
   "nvim-colorizer.lua",
   "bufferline.nvim",
+  "lspkind-nvim",
+  "blink.cmp",
   "snacks.nvim",
   "nui.nvim",
   "lualine.nvim",
@@ -521,6 +523,11 @@ run_nvim_luafile() {
 }
 
 require_pattern 'saghen/blink.cmp' "$NVIM/lua/plugins/blink-cmp.lua" "blink.cmp must remain"
+reject_pattern 'onsails/lspkind-nvim|require\("lspkind"\)' "$NVIM/lua/plugins" "lspkind-nvim should be removed after inline completion icon cleanup"
+reject_pattern '"lspkind-nvim"' "$NVIM/lazy-lock.json" "lspkind-nvim should not remain in lazy-lock after inline completion icon cleanup"
+require_pattern 'local kind_icons = \{' "$NVIM/lua/plugins/blink-cmp.lua" "blink-cmp should define local completion kind icons after lspkind removal"
+require_pattern 'kind_icons\[ctx\.kind\]' "$NVIM/lua/plugins/blink-cmp.lua" "blink-cmp should use the local kind icon map"
+require_pattern 'nvim-web-devicons' "$NVIM/lua/plugins/blink-cmp.lua" "blink-cmp should keep devicons for path completion icons"
 require_pattern 'folke/snacks.nvim' "$NVIM/lua/plugins/snacks.lua" "snacks.nvim must remain"
 require_pattern 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree.nvim must remain"
 reject_pattern 'akinsho/bufferline.nvim|BufferLine' "$NVIM/lua/plugins" "bufferline.nvim should be removed after native tabline replacement"
@@ -676,6 +683,8 @@ require_pattern '原生 `statusline`|statusline.*laststatus=3' "$NVIM/Readme.md"
 reject_pattern 'UI / Picker.*lualine\.nvim|`lualine.nvim`' "$NVIM/Readme.md" "README should not list lualine.nvim as active after native statusline replacement"
 reject_pattern 'Trouble diagnostics|folke/trouble.nvim|:Trouble' "$NVIM/Readme.md" "README should not document Trouble after native diagnostics quickfix replacement"
 require_pattern '<leader>ff' "$NVIM/Readme.md" "README should document snacks file picker keymaps"
+reject_pattern '`lspkind.nvim`|lspkind\.nvim' "$NVIM/Readme.md" "README should not list lspkind.nvim as active after inline icon cleanup"
+require_pattern 'kind icons.*本地映射|本地映射.*kind icons' "$NVIM/Readme.md" "README should document local completion kind icons"
 require_pattern '<leader>th' "$NVIM/Readme.md" "README should document inlay hint toggle"
 require_pattern 'mason-tool-installer\.nvim' "$NVIM/Readme.md" "README should document Mason tool installer behavior"
 require_pattern 'headless 测试' "$NVIM/Readme.md" "README should document headless runs skip automatic tool installation"
@@ -741,6 +750,8 @@ require_pattern 'ACTIVE_PLUGIN neoscroll.nvim=false' "$out_file" "neoscroll.nvim
 require_pattern 'ACTIVE_PLUGIN header.nvim=false' "$out_file" "header.nvim should not remain active after header automation cleanup"
 require_pattern 'ACTIVE_PLUGIN nvim-colorizer.lua=false' "$out_file" "nvim-colorizer.lua should not remain active after color preview cleanup"
 require_pattern 'ACTIVE_PLUGIN bufferline.nvim=false' "$out_file" "bufferline.nvim should not remain active after native tabline replacement"
+require_pattern 'ACTIVE_PLUGIN lspkind-nvim=false' "$out_file" "lspkind-nvim should not remain active after inline completion icon cleanup"
+require_pattern 'ACTIVE_PLUGIN blink.cmp=true' "$out_file" "blink.cmp should remain active after lspkind removal"
 require_pattern 'ACTIVE_PLUGIN lualine.nvim=false' "$out_file" "lualine should not remain active after native statusline replacement"
 require_pattern 'ACTIVE_PLUGIN snacks.nvim=true' "$out_file" "snacks.nvim should remain active for picker/notifier/input coverage"
 require_pattern 'ACTIVE_PLUGIN nui.nvim=true' "$out_file" "nui.nvim should remain active as a dependency of neo-tree/avante"
