@@ -15,6 +15,7 @@ active_spec_check="$(mktemp)"
 diagnostics_check="$(mktemp)"
 theme_check="$(mktemp)"
 statusline_check="$(mktemp)"
+tabline_check="$(mktemp)"
 lock_file="$NVIM/lazy-lock.json"
 lock_backup="$(mktemp)"
 
@@ -22,7 +23,7 @@ cp "$lock_file" "$lock_backup"
 
 cleanup() {
   cp "$lock_backup" "$lock_file"
-  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$theme_check" "$statusline_check"
+  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$theme_check" "$statusline_check" "$tabline_check"
   rm -f "$lock_backup"
 }
 trap cleanup EXIT
@@ -123,17 +124,21 @@ for _, lhs in ipairs({
 end
 
 for i = 1, 9 do
-  require_rhs_contains("n", "<leader>" .. i, "BufferLineGoToBuffer " .. i)
+  require_callback("n", "<leader>" .. i)
+  require_desc_contains("n", "<leader>" .. i, "Go to buffer " .. i)
 end
 
 for _, lhs in ipairs({ "<C-c>", "<C-x>", "<C-v>", "<Tab>", "<S-Tab>" }) do
   require_mapped("v", lhs)
 end
 
-require_rhs_contains("n", "<leader><PageDown>", "BufferLineCycleNext")
-require_rhs_contains("n", "<leader><PageUp>", "BufferLineCyclePrev")
+require_callback("n", "<leader><PageDown>")
+require_desc_contains("n", "<leader><PageDown>", "Next buffer")
+require_callback("n", "<leader><PageUp>")
+require_desc_contains("n", "<leader><PageUp>", "Previous buffer")
 require_rhs_contains("n", "<leader>c", "bdelete")
 require_callback("n", "<leader>tb")
+require_desc_contains("n", "<leader>tb", "native tabline")
 require_rhs_contains("n", "<leader>e", "Neotree toggle")
 require_callback("n", "<leader>ft")
 require_callback("n", "<leader>xx")
@@ -368,6 +373,7 @@ for _, name in ipairs({
   "neoscroll.nvim",
   "header.nvim",
   "nvim-colorizer.lua",
+  "bufferline.nvim",
   "snacks.nvim",
   "nui.nvim",
   "lualine.nvim",
@@ -409,6 +415,25 @@ mapping.callback()
 local qf = vim.fn.getqflist()
 print("DIAGNOSTICS_QF_COUNT=" .. tostring(#qf))
 print("DIAGNOSTICS_QF_TEXT=" .. tostring(qf[1] and qf[1].text or ""))
+LUA
+
+
+cat >"$tabline_check" <<'LUA'
+vim.api.nvim_buf_set_name(0, "native-tabline-a.lua")
+vim.cmd("enew")
+vim.api.nvim_buf_set_name(0, "native-tabline-b.lua")
+_G.nvim_native_buffer_goto(1)
+local first = vim.api.nvim_buf_get_name(0)
+_G.nvim_native_buffer_cycle(1)
+local cycled = vim.api.nvim_buf_get_name(0)
+local rendered = _G.nvim_native_tabline()
+print("TABLINE_SHOW=" .. tostring(vim.o.showtabline))
+print("TABLINE_EXPR=" .. tostring(vim.o.tabline))
+print("TABLINE_GOTO_FIRST=" .. tostring(first:find("native%-tabline%-a%.lua") ~= nil))
+print("TABLINE_CYCLE_CHANGED=" .. tostring(cycled ~= first))
+print("TABLINE_HAS_ORDINAL=" .. tostring(rendered:find("1:", 1, true) ~= nil))
+print("TABLINE_HAS_SELECTED=" .. tostring(rendered:find("%#TabLineSel#", 1, true) ~= nil))
+print("TABLINE_HAS_FILE=" .. tostring(rendered:find("native-tabline", 1, true) ~= nil))
 LUA
 
 cat >"$theme_check" <<'LUA'
@@ -498,7 +523,14 @@ run_nvim_luafile() {
 require_pattern 'saghen/blink.cmp' "$NVIM/lua/plugins/blink-cmp.lua" "blink.cmp must remain"
 require_pattern 'folke/snacks.nvim' "$NVIM/lua/plugins/snacks.lua" "snacks.nvim must remain"
 require_pattern 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree.nvim must remain"
-require_pattern 'akinsho/bufferline.nvim' "$NVIM/lua/plugins/bufferline.lua" "bufferline.nvim must remain"
+reject_pattern 'akinsho/bufferline.nvim|BufferLine' "$NVIM/lua/plugins" "bufferline.nvim should be removed after native tabline replacement"
+reject_pattern '"bufferline.nvim"' "$NVIM/lazy-lock.json" "bufferline.nvim should not remain in lazy-lock after native tabline replacement"
+require_pattern '_G\.nvim_native_tabline' "$NVIM/lua/config/options.lua" "native tabline function should be defined in options.lua"
+require_pattern 'vim\.opt\.tabline = "%!v:lua\.nvim_native_tabline\(\)"' "$NVIM/lua/config/options.lua" "tabline should use native Lua tabline expression"
+require_pattern 'vim\.opt\.showtabline = 2' "$NVIM/lua/config/options.lua" "native tabline should stay visible by default"
+require_pattern 'nvim_native_buffer_goto' "$NVIM/lua/config/keymaps.lua" "buffer ordinal keymaps should use native buffer goto helper"
+require_pattern 'nvim_native_buffer_cycle' "$NVIM/lua/config/keymaps.lua" "buffer cycle keymaps should use native buffer cycle helper"
+reject_pattern 'BufferLine' "$NVIM/lua/config/keymaps.lua" "keymaps should not call BufferLine after native tabline replacement"
 reject_pattern 'stevearc/aerial.nvim|AerialToggle|require\("aerial"\)' "$NVIM/lua/plugins" "aerial.nvim should be removed after native document symbols replacement"
 reject_pattern 'karb94/neoscroll.nvim|require\("neoscroll"\)' "$NVIM/lua/plugins" "neoscroll.nvim should be removed after native scrolling replacement"
 reject_pattern 'attilarepka/header.nvim' "$NVIM/lua/plugins" "header.nvim should be removed after header automation cleanup"
@@ -627,7 +659,9 @@ require_pattern 'virt_text_pos = "inline"' "$NVIM/Readme.md" "README should docu
 require_pattern '<A-Up>' "$NVIM/Readme.md" "README should document Alt-Up line movement"
 require_pattern '<S-A-Down>' "$NVIM/Readme.md" "README should document Shift-Alt-Down line duplication"
 require_pattern 'Alacritty Linux / macOS profile' "$NVIM/Readme.md" "README should document terminal profile support for Alt line keys"
-require_pattern '<leader>tb' "$NVIM/Readme.md" "README should document the bufferline toggle"
+require_pattern '<leader>tb' "$NVIM/Readme.md" "README should document the native tabline toggle"
+require_pattern '原生.*tabline|tabline.*原生' "$NVIM/Readme.md" "README should document the native tabline replacement"
+reject_pattern 'UI / Picker.*bufferline\.nvim|`bufferline.nvim`|BufferLine' "$NVIM/Readme.md" "README should not list bufferline.nvim as active after native tabline replacement"
 require_pattern '<leader>xx.*quickfix|quickfix.*<leader>xx' "$NVIM/Readme.md" "README should document native quickfix diagnostics for <leader>xx"
 require_pattern '<leader>o.*document symbols|document symbols.*<leader>o' "$NVIM/Readme.md" "README should document native document symbols for <leader>o"
 require_pattern 'Outline.*gO|gO.*Outline' "$NVIM/Readme.md" "README should document native gO outline support"
@@ -706,6 +740,7 @@ require_pattern 'ACTIVE_PLUGIN aerial.nvim=false' "$out_file" "Aerial should not
 require_pattern 'ACTIVE_PLUGIN neoscroll.nvim=false' "$out_file" "neoscroll.nvim should not remain active after native scrolling replacement"
 require_pattern 'ACTIVE_PLUGIN header.nvim=false' "$out_file" "header.nvim should not remain active after header automation cleanup"
 require_pattern 'ACTIVE_PLUGIN nvim-colorizer.lua=false' "$out_file" "nvim-colorizer.lua should not remain active after color preview cleanup"
+require_pattern 'ACTIVE_PLUGIN bufferline.nvim=false' "$out_file" "bufferline.nvim should not remain active after native tabline replacement"
 require_pattern 'ACTIVE_PLUGIN lualine.nvim=false' "$out_file" "lualine should not remain active after native statusline replacement"
 require_pattern 'ACTIVE_PLUGIN snacks.nvim=true' "$out_file" "snacks.nvim should remain active for picker/notifier/input coverage"
 require_pattern 'ACTIVE_PLUGIN nui.nvim=true' "$out_file" "nui.nvim should remain active as a dependency of neo-tree/avante"
@@ -730,6 +765,16 @@ run_nvim_luafile "$theme_check" "theme runtime check"
 require_pattern 'COLORSCHEME=catppuccin-mocha' "$out_file" "active colorscheme should be Catppuccin Mocha"
 require_pattern 'THEME_CATPPUCCIN_ACTIVE=true' "$out_file" "Catppuccin plugin should remain active at runtime"
 require_pattern 'THEME_ONEDARK_ACTIVE=false' "$out_file" "onedark plugin should not remain active at runtime"
+
+run_nvim_luafile "$tabline_check" "native tabline runtime check"
+
+require_pattern 'TABLINE_SHOW=2' "$out_file" "native tabline should keep showtabline=2"
+require_pattern 'TABLINE_EXPR=%!v:lua.nvim_native_tabline()' "$out_file" "tabline should use native Lua expression"
+require_pattern 'TABLINE_GOTO_FIRST=true' "$out_file" "native buffer goto should select ordinal buffers"
+require_pattern 'TABLINE_CYCLE_CHANGED=true' "$out_file" "native buffer cycle should move between buffers"
+require_pattern 'TABLINE_HAS_ORDINAL=true' "$out_file" "native tabline should render ordinal labels"
+require_pattern 'TABLINE_HAS_SELECTED=true' "$out_file" "native tabline should render selected highlight"
+require_pattern 'TABLINE_HAS_FILE=true' "$out_file" "native tabline should render file names"
 
 run_nvim_luafile "$statusline_check" "native statusline runtime check"
 
