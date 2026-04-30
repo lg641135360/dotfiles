@@ -4,6 +4,8 @@ bindings = [
   { key = "J", mods = "Command", chars = "\u0001\u006a" },  # Ctrl+a then j
   { key = "K", mods = "Command", chars = "\u0001\u006b" },  # Ctrl+a then k
   { key = "L", mods = "Command", chars = "\u0001\u006c" },  # Ctrl+a then l
+  { key = "Left", mods = "Alt", chars = "\u001b[1;3D" },        # Neovim Option+Left
+  { key = "Right", mods = "Alt", chars = "\u001b[1;3C" },       # Neovim Option+Right
   { key = "Up", mods = "Alt", chars = "\u001b[1;3A" },          # Neovim Option+Up
   { key = "Down", mods = "Alt", chars = "\u001b[1;3B" },        # Neovim Option+Down
   { key = "Up", mods = "Shift|Alt", chars = "\u001b[1;4A" },    # Neovim Shift+Option+Up

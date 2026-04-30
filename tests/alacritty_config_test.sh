@@ -24,6 +24,8 @@ def read_bindings(path):
     return lookup
 
 line_movement = {
+    ("Left", norm_mods("Alt")): "\x1b[1;3D",
+    ("Right", norm_mods("Alt")): "\x1b[1;3C",
     ("Up", norm_mods("Alt")): "\x1b[1;3A",
     ("Down", norm_mods("Alt")): "\x1b[1;3B",
     ("Up", norm_mods("Shift|Alt")): "\x1b[1;4A",
@@ -77,8 +79,18 @@ grep -q '<A-Up>' "$README" || {
   exit 1
 }
 
+grep -q '<A-Left>' "$README" || {
+  echo "README should document Alt-Left for Neovim jump history"
+  exit 1
+}
+
 grep -q '<S-A-Down>' "$README" || {
   echo "README should document Shift-Alt-Down for Neovim line duplication"
+  exit 1
+}
+
+grep -q 'Option+Right' "$README" || {
+  echo "README should document macOS Option-Right for Neovim jump history"
   exit 1
 }
 

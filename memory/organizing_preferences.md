@@ -63,6 +63,7 @@
 - 对当前 Neovim 诊断行内展示，优先使用 0.12 原生 `vim.diagnostic.config()` 的 inline `virtual_text`（`virt_text_pos = "inline"`），保持 signs 关闭、float rounded、source `if_many`；不再保留额外诊断显示插件，除非明确需要插件的 overlay/多行高级样式。
 - 对当前 Neovim 行移动/复制快捷键，普通模式优先只处理当前行，visual 选区优先处理整块多行；第一版不新增插件、不改无关快捷键、尽量不污染寄存器，也不额外处理终端模拟器不发送 `<S-A-Up>` 等组合键的兼容问题。
 - 当前仓库维护 Linux 与 macOS 的 Alacritty 配置；Neovim 的 `Alt+上下` 与 `Shift+Alt+上下` 行移动/复制快捷键应分别在 `.config/shared/alacritty/keys.linux.toml` 与 `.config/shared/alacritty/keys.macos.toml` 中显式发送 xterm modifier 方向键序列，macOS 物理按键按 `option_as_alt = "Both"` 使用 Option。
+- 对当前 Neovim 位置历史导航，优先提供 VSCode 风格 `Alt+Left` / `Alt+Right`，映射到 Vim jumplist 的后退 / 前进；对应 Alacritty Linux/macOS 配置也要显式发送 xterm Alt 左右方向键序列。
 - 对当前 Neovim 0.12 后续迁移规划，允许把核心体验插件或插件管理器替换纳入候选并在证据充分时执行；强边界是不能破坏现有肌肉记忆键位和主要体验。当前 `vim.pack` / 插件管理器迁移切片优先只产出 PRD 与测试规格，不直接把 `lazy.nvim` 替换掉。
 - 对当前 Neovim 配置清理重构计划，优先拆成“安全清理计划”和“战略候选 backlog”两部分；第一版安全清理不能改变现有快捷键体验，验收时必须包含测试/文档清单和优先级排序。
 - 对当前 Neovim 主题，优先使用 Catppuccin Mocha（`catppuccin/nvim`，`flavour = "mocha"`，非透明背景），不再保留 onedark 作为 active theme 或 lockfile 条目。
@@ -82,3 +83,5 @@
 - 对当前 Neovim 关闭文件体验，交互式 `:q` / `:quit` 也应优先走安全 buffer close 语义（复用 `:bdelete` 包装），避免从 `nvim .` 打开文件后直接退出整个 Neovim；真正退出已有文件会话继续使用 `:qa` / `:qall`。
 - 修改任何子模块内容时，提交前都要考虑是否需要同步调整该子模块自己的 README/使用文档；即使判断无需修改，也应在验证或总结中说明该判断，避免代码、配置与文档脱节。
 - 对当前 Neovim/CMake 辅助命令，`:CMakeConfigure` 在已有 `CMakeUserPresets.json` 时应优先使用实际存在的 configure preset：无参数时选 `nvim-debug` 或第一个 `configurePresets[].name`，传入 build preset 时自动解析到它的 `configurePreset`，避免硬编码默认名导致 `no such preset`。
+- 对当前 Neovim LSP 重启体验，优先使用 Neovim 0.12 原生 `:lsp restart ...`；不要额外新增 `:LspRestart` 这类兼容别名来包装已有原生命令。
+- 对 `wh_fabric_build` 上的 Neovim/C++ LSP，优先使用用户已下载的 `/home/fm/code/clangd/clangd_20.1.0/bin/clangd`，并通过 `~/.local/bin/clangd` 软链暴露给 Neovim；不要依赖 Mason 在该远端自动安装 clangd。

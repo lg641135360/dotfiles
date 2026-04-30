@@ -103,6 +103,8 @@ end
 for _, lhs in ipairs({
   "<leader><PageDown>",
   "<leader><PageUp>",
+  "<A-Left>",
+  "<A-Right>",
   "<leader>c",
   "<leader><Left>",
   "<leader><Down>",
@@ -148,6 +150,10 @@ require_callback("n", "<leader><PageDown>")
 require_desc_contains("n", "<leader><PageDown>", "Next buffer")
 require_callback("n", "<leader><PageUp>")
 require_desc_contains("n", "<leader><PageUp>", "Previous buffer")
+require_callback("n", "<A-Left>")
+require_desc_contains("n", "<A-Left>", "Jump back")
+require_callback("n", "<A-Right>")
+require_desc_contains("n", "<A-Right>", "Jump forward")
 require_rhs_contains("n", "<leader>c", "bdelete")
 require_callback("n", "<leader>q")
 require_desc_contains("n", "<leader>q", "Close current buffer")
@@ -255,6 +261,8 @@ end
 
 local n_up = callback("n", "<A-Up>")
 local n_down = callback("n", "<A-Down>")
+local n_jump_back = callback("n", "<A-Left>")
+local n_jump_forward = callback("n", "<A-Right>")
 local n_copy_up = callback("n", "<S-A-Up>")
 local n_copy_down = callback("n", "<S-A-Down>")
 local x_up = callback("x", "<A-Up>")
@@ -273,6 +281,15 @@ n_down()
 assert_lines({ "one", "three", "two" }, "normal Alt-Down should move current line down")
 assert_cursor(3, "normal Alt-Down should follow moved line")
 assert_register("normal Alt-Down should not touch unnamed register")
+
+setup_buffer({ "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten" }, 1)
+vim.cmd.normal({ bang = true, args = { "G" } })
+assert_cursor(10, "normal G should seed a jumplist entry for Alt-Left")
+n_jump_back()
+assert_cursor(1, "normal Alt-Left should jump back through the jumplist")
+n_jump_forward()
+assert_cursor(10, "normal Alt-Right should jump forward through the jumplist")
+assert_register("normal Alt-Left/Right should not touch unnamed register")
 
 setup_buffer({ "one", "two", "three" }, 2)
 n_copy_up()
@@ -449,6 +466,9 @@ print("LSP_LUA_LIBRARY_VIMRUNTIME=" .. tostring(has_vimruntime))
 
 local clangd_cmd = vim.lsp.config.clangd and table.concat(vim.lsp.config.clangd.cmd or {}, " ") or ""
 print("LSP_CLANGD_CMD=" .. clangd_cmd)
+print("LSP_NATIVE_COMMAND=" .. tostring(vim.fn.exists(":lsp")))
+local ok_bare_lsp = pcall(vim.cmd, "lsp")
+print("LSP_BARE_COMMAND_OK=" .. tostring(ok_bare_lsp))
 
 local pyright = vim.lsp.config.pyright
 print(
@@ -782,7 +802,8 @@ require_pattern 'configurePresets' "$NVIM/lua/config/cmake.lua" "CMakeConfigure 
 require_pattern 'buildPresets' "$NVIM/lua/config/cmake.lua" "CMakeConfigure should understand build presets that point at a configurePreset"
 require_pattern '"cmake", "-S", root, "-B", build_dir\(root\)' "$NVIM/lua/config/cmake.lua" "CMakeConfigure should fallback to cmake -S root -B build"
 require_pattern 'compile_commands.json' "$NVIM/lua/config/cmake.lua" "CMake helper should document clangd compile database output"
-require_pattern ':LspRestart clangd' "$NVIM/lua/config/cmake.lua" "CMake helper should remind about restarting clangd"
+require_pattern ':lsp restart clangd' "$NVIM/lua/config/cmake.lua" "CMake helper should mention Neovim 0.12 native clangd restart"
+require_pattern 'vim.lsp.get_clients\(\{bufnr=0\}\)' "$NVIM/lua/config/cmake.lua" "CMake helper should explain how to inspect current-buffer active clients"
 require_pattern 'folke/lazy.nvim.git' "$NVIM/lua/config/lazy.lua" "lazy.nvim must remain the plugin manager"
 reject_pattern 'vim\.pack\.add' "$NVIM/lua/config/lazy.lua" "vim.pack must not manage plugins in phase one"
 
@@ -816,6 +837,7 @@ require_pattern 'vim\.lsp\.config\("clangd"' "$NVIM/lua/plugins/lsp.lua" "clangd
 require_pattern 'vim\.lsp\.config\("pyright"' "$NVIM/lua/plugins/lsp.lua" "pyright should use vim.lsp.config"
 require_pattern 'vim\.lsp\.config\("ts_ls"' "$NVIM/lua/plugins/lsp.lua" "ts_ls should use vim.lsp.config"
 require_pattern 'vim\.lsp\.enable' "$NVIM/lua/plugins/lsp.lua" "LSP servers should be enabled with vim.lsp.enable"
+reject_pattern 'nvim_create_user_command\("LspRestart"' "$NVIM/lua/plugins/lsp.lua" "Neovim 0.12 native :lsp restart should be used instead of a custom LspRestart alias"
 reject_pattern 'require\("lspconfig"\)' "$NVIM/lua/plugins/lsp.lua" "lspconfig framework require should not remain in the LSP migration path"
 reject_pattern 'lspconfig\.(lua_ls|clangd|pyright|ts_ls)\.setup' "$NVIM/lua/plugins/lsp.lua" "server setup should not use lspconfig.SERVER.setup"
 reject_pattern 'lspconfig\.util\.default_config' "$NVIM/lua/plugins/lsp.lua" "LSP defaults should not mutate lspconfig.util.default_config"
@@ -832,9 +854,14 @@ require_pattern 'library = vim\.api\.nvim_get_runtime_file\("", true\)' "$NVIM/l
 require_pattern 'telemetry = \{ enable = false \}' "$NVIM/lua/plugins/lsp.lua" "lua_ls telemetry settings must remain"
 require_pattern '--compile-commands-dir=build' "$NVIM/lua/plugins/lsp.lua" "clangd compile commands flag must remain"
 require_pattern '--clang-tidy' "$NVIM/lua/plugins/lsp.lua" "clangd clang-tidy flag must remain"
+require_pattern 'CMakeLists.txt' "$NVIM/lua/plugins/lsp.lua" "clangd should use CMakeLists.txt as a root marker for non-git CMake projects"
+require_pattern 'CMakePresets.json' "$NVIM/lua/plugins/lsp.lua" "clangd should use CMakePresets.json as a root marker for preset-driven CMake projects"
+require_pattern 'CMakeUserPresets.json' "$NVIM/lua/plugins/lsp.lua" "clangd should use CMakeUserPresets.json as a root marker for local preset-driven CMake projects"
 require_pattern 'typeCheckingMode = "basic"' "$NVIM/lua/plugins/lsp.lua" "pyright type checking setting must remain"
 require_pattern 'diagnosticMode = "workspace"' "$NVIM/lua/plugins/lsp.lua" "pyright diagnostic mode setting must remain"
 require_pattern 'run_on_start = not is_headless\(\)' "$NVIM/lua/plugins/mason.lua" "Mason tools should auto-install outside headless runs"
+reject_pattern '"clangd"' "$NVIM/lua/plugins/mason.lua" "clangd language server should come from PATH instead of Mason auto-install on constrained remote hosts"
+require_pattern '"clang-format"' "$NVIM/lua/plugins/mason.lua" "Mason tool installer should keep clang-format for C/C++ formatting"
 require_pattern 'start_delay = 3000' "$NVIM/lua/plugins/mason.lua" "Mason tools auto-install should be delayed after startup"
 reject_pattern 'cmd = .*MasonToolsInstall' "$NVIM/lua/plugins/mason.lua" "mason-tool-installer should not be command-gated"
 reject_pattern '"gr"' "$NVIM/lua/plugins/snacks.lua" "bare gr mapping should be removed to avoid gr* prefix conflicts"
@@ -850,6 +877,14 @@ reject_pattern 'IncRename|inc-rename' "$NVIM/README.md" "README should not descr
 require_pattern 'LSP buffer-local rename' "$NVIM/README.md" "README should document that <leader>rn is now LSP buffer-local"
 require_pattern 'vim\.lsp\.config\(\)' "$NVIM/README.md" "README should document Neovim 0.12 LSP config shape"
 require_pattern 'vim\.lsp\.enable\(\)' "$NVIM/README.md" "README should document Neovim 0.12 LSP enable shape"
+require_pattern ':lsp restart clangd' "$NVIM/README.md" "README should document the Neovim 0.12 native LSP restart command"
+require_pattern 'vim.lsp.get_clients\(\{bufnr=0\}\)' "$NVIM/README.md" "README should document a real current-buffer LSP client inspection command"
+require_pattern 'no active clients named clangd' "$NVIM/README.md" "README should explain why clangd restart can fail when no client is active"
+require_pattern 'vim.lsp.is_enabled\("clangd"\)' "$NVIM/README.md" "README should document checking whether clangd config is enabled"
+require_pattern 'vim.fn.executable\("clangd"\)' "$NVIM/README.md" "README should document checking whether clangd is executable"
+require_pattern 'PATH.*clangd|clangd.*PATH' "$NVIM/README.md" "README should document that clangd must be visible through Neovim PATH"
+require_pattern 'wh_fabric_build' "$NVIM/README.md" "README should document the verified wh_fabric_build clangd path workaround"
+reject_pattern ':LspRestart' "$NVIM/README.md" "README should not document a custom LspRestart alias when native :lsp restart exists"
 require_pattern '`winborder`' "$NVIM/README.md" "README should document Neovim 0.12 winborder default"
 require_pattern '`pumborder`' "$NVIM/README.md" "README should document Neovim 0.12 pumborder default"
 require_pattern 'Noice.*cmdline_popup|cmdline_popup.*Noice|浮动命令行' "$NVIM/README.md" "README should document Noice as the floating command-line provider"
@@ -864,8 +899,9 @@ require_pattern 'Dashboard 不启用|原生空 buffer|native startup' "$NVIM/REA
 reject_pattern 'tiny-inline-diagnostic|tiny_inline|tiny%-inline%-diagnostic' "$NVIM/README.md" "README should not describe removed tiny-inline-diagnostic behavior"
 require_pattern 'virt_text_pos = "inline"' "$NVIM/README.md" "README should document native inline diagnostic virtual text"
 require_pattern '<A-Up>' "$NVIM/README.md" "README should document Alt-Up line movement"
+require_pattern '<A-Left>.*<A-Right>|<A-Right>.*<A-Left>' "$NVIM/README.md" "README should document Alt-Left/Right navigation history"
 require_pattern '<S-A-Down>' "$NVIM/README.md" "README should document Shift-Alt-Down line duplication"
-require_pattern 'Alacritty Linux / macOS profile' "$NVIM/README.md" "README should document terminal profile support for Alt line keys"
+require_pattern 'Alacritty Linux / macOS profile' "$NVIM/README.md" "README should document terminal profile support for Alt direction keys"
 require_pattern '<leader>tb' "$NVIM/README.md" "README should document the native tabline toggle"
 require_pattern '原生.*tabline|tabline.*原生' "$NVIM/README.md" "README should document the native tabline replacement"
 reject_pattern 'UI / Picker.*bufferline\.nvim|`bufferline.nvim`|BufferLine' "$NVIM/README.md" "README should not list bufferline.nvim as active after native tabline replacement"
@@ -1042,8 +1078,11 @@ require_pattern 'COMMAND_Q_INITIAL_BUFLISTED=0' "$out_file" ":q should remove th
 
 run_nvim_luafile "$line_edit_check" "line edit runtime behavior"
 
-for lhs in '<A-Up>' '<A-Down>' '<S-A-Up>' '<S-A-Down>'; do
+for lhs in '<A-Up>' '<A-Down>' '<S-A-Up>' '<S-A-Down>' '<A-Left>' '<A-Right>'; do
   require_pattern "LINE_KEYMAP mode=n lhs=$lhs callback=true" "$out_file" "$lhs should exist in normal mode"
+done
+
+for lhs in '<A-Up>' '<A-Down>' '<S-A-Up>' '<S-A-Down>'; do
   require_pattern "LINE_KEYMAP mode=x lhs=$lhs callback=true" "$out_file" "$lhs should exist in visual mode"
 done
 
@@ -1068,6 +1107,8 @@ require_pattern 'LSP_LUA_GLOBAL_VIM=true' "$out_file" "lua_ls should know the vi
 require_pattern 'LSP_LUA_LIBRARY_COUNT=[1-9]' "$out_file" "lua_ls should expose at least one runtime library path"
 require_pattern 'LSP_LUA_LIBRARY_VIMRUNTIME=true' "$out_file" "lua_ls runtime library should include VIMRUNTIME"
 require_pattern 'LSP_CLANGD_CMD=.*--clang-tidy' "$out_file" "clangd command flags should survive migration"
+require_pattern 'LSP_NATIVE_COMMAND=2' "$out_file" "Neovim native :lsp command should be available at runtime"
+require_pattern 'LSP_BARE_COMMAND_OK=false' "$out_file" "Bare :lsp should stay documented as requiring a subcommand"
 require_pattern 'LSP_PYRIGHT_TYPECHECK=basic' "$out_file" "pyright analysis settings should survive migration"
 
 run_nvim_luafile "$ui_check" "UI runtime check"
