@@ -97,6 +97,62 @@ end
 
 local function create_textclock(ctpp, config, screen)
     local textclock = wibox.widget.textbox()
+    local month_calendar = awful.widget.calendar_popup.month {
+        screen = screen,
+        position = "tr",
+    }
+    local calendar_hide_timer = nil
+
+    local function cancel_calendar_hide()
+        if calendar_hide_timer then
+            calendar_hide_timer:stop()
+            calendar_hide_timer = nil
+        end
+    end
+
+    local function hide_calendar()
+        month_calendar.visible = false
+        cancel_calendar_hide()
+    end
+
+    local function schedule_calendar_hide()
+        cancel_calendar_hide()
+
+        if not month_calendar.visible then
+            return
+        end
+
+        calendar_hide_timer = gears.timer.start_new(5, function()
+            month_calendar.visible = false
+            calendar_hide_timer = nil
+            return false
+        end)
+    end
+
+    local function show_calendar(offset)
+        month_calendar:call_calendar(offset or 0, "tr", screen)
+        month_calendar.visible = true
+        schedule_calendar_hide()
+    end
+
+    textclock:buttons(gears.table.join(
+        awful.button({ }, 1, function()
+            if month_calendar.visible then
+                hide_calendar()
+            else
+                show_calendar(0)
+            end
+        end),
+        awful.button({ }, 4, function()
+            show_calendar(-1)
+        end),
+        awful.button({ }, 5, function()
+            show_calendar(1)
+        end)
+    ))
+
+    month_calendar:connect_signal("mouse::enter", cancel_calendar_hide)
+    month_calendar:connect_signal("mouse::leave", schedule_calendar_hide)
 
     gears.timer {
         timeout = 60,
