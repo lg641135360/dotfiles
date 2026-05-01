@@ -26,6 +26,7 @@
 - 对 rofi 的运行时缩放，当前偏好是字体也必须和 px 距离一起按同一倍率缩放；只放大 `width/padding/spacing/icon size` 而不放大字体，会让界面观感失衡。
 - 当用户要求把当前桌面配置改动提交到 GitHub 时，优先先复跑轻量回归测试，并确认仓库文件与 live `~/.config` 已同步，再执行提交和推送。
 - 对通过 `npm install -g` 安装到 `/usr/local/nodejs` 前缀的 CLI，优先在共享 zsh PATH 中追加 `/usr/local/nodejs/bin`，避免只暴露到部分命令（如 `codex` 来自 Homebrew、`omx` 却缺失）。
+- 对通过 `npm install -g` 安装到用户级 `/home/rikoo/.npm-global` 前缀的 CLI，优先在共享 zsh PATH 中追加 `$HOME/.npm-global/bin`，避免包已安装但 `omx`、`claude`、`opencode` 等命令不可解析。
 - 对 Awesome 首轮结构重构，优先把可复用桌面动作收口到独立 `actions.lua`，并让 `bindings.lua` 通过显式注入消费 prompt runner，而不是直接读取 `screen.mypromptbox` 这类隐式字段。
 - 对 Awesome 顶栏结构，优先让 `ui/wibar.lua` 自己创建每屏 widget（如 lock button、clock、sysinfo）并只把 `actions`、`config`、能力标志从 `rc.lua` 注入进去，避免在 `rc.lua` 里长期保留共享实例。
 - 对 Awesome 的 NET 组件，优先直接用 Lua 解析 `/proc/net/dev` 并先初始化上一轮计数，再显示速率；不要继续在 2 秒轮询里依赖 `cat|grep|awk` 这类 shell pipeline。

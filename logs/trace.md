@@ -807,6 +807,11 @@
 
 ## 2026-05-01
 
+- 目的：解释并修复 npm 全局包已经安装但命令在 zsh 中不可用的问题。
+- 已做：按项目约束读取 `memory/organizing_preferences.md` 与 `logs/trace.md`；检查当前环境发现 `npm prefix -g` 为 `/home/rikoo/.npm-global`，`oh-my-codex`、`@openai/codex`、`@anthropic-ai/claude-code` 等包已安装，`omx`/`codex`/`claude` 等可执行链接位于 `/home/rikoo/.npm-global/bin`，但当前 `PATH` 没有该目录，导致 `omx` 这类 npm 全局 CLI 找不到，而 `codex` 会命中 Homebrew 的 `/home/linuxbrew/.linuxbrew/bin/codex`。已在 `.config/shared/zsh/path.zsh` 的 Linux 分支追加 `$HOME/.npm-global/bin`，保留 `/usr/local/nodejs/bin` 兼容；同步扩展 `tests/zsh_path_test.sh` 覆盖用户级 npm 全局 bin，并在 `memory/organizing_preferences.md` 记录新的 PATH 偏好；已把更新后的 `path.zsh` 同步到 live `~/.config/zsh/path.zsh`。
+- 验证：`tests/zsh_path_test.sh`、`git diff --check` 均通过；隔离 zsh 加载仓库与 live `path.zsh` 后 `command -v omx` 都解析为 `/home/rikoo/.npm-global/bin/omx`，`omx --version` 输出 `oh-my-codex v0.15.2`。
+- 后续：当前已打开的 shell 需要重新加载 zsh 配置或新开终端后才会继承新的 `PATH`；临时立即生效可执行 `source ~/.config/zsh/path.zsh`。
+
 - 目的：补齐 Neovim 中类似 VSCode 的 `Alt+Left` / `Alt+Right` 位置历史后退/前进，并将当前 Neovim/CMake/clangd 修复与新快捷键一并提交推送到远程 GitHub。
 - 已做：在 `.config/shared/nvim/lua/config/keymaps.lua` 增加普通模式 `<A-Left>` / `<A-Right>`，通过 Vim jumplist 的 `<C-o>` / `<C-i>` 实现后退/前进；按子模块 README 策略同步更新 `.config/shared/nvim/README.md`。为确保终端能把按键送到 Neovim，在 `.config/shared/alacritty/keys.linux.toml` 与 `keys.macos.toml` 增加 Alt/Option 左右方向键 xterm modifier 序列，并更新 `.config/shared/alacritty/README.md` 与 `tests/alacritty_config_test.sh`。扩展 `tests/nvim_0_12_cleanup_test.sh`，锁定新映射、jumplist 行为和 README 文档；在 `memory/organizing_preferences.md` 记录 VSCode 风格位置历史导航偏好。已同步 Neovim keymaps/README/cmake/lsp 到 live `~/.config/nvim`，同步 Alacritty Linux keys 到 live `~/.config/alacritty/keys.toml`；备份位于 `/tmp/nvim-alt-history-live-backup-20260501T011308` 与 `/tmp/alacritty-alt-history-live-backup-20260501T011308`。
 - 验证：`tests/nvim_0_12_cleanup_test.sh`、`tests/alacritty_config_test.sh`、`tests/nvim_comment_test.sh`、`tests/git_config_test.sh`、`bash -n tests/nvim_0_12_cleanup_test.sh tests/nvim_comment_test.sh tests/git_config_test.sh tests/alacritty_config_test.sh`、`luajit` 语法检查（keymaps/lsp/mason/cmake）、`git diff --check`、`git -C .config/shared/nvim diff --check` 均通过；live headless smoke 确认 `<A-Left>` / `<A-Right>` 已注册为 callback，且可在 jumplist 中从第 5 行后退到第 1 行再前进回第 5 行。

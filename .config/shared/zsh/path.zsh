@@ -34,5 +34,6 @@ pathappend "$HOME/.config/tmux/plugins/tmuxifier/bin"
 # Platform-specific
 if [[ "$(uname)" == "Linux" ]]; then
     pathappend "/home/linuxbrew/.linuxbrew/bin"
+    pathappend "$HOME/.npm-global/bin"
     pathappend "/usr/local/nodejs/bin"
 fi
