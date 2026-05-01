@@ -43,6 +43,7 @@ test_net_interfaces_are_flattened_after_convergence() {
 
 test_config_exposes_compact_wibar_thresholds() {
     assert_contains 'compact_wibar_max_width = 3000,' "$CONFIG_FILE"
+    assert_contains 'compact_wibar_max_diagonal_inches = 15,' "$CONFIG_FILE"
     assert_contains 'compact_date_format = " %m/%d %H:%M ",' "$CONFIG_FILE"
 }
 

@@ -52,7 +52,45 @@ local function create_lock_button(ctpp, actions)
     return lock_button
 end
 
+local function output_diagonal_inches(output)
+    if not output then
+        return nil
+    end
+
+    local mm_width = tonumber(output.mm_width)
+    local mm_height = tonumber(output.mm_height)
+
+    if not mm_width or not mm_height or mm_width <= 0 or mm_height <= 0 then
+        return nil
+    end
+
+    return math.sqrt(mm_width * mm_width + mm_height * mm_height) / 25.4
+end
+
+local function screen_diagonal_inches(screen)
+    if not screen or not screen.outputs then
+        return nil
+    end
+
+    local max_diagonal = nil
+
+    for _, output in pairs(screen.outputs) do
+        local diagonal = output_diagonal_inches(output)
+        if diagonal and (not max_diagonal or diagonal > max_diagonal) then
+            max_diagonal = diagonal
+        end
+    end
+
+    return max_diagonal
+end
+
 local function is_compact_screen(screen, config)
+    local max_diagonal_inches = (config and config.compact_wibar_max_diagonal_inches) or 15
+    local diagonal_inches = screen_diagonal_inches(screen)
+    if diagonal_inches then
+        return diagonal_inches <= max_diagonal_inches
+    end
+
     local max_width = (config and config.compact_wibar_max_width) or 3000
     return screen and screen.geometry and screen.geometry.width <= max_width
 end
@@ -389,5 +427,11 @@ function M.setup(args)
         end,
     }
 end
+
+M._private = {
+    output_diagonal_inches = output_diagonal_inches,
+    screen_diagonal_inches = screen_diagonal_inches,
+    is_compact_screen = is_compact_screen,
+}
 
 return M

@@ -65,6 +65,7 @@ test_wibar_owns_bar_widget_creation() {
     assert_not_contains 'screen.dpi = dpi_value' "$WIBAR_FILE"
     assert_not_contains 'output:match("^(eDP|LVDS|DSI)")' "$WIBAR_FILE"
     assert_contains 'local function is_compact_screen(screen, config)' "$WIBAR_FILE"
+    assert_contains 'local function screen_diagonal_inches(screen)' "$WIBAR_FILE"
     assert_contains 'local function create_lock_button(ctpp, actions)' "$WIBAR_FILE"
     assert_contains 'local function create_textclock(ctpp, config, screen)' "$WIBAR_FILE"
     assert_contains 'local function create_systray_widget(ctpp)' "$WIBAR_FILE"
@@ -76,6 +77,68 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'img.forced_height = dpi(20)' "$WIBAR_FILE"
     assert_not_contains 'dpi(22, screen)' "$WIBAR_FILE"
     assert_not_contains 'dpi(20, screen)' "$WIBAR_FILE"
+}
+
+test_wibar_uses_physical_size_before_width_fallback() {
+    lua - "$WIBAR_FILE" <<'LUA' || fail "expected physical monitors larger than 15 inches to use full wibar mode"
+local wibar_file = arg[1]
+
+package.preload["awful"] = function()
+    return {}
+end
+
+package.preload["gears"] = function()
+    return {
+        string = {
+            xml_escape = function(value)
+                return value
+            end,
+        },
+    }
+end
+
+package.preload["wibox"] = function()
+    return {}
+end
+
+package.preload["beautiful"] = function()
+    return {}
+end
+
+package.preload["beautiful.xresources"] = function()
+    return {
+        apply_dpi = function(value)
+            return value
+        end,
+    }
+end
+
+local wibar = assert(loadfile(wibar_file))()
+local is_compact_screen = assert(wibar._private and wibar._private.is_compact_screen)
+local config = {
+    compact_wibar_max_width = 3000,
+    compact_wibar_max_diagonal_inches = 15,
+}
+
+assert(is_compact_screen({
+    geometry = { width = 2560 },
+    outputs = {
+        ["DP-1"] = { mm_width = 527, mm_height = 296 },
+    },
+}, config) == false)
+
+assert(is_compact_screen({
+    geometry = { width = 2880 },
+    outputs = {
+        ["eDP-1"] = { mm_width = 302, mm_height = 189 },
+    },
+}, config) == true)
+
+assert(is_compact_screen({
+    geometry = { width = 2560 },
+    outputs = {},
+}, config) == true)
+LUA
 }
 
 test_wibar_escapes_task_titles() {
@@ -105,6 +168,7 @@ test_rc_wires_shared_modules
 test_rc_no_longer_builds_bar_widgets_locally
 test_bindings_use_injected_prompt_runners
 test_wibar_owns_bar_widget_creation
+test_wibar_uses_physical_size_before_width_fallback
 test_wibar_escapes_task_titles
 test_wibar_exposes_prompt_runners
 test_wibar_avoids_container_insert_on_sysinfo_widget

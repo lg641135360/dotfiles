@@ -64,6 +64,7 @@ local config = {
     date_format = " %a %m月%d日 %H:%M ",
     compact_date_format = " %m/%d %H:%M ",
     compact_wibar_max_width = 3000,
+    compact_wibar_max_diagonal_inches = 15,
 }
 
 return config, platform
