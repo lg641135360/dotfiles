@@ -87,3 +87,9 @@
 - 对当前 Neovim/CMake 辅助命令，`:CMakeConfigure` 在已有 `CMakeUserPresets.json` 时应优先使用实际存在的 configure preset：无参数时选 `nvim-debug` 或第一个 `configurePresets[].name`，传入 build preset 时自动解析到它的 `configurePreset`，避免硬编码默认名导致 `no such preset`。
 - 对当前 Neovim LSP 重启体验，优先使用 Neovim 0.12 原生 `:lsp restart ...`；不要额外新增 `:LspRestart` 这类兼容别名来包装已有原生命令。
 - 对 `wh_fabric_build` 上的 Neovim/C++ LSP，优先使用用户已下载的 `/home/fm/code/clangd/clangd_20.1.0/bin/clangd`，并通过 `~/.local/bin/clangd` 软链暴露给 Neovim；不要依赖 Mason 在该远端自动安装 clangd。
+- 对当前 Neovim Neo-tree 原生替换/POC，必须保留 `<leader>e` 文件树入口、左侧 tree 体验、follow current file、Git status、隐藏文件和 gitignored 文件可见性；第一轮优先只改仓库不动 live `~/.config/nvim`；若原生方案不能等价，则保留 Neo-tree，不为减少插件强行牺牲文件树体验。
+- 对当前 Neovim Neo-tree 原生替换/POC，已用隔离 netrw/native POC 证明当前 netrw 路线不能同时满足 follow current file 与 Git status parity；因此当前结论是保留 Neo-tree，继续以 `<leader>e` 左侧文件树、整数宽度 `40`、Git status、hidden/gitignored 可见性作为受保护体验，除非后续有新的等价方案再单独评估。
+- 对当前 Neovim 0.12 原生化后续迁移，允许核心体验插件进入 PRD/POC 甚至执行候选，只要测试、README 和回退/保留方案能证明无体验回退；不能为了减少插件数量牺牲主体验。当前下一候选优先评估 `nvim-autopairs` 的原生最小替代。
+- 对当前 Neovim `nvim-autopairs` 原生替代 POC，删除插件前必须验证基础括号/引号成对、空 pair 成对删除、右括号/引号跳过、pair 内回车展开、`blink.cmp` 补全/snippet 兼容；任一关键 parity 不满足就保留 `nvim-autopairs`。
+- 对当前 Neovim native pairs 替代结论，`nvim-autopairs` 可在基础 pairs、空 pair 删除、skip closing、括号 pair 内回车和 `blink.cmp` 可见菜单兼容全部有测试护栏时删除；后续保持 `lua/config/autopairs.lua` 为单文件最小 helper，不要在未重新 POC 前扩成 Treesitter/filetype-specific 小插件系统。
+- 对当前 Neovim headless 测试/脚本运行，除了 Mason tool installer 自动安装外，也应跳过 `mason-lspconfig` registry refresh，避免验证阶段触发网络和写入副作用。

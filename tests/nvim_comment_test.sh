@@ -23,6 +23,13 @@ mkdir -p "$nvim_data/nvim"
 if [[ -d "$HOME/.local/share/nvim/lazy" ]]; then
   ln -s "$HOME/.local/share/nvim/lazy" "$nvim_data/nvim/lazy"
 fi
+if [[ -d "$HOME/.local/share/nvim/mason" ]]; then
+  ln -s "$HOME/.local/share/nvim/mason" "$nvim_data/nvim/mason"
+fi
+if [[ -f "$HOME/.cache/nvim/mason-registry-update" ]]; then
+  mkdir -p "$nvim_cache/nvim"
+  cp "$HOME/.cache/nvim/mason-registry-update" "$nvim_cache/nvim/mason-registry-update"
+fi
 
 assert_clean_nvim_output() {
   if rg -n "Error in command line|Error detected while processing|stack traceback|EPERM|E5113|module .* not found" "$nvim_output"; then

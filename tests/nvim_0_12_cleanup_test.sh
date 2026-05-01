@@ -18,6 +18,8 @@ theme_check="$(mktemp)"
 statusline_check="$(mktemp)"
 tabline_check="$(mktemp)"
 cmake_check="$(mktemp)"
+neo_tree_parity_check="$(mktemp)"
+autopairs_check="$(mktemp)"
 lock_file="$NVIM/lazy-lock.json"
 lock_backup="$(mktemp)"
 
@@ -25,7 +27,7 @@ cp "$lock_file" "$lock_backup"
 
 cleanup() {
   cp "$lock_backup" "$lock_file"
-  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$quit_command_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$theme_check" "$statusline_check" "$tabline_check" "$cmake_check"
+  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$quit_command_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$theme_check" "$statusline_check" "$tabline_check" "$cmake_check" "$neo_tree_parity_check" "$autopairs_check"
   rm -f "$lock_backup"
 }
 trap cleanup EXIT
@@ -33,6 +35,13 @@ trap cleanup EXIT
 mkdir -p "$data_home/nvim"
 if [[ -d "$HOME/.local/share/nvim/lazy" ]]; then
   ln -s "$HOME/.local/share/nvim/lazy" "$data_home/nvim/lazy"
+fi
+if [[ -d "$HOME/.local/share/nvim/mason" ]]; then
+  ln -s "$HOME/.local/share/nvim/mason" "$data_home/nvim/mason"
+fi
+if [[ -f "$HOME/.cache/nvim/mason-registry-update" ]]; then
+  mkdir -p "$cache_home/nvim"
+  cp "$HOME/.cache/nvim/mason-registry-update" "$cache_home/nvim/mason-registry-update"
 fi
 
 cat >"$keymap_check" <<'LUA'
@@ -558,9 +567,49 @@ for _, name in ipairs({
   "smear-cursor.nvim",
   "catppuccin",
   "onedark.nvim",
+  "neo-tree.nvim",
+  "plenary.nvim",
+  "nvim-web-devicons",
+  "nvim-autopairs",
 }) do
   print(("ACTIVE_PLUGIN %s=%s"):format(name, tostring(plugins[name] ~= nil)))
 end
+LUA
+
+cat >"$neo_tree_parity_check" <<'LUA'
+local plugins = require("lazy.core.config").plugins or {}
+local mapping = vim.fn.maparg("<leader>e", "n", false, true)
+print("NEOTREE_ACTIVE=" .. tostring(plugins["neo-tree.nvim"] ~= nil))
+print("NEOTREE_COMMAND_EXISTS=" .. tostring(vim.fn.exists(":Neotree")))
+print("NEOTREE_KEYMAP_LHS=" .. tostring(mapping.lhs))
+print("NEOTREE_KEYMAP_RHS=" .. tostring(mapping.rhs))
+print("NETRW_DISABLED=" .. tostring(vim.g.loaded_netrw == 1 and vim.g.loaded_netrwPlugin == 1))
+LUA
+
+cat >"$autopairs_check" <<'LUA'
+local function termcodes(keys)
+  return vim.api.nvim_replace_termcodes(keys, true, false, true)
+end
+
+local function feed(keys)
+  vim.api.nvim_feedkeys(termcodes(keys), "xt", false)
+  vim.cmd("redraw")
+end
+
+local plugins = require("lazy.core.config").plugins or {}
+vim.cmd("enew!")
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { "" })
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+feed("i(x")
+local line = vim.api.nvim_get_current_line()
+local cr_mapping = vim.fn.maparg("<CR>", "i", false, true)
+local tab_mapping = vim.fn.maparg("<Tab>", "i", false, true)
+local stab_mapping = vim.fn.maparg("<S-Tab>", "i", false, true)
+print("AUTOPAIRS_ACTIVE=" .. tostring(plugins["nvim-autopairs"] ~= nil))
+print("AUTOPAIRS_NATIVE_BASIC=" .. tostring(line == "(x)"))
+print("AUTOPAIRS_CR_DESC=" .. tostring(cr_mapping.desc))
+print("AUTOPAIRS_TAB_DESC=" .. tostring(tab_mapping.desc))
+print("AUTOPAIRS_STAB_DESC=" .. tostring(stab_mapping.desc))
 LUA
 
 cat >"$diagnostics_check" <<'LUA'
@@ -696,6 +745,19 @@ run_nvim_luafile() {
 }
 
 require_pattern 'saghen/blink.cmp' "$NVIM/lua/plugins/blink-cmp.lua" "blink.cmp must remain"
+require_pattern '"<Tab>"' "$NVIM/lua/plugins/blink-cmp.lua" "blink.cmp should keep Tab completion/snippet behavior"
+require_pattern '"<S-Tab>"' "$NVIM/lua/plugins/blink-cmp.lua" "blink.cmp should keep Shift-Tab completion/snippet behavior"
+require_pattern '"<CR>"\] = \{ "accept", "fallback" \}' "$NVIM/lua/plugins/blink-cmp.lua" "blink.cmp should keep Enter accept/fallback behavior"
+require_pattern 'rafamadriz/friendly-snippets' "$NVIM/lua/plugins/blink-cmp.lua" "friendly-snippets should remain active for snippets"
+require_pattern 'L3MON4D3/LuaSnip' "$NVIM/lua/plugins/blink-cmp.lua" "LuaSnip should remain active for snippets"
+require_pattern 'require\("config.autopairs"\)\.setup\(\)' "$NVIM/init.lua" "init.lua should load the native pairs helper"
+require_pattern 'local open_to_close = \{' "$NVIM/lua/config/autopairs.lua" "native pairs helper should keep an explicit pair matrix"
+require_pattern 'blink\.is_visible\(\)' "$NVIM/lua/config/autopairs.lua" "native pairs helper should defer visible-menu Enter to blink"
+require_pattern 'blink\.accept\(\)' "$NVIM/lua/config/autopairs.lua" "native pairs helper should accept visible blink completion instead of inserting pair newline"
+reject_pattern 'windwp/nvim-autopairs|nvim%-autopairs|nvim-autopairs' "$NVIM/lua/plugins" "nvim-autopairs plugin spec should be removed after native pairs replacement"
+reject_pattern '"nvim-autopairs"' "$NVIM/lazy-lock.json" "nvim-autopairs should not remain in lazy-lock after native pairs replacement"
+require_pattern 'native pairs helper' "$NVIM/README.md" "README should document the native pairs helper"
+reject_pattern 'Editing.*nvim-autopairs|nvim-autopairs.*Editing' "$NVIM/README.md" "README Editing row should not list nvim-autopairs as active"
 reject_pattern 'onsails/lspkind-nvim|require\("lspkind"\)' "$NVIM/lua/plugins" "lspkind-nvim should be removed after inline completion icon cleanup"
 reject_pattern '"lspkind-nvim"' "$NVIM/lazy-lock.json" "lspkind-nvim should not remain in lazy-lock after inline completion icon cleanup"
 require_pattern 'local kind_icons = \{' "$NVIM/lua/plugins/blink-cmp.lua" "blink-cmp should define local completion kind icons after lspkind removal"
@@ -710,8 +772,17 @@ require_pattern 'notification = \{' "$NVIM/lua/plugins/snacks.lua" "snacks notif
 require_pattern 'wrap = true' "$NVIM/lua/plugins/snacks.lua" "snacks notifications should wrap long warning text"
 require_pattern 'notification_history = \{' "$NVIM/lua/plugins/snacks.lua" "snacks notification history style should be customized"
 require_pattern 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree.nvim must remain"
+require_pattern 'enable_git_status = true' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree should keep Git status visible after native parity POC"
+require_pattern 'follow_current_file = \{' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree should keep follow_current_file configured"
+require_pattern 'enabled = true, -- 自动展开并聚焦当前文件' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree should keep current-file follow enabled"
+require_pattern 'visible = true' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree should keep hidden file visibility enabled"
+require_pattern 'hide_dotfiles = false' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree should keep dotfiles visible"
+require_pattern 'hide_gitignored = false' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree should keep gitignored files visible"
+require_pattern 'position = "left"' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree should keep the left sidebar position"
 require_pattern 'width = 40' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree sidebar width should be an integer column count"
 reject_pattern 'width = 0\.[0-9]+' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree sidebar width must not be fractional because nvim_win_set_width requires an integer"
+require_pattern 'vim\.g\.loaded_netrw = 1' "$NVIM/lua/config/options.lua" "netrw should stay disabled while Neo-tree remains the file-tree provider"
+require_pattern 'vim\.g\.loaded_netrwPlugin = 1' "$NVIM/lua/config/options.lua" "netrwPlugin should stay disabled while Neo-tree remains the file-tree provider"
 require_pattern 'nvim-treesitter/nvim-treesitter' "$NVIM/lua/plugins/ui.lua" "nvim-treesitter core should remain for syntax highlighting"
 reject_pattern 'nvim-treesitter/nvim-treesitter-textobjects|nvim-treesitter-textobjects' "$NVIM/lua/plugins" "nvim-treesitter-textobjects should be removed because no textobjects are configured"
 reject_pattern '"nvim-treesitter-textobjects"' "$NVIM/lazy-lock.json" "nvim-treesitter-textobjects should not remain in lazy-lock after cleanup"
@@ -846,6 +917,7 @@ require_pattern 'blink\.get_lsp_capabilities' "$NVIM/lua/plugins/lsp.lua" "blink
 require_pattern 'williamboman/mason\.nvim' "$NVIM/lua/plugins/lsp.lua" "LSP path must keep mason.nvim dependency"
 require_pattern 'williamboman/mason-lspconfig\.nvim' "$NVIM/lua/plugins/lsp.lua" "LSP path must keep mason-lspconfig dependency"
 require_pattern 'automatic_enable = false' "$NVIM/lua/plugins/lsp.lua" "mason-lspconfig automatic enable should stay disabled when vim.lsp.enable is explicit"
+require_pattern 'if not is_headless\(\) then' "$NVIM/lua/plugins/lsp.lua" "mason-lspconfig setup should be skipped in headless runs to avoid registry network side effects"
 require_pattern 'completion = \{ callSnippet = "Replace" \}' "$NVIM/lua/plugins/lsp.lua" "lua_ls completion settings must remain"
 require_pattern 'runtime = \{ version = "LuaJIT" \}' "$NVIM/lua/plugins/lsp.lua" "lua_ls should explicitly use the Neovim LuaJIT runtime"
 require_pattern 'diagnostics = \{ globals = \{ "vim" \} \}' "$NVIM/lua/plugins/lsp.lua" "lua_ls should explicitly accept the vim global without neodev"
@@ -935,6 +1007,10 @@ require_pattern 'build preset.*configurePreset|configurePreset.*build preset' "$
 require_pattern 'headless 测试' "$NVIM/README.md" "README should document headless runs skip automatic tool installation"
 require_pattern 'conform\.nvim' "$NVIM/README.md" "README should document conform formatting"
 require_pattern 'neo-tree.*整数宽度|整数宽度.*neo-tree|width.*40' "$NVIM/README.md" "README should document the integer neo-tree sidebar width"
+require_pattern 'Neo-tree.*保留|保留.*Neo-tree' "$NVIM/README.md" "README should document the Neo-tree retention decision"
+require_pattern 'follow current file' "$NVIM/README.md" "README should document follow-current-file as part of the Neo-tree parity reason"
+require_pattern 'Git status' "$NVIM/README.md" "README should document Git status as part of the Neo-tree parity reason"
+require_pattern 'hidden.*/.*gitignored|隐藏.*/.*gitignored' "$NVIM/README.md" "README should document hidden/gitignored visibility as part of the Neo-tree parity reason"
 require_pattern 'DAP 当前未启用' "$NVIM/README.md" "README should document that DAP is currently disabled"
 reject_pattern 'lua/plugins/dap\.lua|调试插件占位' "$NVIM/README.md" "README should not document removed DAP placeholder files"
 reject_pattern '\| Debug[[:space:]]+\| `nvim-dap`' "$NVIM/README.md" "README should not list nvim-dap as an active plugin"
@@ -1016,12 +1092,32 @@ require_pattern 'NOICE_NOTIFY_ENABLED=false' "$out_file" "Noice notifications sh
 require_pattern 'NOICE_LSP_HOVER_ENABLED=false' "$out_file" "Noice should not take over LSP hover"
 require_pattern 'NOICE_LSP_SIGNATURE_ENABLED=false' "$out_file" "Noice should not take over LSP signature help"
 require_pattern 'ACTIVE_PLUGIN nui.nvim=true' "$out_file" "nui.nvim should remain active as a dependency of neo-tree/avante"
+require_pattern 'ACTIVE_PLUGIN neo-tree.nvim=true' "$out_file" "neo-tree should remain active after native parity POC"
+require_pattern 'ACTIVE_PLUGIN plenary.nvim=true' "$out_file" "plenary should remain active as a Neo-tree/Avante dependency"
+require_pattern 'ACTIVE_PLUGIN nvim-web-devicons=true' "$out_file" "nvim-web-devicons should remain active for Neo-tree/Avante/blink path icons"
+require_pattern 'ACTIVE_PLUGIN nvim-autopairs=false' "$out_file" "nvim-autopairs should not remain active after native pairs replacement"
 require_pattern 'ACTIVE_PLUGIN nvim-dap=false' "$out_file" "nvim-dap should remain disabled"
 require_pattern 'ACTIVE_PLUGIN nvim-dap-ui=false' "$out_file" "nvim-dap-ui should remain disabled"
 require_pattern 'ACTIVE_PLUGIN nvim-nio=false' "$out_file" "nvim-nio should not be pulled in by disabled DAP"
 require_pattern 'ACTIVE_PLUGIN smear-cursor.nvim=false' "$out_file" "smear-cursor should remain disabled"
 require_pattern 'ACTIVE_PLUGIN catppuccin=true' "$out_file" "Catppuccin should be the active theme spec"
 require_pattern 'ACTIVE_PLUGIN onedark.nvim=false' "$out_file" "onedark should not remain active after switching to Catppuccin Mocha"
+
+run_nvim_luafile "$neo_tree_parity_check" "neo-tree retention runtime check"
+
+require_pattern 'NEOTREE_ACTIVE=true' "$out_file" "neo-tree should remain an active lazy spec"
+require_pattern 'NEOTREE_COMMAND_EXISTS=2' "$out_file" ":Neotree command should remain available"
+require_pattern 'NEOTREE_KEYMAP_LHS=<(leader|Space)>e' "$out_file" "<leader>e should remain mapped"
+require_pattern 'NEOTREE_KEYMAP_RHS=.*Neotree toggle' "$out_file" "<leader>e should keep toggling Neo-tree"
+require_pattern 'NETRW_DISABLED=true' "$out_file" "netrw should remain disabled while Neo-tree is retained"
+
+run_nvim_luafile "$autopairs_check" "native pairs runtime check"
+
+require_pattern 'AUTOPAIRS_ACTIVE=false' "$out_file" "nvim-autopairs should no longer be an active lazy spec"
+require_pattern 'AUTOPAIRS_NATIVE_BASIC=true' "$out_file" "native pairs helper should insert and keep basic pairs around the cursor"
+require_pattern 'AUTOPAIRS_CR_DESC=Native pairs: newline inside empty pair' "$out_file" "native pairs helper should own Enter in insert mode"
+reject_pattern 'AUTOPAIRS_TAB_DESC=Native pairs' "$out_file" "native pairs helper should not own Tab"
+reject_pattern 'AUTOPAIRS_STAB_DESC=Native pairs' "$out_file" "native pairs helper should not own Shift-Tab"
 
 run_nvim_luafile "$diagnostics_check" "native diagnostics runtime check"
 
