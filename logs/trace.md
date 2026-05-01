@@ -879,3 +879,8 @@
 - 已做：提交前完整读取 `memory/organizing_preferences.md` 与 `logs/trace.md`；复核根仓库与 `.config/shared/nvim` 子仓库状态，确认待发布范围为 Neovim 子模块 native pairs helper、README、lockfile、headless Mason LSP 边界，以及根仓库测试、memory、trace 和子模块指针。先执行 `git fetch`，发现 dotfiles 远端领先 3 个 Awesome/zsh 提交；先在 `.config/shared/nvim` 提交并推送 `93e417a` 到 `lg641135360/neovim:main`，再将根仓库 fast-forward 到 `origin/main` 并处理 `logs/trace.md` 追加型冲突，保留 Neovim 与 Awesome 两边记录。发布前确认 live `~/.config/nvim` 与本次相关仓库文件一致。
 - 验证：提交前已通过 `./tests/nvim_autopairs_native_poc_test.sh`、`./tests/nvim_0_12_cleanup_test.sh`、`./tests/nvim_comment_test.sh`、`./tests/nvim_neo_tree_native_poc_test.sh`、相关 `bash -n`、`luajit loadfile`、`git diff --check` 与 `git -C .config/shared/nvim diff --check`；根仓库提交前会在最新 `origin/main` 基础上复跑同一轻量回归和 diff check。
 - 后续：根仓库将提交子模块指针、测试、memory 与 trace 后推送到 `lg641135360/dotfiles:main`；交互式 Neovim 若已有旧会话，需要重启或重新加载后使用 native pairs。
+
+- 目的：补记本轮 Neovim native pairs 发布到远程后的最终收尾结果。
+- 已做：`.config/shared/nvim` 子仓库已推送 `93e417a` 到 `lg641135360/neovim:main`；dotfiles 根仓库已先将远端领先的 Awesome/zsh 提交 fast-forward 进本地，再提交并推送 `97a2d66` 到 `lg641135360/dotfiles:main`。推送后清理了 `git pull --autostash` 留下的临时 autostash，并再次把本 session 的 Ralph 状态修正为 `active=false` / `complete`，保留原完成证据。
+- 验证：根仓库与 Neovim 子仓库均显示 `main...origin/main`；`dotfiles HEAD/origin/main=97a2d66`，`nvim HEAD/origin/main=93e417a`；`omx state list-active --json` 返回 `active_modes: []`。发布前回归已通过 native pairs、cleanup、comment、Neo-tree POC 测试和相关语法/diff 检查。
+- 后续：当前仓库无待提交改动；交互式 Neovim 旧会话需要重启或重新加载配置后使用 native pairs。
