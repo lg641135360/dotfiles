@@ -92,4 +92,6 @@
 - 对当前 Neovim 0.12 原生化后续迁移，允许核心体验插件进入 PRD/POC 甚至执行候选，只要测试、README 和回退/保留方案能证明无体验回退；不能为了减少插件数量牺牲主体验。当前下一候选优先评估 `nvim-autopairs` 的原生最小替代。
 - 对当前 Neovim `nvim-autopairs` 原生替代 POC，删除插件前必须验证基础括号/引号成对、空 pair 成对删除、右括号/引号跳过、pair 内回车展开、`blink.cmp` 补全/snippet 兼容；任一关键 parity 不满足就保留 `nvim-autopairs`。
 - 对当前 Neovim native pairs 替代结论，`nvim-autopairs` 可在基础 pairs、空 pair 删除、skip closing、括号 pair 内回车和 `blink.cmp` 可见菜单兼容全部有测试护栏时删除；后续保持 `lua/config/autopairs.lua` 为单文件最小 helper，不要在未重新 POC 前扩成 Treesitter/filetype-specific 小插件系统。
-- 对当前 Neovim headless 测试/脚本运行，除了 Mason tool installer 自动安装外，也应跳过 `mason-lspconfig` registry refresh，避免验证阶段触发网络和写入副作用。
+- 对当前 Neovim headless 测试/脚本运行，应跳过 Mason tool installer 自动安装等 Mason 网络和写入副作用；`mason-lspconfig.nvim` 已不再作为 LSP 启用桥接。
+- 对当前 Neovim LSP 迁移，`vim.lsp.config()` / `vim.lsp.enable()` 是唯一 LSP server 启用权威；当 `mason-lspconfig.nvim` 不再负责 `ensure_installed` 或自动 enable 时，优先移除该桥接插件，保留 `mason.nvim` / `mason-tool-installer.nvim` 作为工具链入口。
+- 对新环境中的 Neovim/C++ LSP，优先把机器或厂商特定的 clangd 安装路径通过 `~/.local/bin/clangd` 软链暴露给 PATH；不要把 `/usr/local/musa/bin` 等机器路径写进共享 dotfiles 或 Neovim 配置。

@@ -884,3 +884,22 @@
 - 已做：`.config/shared/nvim` 子仓库已推送 `93e417a` 到 `lg641135360/neovim:main`；dotfiles 根仓库已先将远端领先的 Awesome/zsh 提交 fast-forward 进本地，再提交并推送 `97a2d66` 到 `lg641135360/dotfiles:main`。推送后清理了 `git pull --autostash` 留下的临时 autostash，并再次把本 session 的 Ralph 状态修正为 `active=false` / `complete`，保留原完成证据。
 - 验证：根仓库与 Neovim 子仓库均显示 `main...origin/main`；`dotfiles HEAD/origin/main=97a2d66`，`nvim HEAD/origin/main=93e417a`；`omx state list-active --json` 返回 `active_modes: []`。发布前回归已通过 native pairs、cleanup、comment、Neo-tree POC 测试和相关语法/diff 检查。
 - 后续：当前仓库无待提交改动；交互式 Neovim 旧会话需要重启或重新加载配置后使用 native pairs。
+
+- 目的：继续推进当前 Neovim 0.12 迁移，在不改变 LSP 快捷键和工具链入口的前提下减少已无实际职责的 Mason LSP 桥接依赖。
+- 已做：确认根仓库与 `.config/shared/nvim` 子仓库均从干净状态开始，并复跑现有 Neovim 回归作为基线。选择跳过已被后续偏好否定的 Noice removal 计划，改为 LSP 迁移切片：先更新 `tests/nvim_0_12_cleanup_test.sh` 锁定 `mason-lspconfig.nvim` 不应再出现在 active spec、`lazy-lock.json`、README active 文档和运行时 Lazy plugin 表；红测失败后，在 `.config/shared/nvim/lua/plugins/lsp.lua` 删除 `mason-lspconfig.nvim` dependency、`require("mason-lspconfig")`、`automatic_enable=false` setup 和仅为该桥接存在的 headless helper，保留 `nvim-lspconfig`、`mason.nvim`、`blink.cmp` 与显式 `vim.lsp.config()` / `vim.lsp.enable()`；从 `.config/shared/nvim/lazy-lock.json` 移除 `mason-lspconfig.nvim` pin，并更新 `.config/shared/nvim/README.md` 说明 LSP server 的唯一启用权威是原生 `vim.lsp.enable()`、Mason LSP 桥接插件已移除、headless 只需规避 Mason 自动安装等网络/写入副作用。同步更新 `memory/organizing_preferences.md` 记录新的 LSP/Mason 边界。
+- 验证：先运行 `./tests/nvim_0_12_cleanup_test.sh` 得到预期红测；实现后通过 `./tests/nvim_0_12_cleanup_test.sh`、`./tests/nvim_comment_test.sh`、`./tests/nvim_autopairs_native_poc_test.sh`、`./tests/nvim_neo_tree_native_poc_test.sh`、相关 `bash -n`、`luajit` 语法检查（`lsp.lua`、`mason.lua`、`init.lua`）、`git diff --check` 与 `git -C .config/shared/nvim diff --check`。本轮没有同步 live `~/.config/nvim`，没有运行插件安装/更新，也没有提交或推送。
+- 后续：交互式 Neovim 下次重启/重载后 Lazy 会按更新后的 lock/spec 不再管理 `mason-lspconfig.nvim`；若未来需要重新让 Mason 负责 LSP server 安装或自动 enable，必须单独 POC 并恢复相应测试/README 边界。发布时仍需先提交 `.config/shared/nvim` 子仓库，再提交 dotfiles 根仓库的测试、memory、trace 和子模块指针。
+
+- 目的：按用户要求，把新环境 clangd 暴露方式写入 Neovim README，避免把当前机器上的 `/usr/local/musa/bin` 误当成共享配置约定。
+- 已做：在 `.config/shared/nvim/README.md` 的 CMake/clangd 排查说明中补充新环境策略：真实 clangd 可以安装在任意机器/厂商特定版本目录，但应通过 `~/.local/bin/clangd` 稳定软链暴露给 PATH；不要把 `/usr/local/musa/bin` 等机器路径写进共享 dotfiles。同步扩展 `tests/nvim_0_12_cleanup_test.sh`，要求 README 保留 `~/.local/bin/clangd` 软链入口和不硬编码机器路径的说明；更新 `memory/organizing_preferences.md` 记录该新环境偏好。
+- 验证：`./tests/nvim_0_12_cleanup_test.sh`、`./tests/nvim_comment_test.sh`、相关 `bash -n`、`git diff --check` 与 `git -C .config/shared/nvim diff --check` 均通过。本轮仅更新仓库文档/测试/记忆/日志，未同步 live `~/.config/nvim`，未运行插件安装/更新，未提交或推送。
+- 后续：新机器上只需确认 `~/.local/bin` 已在 shell/Neovim PATH 前列，然后执行 `ln -sf /真实/clangd/路径/bin/clangd ~/.local/bin/clangd` 并用 `command -v clangd`、`:lua print(vim.fn.exepath("clangd"))` 验证。
+
+- 目的：按用户要求，在 Neovim README 中把新环境设置 clangd 软链接的具体命令写清楚，避免只给原则不给操作步骤。
+- 已做：将 `.config/shared/nvim/README.md` 的 clangd 排查段落拆成“排查命令”和“新环境 clangd 入口约定”，新增可复制 shell 示例：`mkdir -p ~/.local/bin`、`ln -sf /path/to/clangd/bin/clangd ~/.local/bin/clangd`、`command -v clangd`、`clangd --version` 以及 Neovim 内部 `vim.fn.exepath("clangd")` 验证命令；保留不要把 `/usr/local/musa/bin` 这类机器路径写进共享 dotfiles 的说明和 `wh_fabric_build` 已验证软链示例。同步扩展 `tests/nvim_0_12_cleanup_test.sh`，要求 README 保留上述软链创建和验证命令。
+- 验证：`./tests/nvim_0_12_cleanup_test.sh`、`./tests/nvim_comment_test.sh`、相关 `bash -n`、`git diff --check` 与 `git -C .config/shared/nvim diff --check` 均通过。本轮没有新增个人偏好，既有 `memory/organizing_preferences.md` 中的 clangd 软链偏好保持有效；未同步 live `~/.config/nvim`，未运行插件安装/更新，未提交或推送。
+- 后续：如果要在新机器上实际配置 clangd，按 README 示例将真实 clangd 链接到 `~/.local/bin/clangd` 后，重启 Neovim 或对 C/C++ buffer 执行 `:edit` 触发重新 attach。
+
+- 目的：按提交前检查要求，同步本轮 Neovim README 文档改动到 live 配置，确保发布到 GitHub 前仓库与 `~/.config/nvim` 的相关文件一致。
+- 已做：比较 `.config/shared/nvim/README.md`、`lazy-lock.json`、`lua/plugins/lsp.lua` 与 live `~/.config/nvim`，发现仅 README 不一致；备份 live README 到 `/tmp/nvim-readme-clangd-symlink-live-backup-20260508T182846/README.md` 后，将仓库 README 同步到 `~/.config/nvim/README.md`。同步后 README、lazy-lock 和 lsp.lua 均与 live 一致。
+- 验证：提交前 Neovim 回归已通过；同步后 `cmp` 确认相关 live 文件一致。后续继续按子仓库先、根仓库后的顺序提交并推送。

@@ -560,6 +560,7 @@ for _, name in ipairs({
   "blink.cmp",
   "snacks.nvim",
   "nui.nvim",
+  "mason-lspconfig.nvim",
   "lualine.nvim",
   "nvim-dap",
   "nvim-dap-ui",
@@ -915,9 +916,8 @@ reject_pattern 'lspconfig\.util\.default_config' "$NVIM/lua/plugins/lsp.lua" "LS
 reject_pattern 'folke/neodev\.nvim' "$NVIM/lua/plugins/lsp.lua" "neodev.nvim should not remain after native LSP config migration"
 require_pattern 'blink\.get_lsp_capabilities' "$NVIM/lua/plugins/lsp.lua" "blink capabilities must remain in LSP defaults"
 require_pattern 'williamboman/mason\.nvim' "$NVIM/lua/plugins/lsp.lua" "LSP path must keep mason.nvim dependency"
-require_pattern 'williamboman/mason-lspconfig\.nvim' "$NVIM/lua/plugins/lsp.lua" "LSP path must keep mason-lspconfig dependency"
-require_pattern 'automatic_enable = false' "$NVIM/lua/plugins/lsp.lua" "mason-lspconfig automatic enable should stay disabled when vim.lsp.enable is explicit"
-require_pattern 'if not is_headless\(\) then' "$NVIM/lua/plugins/lsp.lua" "mason-lspconfig setup should be skipped in headless runs to avoid registry network side effects"
+reject_pattern 'williamboman/mason-lspconfig\.nvim|require\("mason-lspconfig"\)|mason_lspconfig|automatic_enable' "$NVIM/lua/plugins/lsp.lua" "mason-lspconfig should be removed once vim.lsp.enable is the only LSP enable authority"
+reject_pattern '"mason-lspconfig.nvim"' "$NVIM/lazy-lock.json" "mason-lspconfig.nvim should not remain in lazy-lock after native LSP enable owns startup"
 require_pattern 'completion = \{ callSnippet = "Replace" \}' "$NVIM/lua/plugins/lsp.lua" "lua_ls completion settings must remain"
 require_pattern 'runtime = \{ version = "LuaJIT" \}' "$NVIM/lua/plugins/lsp.lua" "lua_ls should explicitly use the Neovim LuaJIT runtime"
 require_pattern 'diagnostics = \{ globals = \{ "vim" \} \}' "$NVIM/lua/plugins/lsp.lua" "lua_ls should explicitly accept the vim global without neodev"
@@ -956,6 +956,12 @@ require_pattern 'vim.lsp.is_enabled\("clangd"\)' "$NVIM/README.md" "README shoul
 require_pattern 'vim.fn.executable\("clangd"\)' "$NVIM/README.md" "README should document checking whether clangd is executable"
 require_pattern 'PATH.*clangd|clangd.*PATH' "$NVIM/README.md" "README should document that clangd must be visible through Neovim PATH"
 require_pattern 'wh_fabric_build' "$NVIM/README.md" "README should document the verified wh_fabric_build clangd path workaround"
+require_pattern '~/.local/bin/clangd.*软链|软链.*~/.local/bin/clangd' "$NVIM/README.md" "README should document ~/.local/bin/clangd as the stable symlink entry for new environments"
+require_pattern 'mkdir -p ~/.local/bin' "$NVIM/README.md" "README should show creating ~/.local/bin before linking clangd"
+require_pattern 'ln -sf /path/to/clangd/bin/clangd ~/.local/bin/clangd' "$NVIM/README.md" "README should show the clangd symlink command"
+require_pattern 'command -v clangd' "$NVIM/README.md" "README should show verifying clangd on PATH after linking"
+require_pattern 'vim.fn.exepath\("clangd"\)' "$NVIM/README.md" "README should show verifying clangd from Neovim after linking"
+require_pattern '不要把.*/usr/local/musa/bin.*共享 dotfiles|/usr/local/musa/bin.*不要.*共享 dotfiles' "$NVIM/README.md" "README should discourage hardcoding machine-specific clangd paths in shared dotfiles"
 reject_pattern ':LspRestart' "$NVIM/README.md" "README should not document a custom LspRestart alias when native :lsp restart exists"
 require_pattern '`winborder`' "$NVIM/README.md" "README should document Neovim 0.12 winborder default"
 require_pattern '`pumborder`' "$NVIM/README.md" "README should document Neovim 0.12 pumborder default"
@@ -999,6 +1005,9 @@ require_pattern 'Syntax[[:space:]]+\| `nvim-treesitter`' "$NVIM/README.md" "READ
 require_pattern '语法高亮.*/.*缩进由 Treesitter 本体负责|Treesitter 本体负责' "$NVIM/README.md" "README should document that Treesitter core owns syntax and indent"
 require_pattern '<leader>th' "$NVIM/README.md" "README should document inlay hint toggle"
 require_pattern 'mason-tool-installer\.nvim' "$NVIM/README.md" "README should document Mason tool installer behavior"
+reject_pattern '`mason-lspconfig.nvim`|mason-lspconfig\.nvim' "$NVIM/README.md" "README should not list mason-lspconfig by exact plugin name after removing the LSP bridge"
+require_pattern 'LSP.*vim\.lsp\.enable\(\).*唯一启用|唯一启用.*vim\.lsp\.enable\(\)' "$NVIM/README.md" "README should document that native vim.lsp.enable is the LSP enable authority"
+require_pattern 'Mason LSP 桥接插件已移除|不再通过 Mason LSP 桥接插件桥接' "$NVIM/README.md" "README should document that the Mason LSP bridge was removed"
 require_pattern 'CMakeUserPresetInit' "$NVIM/README.md" "README should document CMakeUserPresetInit"
 require_pattern 'CMakeConfigure' "$NVIM/README.md" "README should document CMakeConfigure"
 require_pattern 'compile_commands\.json' "$NVIM/README.md" "README should document compile_commands.json generation for clangd"
@@ -1092,6 +1101,7 @@ require_pattern 'NOICE_NOTIFY_ENABLED=false' "$out_file" "Noice notifications sh
 require_pattern 'NOICE_LSP_HOVER_ENABLED=false' "$out_file" "Noice should not take over LSP hover"
 require_pattern 'NOICE_LSP_SIGNATURE_ENABLED=false' "$out_file" "Noice should not take over LSP signature help"
 require_pattern 'ACTIVE_PLUGIN nui.nvim=true' "$out_file" "nui.nvim should remain active as a dependency of neo-tree/avante"
+require_pattern 'ACTIVE_PLUGIN mason-lspconfig.nvim=false' "$out_file" "mason-lspconfig should not remain active after native LSP enable owns startup"
 require_pattern 'ACTIVE_PLUGIN neo-tree.nvim=true' "$out_file" "neo-tree should remain active after native parity POC"
 require_pattern 'ACTIVE_PLUGIN plenary.nvim=true' "$out_file" "plenary should remain active as a Neo-tree/Avante dependency"
 require_pattern 'ACTIVE_PLUGIN nvim-web-devicons=true' "$out_file" "nvim-web-devicons should remain active for Neo-tree/Avante/blink path icons"
