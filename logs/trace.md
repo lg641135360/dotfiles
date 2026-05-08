@@ -903,3 +903,8 @@
 - 目的：按提交前检查要求，同步本轮 Neovim README 文档改动到 live 配置，确保发布到 GitHub 前仓库与 `~/.config/nvim` 的相关文件一致。
 - 已做：比较 `.config/shared/nvim/README.md`、`lazy-lock.json`、`lua/plugins/lsp.lua` 与 live `~/.config/nvim`，发现仅 README 不一致；备份 live README 到 `/tmp/nvim-readme-clangd-symlink-live-backup-20260508T182846/README.md` 后，将仓库 README 同步到 `~/.config/nvim/README.md`。同步后 README、lazy-lock 和 lsp.lua 均与 live 一致。
 - 验证：提交前 Neovim 回归已通过；同步后 `cmp` 确认相关 live 文件一致。后续继续按子仓库先、根仓库后的顺序提交并推送。
+
+- 目的：补记本轮 Neovim clangd PATH/软链与 Mason LSP 桥接清理发布到 GitHub 的最终结果。
+- 已做：先在 `.config/shared/nvim` 子仓库提交 `1b79b85`（`Keep clangd ownership with the local toolchain`），再在 dotfiles 根仓库提交 `97a3e26`（`Keep C++ LSP setup portable across machines`）。普通 `git fetch/push` 因当前 DNS 无法解析 `github.com` 失败；随后用 `GIT_SSH_COMMAND='ssh -o HostName=140.82.112.4 -o HostKeyAlias=github.com'` 绕过 DNS 连接 GitHub SSH，成功推送 `.config/shared/nvim` 到 `lg641135360/neovim:main`，成功推送 dotfiles 到 `lg641135360/dotfiles:main`。
+- 验证：发布前已通过 Neovim cleanup/comment/native pairs/Neo-tree POC 回归、相关 shell/Lua 语法检查、根仓库与 nvim 子仓库 diff check；提交前已同步 live `~/.config/nvim/README.md`，并确认 README、lazy-lock、lsp.lua 与 live 一致。推送输出确认 `93e417a..1b79b85 main -> main` 与 `0c24f37..97a3e26 main -> main`。
+- 后续：当前只剩本条发布收尾日志需要单独提交并推送；若后续 DNS 仍不可用，可临时复用同一个 `GIT_SSH_COMMAND`，但不要把 GitHub IP 固化进仓库配置。
