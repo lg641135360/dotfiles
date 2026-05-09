@@ -148,7 +148,7 @@ function M.setup(args)
         awful.key({ modkey, "Shift" }, "h", function()
             awful.tag.incnmaster(1, nil, true)
         end, { description = "increase the number of master clients", group = "layout" }),
-        awful.key({ modkey, "Shift" }, "l", function()
+        awful.key({ modkey, "Control", "Shift" }, "l", function()
             awful.tag.incnmaster(-1, nil, true)
         end, { description = "decrease the number of master clients", group = "layout" }),
         awful.key({ modkey, "Control" }, "h", function()
@@ -183,7 +183,7 @@ function M.setup(args)
         end, { description = "lua execute prompt", group = "awesome" }),
         awful.key({ modkey }, "c", launch_rofi,
             { description = "show rofi drun launcher", group = "launcher" }),
-        awful.key({ modkey, "Control" }, "l", lock,
+        awful.key({ modkey, "Shift" }, "l", lock,
             { description = "lock screen", group = "custom" })
     )
 

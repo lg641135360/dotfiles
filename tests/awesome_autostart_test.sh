@@ -63,6 +63,8 @@ test_common_module_exposes_shared_helpers() {
     assert_contains 'detect_display_preferred_mode() {' "$COMMON_FILE"
     assert_contains 'configure_laptop_display_layout() {' "$COMMON_FILE"
     assert_contains 'randomize_wallpaper() {' "$COMMON_FILE"
+    assert_contains 'run_idle_lock_service() {' "$COMMON_FILE"
+    assert_contains 'xautolock -time 10 -locker "$locker" -detectsleep' "$COMMON_FILE"
     assert_contains 'feh --no-fehbg --bg-fill --randomize "$dir"/*' "$COMMON_FILE"
     assert_not_contains '.fehbg' "$COMMON_FILE"
 }
@@ -104,6 +106,147 @@ EOF
     if [ -s "$stderr_file" ]; then
         fail "expected missing optional autostart commands to be skipped without shell errors"
     fi
+
+    rm -rf "$tmpdir"
+}
+
+test_xresources_and_wallpaper_helpers_skip_missing_optional_tools() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    home_dir=$tmpdir/home
+    stderr_file=$tmpdir/stderr.log
+
+    mkdir -p "$bin_dir" "$home_dir"
+
+    (
+        PATH=$bin_dir
+        HOME=$home_dir
+        export PATH HOME
+        . "$COMMON_FILE"
+        prepare_xresources
+        randomize_wallpaper "$home_dir/Pictures" >/dev/null
+    ) 2>"$stderr_file" || fail "missing xrdb/feh should not abort autostart helpers"
+
+    if [ -s "$stderr_file" ]; then
+        fail "expected missing xrdb/feh to be skipped without stderr noise"
+    fi
+
+    rm -rf "$tmpdir"
+}
+
+test_xresources_helper_only_merges_existing_file() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    home_dir=$tmpdir/home
+    log_file=$tmpdir/xrdb.log
+
+    mkdir -p "$bin_dir" "$home_dir"
+
+    cat >"$bin_dir/xrdb" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >>"$XRDB_LOG"
+EOF
+    chmod +x "$bin_dir/xrdb"
+
+    (
+        PATH=$bin_dir
+        HOME=$home_dir
+        XRDB_LOG=$log_file
+        export PATH HOME XRDB_LOG
+        . "$COMMON_FILE"
+        prepare_xresources
+    )
+
+    [ ! -e "$log_file" ] ||
+        fail "expected prepare_xresources to skip missing ~/.Xresources"
+
+    touch "$home_dir/.Xresources"
+
+    (
+        PATH=$bin_dir
+        HOME=$home_dir
+        XRDB_LOG=$log_file
+        export PATH HOME XRDB_LOG
+        . "$COMMON_FILE"
+        prepare_xresources
+    )
+
+    grep -Fx -- "merge $home_dir/.Xresources" "$log_file" >/dev/null 2>&1 ||
+        fail "expected prepare_xresources to merge an existing ~/.Xresources"
+
+    rm -rf "$tmpdir"
+}
+
+test_wallpaper_helper_uses_feh_when_available() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    wall_dir=$tmpdir/wall
+    log_file=$tmpdir/feh.log
+
+    mkdir -p "$bin_dir" "$wall_dir"
+    : >"$wall_dir/sample.jpg"
+
+    cat >"$bin_dir/feh" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >>"$FEH_LOG"
+EOF
+    chmod +x "$bin_dir/feh"
+
+    (
+        PATH=$bin_dir:/usr/bin:/bin
+        FEH_LOG=$log_file
+        export PATH FEH_LOG
+        . "$COMMON_FILE"
+        randomize_wallpaper "$wall_dir"
+        wait
+    )
+
+    grep -F -- "--no-fehbg --bg-fill --randomize" "$log_file" >/dev/null 2>&1 ||
+        fail "expected randomize_wallpaper to keep the randomized feh invocation"
+
+    rm -rf "$tmpdir"
+}
+
+test_common_desktop_services_starts_idle_locker_when_available() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    home_dir=$tmpdir/home
+    log_file=$tmpdir/xautolock.log
+    pgrep_log=$tmpdir/pgrep.log
+    lock_script=$home_dir/.config/scripts/lock
+
+    mkdir -p "$bin_dir" "$(dirname "$lock_script")"
+    : >"$lock_script"
+    chmod +x "$lock_script"
+
+    cat >"$bin_dir/pgrep" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >>"$PGREP_LOG"
+exit 1
+EOF
+    chmod +x "$bin_dir/pgrep"
+
+    cat >"$bin_dir/xautolock" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >>"$XAUTOLOCK_LOG"
+EOF
+    chmod +x "$bin_dir/xautolock"
+
+    (
+        PATH=$bin_dir
+        HOME=$home_dir
+        XAUTOLOCK_LOG=$log_file
+        PGREP_LOG=$pgrep_log
+        export PATH HOME XAUTOLOCK_LOG PGREP_LOG
+        . "$COMMON_FILE"
+        run_common_desktop_services
+        wait
+    )
+
+    grep -Fx -- "-time 10 -locker $lock_script -detectsleep" "$log_file" >/dev/null 2>&1 ||
+        fail "expected xautolock to run with the shared lock script"
+    grep -F -- "xautolock.*\\.config/scripts/lock" "$pgrep_log" >/dev/null 2>&1 ||
+        fail "expected xautolock duplicate detection to match the lock script"
 
     rm -rf "$tmpdir"
 }
@@ -253,6 +396,20 @@ test_readme_documents_random_wallpaper_behavior() {
     assert_contains '不再优先恢复 `~/.fehbg`' "$README_FILE"
 }
 
+test_readme_documents_runtime_wrapper_chain() {
+    assert_contains 'rc.lua' "$README_FILE"
+    assert_contains '~/.config/awesome/autostart.sh' "$README_FILE"
+    assert_contains 'autostart/<platform>.sh' "$README_FILE"
+    assert_not_contains '在 `install.sh` 中，根据 `uname -m` 和 `/etc/os-release` 判断使用哪个脚本' "$README_FILE"
+}
+
+test_readme_documents_idle_lock_service() {
+    assert_contains 'xautolock' "$README_FILE"
+    assert_contains '10 分钟' "$README_FILE"
+    assert_contains '~/.config/scripts/lock' "$README_FILE"
+    assert_contains '-detectsleep' "$README_FILE"
+}
+
 test_install_does_not_overwrite_root_wrapper_with_platform_script() {
     assert_not_contains '|.config/linux/awesome/autostart/arch_x64.sh|~/.config/awesome/autostart.sh|' "$INSTALL_FILE"
     assert_not_contains '|.config/linux/awesome/autostart/ubuntu_aarch64.sh|~/.config/awesome/autostart.sh|' "$INSTALL_FILE"
@@ -264,11 +421,17 @@ test_root_autostart_wrapper_dispatches_to_platform_script
 test_platform_scripts_source_common_module
 test_common_module_exposes_shared_helpers
 test_optional_autostart_commands_are_skipped_when_missing
+test_xresources_and_wallpaper_helpers_skip_missing_optional_tools
+test_xresources_helper_only_merges_existing_file
+test_wallpaper_helper_uses_feh_when_available
+test_common_desktop_services_starts_idle_locker_when_available
 test_laptop_display_layout_places_external_monitor_on_the_left
 test_laptop_display_layout_can_scale_external_monitor_on_the_left
 test_laptop_display_layout_handles_no_external_monitor
 test_platform_specific_behaviors_remain_declared
 test_readme_documents_random_wallpaper_behavior
+test_readme_documents_runtime_wrapper_chain
+test_readme_documents_idle_lock_service
 test_install_does_not_overwrite_root_wrapper_with_platform_script
 
 printf 'PASS: awesome autostart tests\n'

@@ -97,3 +97,7 @@
 - 对新环境中的 Neovim/C++ LSP，优先把机器或厂商特定的 clangd 安装路径通过 `~/.local/bin/clangd` 软链暴露给 PATH；不要把 `/usr/local/musa/bin` 等机器路径写进共享 dotfiles 或 Neovim 配置。
 - 对当前 Neovim 文件查找体验，`<leader>ff` 应默认包含隐藏文件/目录（例如 dotfiles 仓库里的 `.config/...`），但不要默认包含 gitignore ignored 项；继续保留 `snacks.nvim` files picker 主线，不为该需求新增依赖或单独替换搜索插件。
 - 对当前 Git alias，优先把 oh-my-zsh git 插件未提供且跨 shell 有价值的命令放进 `.config/shared/git/config`；当前用 `git subs` 查看 `submodule status`，README 中的 OMZ alias 必须按实际插件名（如 `grs` / `grst`）记录，避免写入不存在的短别名。
+- 对 Codex CLI 配置，当前基线是模型使用 `gpt-5.5`，hook feature flag 使用 `[features].hooks = true`，不再使用 deprecated 的 `[features].codex_hooks`；若继续启用 `child_agents_md`，同时保留 `suppress_unstable_features_warning = true` 抑制已知 unstable 提示。
+- 对 Awesome 锁屏快捷键，当前偏好使用 `Mod+Shift+l`；`Mod+Ctrl+l` 保留给布局减少列数，减少主区域窗口数量改用 `Mod+Ctrl+Shift+l`，避免同一组合承担两个动作。
+- 对 Awesome 锁屏脚本，优先使用 `i3lock-color` 或支持 `--blur` 的 `i3lock` 提供模糊、时钟和主题配色，不再硬编码 `--screen 1`；普通 `i3lock` fallback 使用 `i3lock -n -e -f -c 11111b`。自动锁屏优先由 autostart 用 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep` 启动，缺依赖时静默跳过。
+- 对 Awesome autostart 中的 Xresources 与壁纸 helper，`xrdb`、`~/.Xresources`、`feh`、壁纸目录或候选图片缺失时应静默跳过并继续后续自启动服务，不要因可选桌面能力缺失中断 autostart。

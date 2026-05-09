@@ -7,6 +7,7 @@ BINDINGS_FILE=$REPO_ROOT/.config/linux/awesome/bindings.lua
 WIBAR_FILE=$REPO_ROOT/.config/linux/awesome/ui/wibar.lua
 ACTIONS_FILE=$REPO_ROOT/.config/linux/awesome/actions.lua
 SYSTEM_WIDGETS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/system.lua
+README_FILE=$REPO_ROOT/.config/linux/awesome/README.md
 
 fail() {
     printf 'FAIL: %s\n' "$1" >&2
@@ -53,6 +54,45 @@ test_bindings_use_injected_prompt_runners() {
     assert_contains 'local run_prompt = args.run_prompt' "$BINDINGS_FILE"
     assert_contains 'local run_lua_prompt = args.run_lua_prompt' "$BINDINGS_FILE"
     assert_not_contains 'awful.screen.focused().mypromptbox' "$BINDINGS_FILE"
+}
+
+test_bindings_keep_lock_on_mod_shift_l() {
+    assert_contains 'awful.key({ modkey, "Shift" }, "l", lock,' "$BINDINGS_FILE"
+    assert_not_contains 'awful.key({ modkey, "Control" }, "l", lock,' "$BINDINGS_FILE"
+}
+
+test_bindings_do_not_duplicate_shortcuts() {
+    python - "$BINDINGS_FILE" <<'PY' || fail "expected Awesome keybindings to avoid duplicate modifier/key combinations"
+from pathlib import Path
+import re
+import sys
+
+text = Path(sys.argv[1]).read_text()
+seen = {}
+pattern = re.compile(r'awful\.key\(\{([^}]*)\}\s*,\s*"([^"]+)"')
+
+for match in pattern.finditer(text):
+    line = text[:match.start()].count("\n") + 1
+    mods = tuple(sorted(
+        part.strip().strip('"')
+        for part in match.group(1).split(",")
+        if part.strip()
+    ))
+    key = match.group(2)
+    combo = (mods, key)
+    seen.setdefault(combo, []).append(line)
+
+duplicates = {
+    combo: lines
+    for combo, lines in seen.items()
+    if len(lines) > 1
+}
+
+if duplicates:
+    for (mods, key), lines in sorted(duplicates.items()):
+        print(f"duplicate {'+'.join(mods)}+{key}: lines {lines}", file=sys.stderr)
+    raise SystemExit(1)
+PY
 }
 
 test_wibar_owns_bar_widget_creation() {
@@ -169,15 +209,29 @@ test_system_widget_exposes_row_for_extension() {
     assert_not_contains 'dpi(8, screen)' "$SYSTEM_WIDGETS_FILE"
 }
 
+test_readme_documents_current_awesome_modules() {
+    assert_contains 'actions.lua' "$README_FILE"
+    assert_contains 'bindings.lua' "$README_FILE"
+    assert_contains 'client.lua' "$README_FILE"
+    assert_contains 'menu.lua' "$README_FILE"
+    assert_contains 'autostart.sh' "$README_FILE"
+    assert_contains 'ui/wibar.lua' "$README_FILE"
+    assert_contains 'widgets/system.lua' "$README_FILE"
+    assert_contains 'widgets/volume.lua' "$README_FILE"
+}
+
 test_actions_module_exists
 test_rc_wires_shared_modules
 test_rc_no_longer_builds_bar_widgets_locally
 test_bindings_use_injected_prompt_runners
+test_bindings_keep_lock_on_mod_shift_l
+test_bindings_do_not_duplicate_shortcuts
 test_wibar_owns_bar_widget_creation
 test_wibar_uses_physical_size_before_width_fallback
 test_wibar_escapes_task_titles
 test_wibar_exposes_prompt_runners
 test_wibar_avoids_container_insert_on_sysinfo_widget
 test_system_widget_exposes_row_for_extension
+test_readme_documents_current_awesome_modules
 
 printf 'PASS: awesome ui architecture tests\n'

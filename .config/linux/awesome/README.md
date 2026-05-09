@@ -8,9 +8,16 @@
 .config/awesome/
 ├── rc.lua              # 主配置入口（自动检测平台）
 ├── config.lua          # 平台特定设置
+├── actions.lua         # rofi / 文件管理器 / OCR / 锁屏等桌面动作
+├── bindings.lua        # 全局与窗口快捷键
+├── client.lua          # 窗口规则、titlebar 与焦点边框
+├── menu.lua            # 主菜单与 freedesktop / Debian fallback
+├── autostart.sh        # runtime 平台分发 wrapper
+├── ui/
+│   └── wibar.lua       # ui/wibar.lua：顶栏、taglist、tasklist、托盘、时钟
 ├── widgets/
-│   ├── system.lua      # CPU / MEM / NET 监控组件
-│   └── volume.lua      # 音量控制组件
+│   ├── system.lua      # widgets/system.lua：CPU / MEM / NET 监控组件
+│   └── volume.lua      # widgets/volume.lua：音量控制组件
 ├── theme/
 │   └── catppuccin.lua  # Catppuccin Mocha 主题
 ├── autostart/          # 各平台自启脚本
@@ -46,6 +53,13 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 - **紧凑模式**：主要给 15 英寸及以下内屏使用，会缩短日期并隐藏 MEM，优先保留 NET / CPU / BAT / VOL / 时钟。
 - **时钟交互**：左键点击时钟会在右上角弹出月历；再次点击关闭。鼠标不进入日历时，月历会在 5 秒后自动隐藏；进入日历会取消倒计时，离开日历后再等待 5 秒隐藏；鼠标滚轮可切换上 / 下个月。
 
+## 锁屏
+
+- 快捷键：`Mod+Shift+l`，左侧 wibar 的锁屏按钮也调用同一个动作。
+- 脚本：`~/.config/scripts/lock`。优先使用 `i3lock-color`；若只有支持 `--blur` 的 `i3lock`，则使用同一套模糊、时钟和主题配色；若只有普通 `i3lock`，则降级到 `i3lock -n -e -f -c 11111b`，避免传入不兼容的 `--blur` 参数。
+- 多屏：主题化路径不再固定 `--screen 1`，让锁屏器自己处理当前 X11 屏幕布局。
+- 自动锁屏：autostart 会在 `xautolock` 与 `~/.config/scripts/lock` 都可用时启动 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep`，空闲 10 分钟后自动锁屏；缺少 `xautolock` 时静默跳过。
+
 ## 快捷键
 
 `Mod4` = Super 键（键盘上的 Windows 徽标键）
@@ -63,7 +77,7 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 | `Mod+Shift+s` | 显示快捷键帮助 |
 | `Mod+Ctrl+r` | 重启 AwesomeWM |
 | `Mod+Shift+q` | 退出 AwesomeWM |
-| `Mod+Ctrl+l` | 锁屏 |
+| `Mod+Shift+l` | 锁屏 |
 
 ### 窗口焦点
 
@@ -99,7 +113,7 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 | `Mod+h` | 缩小主区域宽度 |
 | `Mod+l` | 扩大主区域宽度 |
 | `Mod+Shift+h` | 增加主区域窗口数量 |
-| `Mod+Shift+l` | 减少主区域窗口数量 |
+| `Mod+Ctrl+Shift+l` | 减少主区域窗口数量 |
 | `Mod+Ctrl+h` | 增加列数 |
 | `Mod+Ctrl+l` | 减少列数 |
 | `Mod+Space` | 切换到下一个布局 |

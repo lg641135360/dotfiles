@@ -252,7 +252,10 @@ configure_laptop_display_layout() {
 }
 
 prepare_xresources() {
-    xrdb merge ~/.Xresources
+    command_available xrdb || return 0
+    [ -r "$HOME/.Xresources" ] || return 0
+
+    xrdb merge "$HOME/.Xresources"
 }
 
 has_wallpaper_files() {
@@ -264,6 +267,8 @@ has_wallpaper_files() {
 }
 
 randomize_wallpaper() {
+    command_available feh || return 0
+
     for dir in "$@"; do
         if has_wallpaper_files "$dir"; then
             feh --no-fehbg --bg-fill --randomize "$dir"/* &
@@ -271,7 +276,16 @@ randomize_wallpaper() {
         fi
     done
 
-    return 1
+    return 0
+}
+
+run_idle_lock_service() {
+    locker="$HOME/.config/scripts/lock"
+
+    [ -x "$locker" ] || return 0
+
+    run_custom "xautolock.*\\.config/scripts/lock" \
+        xautolock -time 10 -locker "$locker" -detectsleep
 }
 
 run_common_tray_services() {
@@ -286,4 +300,5 @@ run_common_desktop_services() {
     run redshift -l 30.6:114.3 -t 6500:4000
     run pot
     run udiskie -t
+    run_idle_lock_service
 }

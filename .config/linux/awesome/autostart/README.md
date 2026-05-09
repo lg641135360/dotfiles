@@ -1,11 +1,12 @@
 # AwesomeWM Autostart Scripts
 
-平台特定的开机自启脚本，由 AwesomeWM `rc.lua` 在启动时根据系统架构和发行版自动调用。
+平台特定的开机自启脚本，由 AwesomeWM `rc.lua` 在启动时调用根级 wrapper，再由 wrapper 根据系统架构和发行版分发到对应平台脚本。
 
 ## 文件说明
 
 | 文件 | 目标平台 | 说明 |
 |------|----------|------|
+| `../autostart.sh` | runtime wrapper | 由 `rc.lua` 启动，负责选择 `autostart/<platform>.sh` |
 | `common.sh` | 全平台共享 | 公共 helper、Xresources 初始化与公共后台服务启动函数 |
 | `arch_x64.sh` | Arch Linux x86_64 | 桌面端，使用 Snipaste + greenclip |
 | `ubuntu_aarch64.sh` | Ubuntu ARM64 | ARM 笔记本，设置 120Hz 分辨率 + 触摸板 |
@@ -13,7 +14,13 @@
 
 ## 被调用的方式
 
-在 `install.sh` 中，根据 `uname -m` 和 `/etc/os-release` 判断使用哪个脚本：
+当前运行时调用链：
+
+```text
+rc.lua -> ~/.config/awesome/autostart.sh -> autostart/<platform>.sh
+```
+
+`autostart.sh` 根据 `uname -s`、`uname -m` 和 `/etc/os-release` 选择平台脚本：
 
 ```
 Arch Linux x86_64  → arch_x64.sh
@@ -23,7 +30,7 @@ Ubuntu x86_64      → ubuntu_x64.sh
 
 ## 公共功能
 
-三份平台脚本都会先加载 `common.sh`，由它提供 `run()` / `run_custom()`、`prepare_xresources()`、显示器检测/布局 helper 以及公共服务启动函数。`run()` / `run_custom()` 会先检查目标命令或可执行路径是否存在；缺失的可选服务会被静默跳过，避免 Awesome 自启动阶段输出 `not found` 噪音。
+三份平台脚本都会先加载 `common.sh`，由它提供 `run()` / `run_custom()`、`prepare_xresources()`、显示器检测/布局 helper、随机壁纸 helper、自动锁屏 helper 以及公共服务启动函数。`run()` / `run_custom()` 会先检查目标命令或可执行路径是否存在；`prepare_xresources()` 只在 `xrdb` 和 `~/.Xresources` 都存在时合并；`randomize_wallpaper()` 在 `feh`、壁纸目录或候选图片缺失时静默跳过，避免 Awesome 自启动阶段输出 `not found` 噪音或中断后续服务。`run_idle_lock_service()` 只在 `xautolock` 与 `~/.config/scripts/lock` 都可用时启动 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep`，空闲 10 分钟后自动锁屏，缺少依赖时静默跳过。
 
 所有脚本都会按需尝试启动以下服务：
 
@@ -35,6 +42,7 @@ Ubuntu x86_64      → ubuntu_x64.sh
 - `pasystray` — 音量控制托盘
 - `udiskie` — USB 自动挂载
 - `feh` — 壁纸设置
+- `xautolock` — 空闲 10 分钟后调用 `~/.config/scripts/lock` 自动锁屏（带 `-detectsleep`）
 
 ## 平台差异
 
@@ -65,3 +73,4 @@ Ubuntu x86_64      → ubuntu_x64.sh
 - `fcitx5` — 中文输入法
 - `feh` — 壁纸工具
 - `udiskie` — USB 自动挂载
+- `xautolock` — 自动锁屏（可选；缺失时跳过）

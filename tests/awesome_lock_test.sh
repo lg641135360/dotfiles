@@ -21,6 +21,15 @@ assert_not_contains() {
     fi
 }
 
+assert_contains() {
+    needle=$1
+    file=$2
+
+    if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
+        fail "expected '$needle' in $file"
+    fi
+}
+
 link_cmd() {
     cmd=$1
     target_dir=$2
@@ -110,6 +119,89 @@ EOF
 
     assert_file_exists "$args_log"
     assert_not_contains "--blur" "$args_log"
+    assert_contains "-n" "$args_log"
+    assert_contains "-e" "$args_log"
+    assert_contains "-f" "$args_log"
+    assert_contains "-c" "$args_log"
+    assert_contains "11111b" "$args_log"
+
+    rm -rf "$tmpdir"
+}
+
+test_lock_script_prefers_i3lock_color_when_available() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    args_log=$tmpdir/i3lock-color.args
+
+    mkdir -p "$bin_dir"
+
+    cat >"$bin_dir/i3lock-color" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" >"$LOCK_ARGS_LOG"
+EOF
+    chmod +x "$bin_dir/i3lock-color"
+
+    PATH=$bin_dir LOCK_ARGS_LOG=$args_log /bin/sh "$REPO_ROOT/.config/scripts/lock" >/dev/null 2>&1 ||
+        fail "lock script should use i3lock-color when it is available"
+
+    assert_file_exists "$args_log"
+    assert_contains "--blur" "$args_log"
+    assert_contains "--clock" "$args_log"
+    assert_not_contains "--screen" "$args_log"
+
+    rm -rf "$tmpdir"
+}
+
+test_lock_script_uses_blur_capable_i3lock_without_screen_pin() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    args_log=$tmpdir/i3lock.args
+
+    mkdir -p "$bin_dir"
+
+    cat >"$bin_dir/i3lock" <<'EOF'
+#!/bin/sh
+if [ "${1:-}" = "--help" ]; then
+    printf '%s\n' "--blur --clock"
+    exit 0
+fi
+
+printf '%s\n' "$@" >"$LOCK_ARGS_LOG"
+EOF
+    chmod +x "$bin_dir/i3lock"
+
+    PATH=$bin_dir LOCK_ARGS_LOG=$args_log /bin/sh "$REPO_ROOT/.config/scripts/lock" >/dev/null 2>&1 ||
+        fail "lock script should use blur-capable i3lock styling"
+
+    assert_file_exists "$args_log"
+    assert_contains "--blur" "$args_log"
+    assert_contains "--clock" "$args_log"
+    assert_not_contains "--screen" "$args_log"
+
+    rm -rf "$tmpdir"
+}
+
+test_lock_script_tolerates_notify_send_failure_when_unavailable() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    stderr_file=$tmpdir/stderr.log
+
+    mkdir -p "$bin_dir"
+
+    cat >"$bin_dir/notify-send" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+    chmod +x "$bin_dir/notify-send"
+
+    set +e
+    PATH=$bin_dir /bin/sh "$REPO_ROOT/.config/scripts/lock" >/dev/null 2>"$stderr_file"
+    status=$?
+    set -e
+
+    [ "$status" -eq 127 ] ||
+        fail "lock script should exit 127 when no locker backend is available"
+    assert_contains "Lock screen unavailable: install i3lock." "$stderr_file"
 
     rm -rf "$tmpdir"
 }
@@ -117,5 +209,8 @@ EOF
 test_install_copies_lock_script_without_i3lock
 test_install_repairs_lock_script_exec_bit
 test_lock_script_falls_back_to_plain_i3lock
+test_lock_script_prefers_i3lock_color_when_available
+test_lock_script_uses_blur_capable_i3lock_without_screen_pin
+test_lock_script_tolerates_notify_send_failure_when_unavailable
 
 printf 'PASS: awesome lock tests\n'
