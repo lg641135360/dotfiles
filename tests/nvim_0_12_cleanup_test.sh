@@ -131,6 +131,7 @@ for _, lhs in ipairs({
   "vl",
   "<leader>e",
   "<leader>ft",
+  "<leader>ff",
   "<leader>fg",
   "<leader>xx",
   "<leader>o",
@@ -170,6 +171,8 @@ require_callback("n", "<leader>tb")
 require_desc_contains("n", "<leader>tb", "native tabline")
 require_rhs_contains("n", "<leader>e", "Neotree toggle")
 require_callback("n", "<leader>ft")
+require_callback("n", "<leader>ff")
+require_desc_contains("n", "<leader>ff", "Find Files")
 require_callback("n", "<leader>fg")
 require_desc_contains("n", "<leader>fg", "Find Grep")
 require_callback("n", "<leader>xx")
@@ -713,6 +716,43 @@ reject_pattern() {
   fi
 }
 
+extract_snacks_keymap_block() {
+  local lhs="$1"
+  local desc="$2"
+  local file="$3"
+
+  awk -v lhs="\"${lhs}\"" -v desc="desc = \"${desc}\"" '
+    index($0, lhs) { in_block = 1 }
+    in_block { print }
+    in_block && index($0, desc) { found = 1; exit }
+    END { if (!found) exit 1 }
+  ' "$file"
+}
+
+require_block_pattern() {
+  local block="$1"
+  local pattern="$2"
+  local message="$3"
+
+  if ! printf '%s\n' "$block" | rg -q -- "$pattern"; then
+    echo "$message"
+    printf '%s\n' "$block"
+    exit 1
+  fi
+}
+
+reject_block_pattern() {
+  local block="$1"
+  local pattern="$2"
+  local message="$3"
+
+  if printf '%s\n' "$block" | rg -q -- "$pattern"; then
+    echo "$message"
+    printf '%s\n' "$block"
+    exit 1
+  fi
+}
+
 assert_clean_nvim_output() {
   if rg -n "Error in command line|Error detected while processing|stack traceback|EPERM|E5113|module .* not found" "$out_file"; then
     cat "$out_file"
@@ -765,6 +805,14 @@ require_pattern 'local kind_icons = \{' "$NVIM/lua/plugins/blink-cmp.lua" "blink
 require_pattern 'kind_icons\[ctx\.kind\]' "$NVIM/lua/plugins/blink-cmp.lua" "blink-cmp should use the local kind icon map"
 require_pattern 'nvim-web-devicons' "$NVIM/lua/plugins/blink-cmp.lua" "blink-cmp should keep devicons for path completion icons"
 require_pattern 'folke/snacks.nvim' "$NVIM/lua/plugins/snacks.lua" "snacks.nvim must remain"
+ff_files_block="$(extract_snacks_keymap_block '<leader>ff' 'Find Files' "$NVIM/lua/plugins/snacks.lua")" || {
+  echo "<leader>ff Find Files keymap block should exist in snacks.lua"
+  exit 1
+}
+require_block_pattern "$ff_files_block" 'Snacks\.picker\.files' "<leader>ff should call Snacks.picker.files"
+require_block_pattern "$ff_files_block" 'hidden = true' "<leader>ff files picker should include hidden files/directories by default"
+require_block_pattern "$ff_files_block" 'ignored = false' "<leader>ff files picker should keep ignored/gitignored files disabled by default"
+reject_block_pattern "$ff_files_block" 'ignored = true' "<leader>ff files picker must not enable ignored/gitignored files by default"
 reject_pattern 'grep_with_ripgrep_args|grep_in_directory|grep_current_file_directory|<leader>fG|<leader>fd|<leader>fD' "$NVIM/lua/plugins/snacks.lua" "advanced grep helpers should not be active until reintroduced deliberately"
 require_pattern 'dashboard = \{ enabled = false \}' "$NVIM/lua/plugins/snacks.lua" "snacks dashboard should be disabled for native startup"
 require_pattern 'timeout = 8000' "$NVIM/lua/plugins/snacks.lua" "snacks notifier should keep warnings visible long enough to read"
@@ -997,6 +1045,10 @@ require_pattern '原生 `statusline`|statusline.*laststatus=3' "$NVIM/README.md"
 reject_pattern 'UI / Picker.*lualine\.nvim|`lualine.nvim`' "$NVIM/README.md" "README should not list lualine.nvim as active after native statusline replacement"
 reject_pattern 'Trouble diagnostics|folke/trouble.nvim|:Trouble' "$NVIM/README.md" "README should not document Trouble after native diagnostics quickfix replacement"
 require_pattern '<leader>ff' "$NVIM/README.md" "README should document snacks file picker keymaps"
+require_pattern '<leader>ff.*隐藏文件|隐藏文件.*<leader>ff|hidden.*<leader>ff|<leader>ff.*hidden' "$NVIM/README.md" "README should document that <leader>ff includes hidden files/directories"
+require_pattern 'ignored.*不.*默认|不.*默认.*ignored|gitignored.*不.*默认|不.*默认.*gitignored' "$NVIM/README.md" "README should document that <leader>ff does not include ignored/gitignored files by default"
+require_pattern '<A-h>.*hidden|hidden.*<A-h>|<A-h>.*隐藏|隐藏.*<A-h>' "$NVIM/README.md" "README should document the Snacks hidden toggle"
+require_pattern '<A-i>.*ignored|ignored.*<A-i>|<A-i>.*忽略|忽略.*<A-i>' "$NVIM/README.md" "README should document the Snacks ignored toggle"
 reject_pattern '<leader>fG|<leader>fd|<leader>fD' "$NVIM/README.md" "advanced grep keymaps should stay backlog-only for now"
 reject_pattern '`lspkind.nvim`|lspkind\.nvim' "$NVIM/README.md" "README should not list lspkind.nvim as active after inline icon cleanup"
 require_pattern 'kind icons.*本地映射|本地映射.*kind icons' "$NVIM/README.md" "README should document local completion kind icons"

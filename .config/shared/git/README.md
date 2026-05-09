@@ -14,6 +14,7 @@
 | Alias | 命令 | 用法 | 说明 |
 |-------|------|------|------|
 | `subinit` | `submodule update --init --recursive` | `git subinit` | 初始化子模块 |
+| `subs` | `submodule status` | `git subs` | 查看子模块状态 |
 | `cs` | `commit --signoff` | `git cs` | 提交并添加 signoff |
 
 ---
@@ -49,8 +50,8 @@
 | `gpsup` | `git push --set-upstream origin` | 推送并设置上游 |
 | `grb` | `git rebase` | 变基 |
 | `grbi` | `git rebase --interactive` | 交互式变基 |
-| `gres` | `git restore` | 恢复文件 |
-| `grest` | `git restore --staged` | 取消暂存 |
+| `grs` | `git restore` | 恢复文件 |
+| `grst` | `git restore --staged` | 取消暂存 |
 
 ### 子模块相关
 
@@ -58,7 +59,8 @@
 |-------|------|------|
 | `gsi` | `git submodule init` | 初始化子模块 |
 | `gsu` | `git submodule update` | 更新子模块 |
-| `subs` | `git submodule status` | 子模块状态 |
+
+> 子模块状态使用自定义 `git subs`，因为当前 oh-my-zsh git 插件未提供直接的 `subs` alias。
 
 ### 其他实用 Alias
 
@@ -69,7 +71,6 @@
 | `gclean` | `git clean --interactive -d` | 交互式清理 |
 | `grh` | `git reset` | 重置 |
 | `grhh` | `git reset --hard` | 硬重置 |
-| `grs` | `git restore` | 恢复 |
 | `gstl` | `git stash list` | 查看 stash 列表 |
 | `gstp` | `git stash pop` | 弹出 stash |
 | `gta` | `git tag --annotate` | 创建注解标签 |

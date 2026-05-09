@@ -95,3 +95,5 @@
 - 对当前 Neovim headless 测试/脚本运行，应跳过 Mason tool installer 自动安装等 Mason 网络和写入副作用；`mason-lspconfig.nvim` 已不再作为 LSP 启用桥接。
 - 对当前 Neovim LSP 迁移，`vim.lsp.config()` / `vim.lsp.enable()` 是唯一 LSP server 启用权威；当 `mason-lspconfig.nvim` 不再负责 `ensure_installed` 或自动 enable 时，优先移除该桥接插件，保留 `mason.nvim` / `mason-tool-installer.nvim` 作为工具链入口。
 - 对新环境中的 Neovim/C++ LSP，优先把机器或厂商特定的 clangd 安装路径通过 `~/.local/bin/clangd` 软链暴露给 PATH；不要把 `/usr/local/musa/bin` 等机器路径写进共享 dotfiles 或 Neovim 配置。
+- 对当前 Neovim 文件查找体验，`<leader>ff` 应默认包含隐藏文件/目录（例如 dotfiles 仓库里的 `.config/...`），但不要默认包含 gitignore ignored 项；继续保留 `snacks.nvim` files picker 主线，不为该需求新增依赖或单独替换搜索插件。
+- 对当前 Git alias，优先把 oh-my-zsh git 插件未提供且跨 shell 有价值的命令放进 `.config/shared/git/config`；当前用 `git subs` 查看 `submodule status`，README 中的 OMZ alias 必须按实际插件名（如 `grs` / `grst`）记录，避免写入不存在的短别名。
