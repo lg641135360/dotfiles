@@ -101,3 +101,4 @@
 - 对 Awesome 锁屏快捷键，当前偏好使用 `Mod+Shift+l`；`Mod+Ctrl+l` 保留给布局减少列数，减少主区域窗口数量改用 `Mod+Ctrl+Shift+l`，避免同一组合承担两个动作。
 - 对 Awesome 锁屏脚本，优先使用 `i3lock-color` 或支持 `--blur` 的 `i3lock` 提供模糊、时钟和主题配色，不再硬编码 `--screen 1`；普通 `i3lock` fallback 使用 `i3lock -n -e -f -c 11111b`。自动锁屏优先由 autostart 用 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep` 启动，缺依赖时静默跳过。
 - 对 Awesome autostart 中的 Xresources 与壁纸 helper，`xrdb`、`~/.Xresources`、`feh`、壁纸目录或候选图片缺失时应静默跳过并继续后续自启动服务，不要因可选桌面能力缺失中断 autostart。
+- 当前不用 Firefox / DownThemAll；Awesome 浮动规则不应保留默认示例里的 `DTA` instance 自动浮动规则，避免误伤钉钉会议子窗口。

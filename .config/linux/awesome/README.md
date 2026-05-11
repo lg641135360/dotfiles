@@ -146,4 +146,6 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 
 - Arandr, Blueman-manager, Gpick, Kruler, Sxiv, Tor Browser
 - Wpa_gui, veromix, xtightvncviewer, Pot（翻译工具）
-- pinentry, copyq, DTA
+- pinentry, copyq
+
+默认 Awesome 示例里的 `DTA`（Firefox / DownThemAll 历史规则）不保留；当前不用 Firefox，且该 instance 名容易误伤钉钉会议等 Electron/Qt 子窗口，导致会议时出现过多浮动窗口。

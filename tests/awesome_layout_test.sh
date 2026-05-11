@@ -47,9 +47,14 @@ test_no_dingtalk_specific_layout_hook() {
     assert_not_contains 'com.alibabainc.dingtalk' "$CLIENT_FILE"
 }
 
+test_no_legacy_dta_auto_float_rule() {
+    assert_not_contains '"DTA",' "$CLIENT_FILE"
+}
+
 test_default_layout_is_tile_left
 test_layout_keys_still_adjust_master_width_factor
 test_client_rules_ignore_size_hints_for_tiling
 test_no_dingtalk_specific_layout_hook
+test_no_legacy_dta_auto_float_rule
 
 printf 'PASS: awesome layout tests\n'

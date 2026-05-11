@@ -27,7 +27,6 @@ function M.setup(args)
         {
             rule_any = {
                 instance = {
-                    "DTA",
                     "copyq",
                     "pinentry",
                 },
