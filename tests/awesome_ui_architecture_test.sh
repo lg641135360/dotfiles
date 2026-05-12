@@ -134,6 +134,9 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'id = "background_role",' "$WIBAR_FILE"
     assert_contains 'local function update_task_item(self, c, ctpp)' "$WIBAR_FILE"
     assert_contains 'layout = wibox.layout.fixed.horizontal,' "$WIBAR_FILE"
+    assert_contains 'ellipsize = "end",' "$WIBAR_FILE"
+    assert_contains 'strategy = "max",' "$WIBAR_FILE"
+    assert_contains 'width = dpi(420),' "$WIBAR_FILE"
     assert_contains 'img.forced_width = dpi(20)' "$WIBAR_FILE"
     assert_contains 'img.forced_height = dpi(20)' "$WIBAR_FILE"
     assert_not_contains 'dpi(20, screen)' "$WIBAR_FILE"
@@ -239,6 +242,8 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '托盘只放在主屏，并使用更小图标、深色胶囊背景和细边框降低视觉噪音' "$README_FILE"
     assert_contains '全量模式使用 `CPU/MEM/BAT/VOL` 完整标签' "$README_FILE"
     assert_contains '时钟使用独立胶囊背景作为右端视觉终点' "$README_FILE"
+    assert_contains '长窗口标题会在单个任务项内尾部省略' "$README_FILE"
+    assert_contains 'NET 保持短显示，悬停时显示网卡接口名和带 `/s` 单位的上下行速率' "$README_FILE"
 }
 
 test_readme_documents_snipaste_f1_conflict() {

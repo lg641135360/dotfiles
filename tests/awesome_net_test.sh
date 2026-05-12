@@ -105,6 +105,25 @@ test_net_widget_uses_short_speed_format() {
         fail "expected compact integer M formatting for higher speeds"
 }
 
+test_net_widget_has_hover_tooltip() {
+    grep -F 'local awful = require("awful")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET tooltip to use awful.tooltip"
+    grep -F 'local net_tooltip_text = "NET: waiting for data"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET tooltip to have an initial waiting state"
+    grep -F 'awful.tooltip {' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET widget to create a hover tooltip"
+    grep -F 'objects = { net_widget },' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET tooltip to attach to net_widget"
+    grep -F 'timer_function = function()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET tooltip to refresh from current state"
+    grep -F 'totals.interface' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET tooltip to expose interface name"
+    grep -F 'format_speed(recv_speed) .. "/s"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET tooltip to show download speed units"
+    grep -F 'format_speed(sent_speed) .. "/s"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET tooltip to show upload speed units"
+}
+
 test_net_pattern_includes_wlp_interfaces
 test_net_widget_avoids_shell_pipeline_parsing
 test_net_widget_parses_proc_net_dev_in_lua
@@ -115,5 +134,6 @@ test_sysinfo_uses_contextual_labels
 test_net_widget_uses_compact_markup
 test_net_widget_uses_compact_spacing
 test_net_widget_uses_short_speed_format
+test_net_widget_has_hover_tooltip
 
 printf 'PASS: awesome net tests\n'

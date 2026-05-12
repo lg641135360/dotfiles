@@ -377,8 +377,14 @@ local function create_tasklist(ctpp, screen, tasklist_buttons)
                         widget = wibox.container.place,
                     },
                     {
-                        id = "text_role",
-                        widget = wibox.widget.textbox,
+                        {
+                            id = "text_role",
+                            ellipsize = "end",
+                            widget = wibox.widget.textbox,
+                        },
+                        strategy = "max",
+                        width = dpi(420),
+                        widget = wibox.container.constraint,
                     },
                     spacing = 6,
                     layout = wibox.layout.fixed.horizontal,

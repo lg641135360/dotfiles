@@ -48,6 +48,7 @@
 - 对 Awesome 的小屏右侧状态栏，compact/full 判定优先读取 `screen.outputs` 的物理尺寸；当屏幕物理对角线超过 15 英寸时必须切到 full 模式，保留完整日期与 MEM 等状态项；15 英寸及以下 compact 模式默认使用短时钟 ` %m/%d %H:%M `，并优先保留 `NET / CPU / BAT / VOL / clock`，其中 MEM 可先隐藏；只有检测不到物理尺寸时才回退到 `screen.geometry.width <= compact_wibar_max_width`。
 - 对 Awesome 顶栏观感，当前优先增强聚焦窗口的可扫读性（圆角背景、蓝色文字、左侧细条），并让主屏 systray 使用更小图标、深色胶囊背景和细边框降低彩色托盘图标噪音。
 - 对 Awesome 右侧状态区观感，优先弱化竖线分隔符、给时钟独立胶囊背景作为右端视觉终点；full 模式使用 `CPU/MEM/BAT/VOL` 完整标签，compact 模式继续使用 `C/M/B/V` 短标签。
+- 对 Awesome 顶栏实用细调，优先限制单个 tasklist 长标题最大宽度并用尾部省略保护状态区；NET 主栏保持短速率显示，详细接口名和 `/s` 单位优先放到 hover tooltip。
 - 对 Awesome 的时钟交互，优先用左键点击时钟弹出月历；不要默认悬停弹出，避免鼠标经过状态栏时打扰；鼠标不进入日历时 5 秒后自动隐藏，进入日历则取消倒计时、离开后再等 5 秒隐藏；滚轮切换上/下个月即可。
 - 对 Awesome 的自启动入口，根目录 `autostart.sh` 应保持为平台分发 wrapper，再转发到 `autostart/*.sh`；不要再让安装脚本用平台脚本直接覆盖它，否则 `common.sh` 相对路径会失效。
 - 对 tmux 状态栏，左侧优先隐藏 session 名，避免 OMX / 自动生成的长 session 名挤占 tab 区域；右侧只保留 Prefix/Copy 状态和日期时间，不显示当前 shell/application 这类噪音；窗口列表标题以易用和扫读辨识度优先，本地只显示项目名或最短必要路径，不加 `L:` 前缀；远程 SSH 场景前面保留 `~/.ssh/config` 中的远程别名，若没有别名且是 IPv4，则显示最后两段（如 `192.168.1.1` 显示 `1.1`），并牺牲路径细节来避免 tab 过长；不要为了状态栏额外引入 CPU/RAM/Battery 插件依赖。

@@ -1,6 +1,7 @@
 -- System info widgets: CPU, MEM, NET
 -- Returns a container with all system widgets and helper functions
 
+local awful = require("awful")
 local gears = require("gears")
 local wibox = require("wibox")
 local beautiful = require("beautiful")
@@ -113,12 +114,25 @@ local function create_system_widgets(config, options)
 
     -- Network widget
     local net_widget = wibox.widget.textbox()
+    local net_tooltip_text = "NET: waiting for data"
 
     local function render_net_markup(recv_speed, sent_speed)
         return "<span foreground='" .. ctpp.blue .. "'>↓" .. format_speed(recv_speed) .. "</span> <span foreground='" .. ctpp.peach .. "'>↑" .. format_speed(sent_speed) .. "</span>"
     end
 
+    local function update_net_tooltip(interface, recv_speed, sent_speed)
+        net_tooltip_text = "NET " .. interface
+            .. "\n↓ " .. format_speed(recv_speed) .. "/s"
+            .. "\n↑ " .. format_speed(sent_speed) .. "/s"
+    end
+
     net_widget:set_markup(render_net_markup(0, 0))
+    awful.tooltip {
+        objects = { net_widget },
+        timer_function = function()
+            return net_tooltip_text
+        end,
+    }
 
     -- Battery widget (laptops only)
     local battery_widget = nil
@@ -170,6 +184,7 @@ local function create_system_widgets(config, options)
             net_prev.recv = totals.recv
             net_prev.sent = totals.sent
             net_widget:set_markup(render_net_markup(0, 0))
+            update_net_tooltip(totals.interface, 0, 0)
             return
         end
 
@@ -177,6 +192,7 @@ local function create_system_widgets(config, options)
         local sent_speed = math.max(totals.sent - net_prev.sent, 0) / 2
 
         net_widget:set_markup(render_net_markup(recv_speed, sent_speed))
+        update_net_tooltip(totals.interface, recv_speed, sent_speed)
         net_prev.recv = totals.recv
         net_prev.sent = totals.sent
     end
