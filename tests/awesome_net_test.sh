@@ -124,6 +124,33 @@ test_net_widget_has_hover_tooltip() {
         fail "expected NET tooltip to show upload speed units"
 }
 
+test_status_widgets_open_detail_panels() {
+    grep -F 'local function shell_quote(value)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected status actions to shell-quote terminal commands"
+    grep -F 'local function spawn_terminal_shell(command)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected status actions to open terminal panels"
+    grep -F 'local function open_system_monitor()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU/MEM widgets to open a system monitor"
+    grep -F 'command -v btop >/dev/null 2>&1' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected system monitor action to prefer btop when available"
+    grep -F 'command -v htop >/dev/null 2>&1' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected system monitor action to fall back to htop"
+    grep -F 'exec top' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected system monitor action to fall back to top"
+    grep -F 'local function open_network_status()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET widget to open a network status panel"
+    grep -F 'nmcli device status' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected network panel to show nmcli device status when available"
+    grep -F 'ip -brief address' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected network panel to show ip address summary"
+    grep -F 'net_widget:buttons(gears.table.join(' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET widget to bind mouse actions"
+    grep -F 'cpu_widget:buttons(gears.table.join(' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU widget to bind mouse actions"
+    grep -F 'mem_widget:buttons(gears.table.join(' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM widget to bind mouse actions"
+}
+
 test_net_pattern_includes_wlp_interfaces
 test_net_widget_avoids_shell_pipeline_parsing
 test_net_widget_parses_proc_net_dev_in_lua
@@ -135,5 +162,6 @@ test_net_widget_uses_compact_markup
 test_net_widget_uses_compact_spacing
 test_net_widget_uses_short_speed_format
 test_net_widget_has_hover_tooltip
+test_status_widgets_open_detail_panels
 
 printf 'PASS: awesome net tests\n'

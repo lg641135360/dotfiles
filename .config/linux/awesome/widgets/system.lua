@@ -13,6 +13,47 @@ local function create_system_widgets(config, options)
     local cpu_label = compact and "C" or "CPU"
     local mem_label = compact and "M" or "MEM"
     local battery_label = compact and "B" or "BAT"
+    local terminal = (options and options.terminal) or "alacritty"
+
+    local function shell_quote(value)
+        return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
+    end
+
+    local function spawn_terminal_shell(command)
+        awful.spawn.with_shell(terminal .. " -e sh -lc " .. shell_quote(command))
+    end
+
+    local function open_system_monitor()
+        spawn_terminal_shell([[
+if command -v btop >/dev/null 2>&1; then exec btop; fi
+if command -v htop >/dev/null 2>&1; then exec htop; fi
+exec top
+]])
+    end
+
+    local function open_network_status()
+        spawn_terminal_shell([[
+clear
+if command -v nmcli >/dev/null 2>&1; then
+    echo "== Network devices =="
+    nmcli device status
+    echo
+    echo "== Active connections =="
+    nmcli connection show --active
+    echo
+fi
+if command -v ip >/dev/null 2>&1; then
+    echo "== Addresses =="
+    ip -brief address
+    echo
+    echo "== Routes =="
+    ip route
+    echo
+fi
+printf "\nPress Enter to close..."
+read -r _
+]])
+    end
 
     local function read_file(path)
         local file = io.open(path, "r")
@@ -91,10 +132,16 @@ local function create_system_widgets(config, options)
     -- CPU widget
     local cpu_widget = wibox.widget.textbox()
     cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.blue, "0%", ctpp.text))
+    cpu_widget:buttons(gears.table.join(
+        awful.button({ }, 1, open_system_monitor)
+    ))
 
     -- Memory widget
     local mem_widget = wibox.widget.textbox()
     mem_widget:set_markup(render_metric_markup(mem_label, ctpp.green, "0%", ctpp.text))
+    mem_widget:buttons(gears.table.join(
+        awful.button({ }, 1, open_system_monitor)
+    ))
 
     local function format_speed(bytes_per_sec)
         if bytes_per_sec < 1024 then
@@ -127,6 +174,9 @@ local function create_system_widgets(config, options)
     end
 
     net_widget:set_markup(render_net_markup(0, 0))
+    net_widget:buttons(gears.table.join(
+        awful.button({ }, 1, open_network_status)
+    ))
     awful.tooltip {
         objects = { net_widget },
         timer_function = function()

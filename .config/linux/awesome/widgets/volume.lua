@@ -95,6 +95,10 @@ local function create_volume_widget(options)
         )
     end
 
+    local function open_volume_control()
+        awful.spawn.with_shell("command -v pavucontrol >/dev/null 2>&1 && pavucontrol")
+    end
+
     update_volume()
     gears.timer {
         timeout = 2,
@@ -111,7 +115,8 @@ local function create_volume_widget(options)
         end),
         awful.button({ }, 1, function()
             run_volume_action("pactl set-sink-mute @DEFAULT_SINK@ toggle")
-        end)
+        end),
+        awful.button({ }, 3, open_volume_control)
     ))
 
     return vol_widget, update_volume

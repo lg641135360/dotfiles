@@ -41,6 +41,7 @@ test_rc_wires_shared_modules() {
     assert_contains 'actions = actions,' "$RC_FILE"
     assert_contains 'config = config,' "$RC_FILE"
     assert_contains 'lain_ok = lain_ok,' "$RC_FILE"
+    assert_contains 'terminal = terminal,' "$RC_FILE"
 }
 
 test_rc_no_longer_builds_bar_widgets_locally() {
@@ -103,6 +104,7 @@ PY
 test_wibar_owns_bar_widget_creation() {
     assert_contains 'local config = args.config' "$WIBAR_FILE"
     assert_contains 'local actions = args.actions or {}' "$WIBAR_FILE"
+    assert_contains 'local terminal = args.terminal or "alacritty"' "$WIBAR_FILE"
     assert_contains 'local lain_ok = args.lain_ok' "$WIBAR_FILE"
     assert_contains 'local dpi = require("beautiful.xresources").apply_dpi' "$WIBAR_FILE"
     assert_not_contains 'local xresources = require("beautiful.xresources")' "$WIBAR_FILE"
@@ -124,7 +126,7 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'month_calendar:connect_signal("mouse::leave", schedule_calendar_hide)' "$WIBAR_FILE"
     assert_not_contains 'month_calendar:attach(textclock, "tr", { on_hover = false })' "$WIBAR_FILE"
     assert_contains 'local function create_systray_widget(ctpp)' "$WIBAR_FILE"
-    assert_contains 'local function create_sysinfo_bundle(config, ctpp, lain_ok, screen)' "$WIBAR_FILE"
+    assert_contains 'local function create_sysinfo_bundle(config, ctpp, lain_ok, screen, terminal)' "$WIBAR_FILE"
     assert_contains 'compact = is_compact_screen(screen, config),' "$WIBAR_FILE"
     assert_contains 'compact = compact,' "$WIBAR_FILE"
     assert_not_contains 'configure_screen_dpi(s, config)' "$WIBAR_FILE"
@@ -244,6 +246,9 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '时钟使用独立胶囊背景作为右端视觉终点' "$README_FILE"
     assert_contains '长窗口标题会在单个任务项内尾部省略' "$README_FILE"
     assert_contains 'NET 保持短显示，悬停时显示网卡接口名和带 `/s` 单位的上下行速率' "$README_FILE"
+    assert_contains '点击 NET 会打开网络状态终端面板' "$README_FILE"
+    assert_contains '点击 CPU/MEM 会打开 `btop`/`htop`/`top` 系统监控' "$README_FILE"
+    assert_contains '右键 VOL 会打开 `pavucontrol`' "$README_FILE"
 }
 
 test_readme_documents_snipaste_f1_conflict() {

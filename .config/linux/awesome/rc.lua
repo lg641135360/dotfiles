@@ -87,6 +87,7 @@ local wibar_actions = require("ui.wibar").setup({
     modkey = modkey,
     ctpp = ctpp,
     config = config,
+    terminal = terminal,
     actions = actions,
     lain_ok = lain_ok,
 })

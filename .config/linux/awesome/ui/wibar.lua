@@ -245,12 +245,13 @@ local function create_systray_widget(ctpp)
     }
 end
 
-local function create_sysinfo_bundle(config, ctpp, lain_ok, screen)
+local function create_sysinfo_bundle(config, ctpp, lain_ok, screen, terminal)
     local compact = is_compact_screen(screen, config)
 
     if lain_ok then
         local system_widgets = require("widgets.system").create(config, {
             compact = is_compact_screen(screen, config),
+            terminal = terminal,
         })
         local sysinfo_widget = system_widgets.sysinfo_widget
         local system_row = system_widgets.system_row
@@ -415,6 +416,7 @@ function M.setup(args)
     local modkey = args.modkey
     local ctpp = args.ctpp
     local config = args.config
+    local terminal = args.terminal or "alacritty"
     local actions = args.actions or {}
     local lain_ok = args.lain_ok
 
@@ -461,7 +463,7 @@ function M.setup(args)
     )
 
     awful.screen.connect_for_each_screen(function(s)
-        local system_bundle = create_sysinfo_bundle(config, ctpp, lain_ok, s)
+        local system_bundle = create_sysinfo_bundle(config, ctpp, lain_ok, s, terminal)
         local sysinfo_widget = system_bundle.sysinfo_widget
         local make_separator = system_bundle.make_separator
         local lock_button = create_lock_button(ctpp, actions)

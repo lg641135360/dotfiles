@@ -59,11 +59,18 @@ test_volume_widget_handles_write_failures_gracefully() {
     assert_contains 'run_volume_action("pactl set-sink-mute @DEFAULT_SINK@ toggle")' "$VOLUME_FILE"
 }
 
+test_volume_widget_opens_pavucontrol_on_right_click() {
+    assert_contains 'local function open_volume_control()' "$VOLUME_FILE"
+    assert_contains 'command -v pavucontrol >/dev/null 2>&1 && pavucontrol' "$VOLUME_FILE"
+    assert_contains 'awful.button({ }, 3, open_volume_control)' "$VOLUME_FILE"
+}
+
 test_volume_widget_queries_mute_state
 test_volume_widget_refreshes_periodically
 test_volume_widget_renders_muted_state_explicitly
 test_volume_widget_handles_invalid_output_gracefully
 test_volume_widget_uses_tight_value_spacing
 test_volume_widget_handles_write_failures_gracefully
+test_volume_widget_opens_pavucontrol_on_right_click
 
 printf 'PASS: awesome volume tests\n'
