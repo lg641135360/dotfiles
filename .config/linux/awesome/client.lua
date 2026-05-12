@@ -55,6 +55,13 @@ function M.setup(args)
             properties = { floating = true },
         },
         {
+            rule = { class = "tblive", type = "utility" },
+            properties = {
+                floating = true,
+                skip_taskbar = true,
+            },
+        },
+        {
             rule_any = { type = { "normal", "dialog" } },
             properties = { titlebars_enabled = false },
         },

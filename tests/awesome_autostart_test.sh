@@ -33,6 +33,22 @@ assert_not_contains() {
     fi
 }
 
+wait_for_file_contains() {
+    needle=$1
+    file=$2
+    i=0
+
+    while [ "$i" -lt 50 ]; do
+        if [ -f "$file" ] && grep -F -- "$needle" "$file" >/dev/null 2>&1; then
+            return 0
+        fi
+        i=$((i + 1))
+        sleep 0.1
+    done
+
+    fail "expected '$needle' in $file"
+}
+
 test_common_autostart_module_exists() {
     [ -f "$COMMON_FILE" ] || fail "expected common Awesome autostart module to exist"
 }
@@ -58,6 +74,11 @@ test_common_module_exposes_shared_helpers() {
     assert_contains 'prepare_xresources() {' "$COMMON_FILE"
     assert_contains 'append_path_if_exists() {' "$COMMON_FILE"
     assert_contains 'command_available() {' "$COMMON_FILE"
+    assert_contains 'process_matching_pattern_exists() {' "$COMMON_FILE"
+    assert_contains 'start_background() {' "$COMMON_FILE"
+    assert_contains 'setsid -f "$@" >/dev/null 2>&1' "$COMMON_FILE"
+    assert_contains 'nohup "$@" >/dev/null 2>&1 &' "$COMMON_FILE"
+    assert_contains 'run_first_custom() {' "$COMMON_FILE"
     assert_contains 'detect_laptop_display() {' "$COMMON_FILE"
     assert_contains 'detect_external_display() {' "$COMMON_FILE"
     assert_contains 'detect_display_preferred_mode() {' "$COMMON_FILE"
@@ -100,12 +121,79 @@ EOF
         wait
     )
 
-    grep -F 'fake-service --flag' "$log_file" >/dev/null 2>&1 ||
-        fail "expected available autostart command to run"
+    wait_for_file_contains 'fake-service --flag' "$log_file"
 
     if [ -s "$stderr_file" ]; then
         fail "expected missing optional autostart commands to be skipped without shell errors"
     fi
+
+    rm -rf "$tmpdir"
+}
+
+test_run_custom_ignores_current_shell_when_checking_duplicates() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    log_file=$tmpdir/run.log
+
+    mkdir -p "$bin_dir"
+
+    cat >"$bin_dir/pgrep" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$CURRENT_PID"
+EOF
+    chmod +x "$bin_dir/pgrep"
+
+    cat >"$bin_dir/fake-service" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$0 $*" >>"$RUN_LOG"
+EOF
+    chmod +x "$bin_dir/fake-service"
+
+    (
+        PATH="$bin_dir:/usr/bin:/bin"
+        RUN_LOG=$log_file
+        CURRENT_PID=$$
+        export PATH RUN_LOG CURRENT_PID
+        . "$COMMON_FILE"
+        run_custom "fake-service" fake-service --flag
+        wait
+    )
+
+    wait_for_file_contains 'fake-service --flag' "$log_file"
+
+    rm -rf "$tmpdir"
+}
+
+test_run_first_custom_uses_first_available_candidate() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    app_dir=$tmpdir/apps
+    log_file=$tmpdir/snipaste.log
+
+    mkdir -p "$bin_dir" "$app_dir"
+
+    cat >"$bin_dir/pgrep" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+    chmod +x "$bin_dir/pgrep"
+
+    cat >"$app_dir/Snipaste-2.11.2-x86_64.AppImage" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$0 $*" >>"$SNIPASTE_LOG"
+EOF
+    chmod +x "$app_dir/Snipaste-2.11.2-x86_64.AppImage"
+
+    (
+        PATH="$bin_dir:/usr/bin:/bin"
+        SNIPASTE_LOG=$log_file
+        export PATH SNIPASTE_LOG
+        . "$COMMON_FILE"
+        run_first_custom "Snipaste" "$app_dir/missing.AppImage" "$app_dir/Snipaste-2.11.2-x86_64.AppImage"
+        wait
+    )
+
+    wait_for_file_contains 'Snipaste-2.11.2-x86_64.AppImage' "$log_file"
 
     rm -rf "$tmpdir"
 }
@@ -201,8 +289,7 @@ EOF
         wait
     )
 
-    grep -F -- "--no-fehbg --bg-fill --randomize" "$log_file" >/dev/null 2>&1 ||
-        fail "expected randomize_wallpaper to keep the randomized feh invocation"
+    wait_for_file_contains "--no-fehbg --bg-fill --randomize" "$log_file"
 
     rm -rf "$tmpdir"
 }
@@ -387,7 +474,10 @@ test_platform_specific_behaviors_remain_declared() {
     assert_not_contains 'PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"' "$UBUNTU_ARM_FILE"
     assert_contains 'randomize_wallpaper "$HOME/Pictures/wall" "$HOME/Pictures" "/usr/share/backgrounds"' "$UBUNTU_X64_FILE"
     assert_contains 'randomize_wallpaper "$HOME/Pictures/wall" "$HOME/Pictures" "/usr/share/backgrounds"' "$UBUNTU_ARM_FILE"
-    assert_contains 'run_custom "Snipaste-2.11.2-x86_64.AppImage" ~/Documents/Snipaste-2.11.2-x86_64.AppImage' "$UBUNTU_X64_FILE"
+    assert_contains 'run_first_custom "Snipaste"' "$UBUNTU_X64_FILE"
+    assert_contains '"$HOME"/Applications/Snipaste-2.11.2-*.AppImage' "$UBUNTU_X64_FILE"
+    assert_contains '"$HOME"/Applications/Snipaste-*.AppImage' "$UBUNTU_X64_FILE"
+    assert_not_contains 'run_custom "Snipaste-2.11.2-x86_64.AppImage" ~/Documents/Snipaste-2.11.2-x86_64.AppImage' "$UBUNTU_X64_FILE"
     assert_contains 'run greenclip daemon' "$UBUNTU_X64_FILE"
 }
 
@@ -410,6 +500,14 @@ test_readme_documents_idle_lock_service() {
     assert_contains '-detectsleep' "$README_FILE"
 }
 
+test_readme_documents_ubuntu_x64_snipaste_candidates() {
+    assert_contains 'start_background()' "$README_FILE"
+    assert_contains 'setsid -f' "$README_FILE"
+    assert_contains 'run_first_custom()' "$README_FILE"
+    assert_contains '~/Applications/Snipaste-2.11.2-*.AppImage' "$README_FILE"
+    assert_contains '~/Downloads/Snipaste-2.11.2-x86_64.AppImage' "$README_FILE"
+}
+
 test_install_does_not_overwrite_root_wrapper_with_platform_script() {
     assert_not_contains '|.config/linux/awesome/autostart/arch_x64.sh|~/.config/awesome/autostart.sh|' "$INSTALL_FILE"
     assert_not_contains '|.config/linux/awesome/autostart/ubuntu_aarch64.sh|~/.config/awesome/autostart.sh|' "$INSTALL_FILE"
@@ -421,6 +519,8 @@ test_root_autostart_wrapper_dispatches_to_platform_script
 test_platform_scripts_source_common_module
 test_common_module_exposes_shared_helpers
 test_optional_autostart_commands_are_skipped_when_missing
+test_run_custom_ignores_current_shell_when_checking_duplicates
+test_run_first_custom_uses_first_available_candidate
 test_xresources_and_wallpaper_helpers_skip_missing_optional_tools
 test_xresources_helper_only_merges_existing_file
 test_wallpaper_helper_uses_feh_when_available
@@ -432,6 +532,7 @@ test_platform_specific_behaviors_remain_declared
 test_readme_documents_random_wallpaper_behavior
 test_readme_documents_runtime_wrapper_chain
 test_readme_documents_idle_lock_service
+test_readme_documents_ubuntu_x64_snipaste_candidates
 test_install_does_not_overwrite_root_wrapper_with_platform_script
 
 printf 'PASS: awesome autostart tests\n'

@@ -54,6 +54,9 @@
 - 对 tmux session 持久化，优先只保留 `tmux-resurrect` 的手动保存/恢复；不要启用 `tmux-continuum` 这类自动保存 session 插件。
 - 对 tmux session 销毁行为，优先让当前客户端 detach，不要在退出当前 session 后自动切回最近使用的其它 session；对应 `detach-on-destroy` 保持 `on`。
 - 对 Awesome 的 autostart 可选服务，优先在共享 `run()` / `run_custom()` 层做命令可用性检查；缺失时静默跳过，避免在启动阶段输出 `not found` 噪音，平台脚本继续只声明各自想启动的服务。
+- 对 Ubuntu x86_64 Awesome autostart 的 Snipaste，优先从 AppImageLauncher 集成后的 `~/Applications/Snipaste-2.11.2-*.AppImage` 启动；保留 `~/Applications/Snipaste-*.AppImage`、`~/Downloads/Snipaste-2.11.2-x86_64.AppImage` 和旧 `~/Documents/...` 作为候选路径，并通过共享 helper 选择第一个可执行候选，避免硬编码已不存在的单一路径。
+- 对 Awesome autostart 后台服务，优先通过共享 `start_background()` 用 `setsid -f` 分离进程；这对 Snipaste/AppImage 这类父 shell 结束后可能被回收的 GUI 服务尤其重要，缺少 `setsid` 时再回退到 `nohup` 或普通后台启动。
+- 对 Snipaste 裸 `F1` 截图，优先让 Snipaste 自己注册全局热键，Awesome 不绑定裸 `F1`；若 `F1` 无效，优先检查 KDE `kglobalaccel5` / `~/.config/kglobalshortcutsrc` 是否把 `[org.flameshot.Flameshot.desktop] Capture` 设成了 `F1`，应改为 `none,none,进行截图` 并重启 Snipaste 观察日志是否不再出现 `Unable to register global hotkey`。
 - 对 Ubuntu aarch64 的 Awesome autostart，当前外接屏持久方案是：先运行时检测内屏、首个外接屏和外接屏首选物理模式；内屏保持 `2880x1800@120Hz` 主屏；外接屏使用首选物理模式（当前 Dell P2722H 为 `1920x1080`）并通过 `1.5x1.5` XRandR scaling 放在笔记本左侧，同时显式设置 framebuffer/position 避免重叠；不要在这里改全局 `Xft.dpi`、Awesome per-screen DPI 或 rofi focused-screen `ROFI_SCALE`。
 - 对当前笔记本内屏，`Xft.dpi: 192` 是合适基线；不要为了外接 1080p 屏幕把全局 Xresources DPI 降到折中值，但当前显示策略下也不要在 Awesome/rofi 强行做 per-screen DPI 或 focused-screen 缩放覆盖，后续若重试需单独确认。
 - 对当前 dotfiles 仓库，`.omx/` 属于本地 OMX 运行状态目录，应放入 `.gitignore`，不要提交到远端仓库。
@@ -99,6 +102,7 @@
 - 对当前 Git alias，优先把 oh-my-zsh git 插件未提供且跨 shell 有价值的命令放进 `.config/shared/git/config`；当前用 `git subs` 查看 `submodule status`，README 中的 OMZ alias 必须按实际插件名（如 `grs` / `grst`）记录，避免写入不存在的短别名。
 - 对 Codex CLI 配置，当前基线是模型使用 `gpt-5.5`，hook feature flag 使用 `[features].hooks = true`，不再使用 deprecated 的 `[features].codex_hooks`；若继续启用 `child_agents_md`，同时保留 `suppress_unstable_features_warning = true` 抑制已知 unstable 提示。
 - 对 Awesome 锁屏快捷键，当前偏好使用 `Mod+Shift+l`；`Mod+Ctrl+l` 保留给布局减少列数，减少主区域窗口数量改用 `Mod+Ctrl+Shift+l`，避免同一组合承担两个动作。
-- 对 Awesome 锁屏脚本，优先使用 `i3lock-color` 或支持 `--blur` 的 `i3lock` 提供模糊、时钟和主题配色，不再硬编码 `--screen 1`；普通 `i3lock` fallback 使用 `i3lock -n -e -f -c 11111b`。自动锁屏优先由 autostart 用 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep` 启动，缺依赖时静默跳过。
+- 对 Awesome 锁屏脚本，优先使用 `i3lock-color` 或支持 `--blur` 的 `i3lock` 提供模糊、时钟和主题配色，不再硬编码 `--screen 1`；普通 `i3lock` fallback 优先用 Python 生成缓存的 Catppuccin Mocha 静态 PNG 背景并执行 `i3lock -n -e -f -i <image> -c 11111b`，多屏时应按 `xrandr --current` 的每个已启用输出各画一份居中卡片/锁图标，避免只在整张 framebuffer 中心显示一次；生成失败时才退回纯色 `i3lock -n -e -f -c 11111b`，避免新增依赖。自动锁屏优先由 autostart 用 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep` 启动，缺依赖时静默跳过。
 - 对 Awesome autostart 中的 Xresources 与壁纸 helper，`xrdb`、`~/.Xresources`、`feh`、壁纸目录或候选图片缺失时应静默跳过并继续后续自启动服务，不要因可选桌面能力缺失中断 autostart。
-- 当前不用 Firefox / DownThemAll；Awesome 浮动规则不应保留默认示例里的 `DTA` instance 自动浮动规则，避免误伤钉钉会议子窗口。
+- 当前不用 Firefox / DownThemAll；Awesome 浮动规则不应保留默认示例里的 `DTA` instance 自动浮动规则，避免把历史 Firefox 扩展规则混入当前桌面行为判断。
+- 对钉钉会议的 `tblive` 窗口，优先只处理 `type=utility` 的辅助窗口：设为浮动并 `skip_taskbar=true`，避免会控条/状态条占据任务列表或平铺布局；真正的 `tblive` 普通会议窗口仍应保留为可见任务。

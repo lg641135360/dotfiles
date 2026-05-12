@@ -21,7 +21,7 @@ run() {
     command_available "$1" || return 0
 
     if ! pgrep -x "$1" >/dev/null 2>&1; then
-        "$@" &
+        start_background "$@"
     fi
 }
 
@@ -32,9 +32,48 @@ run_custom() {
     shift
     command_available "$1" || return 0
 
-    if ! pgrep -f "$pattern" >/dev/null 2>&1; then
-        "$@" &
+    if ! process_matching_pattern_exists "$pattern"; then
+        start_background "$@"
     fi
+}
+
+process_matching_pattern_exists() {
+    pattern=$1
+    current_pid=$$
+    parent_pid=${PPID:-}
+
+    for pid in $(pgrep -f "$pattern" 2>/dev/null); do
+        [ "$pid" = "$current_pid" ] && continue
+        [ -n "$parent_pid" ] && [ "$pid" = "$parent_pid" ] && continue
+        return 0
+    done
+
+    return 1
+}
+
+start_background() {
+    [ "$#" -gt 0 ] || return 0
+
+    if command_available setsid; then
+        setsid -f "$@" >/dev/null 2>&1
+    elif command_available nohup; then
+        nohup "$@" >/dev/null 2>&1 &
+    else
+        "$@" >/dev/null 2>&1 &
+    fi
+}
+
+run_first_custom() {
+    [ "$#" -gt 1 ] || return 0
+
+    pattern=$1
+    shift
+
+    for candidate do
+        command_available "$candidate" || continue
+        run_custom "$pattern" "$candidate"
+        return 0
+    done
 }
 
 append_path_if_exists() {

@@ -61,6 +61,11 @@ test_bindings_keep_lock_on_mod_shift_l() {
     assert_not_contains 'awful.key({ modkey, "Control" }, "l", lock,' "$BINDINGS_FILE"
 }
 
+test_bindings_leave_bare_f1_to_snipaste() {
+    assert_not_contains '"F1"' "$BINDINGS_FILE"
+    assert_not_contains "'F1'" "$BINDINGS_FILE"
+}
+
 test_bindings_do_not_duplicate_shortcuts() {
     python - "$BINDINGS_FILE" <<'PY' || fail "expected Awesome keybindings to avoid duplicate modifier/key combinations"
 from pathlib import Path
@@ -220,11 +225,26 @@ test_readme_documents_current_awesome_modules() {
     assert_contains 'widgets/volume.lua' "$README_FILE"
 }
 
+test_readme_documents_snipaste_f1_conflict() {
+    assert_contains 'Snipaste 自己接管裸 `F1` 截图；Awesome 不绑定 `F1`' "$README_FILE"
+    assert_contains '[org.flameshot.Flameshot.desktop]' "$README_FILE"
+    assert_contains 'Capture` 应为 `none,none,进行截图`' "$README_FILE"
+    assert_contains 'Unable to register global hotkey' "$README_FILE"
+}
+
+test_readme_documents_plain_i3lock_theme_fallback() {
+    assert_contains 'i3lock-catppuccin-<宽>x<高>-<布局>.png' "$README_FILE"
+    assert_contains '普通 `i3lock` 路径没有真实模糊/时钟能力' "$README_FILE"
+    assert_contains '在每个屏幕中心各画一份卡片/锁图标' "$README_FILE"
+    assert_contains '生成失败时才降级到纯色 `i3lock -n -e -f -c 11111b`' "$README_FILE"
+}
+
 test_actions_module_exists
 test_rc_wires_shared_modules
 test_rc_no_longer_builds_bar_widgets_locally
 test_bindings_use_injected_prompt_runners
 test_bindings_keep_lock_on_mod_shift_l
+test_bindings_leave_bare_f1_to_snipaste
 test_bindings_do_not_duplicate_shortcuts
 test_wibar_owns_bar_widget_creation
 test_wibar_uses_physical_size_before_width_fallback
@@ -233,5 +253,7 @@ test_wibar_exposes_prompt_runners
 test_wibar_avoids_container_insert_on_sysinfo_widget
 test_system_widget_exposes_row_for_extension
 test_readme_documents_current_awesome_modules
+test_readme_documents_snipaste_f1_conflict
+test_readme_documents_plain_i3lock_theme_fallback
 
 printf 'PASS: awesome ui architecture tests\n'

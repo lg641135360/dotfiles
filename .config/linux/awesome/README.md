@@ -56,8 +56,9 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 ## 锁屏
 
 - 快捷键：`Mod+Shift+l`，左侧 wibar 的锁屏按钮也调用同一个动作。
-- 脚本：`~/.config/scripts/lock`。优先使用 `i3lock-color`；若只有支持 `--blur` 的 `i3lock`，则使用同一套模糊、时钟和主题配色；若只有普通 `i3lock`，则降级到 `i3lock -n -e -f -c 11111b`，避免传入不兼容的 `--blur` 参数。
-- 多屏：主题化路径不再固定 `--screen 1`，让锁屏器自己处理当前 X11 屏幕布局。
+- 脚本：`~/.config/scripts/lock`。优先使用 `i3lock-color`；若只有支持 `--blur` 的 `i3lock`，则使用同一套模糊、时钟和主题配色；若只有普通 `i3lock`，则自动生成 `~/.cache/lock/i3lock-catppuccin-<宽>x<高>-<布局>.png` 这类 Catppuccin Mocha 静态背景并执行 `i3lock -n -e -f -i <image> -c 11111b`。生成失败时才降级到纯色 `i3lock -n -e -f -c 11111b`，避免传入不兼容的 `--blur` 参数。
+- 普通 `i3lock` 路径没有真实模糊/时钟能力；这里用缓存 PNG 提升观感，安装 `i3lock-color` 后会自动切回主题化模糊锁屏。
+- 多屏：主题化路径不再固定 `--screen 1`，让锁屏器自己处理当前 X11 屏幕布局；普通 `i3lock` 静态背景会读取 `xrandr --current` 的已启用输出，在每个屏幕中心各画一份卡片/锁图标，避免一张图跨双屏只在总画布中心显示一次。
 - 自动锁屏：autostart 会在 `xautolock` 与 `~/.config/scripts/lock` 都可用时启动 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep`，空闲 10 分钟后自动锁屏；缺少 `xautolock` 时静默跳过。
 
 ## 快捷键
@@ -78,6 +79,8 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 | `Mod+Ctrl+r` | 重启 AwesomeWM |
 | `Mod+Shift+q` | 退出 AwesomeWM |
 | `Mod+Shift+l` | 锁屏 |
+
+Snipaste 自己接管裸 `F1` 截图；Awesome 不绑定 `F1`。如果 Snipaste 已运行但 `F1` 无效，优先检查 KDE 全局快捷键服务是否还在运行并抢占了该键：`~/.config/kglobalshortcutsrc` 中 `[org.flameshot.Flameshot.desktop]` 的 `Capture` 应为 `none,none,进行截图`，否则 `kglobalaccel5` 会把 `F1` 交给 Flameshot，Snipaste 日志会出现 `Unable to register global hotkey`。
 
 ### 窗口焦点
 
@@ -148,4 +151,6 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 - Wpa_gui, veromix, xtightvncviewer, Pot（翻译工具）
 - pinentry, copyq
 
-默认 Awesome 示例里的 `DTA`（Firefox / DownThemAll 历史规则）不保留；当前不用 Firefox，且该 instance 名容易误伤钉钉会议等 Electron/Qt 子窗口，导致会议时出现过多浮动窗口。
+默认 Awesome 示例里的 `DTA`（Firefox / DownThemAll 历史规则）不保留；当前不用 Firefox，且该 instance 名容易把历史浏览器扩展规则混进钉钉等 Electron/Qt 窗口判断。
+
+钉钉会议会额外创建多个 `tblive` / `utility` 辅助窗口（例如会控条、状态条等）。这些辅助窗口不代表独立应用窗口，因此规则只对 `class = tblive` 且 `type = utility` 的窗口设置 `skip_taskbar = true` 并保持浮动；真正的 `tblive` 普通会议窗口仍会保留在任务列表中。
