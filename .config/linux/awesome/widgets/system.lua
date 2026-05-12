@@ -13,120 +13,10 @@ local function create_system_widgets(config, options)
     local cpu_label = compact and "C" or "CPU"
     local mem_label = compact and "M" or "MEM"
     local battery_label = compact and "B" or "BAT"
-    local terminal = (options and options.terminal) or "alacritty"
-    local system_monitor_unique_id = "awesome-system-monitor"
-
-    local function shell_quote(value)
-        return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
-    end
-
-    local function spawn_terminal_shell(command)
-        awful.spawn.with_shell(terminal .. " -e sh -lc " .. shell_quote(command))
-    end
-
-    local function terminal_basename()
-        local executable = tostring(terminal):match("^%s*(%S+)")
-        return executable and executable:match("([^/]+)$") or tostring(terminal)
-    end
-
-    local function make_system_monitor_command(command)
-        if terminal_basename() == "alacritty" then
-            return {
-                terminal,
-                "--class",
-                system_monitor_unique_id .. "," .. system_monitor_unique_id,
-                "-T",
-                system_monitor_unique_id,
-                "-o",
-                "window.dynamic_title=false",
-                "-e",
-                "sh",
-                "-lc",
-                command,
-            }
-        end
-
-        return {
-            terminal,
-            "-e",
-            "sh",
-            "-lc",
-            command,
-        }
-    end
-
-    local function match_system_monitor_client(c)
-        return c.valid and (
-            c.single_instance_id == system_monitor_unique_id
-            or c.class == system_monitor_unique_id
-            or c.instance == system_monitor_unique_id
-            or c.name == system_monitor_unique_id
-        )
-    end
-
-    local function focus_existing_client(matcher)
-        for _, c in ipairs(client.get()) do
-            if matcher(c) then
-                if c.minimized then
-                    c.minimized = false
-                end
-                if c.first_tag then
-                    c.first_tag:view_only()
-                end
-                client.focus = c
-                c:raise()
-                c:emit_signal("request::activate", system_monitor_unique_id, {
-                    raise = true,
-                    switch_to_tags = true,
-                })
-                return true
-            end
-        end
-
-        return false
-    end
-
-    local function open_system_monitor()
-        local command = [[
-if command -v btop >/dev/null 2>&1; then exec btop; fi
-if command -v htop >/dev/null 2>&1; then exec htop; fi
-exec top
-]]
-        if focus_existing_client(match_system_monitor_client) then
-            return
-        end
-
-        awful.spawn.raise_or_spawn(
-            make_system_monitor_command(command),
-            {},
-            match_system_monitor_client,
-            system_monitor_unique_id
-        )
-    end
-
-    local function open_network_status()
-        spawn_terminal_shell([[
-clear
-if command -v nmcli >/dev/null 2>&1; then
-    echo "== Network devices =="
-    nmcli device status
-    echo
-    echo "== Active connections =="
-    nmcli connection show --active
-    echo
-fi
-if command -v ip >/dev/null 2>&1; then
-    echo "== Addresses =="
-    ip -brief address
-    echo
-    echo "== Routes =="
-    ip route
-    echo
-fi
-printf "\nPress Enter to close..."
-read -r _
-]])
-    end
+    local system_state = {
+        cpu_usage = "0%",
+        mem_usage = "0%",
+    }
 
     local function read_file(path)
         local file = io.open(path, "r")
@@ -202,19 +92,73 @@ read -r _
         return "<span foreground='" .. label_color .. "'>" .. label .. ":</span><span foreground='" .. value_color .. "'>" .. value_text .. "</span>"
     end
 
+    local function read_load_average()
+        local loadavg = read_file("/proc/loadavg")
+        if not loadavg then
+            return "N/A"
+        end
+
+        return loadavg:match("^(%S+%s+%S+%s+%S+)") or "N/A"
+    end
+
+    local function read_command_output(command, fallback)
+        local handle = io.popen(command)
+        if not handle then
+            return fallback
+        end
+
+        local output = handle:read("*a") or ""
+        handle:close()
+        output = output:gsub("%s+$", "")
+
+        if output == "" then
+            return fallback
+        end
+
+        return output
+    end
+
+    local function system_details_command(section)
+        if section == "cpu" then
+            return "LC_ALL=C ps -eo pid,comm,%cpu,%mem --sort=-%cpu 2>/dev/null | head -n 5"
+        end
+
+        return "LC_ALL=C ps -eo pid,comm,%mem,%cpu --sort=-%mem 2>/dev/null | head -n 5"
+    end
+
+    local function render_system_details_text(section)
+        local is_cpu = section == "cpu"
+        local title = is_cpu and "CPU details" or "MEM details"
+        local process_title = is_cpu and "Top CPU processes" or "Top memory processes"
+        local process_output = read_command_output(system_details_command(section), "process list unavailable")
+
+        return title
+            .. "\nCPU: " .. system_state.cpu_usage
+            .. "    MEM: " .. system_state.mem_usage
+            .. "\nLoad average: " .. read_load_average()
+            .. "\n\n" .. process_title
+            .. "\n" .. process_output
+    end
+
     -- CPU widget
     local cpu_widget = wibox.widget.textbox()
     cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.blue, "0%", ctpp.text))
-    cpu_widget:buttons(gears.table.join(
-        awful.button({ }, 1, open_system_monitor)
-    ))
+    awful.tooltip {
+        objects = { cpu_widget },
+        timer_function = function()
+            return render_system_details_text("cpu")
+        end,
+    }
 
     -- Memory widget
     local mem_widget = wibox.widget.textbox()
     mem_widget:set_markup(render_metric_markup(mem_label, ctpp.green, "0%", ctpp.text))
-    mem_widget:buttons(gears.table.join(
-        awful.button({ }, 1, open_system_monitor)
-    ))
+    awful.tooltip {
+        objects = { mem_widget },
+        timer_function = function()
+            return render_system_details_text("mem")
+        end,
+    }
 
     local function format_speed(bytes_per_sec)
         if bytes_per_sec < 1024 then
@@ -247,9 +191,6 @@ read -r _
     end
 
     net_widget:set_markup(render_net_markup(0, 0))
-    net_widget:buttons(gears.table.join(
-        awful.button({ }, 1, open_network_status)
-    ))
     awful.tooltip {
         objects = { net_widget },
         timer_function = function()
@@ -277,6 +218,7 @@ read -r _
             elseif tonumber(cpu_now.usage) > 50 then
                 color = ctpp.yellow
             end
+            system_state.cpu_usage = cpu_now.usage .. "%"
             cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.blue, cpu_now.usage .. "%", color))
         end,
     }
@@ -290,6 +232,7 @@ read -r _
             elseif tonumber(mem_now.perc) > 60 then
                 color = ctpp.yellow
             end
+            system_state.mem_usage = mem_now.perc .. "%"
             mem_widget:set_markup(render_metric_markup(mem_label, ctpp.green, mem_now.perc .. "%", color))
         end,
     }

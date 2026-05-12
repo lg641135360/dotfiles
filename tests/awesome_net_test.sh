@@ -124,49 +124,41 @@ test_net_widget_has_hover_tooltip() {
         fail "expected NET tooltip to show upload speed units"
 }
 
-test_status_widgets_open_detail_panels() {
-    grep -F 'local function shell_quote(value)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected status actions to shell-quote terminal commands"
-    grep -F 'local function spawn_terminal_shell(command)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected status actions to open terminal panels"
-    grep -F 'local system_monitor_unique_id = "awesome-system-monitor"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected system monitor windows to have a stable unique id"
-    grep -F 'local function make_system_monitor_command(command)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected system monitor action to build a reusable terminal command"
-    grep -F 'local function match_system_monitor_client(c)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected system monitor action to match existing monitor clients"
-    grep -F 'local function focus_existing_client(matcher)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected system monitor action to focus an existing monitor window before spawning"
-    grep -F 'awful.spawn.raise_or_spawn(' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected system monitor action to raise or spawn a single monitor window"
-    grep -F 'system_monitor_unique_id' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected raise_or_spawn to use the system monitor unique id"
-    grep -F 'c.single_instance_id == system_monitor_unique_id' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected matcher to recognize Awesome single-instance monitor windows"
-    grep -F 'c.class == system_monitor_unique_id' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected matcher to recognize the monitor terminal class"
-    grep -F 'window.dynamic_title=false' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected monitor terminal title to stay stable for matching"
-    grep -F 'local function open_system_monitor()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected CPU/MEM widgets to open a system monitor"
-    grep -F 'command -v btop >/dev/null 2>&1' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected system monitor action to prefer btop when available"
-    grep -F 'command -v htop >/dev/null 2>&1' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected system monitor action to fall back to htop"
-    grep -F 'exec top' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected system monitor action to fall back to top"
-    grep -F 'local function open_network_status()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected NET widget to open a network status panel"
-    grep -F 'nmcli device status' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected network panel to show nmcli device status when available"
-    grep -F 'ip -brief address' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected network panel to show ip address summary"
-    grep -F 'net_widget:buttons(gears.table.join(' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected NET widget to bind mouse actions"
-    grep -F 'cpu_widget:buttons(gears.table.join(' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected CPU widget to bind mouse actions"
-    grep -F 'mem_widget:buttons(gears.table.join(' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected MEM widget to bind mouse actions"
+test_status_widgets_use_hover_details_only() {
+    grep -F 'local function read_load_average()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU/MEM hover details to show load average"
+    grep -F 'local function read_command_output(command, fallback)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU/MEM hover details to read lightweight command output"
+    grep -F 'local function render_system_details_text(section)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU/MEM hover details to render tooltip text"
+    grep -F 'objects = { cpu_widget },' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU detail tooltip to attach to cpu_widget"
+    grep -F 'objects = { mem_widget },' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM detail tooltip to attach to mem_widget"
+    grep -F 'return render_system_details_text("cpu")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU hover to show details"
+    grep -F 'return render_system_details_text("mem")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM hover to show details"
+    grep -F 'ps -eo pid,comm,%cpu,%mem --sort=-%cpu' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU hover details to show top CPU processes"
+    grep -F 'ps -eo pid,comm,%mem,%cpu --sort=-%mem' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM hover details to show top memory processes"
+
+    for forbidden in \
+        'net_widget:buttons(gears.table.join(' \
+        'cpu_widget:buttons(gears.table.join(' \
+        'mem_widget:buttons(gears.table.join(' \
+        'local function open_network_status()' \
+        'local function open_system_monitor()' \
+        'awful.spawn.raise_or_spawn(' \
+        'awful.popup {' \
+        'awesome-system-monitor' \
+        'show_system_details('
+    do
+        if grep -F "$forbidden" "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
+            fail "expected NET/CPU/MEM to be hover-only, but found $forbidden"
+        fi
+    done
 }
 
 test_net_pattern_includes_wlp_interfaces
@@ -180,6 +172,6 @@ test_net_widget_uses_compact_markup
 test_net_widget_uses_compact_spacing
 test_net_widget_uses_short_speed_format
 test_net_widget_has_hover_tooltip
-test_status_widgets_open_detail_panels
+test_status_widgets_use_hover_details_only
 
 printf 'PASS: awesome net tests\n'
