@@ -14,6 +14,7 @@ local function create_system_widgets(config, options)
     local mem_label = compact and "M" or "MEM"
     local battery_label = compact and "B" or "BAT"
     local terminal = (options and options.terminal) or "alacritty"
+    local system_monitor_unique_id = "awesome-system-monitor"
 
     local function shell_quote(value)
         return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
@@ -23,12 +24,84 @@ local function create_system_widgets(config, options)
         awful.spawn.with_shell(terminal .. " -e sh -lc " .. shell_quote(command))
     end
 
+    local function terminal_basename()
+        local executable = tostring(terminal):match("^%s*(%S+)")
+        return executable and executable:match("([^/]+)$") or tostring(terminal)
+    end
+
+    local function make_system_monitor_command(command)
+        if terminal_basename() == "alacritty" then
+            return {
+                terminal,
+                "--class",
+                system_monitor_unique_id .. "," .. system_monitor_unique_id,
+                "-T",
+                system_monitor_unique_id,
+                "-o",
+                "window.dynamic_title=false",
+                "-e",
+                "sh",
+                "-lc",
+                command,
+            }
+        end
+
+        return {
+            terminal,
+            "-e",
+            "sh",
+            "-lc",
+            command,
+        }
+    end
+
+    local function match_system_monitor_client(c)
+        return c.valid and (
+            c.single_instance_id == system_monitor_unique_id
+            or c.class == system_monitor_unique_id
+            or c.instance == system_monitor_unique_id
+            or c.name == system_monitor_unique_id
+        )
+    end
+
+    local function focus_existing_client(matcher)
+        for _, c in ipairs(client.get()) do
+            if matcher(c) then
+                if c.minimized then
+                    c.minimized = false
+                end
+                if c.first_tag then
+                    c.first_tag:view_only()
+                end
+                client.focus = c
+                c:raise()
+                c:emit_signal("request::activate", system_monitor_unique_id, {
+                    raise = true,
+                    switch_to_tags = true,
+                })
+                return true
+            end
+        end
+
+        return false
+    end
+
     local function open_system_monitor()
-        spawn_terminal_shell([[
+        local command = [[
 if command -v btop >/dev/null 2>&1; then exec btop; fi
 if command -v htop >/dev/null 2>&1; then exec htop; fi
 exec top
-]])
+]]
+        if focus_existing_client(match_system_monitor_client) then
+            return
+        end
+
+        awful.spawn.raise_or_spawn(
+            make_system_monitor_command(command),
+            {},
+            match_system_monitor_client,
+            system_monitor_unique_id
+        )
     end
 
     local function open_network_status()

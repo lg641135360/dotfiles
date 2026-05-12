@@ -247,7 +247,7 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '长窗口标题会在单个任务项内尾部省略' "$README_FILE"
     assert_contains 'NET 保持短显示，悬停时显示网卡接口名和带 `/s` 单位的上下行速率' "$README_FILE"
     assert_contains '点击 NET 会打开网络状态终端面板' "$README_FILE"
-    assert_contains '点击 CPU/MEM 会打开 `btop`/`htop`/`top` 系统监控' "$README_FILE"
+    assert_contains '点击 CPU/MEM 会复用/聚焦已有 `btop`/`htop`/`top` 系统监控窗口，没有时才新开' "$README_FILE"
     assert_contains '右键 VOL 会打开 `pavucontrol`' "$README_FILE"
 }
 

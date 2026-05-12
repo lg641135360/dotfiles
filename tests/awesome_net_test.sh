@@ -129,6 +129,24 @@ test_status_widgets_open_detail_panels() {
         fail "expected status actions to shell-quote terminal commands"
     grep -F 'local function spawn_terminal_shell(command)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected status actions to open terminal panels"
+    grep -F 'local system_monitor_unique_id = "awesome-system-monitor"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected system monitor windows to have a stable unique id"
+    grep -F 'local function make_system_monitor_command(command)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected system monitor action to build a reusable terminal command"
+    grep -F 'local function match_system_monitor_client(c)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected system monitor action to match existing monitor clients"
+    grep -F 'local function focus_existing_client(matcher)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected system monitor action to focus an existing monitor window before spawning"
+    grep -F 'awful.spawn.raise_or_spawn(' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected system monitor action to raise or spawn a single monitor window"
+    grep -F 'system_monitor_unique_id' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected raise_or_spawn to use the system monitor unique id"
+    grep -F 'c.single_instance_id == system_monitor_unique_id' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected matcher to recognize Awesome single-instance monitor windows"
+    grep -F 'c.class == system_monitor_unique_id' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected matcher to recognize the monitor terminal class"
+    grep -F 'window.dynamic_title=false' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected monitor terminal title to stay stable for matching"
     grep -F 'local function open_system_monitor()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected CPU/MEM widgets to open a system monitor"
     grep -F 'command -v btop >/dev/null 2>&1' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
