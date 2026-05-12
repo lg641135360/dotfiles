@@ -19,11 +19,36 @@ local function render_task_text(c, ctpp)
         return '<span color="' .. ctpp.overlay2 .. '">[min] ' .. name .. '</span>'
     end
 
-    if c == client.focus then
+    if client and c == client.focus then
         return '<span foreground="' .. ctpp.blue .. '"><b>' .. name .. '</b></span>'
     end
 
     return '<span foreground="' .. ctpp.text .. '">' .. name .. '</span>'
+end
+
+local function update_task_item(self, c, ctpp)
+    local img = self:get_children_by_id("icon_role")[1]
+    if img then
+        img.forced_width = dpi(20)
+        img.forced_height = dpi(20)
+    end
+
+    local text = self:get_children_by_id("text_role")[1]
+    if text then
+        text.markup = render_task_text(c, ctpp)
+    end
+
+    local focused = client and c == client.focus
+    local urgent = c.urgent
+    local background = self:get_children_by_id("background_role")[1]
+    if background then
+        background.bg = focused and ctpp.surface0 or ctpp.base
+    end
+
+    local indicator = self:get_children_by_id("focus_indicator_role")[1]
+    if indicator then
+        indicator.bg = urgent and ctpp.red or (focused and ctpp.blue or ctpp.base)
+    end
 end
 
 local function create_lock_button(ctpp, actions)
@@ -135,7 +160,7 @@ local function create_textclock(ctpp, config, screen)
         schedule_calendar_hide()
     end
 
-    textclock:buttons(gears.table.join(
+    local clock_buttons = gears.table.join(
         awful.button({ }, 1, function()
             if month_calendar.visible then
                 hide_calendar()
@@ -149,7 +174,9 @@ local function create_textclock(ctpp, config, screen)
         awful.button({ }, 5, function()
             show_calendar(1)
         end)
-    ))
+    )
+
+    textclock:buttons(clock_buttons)
 
     month_calendar:connect_signal("mouse::enter", cancel_calendar_hide)
     month_calendar:connect_signal("mouse::leave", schedule_calendar_hide)
@@ -169,28 +196,52 @@ local function create_textclock(ctpp, config, screen)
         end
     }
 
-    return textclock
+    local clock_widget = wibox.widget {
+        {
+            textclock,
+            left = 8,
+            right = 8,
+            top = 3,
+            bottom = 3,
+            widget = wibox.container.margin,
+        },
+        bg = ctpp.mantle,
+        border_width = dpi(1),
+        border_color = ctpp.surface1,
+        shape = function(cr, w, h)
+            gears.shape.rounded_rect(cr, w, h, dpi(8))
+        end,
+        widget = wibox.container.background,
+    }
+    clock_widget:buttons(clock_buttons)
+
+    return clock_widget
 end
 
 local function create_systray_widget(ctpp)
     local systray = wibox.widget.systray()
-    systray:set_base_size(dpi(22))
+    systray:set_base_size(dpi(20))
 
     return wibox.widget {
         {
-            systray,
-            valign = "center",
-            widget = wibox.container.place,
+            {
+                systray,
+                valign = "center",
+                widget = wibox.container.place,
+            },
+            left = 6,
+            right = 6,
+            top = 3,
+            bottom = 3,
+            widget = wibox.container.margin,
         },
-        bg = ctpp.surface0,
+        bg = ctpp.mantle,
+        border_width = dpi(1),
+        border_color = ctpp.surface1,
         shape = function(cr, w, h)
             gears.shape.rounded_rect(cr, w, h, dpi(8))
         end,
-        left = 8,
-        right = 8,
-        top = 4,
-        bottom = 4,
-        widget = wibox.container.margin,
+        widget = wibox.container.background,
     }
 end
 
@@ -206,7 +257,9 @@ local function create_sysinfo_bundle(config, ctpp, lain_ok, screen)
         local make_separator = system_widgets.make_separator
 
         if config.has_volume then
-            local vol_widget = require("widgets.volume").create()
+            local vol_widget = require("widgets.volume").create({
+                compact = compact,
+            })
             system_row:add(make_separator())
             system_row:add(vol_widget)
         end
@@ -303,37 +356,50 @@ local function create_tasklist(ctpp, screen, tasklist_buttons)
         screen = screen,
         filter = awful.widget.tasklist.filter.currenttags,
         buttons = tasklist_buttons,
+        layout = {
+            spacing = dpi(4),
+            layout = wibox.layout.fixed.horizontal,
+        },
         widget_template = {
             {
                 {
                     {
-                        id = "icon_role",
-                        widget = wibox.widget.imagebox,
+                        id = "focus_indicator_role",
+                        forced_width = dpi(3),
+                        widget = wibox.container.background,
                     },
-                    valign = "center",
-                    widget = wibox.container.place,
+                    {
+                        {
+                            id = "icon_role",
+                            widget = wibox.widget.imagebox,
+                        },
+                        valign = "center",
+                        widget = wibox.container.place,
+                    },
+                    {
+                        id = "text_role",
+                        widget = wibox.widget.textbox,
+                    },
+                    spacing = 6,
+                    layout = wibox.layout.fixed.horizontal,
                 },
-                {
-                    id = "text_role",
-                    widget = wibox.widget.textbox,
-                },
-                layout = wibox.layout.fixed.horizontal,
+                left = 8,
+                right = 8,
+                top = 2,
+                bottom = 2,
+                widget = wibox.container.margin,
             },
-            left = 8,
-            right = 8,
-            widget = wibox.container.margin,
+            id = "background_role",
+            bg = ctpp.base,
+            shape = function(cr, w, h)
+                gears.shape.rounded_rect(cr, w, h, dpi(7))
+            end,
+            widget = wibox.container.background,
             create_callback = function(self, c)
-                local img = self:get_children_by_id("icon_role")[1]
-                if img then
-                    img.forced_width = dpi(20)
-                    img.forced_height = dpi(20)
-                end
-                local text = self:get_children_by_id("text_role")[1]
-                text.markup = render_task_text(c, ctpp)
+                update_task_item(self, c, ctpp)
             end,
             update_callback = function(self, c)
-                local text = self:get_children_by_id("text_role")[1]
-                text.markup = render_task_text(c, ctpp)
+                update_task_item(self, c, ctpp)
             end,
         },
     }

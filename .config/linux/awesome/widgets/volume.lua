@@ -30,11 +30,13 @@ local function parse_mute_state(output)
     return nil
 end
 
-local function create_volume_widget()
+local function create_volume_widget(options)
     local ctpp = beautiful.ctpp
+    local compact = options and options.compact
+    local volume_label = compact and "V" or "VOL"
 
     local function render_unavailable_markup()
-        return "<span foreground='" .. ctpp.yellow .. "'>V:</span><span foreground='" .. ctpp.overlay1 .. "'>N/A</span>"
+        return "<span foreground='" .. ctpp.yellow .. "'>" .. volume_label .. ":</span><span foreground='" .. ctpp.overlay1 .. "'>N/A</span>"
     end
 
     local vol_widget = wibox.widget.textbox()
@@ -42,11 +44,11 @@ local function create_volume_widget()
 
     local function render_volume_markup(volume, muted)
         if muted then
-            return "<span foreground='" .. ctpp.yellow .. "'>V:</span><span foreground='" .. ctpp.red .. "'>MUTE</span>"
+            return "<span foreground='" .. ctpp.yellow .. "'>" .. volume_label .. ":</span><span foreground='" .. ctpp.red .. "'>MUTE</span>"
         end
 
         if volume and volume ~= "" then
-            return "<span foreground='" .. ctpp.yellow .. "'>V:</span><span foreground='" .. ctpp.text .. "'>" .. volume .. "%</span>"
+            return "<span foreground='" .. ctpp.yellow .. "'>" .. volume_label .. ":</span><span foreground='" .. ctpp.text .. "'>" .. volume .. "%</span>"
         end
 
         return render_unavailable_markup()

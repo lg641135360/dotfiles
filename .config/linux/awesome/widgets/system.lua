@@ -9,6 +9,9 @@ local function create_system_widgets(config, options)
     local compact = options and options.compact
     local ctpp = beautiful.ctpp
     local dpi = require("beautiful.xresources").apply_dpi
+    local cpu_label = compact and "C" or "CPU"
+    local mem_label = compact and "M" or "MEM"
+    local battery_label = compact and "B" or "BAT"
 
     local function read_file(path)
         local file = io.open(path, "r")
@@ -86,11 +89,11 @@ local function create_system_widgets(config, options)
 
     -- CPU widget
     local cpu_widget = wibox.widget.textbox()
-    cpu_widget:set_markup(render_metric_markup("C", ctpp.blue, "0%", ctpp.text))
+    cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.blue, "0%", ctpp.text))
 
     -- Memory widget
     local mem_widget = wibox.widget.textbox()
-    mem_widget:set_markup(render_metric_markup("M", ctpp.green, "0%", ctpp.text))
+    mem_widget:set_markup(render_metric_markup(mem_label, ctpp.green, "0%", ctpp.text))
 
     local function format_speed(bytes_per_sec)
         if bytes_per_sec < 1024 then
@@ -122,7 +125,7 @@ local function create_system_widgets(config, options)
     local battery_path = find_battery_path()
     if battery_path then
         battery_widget = wibox.widget.textbox()
-        battery_widget:set_markup(render_metric_markup("B", ctpp.yellow, "0%", ctpp.text))
+        battery_widget:set_markup(render_metric_markup(battery_label, ctpp.yellow, "0%", ctpp.text))
     end
 
     -- Load lain for CPU and MEM
@@ -137,7 +140,7 @@ local function create_system_widgets(config, options)
             elseif tonumber(cpu_now.usage) > 50 then
                 color = ctpp.yellow
             end
-            cpu_widget:set_markup(render_metric_markup("C", ctpp.blue, cpu_now.usage .. "%", color))
+            cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.blue, cpu_now.usage .. "%", color))
         end,
     }
 
@@ -150,7 +153,7 @@ local function create_system_widgets(config, options)
             elseif tonumber(mem_now.perc) > 60 then
                 color = ctpp.yellow
             end
-            mem_widget:set_markup(render_metric_markup("M", ctpp.green, mem_now.perc .. "%", color))
+            mem_widget:set_markup(render_metric_markup(mem_label, ctpp.green, mem_now.perc .. "%", color))
         end,
     }
 
@@ -199,7 +202,7 @@ local function create_system_widgets(config, options)
                 color = ctpp.yellow
             end
 
-            battery_widget:set_markup(render_metric_markup("B", ctpp.yellow, capacity .. "%", color))
+            battery_widget:set_markup(render_metric_markup(battery_label, ctpp.yellow, capacity .. "%", color))
         end
 
         update_battery()
@@ -213,7 +216,7 @@ local function create_system_widgets(config, options)
     -- Separator
     local function make_separator()
         return wibox.widget {
-            markup = "<span foreground='" .. ctpp.surface2 .. "'>│</span>",
+            markup = "<span foreground='" .. ctpp.surface1 .. "'>│</span>",
             widget = wibox.widget.textbox,
         }
     end

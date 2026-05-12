@@ -58,22 +58,19 @@ test_metric_markup_uses_colon_separator() {
     fi
 }
 
-test_sysinfo_uses_short_labels() {
-    grep -F 'render_metric_markup("C"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected CPU widget to use short label"
-    grep -F 'render_metric_markup("M"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected MEM widget to use short label"
-    grep -F 'render_metric_markup("B"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected BAT widget to use short label"
-    if grep -F '>CPU</span>' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
-        fail "expected CPU label to be compacted"
-    fi
-    if grep -F '>MEM</span>' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
-        fail "expected MEM label to be compacted"
-    fi
-    if grep -F '>BAT</span>' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
-        fail "expected BAT label to be compacted"
-    fi
+test_sysinfo_uses_contextual_labels() {
+    grep -F 'render_metric_markup(cpu_label' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU widget to use contextual label"
+    grep -F 'local cpu_label = compact and "C" or "CPU"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected full mode to use CPU label"
+    grep -F 'render_metric_markup(mem_label' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM widget to use contextual label"
+    grep -F 'local mem_label = compact and "M" or "MEM"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected full mode to use MEM label"
+    grep -F 'render_metric_markup(battery_label' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT widget to use contextual label"
+    grep -F 'local battery_label = compact and "B" or "BAT"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected full mode to use BAT label"
 }
 
 test_net_widget_uses_compact_markup() {
@@ -89,6 +86,8 @@ test_net_widget_uses_compact_markup() {
 }
 
 test_net_widget_uses_compact_spacing() {
+    grep -F "ctpp.surface1" "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected separators to use subdued surface1 color"
     grep -F 'system_row.spacing = 2' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET/sysinfo row spacing to be compacted to 2"
     grep -F 'left = 4,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
@@ -112,7 +111,7 @@ test_net_widget_parses_proc_net_dev_in_lua
 test_net_widget_seeds_previous_counters_before_speed_display
 test_net_widget_moves_before_cpu
 test_metric_markup_uses_colon_separator
-test_sysinfo_uses_short_labels
+test_sysinfo_uses_contextual_labels
 test_net_widget_uses_compact_markup
 test_net_widget_uses_compact_spacing
 test_net_widget_uses_short_speed_format

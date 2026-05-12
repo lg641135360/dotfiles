@@ -114,6 +114,10 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'local function create_lock_button(ctpp, actions)' "$WIBAR_FILE"
     assert_contains 'local function create_textclock(ctpp, config, screen)' "$WIBAR_FILE"
     assert_contains 'awful.widget.calendar_popup.month {' "$WIBAR_FILE"
+    assert_contains 'local clock_widget = wibox.widget {' "$WIBAR_FILE"
+    assert_contains 'bg = ctpp.mantle,' "$WIBAR_FILE"
+    assert_contains 'border_color = ctpp.surface1,' "$WIBAR_FILE"
+    assert_contains 'clock_widget:buttons(clock_buttons)' "$WIBAR_FILE"
     assert_contains 'local function schedule_calendar_hide()' "$WIBAR_FILE"
     assert_contains 'gears.timer.start_new(5, function()' "$WIBAR_FILE"
     assert_contains 'month_calendar:connect_signal("mouse::enter", cancel_calendar_hide)' "$WIBAR_FILE"
@@ -122,11 +126,16 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'local function create_systray_widget(ctpp)' "$WIBAR_FILE"
     assert_contains 'local function create_sysinfo_bundle(config, ctpp, lain_ok, screen)' "$WIBAR_FILE"
     assert_contains 'compact = is_compact_screen(screen, config),' "$WIBAR_FILE"
+    assert_contains 'compact = compact,' "$WIBAR_FILE"
     assert_not_contains 'configure_screen_dpi(s, config)' "$WIBAR_FILE"
-    assert_contains 'systray:set_base_size(dpi(22))' "$WIBAR_FILE"
+    assert_contains 'systray:set_base_size(dpi(20))' "$WIBAR_FILE"
+    assert_contains 'border_color = ctpp.surface1,' "$WIBAR_FILE"
+    assert_contains 'id = "focus_indicator_role",' "$WIBAR_FILE"
+    assert_contains 'id = "background_role",' "$WIBAR_FILE"
+    assert_contains 'local function update_task_item(self, c, ctpp)' "$WIBAR_FILE"
+    assert_contains 'layout = wibox.layout.fixed.horizontal,' "$WIBAR_FILE"
     assert_contains 'img.forced_width = dpi(20)' "$WIBAR_FILE"
     assert_contains 'img.forced_height = dpi(20)' "$WIBAR_FILE"
-    assert_not_contains 'dpi(22, screen)' "$WIBAR_FILE"
     assert_not_contains 'dpi(20, screen)' "$WIBAR_FILE"
 }
 
@@ -225,6 +234,13 @@ test_readme_documents_current_awesome_modules() {
     assert_contains 'widgets/volume.lua' "$README_FILE"
 }
 
+test_readme_documents_wibar_visual_tuning() {
+    assert_contains '聚焦窗口会使用圆角背景、蓝色文字和左侧细条高亮' "$README_FILE"
+    assert_contains '托盘只放在主屏，并使用更小图标、深色胶囊背景和细边框降低视觉噪音' "$README_FILE"
+    assert_contains '全量模式使用 `CPU/MEM/BAT/VOL` 完整标签' "$README_FILE"
+    assert_contains '时钟使用独立胶囊背景作为右端视觉终点' "$README_FILE"
+}
+
 test_readme_documents_snipaste_f1_conflict() {
     assert_contains 'Snipaste 自己接管裸 `F1` 截图；Awesome 不绑定 `F1`' "$README_FILE"
     assert_contains '[org.flameshot.Flameshot.desktop]' "$README_FILE"
@@ -253,6 +269,7 @@ test_wibar_exposes_prompt_runners
 test_wibar_avoids_container_insert_on_sysinfo_widget
 test_system_widget_exposes_row_for_extension
 test_readme_documents_current_awesome_modules
+test_readme_documents_wibar_visual_tuning
 test_readme_documents_snipaste_f1_conflict
 test_readme_documents_plain_i3lock_theme_fallback
 
