@@ -245,6 +245,13 @@ local function create_systray_widget(ctpp)
     }
 end
 
+local function create_separator(ctpp)
+    return wibox.widget {
+        markup = "<span foreground='" .. ctpp.surface1 .. "'>│</span>",
+        widget = wibox.widget.textbox,
+    }
+end
+
 local function create_sysinfo_bundle(config, ctpp, lain_ok, screen, terminal)
     local compact = is_compact_screen(screen, config)
 
@@ -281,6 +288,42 @@ local function create_sysinfo_bundle(config, ctpp, lain_ok, screen, terminal)
         make_separator = function()
             return wibox.widget { markup = " ", widget = wibox.widget.textbox }
         end,
+    }
+end
+
+local function create_right_widgets(config, ctpp, lain_ok, target_screen, terminal, clock_widget)
+    local compact = is_compact_screen(target_screen, config)
+    local right_widgets = {
+        layout = wibox.layout.fixed.horizontal,
+        spacing = compact and 4 or 6,
+    }
+
+    if target_screen == screen.primary then
+        local system_bundle = create_sysinfo_bundle(config, ctpp, lain_ok, target_screen, terminal)
+        local sysinfo_widget = system_bundle.sysinfo_widget
+        local systray_widget = create_systray_widget(ctpp)
+
+        table.insert(right_widgets, sysinfo_widget)
+        table.insert(right_widgets, create_separator(ctpp))
+        table.insert(right_widgets, {
+            systray_widget,
+            left = compact and 1 or 2,
+            right = compact and 1 or 2,
+            widget = wibox.container.margin,
+        })
+        table.insert(right_widgets, create_separator(ctpp))
+    end
+
+    table.insert(right_widgets, {
+        clock_widget,
+        left = compact and 1 or 2,
+        right = compact and 4 or 6,
+        widget = wibox.container.margin,
+    })
+
+    return {
+        right_widgets = right_widgets,
+        compact = compact,
     }
 end
 
@@ -463,13 +506,10 @@ function M.setup(args)
     )
 
     awful.screen.connect_for_each_screen(function(s)
-        local system_bundle = create_sysinfo_bundle(config, ctpp, lain_ok, s, terminal)
-        local sysinfo_widget = system_bundle.sysinfo_widget
-        local make_separator = system_bundle.make_separator
         local lock_button = create_lock_button(ctpp, actions)
-        local compact = system_bundle.compact
         local mytextclock = create_textclock(ctpp, config, s)
-        local systray_widget = create_systray_widget(ctpp)
+        local right_bundle = create_right_widgets(config, ctpp, lain_ok, s, terminal, mytextclock)
+        local right_widgets = right_bundle.right_widgets
 
         awful.tag({ "󰇩 ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
 
@@ -488,34 +528,6 @@ function M.setup(args)
             bg = ctpp.base,
         }
 
-        local right_widgets = {
-            layout = wibox.layout.fixed.horizontal,
-            spacing = 6,
-            sysinfo_widget,
-            make_separator(),
-        }
-
-        if compact then
-            right_widgets.spacing = 4
-        end
-
-        if s == screen.primary then
-            table.insert(right_widgets, {
-                systray_widget,
-                left = compact and 1 or 2,
-                right = compact and 1 or 2,
-                widget = wibox.container.margin,
-            })
-            table.insert(right_widgets, make_separator())
-        end
-
-        table.insert(right_widgets, {
-            mytextclock,
-            left = compact and 1 or 2,
-            right = compact and 4 or 6,
-            widget = wibox.container.margin,
-        })
-
         s.mywibox:setup {
             layout = wibox.layout.align.horizontal,
             {
@@ -529,7 +541,7 @@ function M.setup(args)
                 },
                 s.mylayoutbox,
                 lock_button,
-                make_separator(),
+                create_separator(ctpp),
                 s.mypromptbox,
             },
             s.mytasklist,

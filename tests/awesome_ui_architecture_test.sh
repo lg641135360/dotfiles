@@ -126,7 +126,9 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'month_calendar:connect_signal("mouse::leave", schedule_calendar_hide)' "$WIBAR_FILE"
     assert_not_contains 'month_calendar:attach(textclock, "tr", { on_hover = false })' "$WIBAR_FILE"
     assert_contains 'local function create_systray_widget(ctpp)' "$WIBAR_FILE"
+    assert_contains 'local function create_separator(ctpp)' "$WIBAR_FILE"
     assert_contains 'local function create_sysinfo_bundle(config, ctpp, lain_ok, screen, terminal)' "$WIBAR_FILE"
+    assert_contains 'local function create_right_widgets(config, ctpp, lain_ok, target_screen, terminal, clock_widget)' "$WIBAR_FILE"
     assert_contains 'compact = is_compact_screen(screen, config),' "$WIBAR_FILE"
     assert_contains 'compact = compact,' "$WIBAR_FILE"
     assert_not_contains 'configure_screen_dpi(s, config)' "$WIBAR_FILE"
@@ -142,6 +144,38 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'img.forced_width = dpi(20)' "$WIBAR_FILE"
     assert_contains 'img.forced_height = dpi(20)' "$WIBAR_FILE"
     assert_not_contains 'dpi(20, screen)' "$WIBAR_FILE"
+}
+
+test_wibar_keeps_status_widgets_on_primary_only() {
+    assert_contains 'if target_screen == screen.primary then' "$WIBAR_FILE"
+    assert_contains 'local system_bundle = create_sysinfo_bundle(config, ctpp, lain_ok, target_screen, terminal)' "$WIBAR_FILE"
+    assert_contains 'local systray_widget = create_systray_widget(ctpp)' "$WIBAR_FILE"
+    assert_contains 'table.insert(right_widgets, sysinfo_widget)' "$WIBAR_FILE"
+    assert_contains 'local right_bundle = create_right_widgets(config, ctpp, lain_ok, s, terminal, mytextclock)' "$WIBAR_FILE"
+    assert_contains 'local right_widgets = right_bundle.right_widgets' "$WIBAR_FILE"
+    assert_not_contains 'local system_bundle = create_sysinfo_bundle(config, ctpp, lain_ok, s, terminal)' "$WIBAR_FILE"
+
+    python - "$WIBAR_FILE" <<'PY' || fail "expected non-primary right side to only add the clock widget"
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+start = text.index("local function create_right_widgets")
+end = text.index("\nlocal function create_layoutbox", start)
+chunk = text[start:end]
+primary_marker = "if target_screen == screen.primary then"
+clock_marker = "clock_widget,"
+
+before_primary = chunk[:chunk.index(primary_marker)]
+primary_start = chunk.index(primary_marker)
+clock_start = chunk.index(clock_marker)
+
+assert "create_sysinfo_bundle" not in before_primary
+assert "create_systray_widget" not in before_primary
+assert primary_start < clock_start
+assert "table.insert(right_widgets, sysinfo_widget)" in chunk[primary_start:clock_start]
+assert "create_systray_widget(ctpp)" in chunk[primary_start:clock_start]
+PY
 }
 
 test_wibar_uses_physical_size_before_width_fallback() {
@@ -241,7 +275,9 @@ test_readme_documents_current_awesome_modules() {
 
 test_readme_documents_wibar_visual_tuning() {
     assert_contains '聚焦窗口会使用圆角背景、蓝色文字和左侧细条高亮' "$README_FILE"
-    assert_contains '托盘只放在主屏，并使用更小图标、深色胶囊背景和细边框降低视觉噪音' "$README_FILE"
+    assert_contains '只有主屏显示 NET / CPU / MEM / BAT / VOL 与系统托盘' "$README_FILE"
+    assert_contains '其他屏幕右侧只保留时钟' "$README_FILE"
+    assert_contains '托盘只放在主屏，并使用更小图标、深色胶囊背景和细边框' "$README_FILE"
     assert_contains '全量模式使用 `CPU/MEM/BAT/VOL` 完整标签' "$README_FILE"
     assert_contains '时钟使用独立胶囊背景作为右端视觉终点' "$README_FILE"
     assert_contains '长窗口标题会在单个任务项内尾部省略' "$README_FILE"
@@ -273,6 +309,7 @@ test_bindings_keep_lock_on_mod_shift_l
 test_bindings_leave_bare_f1_to_snipaste
 test_bindings_do_not_duplicate_shortcuts
 test_wibar_owns_bar_widget_creation
+test_wibar_keeps_status_widgets_on_primary_only
 test_wibar_uses_physical_size_before_width_fallback
 test_wibar_escapes_task_titles
 test_wibar_exposes_prompt_runners
