@@ -16,6 +16,9 @@ local function create_system_widgets(config, options)
     local system_state = {
         cpu_usage = "0%",
         mem_usage = "0%",
+        load_average = "N/A",
+        cpu_processes = "process list loading",
+        mem_processes = "process list loading",
     }
 
     local function read_file(path)
@@ -101,14 +104,8 @@ local function create_system_widgets(config, options)
         return loadavg:match("^(%S+%s+%S+%s+%S+)") or "N/A"
     end
 
-    local function read_command_output(command, fallback)
-        local handle = io.popen(command)
-        if not handle then
-            return fallback
-        end
-
-        local output = handle:read("*a") or ""
-        handle:close()
+    local function normalize_command_output(output, fallback)
+        output = output or ""
         output = output:gsub("%s+$", "")
 
         if output == "" then
@@ -126,19 +123,38 @@ local function create_system_widgets(config, options)
         return "LC_ALL=C ps -eo pid,comm,%mem,%cpu --sort=-%mem 2>/dev/null | head -n 5"
     end
 
+    local function update_system_details_cache()
+        system_state.load_average = read_load_average()
+
+        awful.spawn.easy_async_with_shell(system_details_command("cpu"), function(stdout)
+            system_state.cpu_processes = normalize_command_output(stdout, "process list unavailable")
+        end)
+
+        awful.spawn.easy_async_with_shell(system_details_command("mem"), function(stdout)
+            system_state.mem_processes = normalize_command_output(stdout, "process list unavailable")
+        end)
+    end
+
     local function render_system_details_text(section)
         local is_cpu = section == "cpu"
         local title = is_cpu and "CPU details" or "MEM details"
         local process_title = is_cpu and "Top CPU processes" or "Top memory processes"
-        local process_output = read_command_output(system_details_command(section), "process list unavailable")
+        local process_output = is_cpu and system_state.cpu_processes or system_state.mem_processes
 
         return title
             .. "\nCPU: " .. system_state.cpu_usage
             .. "    MEM: " .. system_state.mem_usage
-            .. "\nLoad average: " .. read_load_average()
+            .. "\nLoad average: " .. system_state.load_average
             .. "\n\n" .. process_title
             .. "\n" .. process_output
     end
+
+    update_system_details_cache()
+    gears.timer {
+        timeout = 5,
+        autostart = true,
+        callback = update_system_details_cache,
+    }
 
     -- CPU widget
     local cpu_widget = wibox.widget.textbox()
@@ -178,10 +194,14 @@ local function create_system_widgets(config, options)
 
     -- Network widget
     local net_widget = wibox.widget.textbox()
-    local net_tooltip_text = "NET: waiting for data"
+    local net_tooltip_text = "NET: offline\nNo matching interface"
 
     local function render_net_markup(recv_speed, sent_speed)
         return "<span foreground='" .. ctpp.blue .. "'>↓" .. format_speed(recv_speed) .. "</span> <span foreground='" .. ctpp.peach .. "'>↑" .. format_speed(sent_speed) .. "</span>"
+    end
+
+    local function render_net_offline_markup()
+        return "<span foreground='" .. ctpp.overlay0 .. "'>NET:N/A</span>"
     end
 
     local function update_net_tooltip(interface, recv_speed, sent_speed)
@@ -190,7 +210,7 @@ local function create_system_widgets(config, options)
             .. "\n↑ " .. format_speed(sent_speed) .. "/s"
     end
 
-    net_widget:set_markup(render_net_markup(0, 0))
+    net_widget:set_markup(render_net_offline_markup())
     awful.tooltip {
         objects = { net_widget },
         timer_function = function()
@@ -240,9 +260,17 @@ local function create_system_widgets(config, options)
     -- Network monitoring
     local net_prev = {}
 
+    local function set_net_offline()
+        net_prev.recv = nil
+        net_prev.sent = nil
+        net_widget:set_markup(render_net_offline_markup())
+        net_tooltip_text = "NET: offline\nNo matching interface"
+    end
+
     local function update_net()
         local totals = read_network_totals()
         if not totals then
+            set_net_offline()
             return
         end
 

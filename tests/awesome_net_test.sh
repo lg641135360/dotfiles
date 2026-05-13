@@ -108,8 +108,8 @@ test_net_widget_uses_short_speed_format() {
 test_net_widget_has_hover_tooltip() {
     grep -F 'local awful = require("awful")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET tooltip to use awful.tooltip"
-    grep -F 'local net_tooltip_text = "NET: waiting for data"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected NET tooltip to have an initial waiting state"
+    grep -F 'local net_tooltip_text = "NET: offline\nNo matching interface"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET tooltip to have an explicit offline state"
     grep -F 'awful.tooltip {' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET widget to create a hover tooltip"
     grep -F 'objects = { net_widget },' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
@@ -122,13 +122,49 @@ test_net_widget_has_hover_tooltip() {
         fail "expected NET tooltip to show download speed units"
     grep -F 'format_speed(sent_speed) .. "/s"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET tooltip to show upload speed units"
+    grep -F 'local function render_net_offline_markup()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET widget to render an explicit offline state"
+    grep -F 'NET:N/A' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET offline markup to show N/A"
+    grep -F 'local function set_net_offline()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET widget to reset stale rates when no interface is available"
+    grep -F 'net_prev.recv = nil' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET offline state to clear previous download counters"
+    grep -F 'net_prev.sent = nil' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET offline state to clear previous upload counters"
+    python - "$SYSTEM_WIDGETS_FILE" <<'PY' || fail "expected NET update loop to switch to offline when totals are unavailable"
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+start = text.index("local function update_net()")
+end = text.index("\n    update_net()", start)
+chunk = text[start:end]
+
+assert "if not totals then" in chunk
+assert "set_net_offline()" in chunk
+PY
 }
 
 test_status_widgets_use_hover_details_only() {
     grep -F 'local function read_load_average()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected CPU/MEM hover details to show load average"
-    grep -F 'local function read_command_output(command, fallback)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected CPU/MEM hover details to read lightweight command output"
+    grep -F 'cpu_processes = "process list loading"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU hover details to keep a cached process list"
+    grep -F 'mem_processes = "process list loading"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM hover details to keep a cached process list"
+    grep -F 'local function normalize_command_output(output, fallback)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU/MEM process cache to normalize command output"
+    grep -F 'local function update_system_details_cache()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU/MEM hover details to refresh a background cache"
+    grep -F 'awful.spawn.easy_async_with_shell(system_details_command("cpu")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU process list cache to refresh asynchronously"
+    grep -F 'awful.spawn.easy_async_with_shell(system_details_command("mem")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM process list cache to refresh asynchronously"
+    grep -F 'timeout = 5,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU/MEM detail cache to refresh every 5 seconds"
+    grep -F 'callback = update_system_details_cache,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU/MEM detail cache timer to call the refresh function"
     grep -F 'local function render_system_details_text(section)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected CPU/MEM hover details to render tooltip text"
     grep -F 'objects = { cpu_widget },' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
@@ -144,6 +180,23 @@ test_status_widgets_use_hover_details_only() {
     grep -F 'ps -eo pid,comm,%mem,%cpu --sort=-%mem' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected MEM hover details to show top memory processes"
 
+    python - "$SYSTEM_WIDGETS_FILE" <<'PY' || fail "expected CPU/MEM hover tooltip to read cached details without spawning commands"
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+start = text.index("local function render_system_details_text(section)")
+end = text.index("\n    update_system_details_cache()", start)
+chunk = text[start:end]
+
+assert "system_details_command" not in chunk
+assert "easy_async_with_shell" not in chunk
+assert "read_load_average()" not in chunk
+assert "system_state.cpu_processes" in chunk
+assert "system_state.mem_processes" in chunk
+assert "system_state.load_average" in chunk
+PY
+
     for forbidden in \
         'net_widget:buttons(gears.table.join(' \
         'cpu_widget:buttons(gears.table.join(' \
@@ -153,7 +206,8 @@ test_status_widgets_use_hover_details_only() {
         'awful.spawn.raise_or_spawn(' \
         'awful.popup {' \
         'awesome-system-monitor' \
-        'show_system_details('
+        'show_system_details(' \
+        'read_command_output('
     do
         if grep -F "$forbidden" "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
             fail "expected NET/CPU/MEM to be hover-only, but found $forbidden"

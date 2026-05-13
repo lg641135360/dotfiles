@@ -283,7 +283,9 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '长窗口标题会在单个任务项内尾部省略' "$README_FILE"
     assert_contains 'NET 保持短显示，悬停时显示网卡接口名和带 `/s` 单位的上下行速率' "$README_FILE"
     assert_contains 'NET/CPU/MEM 不绑定点击动作，只在鼠标悬浮时显示内置 detail' "$README_FILE"
+    assert_contains '找不到匹配接口时主栏显示 `NET:N/A` 且 hover 显示 offline' "$README_FILE"
     assert_contains 'CPU/MEM detail 展示使用率、load average 和 top 进程' "$README_FILE"
+    assert_contains '使用 5 秒后台缓存，hover 时不临时执行 `ps`' "$README_FILE"
     assert_contains '右键 VOL 会打开 `pavucontrol`' "$README_FILE"
 }
 
