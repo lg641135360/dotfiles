@@ -116,3 +116,4 @@
 - 对 Awesome autostart 中的 Xresources 与壁纸 helper，`xrdb`、`~/.Xresources`、`feh`、壁纸目录或候选图片缺失时应静默跳过并继续后续自启动服务，不要因可选桌面能力缺失中断 autostart。
 - 当前不用 Firefox / DownThemAll；Awesome 浮动规则不应保留默认示例里的 `DTA` instance 自动浮动规则，避免把历史 Firefox 扩展规则混入当前桌面行为判断。
 - 对钉钉会议的 `tblive` 窗口，优先只处理 `type=utility` 的辅助窗口：设为浮动并 `skip_taskbar=true`，避免会控条/状态条占据任务列表或平铺布局；真正的 `tblive` 普通会议窗口仍应保留为可见任务。
+- 对 Awesome 顶栏整体观感，优先使用悬浮圆角容器：外层 wibar 保持透明并继续预留工作区高度，内层状态栏顶部和左右留少量空隙，避免窗口覆盖状态栏同时让顶栏不贴屏幕边缘。

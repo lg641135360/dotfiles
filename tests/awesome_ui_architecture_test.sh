@@ -148,6 +148,14 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'width = dpi(420),' "$WIBAR_FILE"
     assert_contains 'img.forced_width = dpi(20)' "$WIBAR_FILE"
     assert_contains 'img.forced_height = dpi(20)' "$WIBAR_FILE"
+    assert_contains 'local function create_floating_wibar_content(ctpp, left_widgets, tasklist_widget, right_widgets)' "$WIBAR_FILE"
+    assert_contains 'gears.shape.rounded_rect(cr, w, h, dpi(12))' "$WIBAR_FILE"
+    assert_contains 'local function setup_floating_wibar(s, ctpp, left_widgets, tasklist_widget, right_widgets)' "$WIBAR_FILE"
+    assert_contains 'height = dpi(40),' "$WIBAR_FILE"
+    assert_contains 'bg = "#00000000",' "$WIBAR_FILE"
+    assert_contains 'top = dpi(6),' "$WIBAR_FILE"
+    assert_contains 'left = dpi(8),' "$WIBAR_FILE"
+    assert_contains 'right = dpi(8),' "$WIBAR_FILE"
     assert_not_contains 'dpi(20, screen)' "$WIBAR_FILE"
 }
 
@@ -285,6 +293,8 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '托盘只放在主屏，并使用更小图标、深色胶囊背景和细边框' "$README_FILE"
     assert_contains '全量模式使用 `CPU/MEM/BAT/VOL` 完整标签' "$README_FILE"
     assert_contains '时钟使用独立胶囊背景作为右端视觉终点' "$README_FILE"
+    assert_contains '整条顶栏使用悬浮圆角容器' "$README_FILE"
+    assert_contains '顶部留出少量空隙' "$README_FILE"
     assert_contains '长窗口标题会在单个任务项内尾部省略' "$README_FILE"
     assert_contains 'NET 保持短显示，悬停时显示网卡接口名和带 `/s` 单位的上下行速率' "$README_FILE"
     assert_contains 'NET/CPU/MEM 不绑定点击动作，只在鼠标悬浮时显示内置 detail' "$README_FILE"

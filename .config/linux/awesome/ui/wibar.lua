@@ -422,6 +422,50 @@ local function create_tasklist(ctpp, screen, tasklist_buttons)
     }
 end
 
+local function create_floating_wibar_content(ctpp, left_widgets, tasklist_widget, right_widgets)
+    local content = wibox.widget {
+        layout = wibox.layout.align.horizontal,
+        left_widgets,
+        tasklist_widget,
+        right_widgets,
+    }
+
+    return wibox.widget {
+        {
+            content,
+            left = dpi(8),
+            right = dpi(8),
+            top = dpi(4),
+            bottom = dpi(4),
+            widget = wibox.container.margin,
+        },
+        bg = ctpp.base,
+        shape = function(cr, w, h)
+            gears.shape.rounded_rect(cr, w, h, dpi(12))
+        end,
+        widget = wibox.container.background,
+    }
+end
+
+local function setup_floating_wibar(s, ctpp, left_widgets, tasklist_widget, right_widgets)
+    local floating_content = create_floating_wibar_content(ctpp, left_widgets, tasklist_widget, right_widgets)
+
+    s.mywibox = awful.wibar {
+        position = "top",
+        screen = s,
+        height = dpi(40),
+        bg = "#00000000",
+    }
+
+    s.mywibox:setup {
+        floating_content,
+        top = dpi(6),
+        left = dpi(8),
+        right = dpi(8),
+        widget = wibox.container.margin,
+    }
+end
+
 function M.setup(args)
     local modkey = args.modkey
     local ctpp = args.ctpp
@@ -489,31 +533,22 @@ function M.setup(args)
         }
         s.mytasklist = create_tasklist(ctpp, s, tasklist_buttons)
 
-        s.mywibox = awful.wibar {
-            position = "top",
-            screen = s,
-            bg = ctpp.base,
+        local left_widgets = {
+            layout = wibox.layout.fixed.horizontal,
+            spacing = dpi(4),
+            {
+                s.mytaglist,
+                left = 8,
+                right = 4,
+                widget = wibox.container.margin,
+            },
+            s.mylayoutbox,
+            lock_button,
+            create_separator(ctpp),
+            s.mypromptbox,
         }
 
-        s.mywibox:setup {
-            layout = wibox.layout.align.horizontal,
-            {
-                layout = wibox.layout.fixed.horizontal,
-                spacing = 4,
-                {
-                    s.mytaglist,
-                    left = 8,
-                    right = 4,
-                    widget = wibox.container.margin,
-                },
-                s.mylayoutbox,
-                lock_button,
-                create_separator(ctpp),
-                s.mypromptbox,
-            },
-            s.mytasklist,
-            right_widgets,
-        }
+        setup_floating_wibar(s, ctpp, left_widgets, s.mytasklist, right_widgets)
     end)
 
     return {
