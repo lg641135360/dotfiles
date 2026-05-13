@@ -65,6 +65,20 @@ test_volume_widget_opens_pavucontrol_on_right_click() {
     assert_contains 'awful.button({ }, 3, open_volume_control)' "$VOLUME_FILE"
 }
 
+test_volume_widget_has_hover_usage_hint() {
+    assert_contains 'local volume_tooltip_status = volume_label .. ": N/A"' "$VOLUME_FILE"
+    assert_contains 'local function set_volume_tooltip_status(volume, muted)' "$VOLUME_FILE"
+    assert_contains 'awful.tooltip {' "$VOLUME_FILE"
+    assert_contains 'objects = { vol_widget },' "$VOLUME_FILE"
+    assert_contains 'timer_function = function()' "$VOLUME_FILE"
+    assert_contains 'volume_tooltip_status' "$VOLUME_FILE"
+    assert_contains '左键：静音切换' "$VOLUME_FILE"
+    assert_contains '右键：打开音量控制' "$VOLUME_FILE"
+    assert_contains '滚轮：调整音量' "$VOLUME_FILE"
+    assert_contains 'set_volume_tooltip_status(volume, muted)' "$VOLUME_FILE"
+    assert_contains 'set_volume_tooltip_status(nil, nil)' "$VOLUME_FILE"
+}
+
 test_volume_widget_queries_mute_state
 test_volume_widget_refreshes_periodically
 test_volume_widget_renders_muted_state_explicitly
@@ -72,5 +86,6 @@ test_volume_widget_handles_invalid_output_gracefully
 test_volume_widget_uses_tight_value_spacing
 test_volume_widget_handles_write_failures_gracefully
 test_volume_widget_opens_pavucontrol_on_right_click
+test_volume_widget_has_hover_usage_hint
 
 printf 'PASS: awesome volume tests\n'

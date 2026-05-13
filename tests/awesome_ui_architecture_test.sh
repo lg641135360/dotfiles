@@ -287,6 +287,7 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains 'CPU/MEM detail 展示使用率、load average 和 top 进程' "$README_FILE"
     assert_contains '使用 5 秒后台缓存，hover 时不临时执行 `ps`' "$README_FILE"
     assert_contains '右键 VOL 会打开 `pavucontrol`' "$README_FILE"
+    assert_contains '悬浮 VOL 会提示左键/右键/滚轮的具体作用' "$README_FILE"
 }
 
 test_readme_documents_snipaste_f1_conflict() {

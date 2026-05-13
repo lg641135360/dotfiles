@@ -50,7 +50,7 @@
 - 对 Awesome 右侧状态区观感，优先弱化竖线分隔符、给时钟独立胶囊背景作为右端视觉终点；full 模式使用 `CPU/MEM/BAT/VOL` 完整标签，compact 模式继续使用 `C/M/B/V` 短标签。
 - 对 Awesome 多屏顶栏，只有主屏右侧显示 `NET/CPU/MEM/BAT/VOL` 与 systray；非主屏右侧只保留时钟，避免多屏重复状态信息。
 - 对 Awesome 顶栏实用细调，优先限制单个 tasklist 长标题最大宽度并用尾部省略保护状态区；NET 主栏保持短速率显示，详细接口名和 `/s` 单位优先放到 hover tooltip。
-- 对 Awesome 顶栏状态项交互，NET/CPU/MEM 优先保持不可点击，只在鼠标悬浮时显示内置 detail；VOL 保留左键静音和滚轮调音量，右键才打开 `pavucontrol`。
+- 对 Awesome 顶栏状态项交互，NET/CPU/MEM 优先保持不可点击，只在鼠标悬浮时显示内置 detail；VOL 保留左键静音和滚轮调音量，右键才打开 `pavucontrol`，并在 hover tooltip 里提示左键/右键/滚轮作用。
 - 对 Awesome 顶栏 CPU/MEM 详情，优先使用 hover detail 展示使用率、load average 和 top 进程；不要通过左键或右键打开 `htop`/`btop`/`top` 终端监控入口。
 - 对 Awesome 顶栏 CPU/MEM hover detail，top 进程列表优先由 5 秒后台异步缓存刷新；hover 时只读缓存，不临时执行 `ps`。
 - 对 Awesome 顶栏 NET 状态，找不到匹配接口时应显示 `NET:N/A` / offline，并清掉旧速率计数，避免误读 stale 网络速度。
