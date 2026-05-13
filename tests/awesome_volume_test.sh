@@ -45,18 +45,33 @@ test_volume_widget_uses_tight_value_spacing() {
     assert_contains 'local volume_label = compact and "V" or "VOL"' "$VOLUME_FILE"
     assert_contains 'volume_label .. ":</span>' "$VOLUME_FILE"
     assert_contains '>N/A</span>' "$VOLUME_FILE"
-    assert_contains 'local muted_text = volume and volume ~= "" and (volume .. "% MUTE") or "MUTE"' "$VOLUME_FILE"
+    assert_contains ">MUTE</span>" "$VOLUME_FILE"
     assert_contains '.. volume .. "%</span>"' "$VOLUME_FILE"
 }
 
 test_volume_widget_handles_write_failures_gracefully() {
-    assert_contains 'local function run_volume_action(command)' "$VOLUME_FILE"
+    assert_contains 'local function run_volume_action(command, on_success)' "$VOLUME_FILE"
     assert_contains 'awful.spawn.easy_async_with_shell(command .. " >/dev/null 2>&1",' "$VOLUME_FILE"
     assert_contains 'if exit_code ~= 0 then' "$VOLUME_FILE"
     assert_contains 'vol_widget:set_markup(render_unavailable_markup())' "$VOLUME_FILE"
     assert_contains 'run_volume_action("pactl set-sink-volume @DEFAULT_SINK@ +5%")' "$VOLUME_FILE"
     assert_contains 'run_volume_action("pactl set-sink-volume @DEFAULT_SINK@ -5%")' "$VOLUME_FILE"
-    assert_contains 'run_volume_action("pactl set-sink-mute @DEFAULT_SINK@ toggle")' "$VOLUME_FILE"
+    assert_contains 'run_volume_action("pactl set-sink-mute @DEFAULT_SINK@ toggle", apply_optimistic_mute_toggle)' "$VOLUME_FILE"
+}
+
+test_volume_widget_reads_state_with_stable_locale() {
+    assert_contains 'LC_ALL=C; export LC_ALL' "$VOLUME_FILE"
+    assert_contains 'pactl get-sink-volume @DEFAULT_SINK@' "$VOLUME_FILE"
+    assert_contains 'pactl get-sink-mute @DEFAULT_SINK@' "$VOLUME_FILE"
+}
+
+test_volume_widget_shows_mute_immediately_after_click() {
+    assert_contains 'local last_volume' "$VOLUME_FILE"
+    assert_contains 'local last_muted' "$VOLUME_FILE"
+    assert_contains 'local function remember_volume_state(volume, muted)' "$VOLUME_FILE"
+    assert_contains 'local function apply_optimistic_mute_toggle()' "$VOLUME_FILE"
+    assert_contains 'local refresh_delays = { 0.15, 0.5, 1.2 }' "$VOLUME_FILE"
+    assert_contains 'run_volume_action("pactl set-sink-mute @DEFAULT_SINK@ toggle", apply_optimistic_mute_toggle)' "$VOLUME_FILE"
 }
 
 test_volume_widget_opens_pavucontrol_on_right_click() {
@@ -75,7 +90,7 @@ test_volume_widget_has_hover_usage_hint() {
     assert_contains '左键：静音切换' "$VOLUME_FILE"
     assert_contains '右键：打开音量控制' "$VOLUME_FILE"
     assert_contains '滚轮：调整音量' "$VOLUME_FILE"
-    assert_contains 'volume_tooltip_status = volume_label .. ": " .. volume .. "% MUTE"' "$VOLUME_FILE"
+    assert_contains 'volume_tooltip_status = volume_label .. ": MUTE"' "$VOLUME_FILE"
     assert_contains 'set_volume_tooltip_status(volume, muted)' "$VOLUME_FILE"
     assert_contains 'set_volume_tooltip_status(nil, nil)' "$VOLUME_FILE"
 }
@@ -86,6 +101,8 @@ test_volume_widget_renders_muted_state_explicitly
 test_volume_widget_handles_invalid_output_gracefully
 test_volume_widget_uses_tight_value_spacing
 test_volume_widget_handles_write_failures_gracefully
+test_volume_widget_reads_state_with_stable_locale
+test_volume_widget_shows_mute_immediately_after_click
 test_volume_widget_opens_pavucontrol_on_right_click
 test_volume_widget_has_hover_usage_hint
 

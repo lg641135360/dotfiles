@@ -289,7 +289,7 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains 'MEM 显示内存使用率和 top MEM 进程' "$README_FILE"
     assert_contains '使用 5 秒后台缓存，hover 时不临时执行 `ps`' "$README_FILE"
     assert_contains '右键 VOL 会打开 `pavucontrol`' "$README_FILE"
-    assert_contains '静音时仍显示当前音量值' "$README_FILE"
+    assert_contains '静音后只显示 `MUTE`' "$README_FILE"
     assert_contains '悬浮 VOL 会提示左键/右键/滚轮的具体作用' "$README_FILE"
 }
 

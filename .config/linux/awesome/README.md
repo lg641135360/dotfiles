@@ -52,7 +52,7 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 - **右侧**: 只有主屏显示 NET / CPU / MEM / BAT / VOL 与系统托盘；其他屏幕右侧只保留时钟，减少多屏状态重复和视觉噪音。托盘只放在主屏，并使用更小图标、深色胶囊背景和细边框。
 - **右侧视觉**：系统信息分隔符使用更弱的主题色，时钟使用独立胶囊背景作为右端视觉终点，避免状态区显得过散。
 - **长标题 / 网络细节**：长窗口标题会在单个任务项内尾部省略，避免浏览器或笔记窗口挤压右侧状态区；NET 保持短显示，悬停时显示网卡接口名和带 `/s` 单位的上下行速率。
-- **状态项交互**：NET/CPU/MEM 不绑定点击动作，只在鼠标悬浮时显示内置 detail；NET detail 展示网卡接口名和带 `/s` 单位的上下行速率，找不到匹配接口时主栏显示 `NET:N/A` 且 hover 显示 offline；CPU/MEM detail 使用各自精简内容：CPU 显示 CPU 使用率、load average 和 top CPU 进程，MEM 显示内存使用率和 top MEM 进程，并使用 5 秒后台缓存，hover 时不临时执行 `ps`；VOL 保留左键静音和滚轮调音量，静音时仍显示当前音量值，右键 VOL 会打开 `pavucontrol`；悬浮 VOL 会提示左键/右键/滚轮的具体作用。
+- **状态项交互**：NET/CPU/MEM 不绑定点击动作，只在鼠标悬浮时显示内置 detail；NET detail 展示网卡接口名和带 `/s` 单位的上下行速率，找不到匹配接口时主栏显示 `NET:N/A` 且 hover 显示 offline；CPU/MEM detail 使用各自精简内容：CPU 显示 CPU 使用率、load average 和 top CPU 进程，MEM 显示内存使用率和 top MEM 进程，并使用 5 秒后台缓存，hover 时不临时执行 `ps`；VOL 保留左键静音和滚轮调音量，静音后只显示 `MUTE`（如 `VOL:MUTE`），右键 VOL 会打开 `pavucontrol`；悬浮 VOL 会提示左键/右键/滚轮的具体作用。
 - **全量 / 紧凑模式**：主屏系统信息优先读取 Awesome `screen.outputs` 里的物理尺寸；检测到屏幕物理对角线 **超过 15 英寸** 时使用全量模式，保留完整日期与 MEM 等状态项。全量模式使用 `CPU/MEM/BAT/VOL` 完整标签；只有检测不到物理尺寸时，才回退到 `compact_wibar_max_width = 3000` 的逻辑宽度阈值。
 - **紧凑模式**：主要给 15 英寸及以下内屏的主屏状态区使用，会缩短日期并隐藏 MEM，优先保留 NET / CPU / BAT / VOL / 时钟；非主屏始终只显示时钟。
 - **时钟交互**：左键点击时钟会在右上角弹出月历；再次点击关闭。鼠标不进入日历时，月历会在 5 秒后自动隐藏；进入日历会取消倒计时，离开日历后再等待 5 秒隐藏；鼠标滚轮可切换上 / 下个月。
