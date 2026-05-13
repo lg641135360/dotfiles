@@ -119,9 +119,9 @@ local function create_volume_widget(options)
     awful.tooltip {
         objects = { vol_widget },
         timer_function = function()
-            return volume_tooltip_status
-                .. "\n左键：静音切换"
-                .. "\n右键：打开音量控制"
+            return "音量\n状态：" .. volume_tooltip_status
+                .. "\n左键：切换静音"
+                .. "\n右键：打开控制面板"
                 .. "\n滚轮：调整音量"
         end,
     }

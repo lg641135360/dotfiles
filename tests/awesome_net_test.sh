@@ -108,7 +108,7 @@ test_net_widget_uses_short_speed_format() {
 test_net_widget_has_hover_tooltip() {
     grep -F 'local awful = require("awful")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET tooltip to use awful.tooltip"
-    grep -F 'local net_tooltip_text = "NET: offline\nNo matching interface"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+    grep -F 'local net_tooltip_text = "网络\n状态：离线\n接口：未匹配"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET tooltip to have an explicit offline state"
     grep -F 'awful.tooltip {' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET widget to create a hover tooltip"
@@ -118,9 +118,9 @@ test_net_widget_has_hover_tooltip() {
         fail "expected NET tooltip to refresh from current state"
     grep -F 'totals.interface' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET tooltip to expose interface name"
-    grep -F 'format_speed(recv_speed) .. "/s"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+    grep -F '"\n下载：" .. format_speed(recv_speed) .. "/s"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET tooltip to show download speed units"
-    grep -F 'format_speed(sent_speed) .. "/s"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+    grep -F '"\n上传：" .. format_speed(sent_speed) .. "/s"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET tooltip to show upload speed units"
     grep -F 'local function render_net_offline_markup()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET widget to render an explicit offline state"
@@ -146,6 +146,35 @@ assert "set_net_offline()" in chunk
 PY
 }
 
+test_battery_widget_has_hover_details() {
+    grep -F 'local battery_tooltip_text = battery_label .. "\n状态：读取中"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to have a loading state"
+    grep -F 'local function translate_battery_status(status)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to translate battery status"
+    grep -F 'local function read_battery_number(path)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to read numeric power_supply attributes"
+    grep -F 'local function format_watts(microwatts)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to format power draw"
+    grep -F 'local function format_duration(hours)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to format remaining time"
+    grep -F 'local function update_battery_tooltip(capacity, status)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to render detailed text"
+    grep -F 'objects = { battery_widget },' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to attach to battery_widget"
+    grep -F 'return battery_tooltip_text' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to read cached text"
+    grep -F '状态：' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to show status"
+    grep -F '电量：' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to show capacity"
+    grep -F '功率：' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to show power when available"
+    grep -F 'duration_label = "剩余"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to show remaining time when available"
+    grep -F 'duration_label = "充满"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to show charge time when available"
+}
+
 test_status_widgets_use_hover_details_only() {
     grep -F 'local function read_load_average()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected CPU/MEM hover details to show load average"
@@ -167,6 +196,18 @@ test_status_widgets_use_hover_details_only() {
         fail "expected CPU/MEM detail cache timer to call the refresh function"
     grep -F 'local function render_system_details_text(section)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected CPU/MEM hover details to render tooltip text"
+    grep -F 'local title = is_cpu and "CPU" or "内存"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU/MEM hover titles to use concise Chinese labels"
+    grep -F '"使用率：" .. system_state.cpu_usage' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU hover summary to use Chinese usage label"
+    grep -F '"\n负载：" .. system_state.load_average' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU hover summary to use Chinese load label"
+    grep -F '"使用率：" .. system_state.mem_usage' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM hover summary to use Chinese usage label"
+    grep -F '"Top CPU 进程"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU process section title to use a unified label"
+    grep -F '"Top 内存进程"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM process section title to use a unified label"
     grep -F 'objects = { cpu_widget },' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected CPU detail tooltip to attach to cpu_widget"
     grep -F 'objects = { mem_widget },' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
@@ -198,7 +239,8 @@ assert "system_state.cpu_processes" in chunk
 assert "system_state.mem_processes" in chunk
 assert "system_state.load_average" in chunk
 assert '"CPU: " .. system_state.cpu_usage .. "    MEM: "' not in chunk
-assert '"MEM: " .. system_state.mem_usage' in chunk
+assert '"内存详情"' not in chunk
+assert '"MEM: " .. system_state.mem_usage' not in chunk
 PY
 
     for forbidden in \
@@ -230,6 +272,7 @@ test_net_widget_uses_compact_markup
 test_net_widget_uses_compact_spacing
 test_net_widget_uses_short_speed_format
 test_net_widget_has_hover_tooltip
+test_battery_widget_has_hover_details
 test_status_widgets_use_hover_details_only
 
 printf 'PASS: awesome net tests\n'

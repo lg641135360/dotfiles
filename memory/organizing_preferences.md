@@ -54,6 +54,7 @@
 - 对 Awesome 顶栏 CPU/MEM 详情，优先使用 hover detail 展示使用率、load average 和 top 进程；不要通过左键或右键打开 `htop`/`btop`/`top` 终端监控入口。
 - 对 Awesome 顶栏 CPU/MEM hover detail，top 进程列表优先由 5 秒后台异步缓存刷新；hover 时只读缓存，不临时执行 `ps`；CPU 和 MEM tooltip 应各自只展示自己的精简摘要，避免重复显示 CPU/MEM 双指标和重复进程列。
 - 对 Awesome 顶栏 VOL 状态，左键静音后只显示 `MUTE`，不要继续显示音量百分比；取消静音后再恢复显示当前音量值。
+- 对 Awesome 顶栏 tooltip 文案，NET/CPU/MEM/VOL/BAT 优先使用统一中文格式；BAT 主栏保持短显示，hover detail 再展示充放电状态、电量、功率和可估算的剩余/充满时间。
 - 对 Awesome 顶栏 NET 状态，找不到匹配接口时应显示 `NET:N/A` / offline，并清掉旧速率计数，避免误读 stale 网络速度。
 - 对 Awesome 的时钟交互，优先用左键点击时钟弹出月历；不要默认悬停弹出，避免鼠标经过状态栏时打扰；鼠标不进入日历时 5 秒后自动隐藏，进入日历则取消倒计时、离开后再等 5 秒隐藏；滚轮切换上/下个月即可。
 - 对 Awesome 的自启动入口，根目录 `autostart.sh` 应保持为平台分发 wrapper，再转发到 `autostart/*.sh`；不要再让安装脚本用平台脚本直接覆盖它，否则 `common.sh` 相对路径会失效。

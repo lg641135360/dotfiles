@@ -137,12 +137,12 @@ local function create_system_widgets(config, options)
 
     local function render_system_details_text(section)
         local is_cpu = section == "cpu"
-        local title = is_cpu and "CPU details" or "MEM details"
-        local process_title = is_cpu and "Top CPU processes" or "Top memory processes"
+        local title = is_cpu and "CPU" or "内存"
+        local process_title = is_cpu and "Top CPU 进程" or "Top 内存进程"
         local process_output = is_cpu and system_state.cpu_processes or system_state.mem_processes
         local summary = is_cpu
-            and ("CPU: " .. system_state.cpu_usage .. "\nLoad average: " .. system_state.load_average)
-            or ("MEM: " .. system_state.mem_usage)
+            and ("使用率：" .. system_state.cpu_usage .. "\n负载：" .. system_state.load_average)
+            or ("使用率：" .. system_state.mem_usage)
 
         return title
             .. "\n" .. summary
@@ -195,7 +195,7 @@ local function create_system_widgets(config, options)
 
     -- Network widget
     local net_widget = wibox.widget.textbox()
-    local net_tooltip_text = "NET: offline\nNo matching interface"
+    local net_tooltip_text = "网络\n状态：离线\n接口：未匹配"
 
     local function render_net_markup(recv_speed, sent_speed)
         return "<span foreground='" .. ctpp.blue .. "'>↓" .. format_speed(recv_speed) .. "</span> <span foreground='" .. ctpp.peach .. "'>↑" .. format_speed(sent_speed) .. "</span>"
@@ -206,9 +206,10 @@ local function create_system_widgets(config, options)
     end
 
     local function update_net_tooltip(interface, recv_speed, sent_speed)
-        net_tooltip_text = "NET " .. interface
-            .. "\n↓ " .. format_speed(recv_speed) .. "/s"
-            .. "\n↑ " .. format_speed(sent_speed) .. "/s"
+        net_tooltip_text = "网络"
+            .. "\n接口：" .. interface
+            .. "\n下载：" .. format_speed(recv_speed) .. "/s"
+            .. "\n上传：" .. format_speed(sent_speed) .. "/s"
     end
 
     net_widget:set_markup(render_net_offline_markup())
@@ -265,7 +266,7 @@ local function create_system_widgets(config, options)
         net_prev.recv = nil
         net_prev.sent = nil
         net_widget:set_markup(render_net_offline_markup())
-        net_tooltip_text = "NET: offline\nNo matching interface"
+        net_tooltip_text = "网络\n状态：离线\n接口：未匹配"
     end
 
     local function update_net()
@@ -300,20 +301,122 @@ local function create_system_widgets(config, options)
     }
 
     if battery_widget then
+        local battery_tooltip_text = battery_label .. "\n状态：读取中"
+
+        local function translate_battery_status(status)
+            local labels = {
+                Charging = "充电中",
+                Discharging = "放电中",
+                Full = "已充满",
+                ["Not charging"] = "未充电",
+                Unknown = "未知",
+            }
+
+            return labels[status or ""] or (status and status ~= "" and status or "未知")
+        end
+
+        local function read_battery_number(path)
+            local value = read_file(path)
+            return value and tonumber(value) or nil
+        end
+
+        local function format_watts(microwatts)
+            if not microwatts or microwatts <= 0 then
+                return nil
+            end
+
+            return string.format("%.1fW", microwatts / 1000000)
+        end
+
+        local function format_duration(hours)
+            if not hours or hours <= 0 or hours == math.huge then
+                return nil
+            end
+
+            local total_minutes = math.floor(hours * 60 + 0.5)
+            local h = math.floor(total_minutes / 60)
+            local m = total_minutes % 60
+
+            if h > 0 then
+                return string.format("约%d小时%02d分", h, m)
+            end
+
+            return string.format("约%d分钟", m)
+        end
+
+        local function update_battery_tooltip(capacity, status)
+            local energy_now = read_battery_number(battery_path .. "/energy_now")
+            local energy_full = read_battery_number(battery_path .. "/energy_full")
+            local charge_now = read_battery_number(battery_path .. "/charge_now")
+            local charge_full = read_battery_number(battery_path .. "/charge_full")
+            local current_now = read_battery_number(battery_path .. "/current_now")
+            local voltage_now = read_battery_number(battery_path .. "/voltage_now")
+            local power_now = read_battery_number(battery_path .. "/power_now")
+
+            if not power_now and current_now and voltage_now then
+                power_now = current_now * voltage_now / 1000000
+            end
+
+            local watts = format_watts(power_now)
+            local duration_label = nil
+            local duration_value = nil
+
+            if power_now and power_now > 0 and energy_now then
+                if status == "Discharging" and energy_now then
+                    duration_label = "剩余"
+                    duration_value = format_duration(energy_now / power_now)
+                elseif status == "Charging" and energy_now and energy_full and energy_full > energy_now then
+                    duration_label = "充满"
+                    duration_value = format_duration((energy_full - energy_now) / power_now)
+                end
+            elseif current_now and current_now > 0 and charge_now then
+                if status == "Discharging" then
+                    duration_label = "剩余"
+                    duration_value = format_duration(charge_now / current_now)
+                elseif status == "Charging" and charge_full and charge_full > charge_now then
+                    duration_label = "充满"
+                    duration_value = format_duration((charge_full - charge_now) / current_now)
+                end
+            end
+
+            battery_tooltip_text = battery_label
+                .. "\n状态：" .. translate_battery_status(status)
+                .. "\n电量：" .. (capacity and (capacity .. "%") or "N/A")
+
+            if watts then
+                battery_tooltip_text = battery_tooltip_text .. "\n功率：" .. watts
+            end
+
+            if duration_label and duration_value then
+                battery_tooltip_text = battery_tooltip_text .. "\n" .. duration_label .. "：" .. duration_value
+            end
+        end
+
+        awful.tooltip {
+            objects = { battery_widget },
+            timer_function = function()
+                return battery_tooltip_text
+            end,
+        }
+
         local function update_battery()
             local capacity = tonumber(read_file(battery_path .. "/capacity"))
             if not capacity then
                 return
             end
 
+            local status = read_file(battery_path .. "/status")
             local color = ctpp.text
-            if capacity <= 15 then
+            if status == "Charging" then
+                color = ctpp.green
+            elseif capacity <= 15 then
                 color = ctpp.red
             elseif capacity <= 35 then
                 color = ctpp.yellow
             end
 
             battery_widget:set_markup(render_metric_markup(battery_label, ctpp.yellow, capacity .. "%", color))
+            update_battery_tooltip(capacity, status)
         end
 
         update_battery()
