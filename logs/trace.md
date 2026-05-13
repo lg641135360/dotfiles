@@ -1078,3 +1078,13 @@
 - 已做：在 `.config/linux/awesome/ui/wibar.lua` 中新增 `create_floating_wibar_content()` 与 `setup_floating_wibar()`，让外层 `awful.wibar` 使用透明背景、`height = dpi(40)` 预留高度，内层使用 Catppuccin `base` 背景和 `dpi(12)` 圆角；顶栏内容通过 `top = dpi(6)`、左右 `dpi(8)` 留白实现下移和悬浮感。顺手把左侧 widgets 恢复为固定横向布局，避免 align/fixed 嵌套导致宽度行为不明确。同步更新 `.config/linux/awesome/README.md` 的顶栏视觉说明，并在 `memory/organizing_preferences.md` 记录“Awesome 顶栏优先使用悬浮圆角容器且继续保留工作区预留”的长期偏好。已将 `ui/wibar.lua` 与 README 同步到 live `~/.config/awesome`，备份目录为 `/tmp/awesome-floating-wibar-live-backup-20260513T032114Z`，并重载 Awesome。
 - 验证：通过 `./tests/awesome_ui_architecture_test.sh`、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、`sh -n .config/scripts/lock .config/linux/awesome/autostart.sh .config/linux/awesome/autostart/*.sh`、`bash -n tests/awesome_*_test.sh`、repo `awesome -k -c "$PWD/.config/linux/awesome/rc.lua"`、关键 Lua `loadfile` 检查与 `git diff --check`；live `awesome -k -c "$HOME/.config/awesome/rc.lua"`、repo/live `cmp` 通过；`awesome-client 'awesome.restart()'` 因重启断连返回 DBus NoReply，随后 `awesome.startup_errors` 返回 `ok`。
 - 后续：当前顶栏应呈现顶部留白、左右留白和圆角悬浮效果；若实际截图发现高度略挤或圆角阴影不足，下一步可微调 wibar 高度、内层上下 padding 或增加轻量边框/阴影，但应继续避免破坏主屏/非主屏状态区分和 hover-only 状态项交互。
+
+- 目的：按用户要求直接改进当前项目提示词，使 `AGENTS.md` 的操作前后约束更贴合当前仓库规模和既有偏好，减少每次全量读取 trace、只读分析也写记录、memory 形式化更新等提示噪音。
+- 已做：重写根目录 `AGENTS.md` 的约束结构：保留必须读取 `memory/organizing_preferences.md`，把 `logs/trace.md` 调整为默认按任务读取相关约 10 条、必要时才全量读取；新增任务副作用层级识别、live/远端/重载等授权边界；补充用户可感知行为必须同步 README、子模块 README 同步判断、测试优先和小步可回退原则；明确只有实际改动才写 trace、只读分析不写 trace、trace 追加本身不递归记录、只有新增长期偏好时才更新 memory；收尾总结需包含变更文件、验证、live/提交状态和风险。本轮没有新增个人偏好，因此未修改 `memory/`。
+- 验证：复查 `AGENTS.md` 内容无重复或并行写入冲突；`git diff --check` 通过；`grep -c` 确认本轮 trace 记录只追加 1 条。
+- 后续：如果后续还要增强提示词，可考虑把提交协议、live 同步发布流程或常用模块测试矩阵拆成单独文档，避免 `AGENTS.md` 继续膨胀。
+
+- 目的：按用户要求将本轮项目提示词 `AGENTS.md` 改进整理成本地 Git 提交。
+- 已做：提交前复核当前工作树和 diff，确认待提交范围仅为 `AGENTS.md` 与 `logs/trace.md`；复核相关 trace/memory 偏好，确认本轮没有新增个人偏好，因此不修改 `memory/`；准备按 Lore commit 协议创建本地提交，不执行推送。
+- 验证：提交前执行 `git diff --check`，并复核本轮提示词 trace 记录数量与变更范围。
+- 后续：提交完成后复查 `git status --short --branch`，确认本地分支领先远端且工作树干净；如需推送需用户另行要求。
