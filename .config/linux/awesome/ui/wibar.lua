@@ -122,64 +122,25 @@ end
 
 local function create_textclock(ctpp, config, screen)
     local textclock = wibox.widget.textbox()
-    local month_calendar = awful.widget.calendar_popup.month {
-        screen = screen,
-        position = "tr",
+    local weekdays = {
+        "星期日",
+        "星期一",
+        "星期二",
+        "星期三",
+        "星期四",
+        "星期五",
+        "星期六",
     }
-    local calendar_hide_timer = nil
 
-    local function cancel_calendar_hide()
-        if calendar_hide_timer then
-            calendar_hide_timer:stop()
-            calendar_hide_timer = nil
-        end
+    local function render_clock_tooltip()
+        local now = os.date("*t")
+        local weekday = weekdays[now.wday] or ""
+
+        return "时间"
+            .. "\n日期：" .. os.date("%Y-%m-%d")
+            .. "\n星期：" .. weekday
+            .. "\n时间：" .. os.date("%H:%M")
     end
-
-    local function hide_calendar()
-        month_calendar.visible = false
-        cancel_calendar_hide()
-    end
-
-    local function schedule_calendar_hide()
-        cancel_calendar_hide()
-
-        if not month_calendar.visible then
-            return
-        end
-
-        calendar_hide_timer = gears.timer.start_new(5, function()
-            month_calendar.visible = false
-            calendar_hide_timer = nil
-            return false
-        end)
-    end
-
-    local function show_calendar(offset)
-        month_calendar:call_calendar(offset or 0, "tr", screen)
-        month_calendar.visible = true
-        schedule_calendar_hide()
-    end
-
-    local clock_buttons = gears.table.join(
-        awful.button({ }, 1, function()
-            if month_calendar.visible then
-                hide_calendar()
-            else
-                show_calendar(0)
-            end
-        end),
-        awful.button({ }, 4, function()
-            show_calendar(-1)
-        end),
-        awful.button({ }, 5, function()
-            show_calendar(1)
-        end)
-    )
-
-    textclock:buttons(clock_buttons)
-
-    month_calendar:connect_signal("mouse::enter", cancel_calendar_hide)
-    month_calendar:connect_signal("mouse::leave", schedule_calendar_hide)
 
     gears.timer {
         timeout = 60,
@@ -213,7 +174,13 @@ local function create_textclock(ctpp, config, screen)
         end,
         widget = wibox.container.background,
     }
-    clock_widget:buttons(clock_buttons)
+
+    awful.tooltip {
+        objects = { clock_widget },
+        timer_function = function()
+            return render_clock_tooltip()
+        end,
+    }
 
     return clock_widget
 end

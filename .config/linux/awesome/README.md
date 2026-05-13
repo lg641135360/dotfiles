@@ -55,7 +55,7 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 - **状态项交互**：NET/CPU/MEM 不绑定点击动作，只在鼠标悬浮时显示内置 detail；NET/CPU/MEM/VOL/BAT 的 tooltip 使用统一中文文案。NET detail 展示网卡接口名和带 `/s` 单位的上下行速率，找不到匹配接口时主栏显示 `NET:N/A` 且 hover 显示离线；CPU/MEM detail 使用各自精简内容：CPU 显示 CPU 使用率、负载（load average）和 top CPU 进程，MEM 显示内存使用率和 top MEM 进程，并使用 5 秒后台缓存，hover 时不临时执行 `ps`；BAT hover 显示充放电状态、当前电量、功率和可估算的剩余/充满时间；VOL 保留左键静音和滚轮调音量，静音后只显示 `MUTE`（如 `VOL:MUTE`），右键 VOL 会打开 `pavucontrol`；悬浮 VOL 会提示左键/右键/滚轮的具体作用。
 - **全量 / 紧凑模式**：主屏系统信息优先读取 Awesome `screen.outputs` 里的物理尺寸；检测到屏幕物理对角线 **超过 15 英寸** 时使用全量模式，保留完整日期与 MEM 等状态项。全量模式使用 `CPU/MEM/BAT/VOL` 完整标签；只有检测不到物理尺寸时，才回退到 `compact_wibar_max_width = 3000` 的逻辑宽度阈值。
 - **紧凑模式**：主要给 15 英寸及以下内屏的主屏状态区使用，会缩短日期并隐藏 MEM，优先保留 NET / CPU / BAT / VOL / 时钟；非主屏始终只显示时钟。
-- **时钟交互**：左键点击时钟会在右上角弹出月历；再次点击关闭。鼠标不进入日历时，月历会在 5 秒后自动隐藏；进入日历会取消倒计时，离开日历后再等待 5 秒隐藏；鼠标滚轮可切换上 / 下个月。
+- **时钟交互**：时钟不绑定点击或滚轮动作，避免鼠标经过或误点时弹出月历；悬浮时显示完整日期、星期和时间。
 
 ## 锁屏
 
