@@ -175,10 +175,12 @@ test_status_widgets_use_hover_details_only() {
         fail "expected CPU hover to show details"
     grep -F 'return render_system_details_text("mem")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected MEM hover to show details"
-    grep -F 'ps -eo pid,comm,%cpu,%mem --sort=-%cpu' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected CPU hover details to show top CPU processes"
-    grep -F 'ps -eo pid,comm,%mem,%cpu --sort=-%mem' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected MEM hover details to show top memory processes"
+    grep -F 'ps -eo pid,comm,%cpu --sort=-%cpu' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU hover details to show only top CPU process columns"
+    grep -F 'ps -eo pid,comm,%mem --sort=-%mem' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM hover details to show only top memory process columns"
+    grep -F 'local summary = is_cpu' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU/MEM hover details to use section-specific summaries"
 
     python - "$SYSTEM_WIDGETS_FILE" <<'PY' || fail "expected CPU/MEM hover tooltip to read cached details without spawning commands"
 from pathlib import Path
@@ -195,6 +197,8 @@ assert "read_load_average()" not in chunk
 assert "system_state.cpu_processes" in chunk
 assert "system_state.mem_processes" in chunk
 assert "system_state.load_average" in chunk
+assert '"CPU: " .. system_state.cpu_usage .. "    MEM: "' not in chunk
+assert '"MEM: " .. system_state.mem_usage' in chunk
 PY
 
     for forbidden in \

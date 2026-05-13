@@ -45,7 +45,7 @@ test_volume_widget_uses_tight_value_spacing() {
     assert_contains 'local volume_label = compact and "V" or "VOL"' "$VOLUME_FILE"
     assert_contains 'volume_label .. ":</span>' "$VOLUME_FILE"
     assert_contains '>N/A</span>' "$VOLUME_FILE"
-    assert_contains '>MUTE</span>' "$VOLUME_FILE"
+    assert_contains 'local muted_text = volume and volume ~= "" and (volume .. "% MUTE") or "MUTE"' "$VOLUME_FILE"
     assert_contains '.. volume .. "%</span>"' "$VOLUME_FILE"
 }
 
@@ -75,6 +75,7 @@ test_volume_widget_has_hover_usage_hint() {
     assert_contains '左键：静音切换' "$VOLUME_FILE"
     assert_contains '右键：打开音量控制' "$VOLUME_FILE"
     assert_contains '滚轮：调整音量' "$VOLUME_FILE"
+    assert_contains 'volume_tooltip_status = volume_label .. ": " .. volume .. "% MUTE"' "$VOLUME_FILE"
     assert_contains 'set_volume_tooltip_status(volume, muted)' "$VOLUME_FILE"
     assert_contains 'set_volume_tooltip_status(nil, nil)' "$VOLUME_FILE"
 }

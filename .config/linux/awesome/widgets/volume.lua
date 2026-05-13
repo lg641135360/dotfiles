@@ -45,7 +45,8 @@ local function create_volume_widget(options)
 
     local function render_volume_markup(volume, muted)
         if muted then
-            return "<span foreground='" .. ctpp.yellow .. "'>" .. volume_label .. ":</span><span foreground='" .. ctpp.red .. "'>MUTE</span>"
+            local muted_text = volume and volume ~= "" and (volume .. "% MUTE") or "MUTE"
+            return "<span foreground='" .. ctpp.yellow .. "'>" .. volume_label .. ":</span><span foreground='" .. ctpp.red .. "'>" .. muted_text .. "</span>"
         end
 
         if volume and volume ~= "" then
@@ -62,7 +63,11 @@ local function create_volume_widget(options)
         end
 
         if muted then
-            volume_tooltip_status = volume_label .. ": MUTE"
+            if volume and volume ~= "" then
+                volume_tooltip_status = volume_label .. ": " .. volume .. "% MUTE"
+            else
+                volume_tooltip_status = volume_label .. ": MUTE"
+            end
             return
         end
 

@@ -117,10 +117,10 @@ local function create_system_widgets(config, options)
 
     local function system_details_command(section)
         if section == "cpu" then
-            return "LC_ALL=C ps -eo pid,comm,%cpu,%mem --sort=-%cpu 2>/dev/null | head -n 5"
+            return "LC_ALL=C ps -eo pid,comm,%cpu --sort=-%cpu 2>/dev/null | head -n 5"
         end
 
-        return "LC_ALL=C ps -eo pid,comm,%mem,%cpu --sort=-%mem 2>/dev/null | head -n 5"
+        return "LC_ALL=C ps -eo pid,comm,%mem --sort=-%mem 2>/dev/null | head -n 5"
     end
 
     local function update_system_details_cache()
@@ -140,11 +140,12 @@ local function create_system_widgets(config, options)
         local title = is_cpu and "CPU details" or "MEM details"
         local process_title = is_cpu and "Top CPU processes" or "Top memory processes"
         local process_output = is_cpu and system_state.cpu_processes or system_state.mem_processes
+        local summary = is_cpu
+            and ("CPU: " .. system_state.cpu_usage .. "\nLoad average: " .. system_state.load_average)
+            or ("MEM: " .. system_state.mem_usage)
 
         return title
-            .. "\nCPU: " .. system_state.cpu_usage
-            .. "    MEM: " .. system_state.mem_usage
-            .. "\nLoad average: " .. system_state.load_average
+            .. "\n" .. summary
             .. "\n\n" .. process_title
             .. "\n" .. process_output
     end
