@@ -26,55 +26,32 @@ local function render_task_text(c, ctpp)
     return '<span foreground="' .. ctpp.text .. '">' .. name .. '</span>'
 end
 
-local function update_task_item(self, c, ctpp)
-    local img = self:get_children_by_id("icon_role")[1]
-    if img then
-        img.forced_width = dpi(20)
-        img.forced_height = dpi(20)
+local function render_task_tooltip(c)
+    local title = c.name or "untitled"
+    local app_name = c.class or c.instance
+    local lines = { "窗口", "标题：" .. title }
+
+    if app_name and app_name ~= "" then
+        lines[#lines + 1] = "应用：" .. app_name
     end
 
-    local text = self:get_children_by_id("text_role")[1]
-    if text then
-        text.markup = render_task_text(c, ctpp)
+    if c.minimized then
+        lines[#lines + 1] = "状态：最小化"
+    elseif c.urgent then
+        lines[#lines + 1] = "状态：紧急"
     end
 
-    local focused = client and c == client.focus
-    local urgent = c.urgent
-    local background = self:get_children_by_id("background_role")[1]
-    if background then
-        background.bg = focused and ctpp.surface0 or ctpp.base
-    end
-
-    local indicator = self:get_children_by_id("focus_indicator_role")[1]
-    if indicator then
-        indicator.bg = urgent and ctpp.red or (focused and ctpp.blue or ctpp.base)
-    end
+    return table.concat(lines, "\n")
 end
 
-local function create_lock_button(ctpp, actions)
-    local lock = actions.lock or function() end
-
-    local lock_button = wibox.widget {
-        {
-            markup = "<span foreground='" .. ctpp.yellow .. "'> 󰷛 </span>",
-            widget = wibox.widget.textbox,
-        },
-        bg = ctpp.surface0,
-        shape = function(cr, w, h)
-            gears.shape.rounded_rect(cr, w, h, dpi(6))
-        end,
-        left = 8,
-        right = 8,
-        top = 4,
-        bottom = 4,
-        widget = wibox.container.margin,
-    }
-
-    lock_button:buttons(gears.table.join(
-        awful.button({ }, 1, lock)
-    ))
-
-    return lock_button
+local function clamp(value, min_value, max_value)
+    if value < min_value then
+        return min_value
+    end
+    if value > max_value then
+        return max_value
+    end
+    return value
 end
 
 local function output_diagonal_inches(output)
@@ -120,8 +97,96 @@ local function is_compact_screen(screen, config)
     return screen and screen.geometry and screen.geometry.width <= max_width
 end
 
+local function task_title_max_width(screen, config)
+    local compact = is_compact_screen(screen, config)
+    local screen_width = screen and screen.geometry and screen.geometry.width or 1920
+    local ratio = compact and 0.12 or 0.16
+    local min_width = compact and 220 or 320
+    local max_width = compact and 360 or 640
+    local computed_width = math.floor((screen_width * ratio) + 0.5)
+    return dpi(clamp(computed_width, min_width, max_width))
+end
+
+local function update_task_item(self, c, ctpp, screen, config)
+    local img = self:get_children_by_id("icon_role")[1]
+    if img then
+        img.forced_width = dpi(20)
+        img.forced_height = dpi(20)
+    end
+
+    local text_constraint = self:get_children_by_id("text_constraint_role")[1]
+    if text_constraint then
+        text_constraint.width = task_title_max_width(screen, config)
+    end
+
+    local text = self:get_children_by_id("text_role")[1]
+    if text then
+        text.markup = render_task_text(c, ctpp)
+    end
+
+    local focused = client and c == client.focus
+    local urgent = c.urgent
+    local background = self:get_children_by_id("background_role")[1]
+    if background then
+        background.bg = focused and ctpp.surface0 or ctpp.base
+    end
+
+    local indicator = self:get_children_by_id("focus_indicator_role")[1]
+    if indicator then
+        indicator.bg = urgent and ctpp.red or (focused and ctpp.blue or ctpp.base)
+    end
+end
+
+local function create_lock_button(ctpp, actions)
+    local lock = actions.lock or function() end
+
+    local lock_button = wibox.widget {
+        {
+            markup = "<span foreground='" .. ctpp.yellow .. "'> 󰷛 </span>",
+            widget = wibox.widget.textbox,
+        },
+        bg = ctpp.surface0,
+        shape = function(cr, w, h)
+            gears.shape.rounded_rect(cr, w, h, dpi(6))
+        end,
+        left = 8,
+        right = 8,
+        top = 4,
+        bottom = 4,
+        widget = wibox.container.margin,
+    }
+
+    lock_button:buttons(gears.table.join(
+        awful.button({ }, 1, lock)
+    ))
+
+    awful.tooltip {
+        objects = { lock_button },
+        timer_function = function()
+            return "锁屏\n操作：立即锁屏\n快捷键：Super+Shift+L"
+        end,
+    }
+
+    return lock_button
+end
+
+local function stop_timer(timer)
+    if not timer then
+        return
+    end
+
+    if timer.stop then
+        timer:stop()
+    elseif timer.started ~= nil then
+        timer.started = false
+    end
+end
+
+
 local function create_textclock(ctpp, config, screen)
     local textclock = wibox.widget.textbox()
+    local clock_h_padding = is_compact_screen(screen, config) and 5 or 6
+    local clock_v_padding = is_compact_screen(screen, config) and 1 or 2
     local weekdays = {
         "星期日",
         "星期一",
@@ -139,7 +204,7 @@ local function create_textclock(ctpp, config, screen)
         return "时间"
             .. "\n日期：" .. os.date("%Y-%m-%d")
             .. "\n星期：" .. weekday
-            .. "\n时间：" .. os.date("%H:%M")
+            .. "\n当前：" .. os.date("%H:%M")
     end
 
     local function update_clock()
@@ -152,7 +217,7 @@ local function create_textclock(ctpp, config, screen)
         textclock:set_markup("<span foreground='" .. ctpp.lavender .. "'>" .. time_str .. "</span>")
     end
 
-    gears.timer {
+    local clock_timer = gears.timer {
         timeout = 60,
         autostart = true,
         call_now = true,
@@ -162,10 +227,10 @@ local function create_textclock(ctpp, config, screen)
     local clock_widget = wibox.widget {
         {
             textclock,
-            left = 8,
-            right = 8,
-            top = 3,
-            bottom = 3,
+            left = clock_h_padding,
+            right = clock_h_padding,
+            top = clock_v_padding,
+            bottom = clock_v_padding,
             widget = wibox.container.margin,
         },
         bg = ctpp.mantle,
@@ -184,7 +249,12 @@ local function create_textclock(ctpp, config, screen)
         end,
     }
 
+    local function dispose()
+        stop_timer(clock_timer)
+    end
+
     clock_widget._refresh = update_clock
+    clock_widget._dispose = dispose
 
     return clock_widget
 end
@@ -200,10 +270,10 @@ local function create_systray_widget(ctpp)
                 valign = "center",
                 widget = wibox.container.place,
             },
-            left = 6,
-            right = 6,
-            top = 3,
-            bottom = 3,
+            left = 4,
+            right = 4,
+            top = 2,
+            bottom = 2,
             widget = wibox.container.margin,
         },
         bg = ctpp.mantle,
@@ -290,7 +360,7 @@ local function create_right_widgets(config, ctpp, target_screen, clock_widget)
     local compact = is_compact_screen(target_screen, config)
     local right_widgets = {
         layout = wibox.layout.fixed.horizontal,
-        spacing = compact and 4 or 6,
+        spacing = compact and 2 or 4,
     }
 
     if target_screen == screen.primary then
@@ -302,8 +372,8 @@ local function create_right_widgets(config, ctpp, target_screen, clock_widget)
         table.insert(right_widgets, create_separator(ctpp))
         table.insert(right_widgets, {
             systray_widget,
-            left = compact and 1 or 2,
-            right = compact and 1 or 2,
+            left = 1,
+            right = 1,
             widget = wibox.container.margin,
         })
         table.insert(right_widgets, create_separator(ctpp))
@@ -311,12 +381,12 @@ local function create_right_widgets(config, ctpp, target_screen, clock_widget)
         dispose_status_widgets(target_screen)
     end
 
-    table.insert(right_widgets, {
-        clock_widget,
-        left = compact and 1 or 2,
-        right = compact and 4 or 6,
-        widget = wibox.container.margin,
-    })
+        table.insert(right_widgets, {
+            clock_widget,
+            left = 0,
+            right = compact and 2 or 4,
+            widget = wibox.container.margin,
+        })
 
     return {
         right_widgets = right_widgets,
@@ -328,6 +398,11 @@ local function create_layoutbox(ctpp, screen)
     local mylayoutbox_widget = wibox.widget {
         markup = " [M] ",
         widget = wibox.widget.textbox,
+    }
+
+    local layout_label = {
+        tileleft = "左侧平铺",
+        max = "最大化",
     }
 
     local layoutbox = wibox.widget {
@@ -370,6 +445,15 @@ local function create_layoutbox(ctpp, screen)
     awful.tag.attached_connect_signal(screen, "property::selected", update_layoutbox)
     awful.tag.attached_connect_signal(screen, "property::layout", update_layoutbox)
 
+    awful.tooltip {
+        objects = { layoutbox },
+        timer_function = function()
+            local layout_name = awful.layout.getname(awful.layout.get(screen))
+            return "布局\n当前：" .. (layout_label[layout_name] or layout_name)
+                .. "\n左键/右键/滚轮：切换布局"
+        end,
+    }
+
     layoutbox:buttons(gears.table.join(
         awful.button({}, 1, function()
             awful.layout.inc(1)
@@ -392,13 +476,16 @@ local function create_layoutbox(ctpp, screen)
     return layoutbox
 end
 
-local function create_tasklist(ctpp, screen, tasklist_buttons)
+local function create_tasklist(ctpp, screen, tasklist_buttons, config)
+    local item_spacing = is_compact_screen(screen, config) and 4 or 6
+    local item_h_padding = is_compact_screen(screen, config) and 6 or 8
+    local item_v_padding = is_compact_screen(screen, config) and 1 or 2
     return awful.widget.tasklist {
         screen = screen,
         filter = awful.widget.tasklist.filter.currenttags,
         buttons = tasklist_buttons,
         layout = {
-            spacing = dpi(4),
+            spacing = dpi(3),
             layout = wibox.layout.fixed.horizontal,
         },
         widget_template = {
@@ -423,17 +510,18 @@ local function create_tasklist(ctpp, screen, tasklist_buttons)
                             ellipsize = "end",
                             widget = wibox.widget.textbox,
                         },
+                        id = "text_constraint_role",
                         strategy = "max",
-                        width = dpi(420),
+                        width = task_title_max_width(screen, config),
                         widget = wibox.container.constraint,
                     },
-                    spacing = 6,
+                    spacing = item_spacing,
                     layout = wibox.layout.fixed.horizontal,
                 },
-                left = 8,
-                right = 8,
-                top = 2,
-                bottom = 2,
+                left = item_h_padding,
+                right = item_h_padding,
+                top = item_v_padding,
+                bottom = item_v_padding,
                 widget = wibox.container.margin,
             },
             id = "background_role",
@@ -443,10 +531,20 @@ local function create_tasklist(ctpp, screen, tasklist_buttons)
             end,
             widget = wibox.container.background,
             create_callback = function(self, c)
-                update_task_item(self, c, ctpp)
+                self._task_tooltip_text = render_task_tooltip(c)
+                if not self._task_tooltip then
+                    self._task_tooltip = awful.tooltip {
+                        objects = { self },
+                        timer_function = function()
+                            return self._task_tooltip_text or ""
+                        end,
+                    }
+                end
+                update_task_item(self, c, ctpp, screen, config)
             end,
             update_callback = function(self, c)
-                update_task_item(self, c, ctpp)
+                self._task_tooltip_text = render_task_tooltip(c)
+                update_task_item(self, c, ctpp, screen, config)
             end,
         },
     }
@@ -501,6 +599,63 @@ local function setup_floating_wibar(s, ctpp, left_widgets, tasklist_widget, righ
     }
 end
 
+local function count_sequence_items(tbl)
+    local count = 0
+    for _ in ipairs(tbl or {}) do
+        count = count + 1
+    end
+    return count
+end
+
+local function widget_fit_size(widget, width, height)
+    if not widget or not widget.fit then
+        return 0, 0
+    end
+
+    local ok, fit_width, fit_height = pcall(function()
+        return widget:fit({}, width, height)
+    end)
+
+    if not ok then
+        return 0, 0
+    end
+
+    return tonumber(fit_width) or 0, tonumber(fit_height) or 0
+end
+
+local function update_wibar_probe_state(s, left_widgets, tasklist_widget, right_widgets, config)
+    local function snapshot()
+        local screen_width = s and s.geometry and s.geometry.width or 0
+        local screen_height = s and s.geometry and s.geometry.height or 0
+        local probe_height = s.mywibox and s.mywibox.height or dpi(40)
+        local left_width = select(1, widget_fit_size(left_widgets, screen_width, probe_height))
+        local right_width = select(1, widget_fit_size(right_widgets, screen_width, probe_height))
+        local tasklist_width = select(1, widget_fit_size(tasklist_widget, math.max(screen_width - left_width - right_width, 0), probe_height))
+
+        return {
+            screen_index = s.index,
+            screen_width = screen_width,
+            screen_height = screen_height,
+            compact = is_compact_screen(s, config),
+            is_primary = s == screen.primary,
+            left_width = left_width,
+            right_width = right_width,
+            tasklist_width = tasklist_width,
+            tasklist_title_max_width = s.mytasklist_width,
+            left_item_count = count_sequence_items(left_widgets),
+            right_item_count = count_sequence_items(right_widgets),
+            has_tasklist = tasklist_widget ~= nil,
+            has_promptbox = s == screen.primary,
+            has_systray = s == screen.primary,
+        }
+    end
+
+    s._omx_wibar_probe = {
+        snapshot = snapshot,
+        last = snapshot(),
+    }
+end
+
 function M.setup(args)
     local modkey = args.modkey
     local ctpp = args.ctpp
@@ -550,31 +705,38 @@ function M.setup(args)
     )
 
     local function build_left_widgets(s)
-        return {
+        local left_widgets = {
             layout = wibox.layout.fixed.horizontal,
-            spacing = dpi(4),
+            spacing = s == screen.primary and dpi(4) or dpi(2),
             {
                 s.mytaglist,
                 left = 8,
-                right = 4,
+                right = s == screen.primary and 4 or 2,
                 widget = wibox.container.margin,
             },
             s.mylayoutbox,
-            s.mylockbutton,
-            create_separator(ctpp),
-            s.mypromptbox,
         }
+
+        if s == screen.primary then
+            table.insert(left_widgets, s.mylockbutton)
+            table.insert(left_widgets, create_separator(ctpp))
+            table.insert(left_widgets, s.mypromptbox)
+        end
+
+        return left_widgets
     end
 
     local function rebuild_screen_wibar(s)
-        if not s.mytasklist then
-            return
-        end
-
         if not s.mytextclock then
             s.mytextclock = create_textclock(ctpp, config, s)
         elseif s.mytextclock._refresh then
             s.mytextclock._refresh()
+        end
+
+        local desired_tasklist_width = task_title_max_width(s, config)
+        if not s.mytasklist or s.mytasklist_width ~= desired_tasklist_width then
+            s.mytasklist = create_tasklist(ctpp, s, tasklist_buttons, config)
+            s.mytasklist_width = desired_tasklist_width
         end
 
         local right_bundle = create_right_widgets(config, ctpp, s, s.mytextclock)
@@ -582,6 +744,7 @@ function M.setup(args)
         local left_widgets = build_left_widgets(s)
 
         setup_floating_wibar(s, ctpp, left_widgets, s.mytasklist, right_widgets)
+        update_wibar_probe_state(s, left_widgets, s.mytasklist, right_widgets, config)
     end
 
     local refresh_queued = false
@@ -610,7 +773,6 @@ function M.setup(args)
             filter = awful.widget.taglist.filter.all,
             buttons = taglist_buttons,
         }
-        s.mytasklist = create_tasklist(ctpp, s, tasklist_buttons)
 
         rebuild_screen_wibar(s)
     end)
@@ -620,6 +782,10 @@ function M.setup(args)
     screen.connect_signal("added", queue_wibar_refresh)
     screen.connect_signal("removed", function(s)
         dispose_status_widgets(s)
+        if s.mytextclock and s.mytextclock._dispose then
+            s.mytextclock._dispose()
+        end
+        s._omx_wibar_probe = nil
         queue_wibar_refresh()
     end)
     awesome.connect_signal("screen::change", queue_wibar_refresh)
@@ -649,6 +815,7 @@ M._private = {
     output_diagonal_inches = output_diagonal_inches,
     screen_diagonal_inches = screen_diagonal_inches,
     is_compact_screen = is_compact_screen,
+    task_title_max_width = task_title_max_width,
 }
 
 return M

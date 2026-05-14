@@ -157,12 +157,16 @@ test_net_widget_uses_compact_spacing() {
         fail "expected separators to use subdued surface1 color"
     grep -F 'system_row.spacing = 2' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET/sysinfo row spacing to be compacted to 2"
-    grep -F 'left = 4,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected sysinfo left padding to be compacted to 4"
-    grep -F 'right = 4,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected sysinfo right padding to be compacted to 4"
-    grep -F 'spacing = 6,' "$WIBAR_FILE" >/dev/null 2>&1 ||
-        fail "expected right side wibar spacing to be compacted to 6"
+    grep -F 'left = 2,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected sysinfo left padding to be compacted to 2"
+    grep -F 'right = 2,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected sysinfo right padding to be compacted to 2"
+    grep -F 'top = 2,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected sysinfo top padding to be compacted to 2"
+    grep -F 'bottom = 2,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected sysinfo bottom padding to be compacted to 2"
+    grep -F 'spacing = compact and 2 or 4,' "$WIBAR_FILE" >/dev/null 2>&1 ||
+        fail "expected right side wibar spacing to adapt between tighter compact and full layouts"
 }
 
 test_net_widget_uses_short_speed_format() {
@@ -224,12 +228,16 @@ test_battery_widget_has_hover_details() {
         fail "expected BAT tooltip to format power draw"
     grep -F 'local function format_duration(hours)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected BAT tooltip to format remaining time"
-    grep -F 'local function update_battery_tooltip(capacity, status)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+    grep -F 'local function update_battery_tooltip(summary)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected BAT tooltip to render detailed text"
+    grep -F 'local battery_paths = find_battery_paths()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip updates to work from aggregated battery paths"
     grep -F 'objects = { battery_widget },' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected BAT tooltip to attach to battery_widget"
     grep -F 'return battery_tooltip_text' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected BAT tooltip to read cached text"
+    grep -F 'summary.count > 1' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT tooltip to mention multi-battery aggregation when needed"
     grep -F '状态：' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected BAT tooltip to show status"
     grep -F '电量：' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||

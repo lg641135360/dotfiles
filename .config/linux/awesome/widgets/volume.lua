@@ -3,6 +3,7 @@
 
 local awful = require("awful")
 local gears = require("gears")
+local naughty = require("naughty")
 local wibox = require("wibox")
 local beautiful = require("beautiful")
 
@@ -40,6 +41,30 @@ local function stop_timer(timer)
     elseif timer.started ~= nil then
         timer.started = false
     end
+end
+
+local function truncate_message(text)
+    text = (text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if text == "" then
+        return nil
+    end
+    if #text > 240 then
+        return text:sub(1, 237) .. "..."
+    end
+    return text
+end
+
+local function notify_volume_failure(title, text)
+    local preset = naughty.config
+        and naughty.config.presets
+        and (naughty.config.presets.warn or naughty.config.presets.warning)
+        or nil
+
+    naughty.notify({
+        preset = preset,
+        title = title,
+        text = text,
+    })
 end
 
 local function create_volume_widget(options)
@@ -182,7 +207,18 @@ local function create_volume_widget(options)
     end
 
     local function open_volume_control()
-        awful.spawn.with_shell("command -v pavucontrol >/dev/null 2>&1 && pavucontrol")
+        awful.spawn.easy_async_with_shell("command -v pavucontrol >/dev/null 2>&1", function(_, _, _, exit_code)
+            if exit_code ~= 0 then
+                notify_volume_failure("音量控制不可用", "未找到 pavucontrol。")
+                return
+            end
+
+            awful.spawn.easy_async_with_shell("pavucontrol >/dev/null 2>&1", function(_, stderr, _, spawn_exit_code)
+                if spawn_exit_code ~= 0 then
+                    notify_volume_failure("音量控制执行失败", truncate_message(stderr) or "pavucontrol 启动失败。")
+                end
+            end)
+        end)
     end
 
     update_volume()

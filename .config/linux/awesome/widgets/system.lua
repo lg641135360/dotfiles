@@ -216,21 +216,126 @@ local function format_speed(bytes_per_sec)
     return string.format("%.1fG", bytes_per_sec / 1024 / 1024 / 1024)
 end
 
-local function find_battery_path()
+local function find_battery_paths()
     local handle = io.popen("for path in /sys/class/power_supply/*; do [ -d \"$path\" ] && printf '%s\\n' \"$path\"; done 2>/dev/null")
     if not handle then
-        return nil
+        return {}
     end
+
+    local battery_paths = {}
 
     for path in handle:lines() do
         if read_file_line(path .. "/type") == "Battery" and read_file_line(path .. "/capacity") then
-            handle:close()
-            return path
+            battery_paths[#battery_paths + 1] = path
         end
     end
 
     handle:close()
-    return nil
+    return battery_paths
+end
+
+local function sum_snapshot_field(snapshots, key)
+    local total = 0
+    local found = false
+
+    for _, snapshot in ipairs(snapshots or {}) do
+        if snapshot[key] ~= nil then
+            total = total + snapshot[key]
+            found = true
+        end
+    end
+
+    return found and total or nil
+end
+
+local function weighted_capacity(now_value, full_value)
+    if now_value == nil or full_value == nil or full_value <= 0 then
+        return nil
+    end
+
+    return math.floor((now_value * 100 / full_value) + 0.5)
+end
+
+local function average_capacity(snapshots)
+    local total = 0
+    local count = 0
+
+    for _, snapshot in ipairs(snapshots or {}) do
+        if snapshot.capacity ~= nil then
+            total = total + snapshot.capacity
+            count = count + 1
+        end
+    end
+
+    if count == 0 then
+        return nil
+    end
+
+    return math.floor((total / count) + 0.5)
+end
+
+local function aggregate_battery_status(snapshots)
+    if not snapshots or #snapshots == 0 then
+        return nil
+    end
+
+    local has_charging = false
+    local has_discharging = false
+    local has_full = false
+    local has_not_charging = false
+
+    for _, snapshot in ipairs(snapshots) do
+        if snapshot.status == "Charging" then
+            has_charging = true
+        elseif snapshot.status == "Discharging" then
+            has_discharging = true
+        elseif snapshot.status == "Full" then
+            has_full = true
+        elseif snapshot.status == "Not charging" then
+            has_not_charging = true
+        end
+    end
+
+    if has_charging then
+        return "Charging"
+    end
+
+    if has_discharging then
+        return "Discharging"
+    end
+
+    if has_not_charging then
+        return "Not charging"
+    end
+
+    if has_full then
+        return "Full"
+    end
+
+    return "Unknown"
+end
+
+local function aggregate_battery_readings(snapshots)
+    if not snapshots or #snapshots == 0 then
+        return nil
+    end
+
+    local summary = {
+        count = #snapshots,
+        status = aggregate_battery_status(snapshots),
+    }
+
+    summary.energy_now = sum_snapshot_field(snapshots, "energy_now")
+    summary.energy_full = sum_snapshot_field(snapshots, "energy_full")
+    summary.charge_now = sum_snapshot_field(snapshots, "charge_now")
+    summary.charge_full = sum_snapshot_field(snapshots, "charge_full")
+    summary.current_now = sum_snapshot_field(snapshots, "current_now")
+    summary.power_now = sum_snapshot_field(snapshots, "power_now")
+    summary.capacity = weighted_capacity(summary.energy_now, summary.energy_full)
+        or weighted_capacity(summary.charge_now, summary.charge_full)
+        or average_capacity(snapshots)
+
+    return summary
 end
 
 local function render_metric_markup(label, label_color, value_text, value_color)
@@ -420,8 +525,8 @@ local function create_system_widgets(config, options)
     -- Battery widget (laptops only)
     local battery_widget = nil
     local battery_timer = nil
-    local battery_path = find_battery_path()
-    if battery_path then
+    local battery_paths = find_battery_paths()
+    if #battery_paths > 0 then
         battery_widget = wibox.widget.textbox()
         battery_widget:set_markup(render_metric_markup(battery_label, ctpp.yellow, "0%", ctpp.text))
     end
@@ -482,11 +587,6 @@ local function create_system_widgets(config, options)
             return labels[status or ""] or (status and status ~= "" and status or "未知")
         end
 
-        local function read_battery_number(path)
-            local value = read_file_line(path)
-            return value and tonumber(value) or nil
-        end
-
         local function format_watts(microwatts)
             if not microwatts or microwatts <= 0 then
                 return nil
@@ -511,11 +611,12 @@ local function create_system_widgets(config, options)
             return string.format("约%d分钟", m)
         end
 
-        local function update_battery_tooltip(capacity, status)
-            local energy_now = read_battery_number(battery_path .. "/energy_now")
-            local energy_full = read_battery_number(battery_path .. "/energy_full")
-            local charge_now = read_battery_number(battery_path .. "/charge_now")
-            local charge_full = read_battery_number(battery_path .. "/charge_full")
+        local function read_battery_number(path)
+            local value = read_file_line(path)
+            return value and tonumber(value) or nil
+        end
+
+        local function collect_battery_snapshot(battery_path)
             local current_now = read_battery_number(battery_path .. "/current_now")
             local voltage_now = read_battery_number(battery_path .. "/voltage_now")
             local power_now = read_battery_number(battery_path .. "/power_now")
@@ -524,31 +625,48 @@ local function create_system_widgets(config, options)
                 power_now = current_now * voltage_now / 1000000
             end
 
-            local watts = format_watts(power_now)
+            return {
+                capacity = read_battery_number(battery_path .. "/capacity"),
+                status = read_file_line(battery_path .. "/status"),
+                energy_now = read_battery_number(battery_path .. "/energy_now"),
+                energy_full = read_battery_number(battery_path .. "/energy_full"),
+                charge_now = read_battery_number(battery_path .. "/charge_now"),
+                charge_full = read_battery_number(battery_path .. "/charge_full"),
+                current_now = current_now,
+                power_now = power_now,
+            }
+        end
+
+        local function update_battery_tooltip(summary)
+            local watts = format_watts(summary.power_now)
             local duration_label = nil
             local duration_value = nil
 
-            if power_now and power_now > 0 and energy_now then
-                if status == "Discharging" and energy_now then
+            if summary.power_now and summary.power_now > 0 and summary.energy_now then
+                if summary.status == "Discharging" and summary.energy_now then
                     duration_label = "剩余"
-                    duration_value = format_duration(energy_now / power_now)
-                elseif status == "Charging" and energy_now and energy_full and energy_full > energy_now then
+                    duration_value = format_duration(summary.energy_now / summary.power_now)
+                elseif summary.status == "Charging" and summary.energy_now and summary.energy_full and summary.energy_full > summary.energy_now then
                     duration_label = "充满"
-                    duration_value = format_duration((energy_full - energy_now) / power_now)
+                    duration_value = format_duration((summary.energy_full - summary.energy_now) / summary.power_now)
                 end
-            elseif current_now and current_now > 0 and charge_now then
-                if status == "Discharging" then
+            elseif summary.current_now and summary.current_now > 0 and summary.charge_now then
+                if summary.status == "Discharging" then
                     duration_label = "剩余"
-                    duration_value = format_duration(charge_now / current_now)
-                elseif status == "Charging" and charge_full and charge_full > charge_now then
+                    duration_value = format_duration(summary.charge_now / summary.current_now)
+                elseif summary.status == "Charging" and summary.charge_full and summary.charge_full > summary.charge_now then
                     duration_label = "充满"
-                    duration_value = format_duration((charge_full - charge_now) / current_now)
+                    duration_value = format_duration((summary.charge_full - summary.charge_now) / summary.current_now)
                 end
             end
 
             battery_tooltip_text = battery_label
-                .. "\n状态：" .. translate_battery_status(status)
-                .. "\n电量：" .. (capacity and (capacity .. "%") or "N/A")
+                .. "\n状态：" .. translate_battery_status(summary.status)
+                .. "\n电量：" .. (summary.capacity and (summary.capacity .. "%") or "N/A")
+
+            if summary.count > 1 then
+                battery_tooltip_text = battery_tooltip_text .. "\n电池：" .. summary.count .. " 块"
+            end
 
             if watts then
                 battery_tooltip_text = battery_tooltip_text .. "\n功率：" .. watts
@@ -567,23 +685,36 @@ local function create_system_widgets(config, options)
         }
 
         local function update_battery()
-            local capacity = tonumber(read_file_line(battery_path .. "/capacity"))
-            if not capacity then
+            local snapshots = {}
+            for _, battery_path in ipairs(battery_paths) do
+                local snapshot = collect_battery_snapshot(battery_path)
+                if snapshot and snapshot.capacity ~= nil then
+                    snapshots[#snapshots + 1] = snapshot
+                end
+            end
+
+            local summary = aggregate_battery_readings(snapshots)
+            if not summary then
+                battery_widget:set_markup(render_metric_markup(battery_label, ctpp.yellow, "N/A", ctpp.overlay1))
+                battery_tooltip_text = battery_label .. "\n状态：未知\n电量：N/A"
                 return
             end
 
-            local status = read_file_line(battery_path .. "/status")
+            local capacity = summary.capacity
+            local status = summary.status
             local color = ctpp.text
             if status == "Charging" then
                 color = ctpp.green
-            elseif capacity <= 15 then
+            elseif capacity and capacity <= 15 then
                 color = ctpp.red
-            elseif capacity <= 35 then
+            elseif capacity and capacity <= 35 then
                 color = ctpp.yellow
+            elseif not capacity then
+                color = ctpp.overlay1
             end
 
-            battery_widget:set_markup(render_metric_markup(battery_label, ctpp.yellow, capacity .. "%", color))
-            update_battery_tooltip(capacity, status)
+            battery_widget:set_markup(render_metric_markup(battery_label, ctpp.yellow, capacity and (capacity .. "%") or "N/A", color))
+            update_battery_tooltip(summary)
         end
 
         update_battery()
@@ -631,10 +762,10 @@ local function create_system_widgets(config, options)
         shape = function(cr, w, h)
             gears.shape.rounded_rect(cr, w, h, dpi(8))
         end,
-        left = 4,
-        right = 4,
-        top = 4,
-        bottom = 4,
+        left = 2,
+        right = 2,
+        top = 2,
+        bottom = 2,
         widget = wibox.container.margin,
     }
 
@@ -670,6 +801,9 @@ M._private = {
     parse_default_route_interface = parse_default_route_interface,
     parse_network_totals = parse_network_totals,
     choose_network_totals = choose_network_totals,
+    find_battery_paths = find_battery_paths,
+    aggregate_battery_status = aggregate_battery_status,
+    aggregate_battery_readings = aggregate_battery_readings,
     format_speed = format_speed,
     stop_timer = stop_timer,
 }

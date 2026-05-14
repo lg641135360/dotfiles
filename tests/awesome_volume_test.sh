@@ -80,8 +80,12 @@ test_volume_widget_shows_mute_immediately_after_click() {
 }
 
 test_volume_widget_opens_pavucontrol_on_right_click() {
+    assert_contains 'local naughty = require("naughty")' "$VOLUME_FILE"
+    assert_contains 'local function notify_volume_failure(title, text)' "$VOLUME_FILE"
     assert_contains 'local function open_volume_control()' "$VOLUME_FILE"
-    assert_contains 'command -v pavucontrol >/dev/null 2>&1 && pavucontrol' "$VOLUME_FILE"
+    assert_contains 'awful.spawn.easy_async_with_shell("command -v pavucontrol >/dev/null 2>&1"' "$VOLUME_FILE"
+    assert_contains 'notify_volume_failure("音量控制不可用", "未找到 pavucontrol。")' "$VOLUME_FILE"
+    assert_contains 'notify_volume_failure("音量控制执行失败", truncate_message(stderr) or "pavucontrol 启动失败。")' "$VOLUME_FILE"
     assert_contains 'awful.button({ }, 3, open_volume_control)' "$VOLUME_FILE"
 }
 
