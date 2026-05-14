@@ -40,8 +40,8 @@ test_rc_wires_shared_modules() {
     assert_contains 'local actions = require("actions")' "$RC_FILE"
     assert_contains 'actions = actions,' "$RC_FILE"
     assert_contains 'config = config,' "$RC_FILE"
-    assert_contains 'lain_ok = lain_ok,' "$RC_FILE"
-    assert_contains 'terminal = terminal,' "$RC_FILE"
+    assert_not_contains 'local lain_ok = pcall(require, "lain")' "$RC_FILE"
+    assert_not_contains 'Please install lain' "$RC_FILE"
 }
 
 test_rc_no_longer_builds_bar_widgets_locally() {
@@ -49,6 +49,16 @@ test_rc_no_longer_builds_bar_widgets_locally() {
     assert_not_contains 'local mytextclock =' "$RC_FILE"
     assert_not_contains 'local systray_widget =' "$RC_FILE"
     assert_not_contains 'require("widgets.system").create' "$RC_FILE"
+}
+
+test_rc_refreshes_runtime_display_layout_on_screen_topology_changes() {
+    assert_contains 'local display_layout_refresh_queued = false' "$RC_FILE"
+    assert_contains 'local function queue_display_layout_refresh()' "$RC_FILE"
+    assert_contains 'gears.timer.start_new(1, function()' "$RC_FILE"
+    assert_contains 'test -x ~/.config/awesome/display-layout.sh && ~/.config/awesome/display-layout.sh >/dev/null 2>&1' "$RC_FILE"
+    assert_contains 'screen.connect_signal("added", queue_display_layout_refresh)' "$RC_FILE"
+    assert_contains 'screen.connect_signal("removed", queue_display_layout_refresh)' "$RC_FILE"
+    assert_contains 'awesome.connect_signal("screen::change", queue_display_layout_refresh)' "$RC_FILE"
 }
 
 test_bindings_use_injected_prompt_runners() {
@@ -101,11 +111,58 @@ if duplicates:
 PY
 }
 
+
+test_actions_check_prerequisites_and_notify_failures() {
+    lua - "$ACTIONS_FILE" <<'LUA' || fail "expected desktop actions to notify when prerequisites are missing"
+local actions_file = arg[1]
+local notifications = {}
+local shell_commands = {}
+local direct_spawns = {}
+
+package.preload["awful"] = function()
+    return {
+        spawn = setmetatable({
+            easy_async_with_shell = function(command, callback)
+                table.insert(shell_commands, command)
+                callback("", "missing dependency", "", 1)
+            end,
+        }, {
+            __call = function(_, command)
+                table.insert(direct_spawns, command)
+            end,
+        }),
+    }
+end
+
+package.preload["naughty"] = function()
+    return {
+        config = { presets = { warn = {} } },
+        notify = function(args)
+            table.insert(notifications, args)
+        end,
+    }
+end
+
+local actions = assert(loadfile(actions_file))()
+assert(actions._private)
+assert(actions._private.command_check({ "maim", "curl" }):match("command %-v 'maim'"))
+assert(actions._private.executable_check("~/.config/scripts/lock"):match("/%.config/scripts/lock"))
+assert(actions._private.screenshot_ocr_command():match("maim %-s"))
+assert(actions._private.screenshot_ocr_command():match("curl %-%-fail"))
+
+actions.open_file_manager()
+assert(#notifications == 1)
+assert(notifications[1].title:match("文件管理器不可用"))
+assert(#direct_spawns == 0)
+assert(shell_commands[1]:match("command %-v 'dolphin'"))
+LUA
+}
+
 test_wibar_owns_bar_widget_creation() {
     assert_contains 'local config = args.config' "$WIBAR_FILE"
     assert_contains 'local actions = args.actions or {}' "$WIBAR_FILE"
-    assert_contains 'local terminal = args.terminal or "alacritty"' "$WIBAR_FILE"
-    assert_contains 'local lain_ok = args.lain_ok' "$WIBAR_FILE"
+    assert_not_contains 'local terminal = args.terminal or "alacritty"' "$WIBAR_FILE"
+    assert_not_contains 'local lain_ok = args.lain_ok' "$WIBAR_FILE"
     assert_contains 'local dpi = require("beautiful.xresources").apply_dpi' "$WIBAR_FILE"
     assert_not_contains 'local xresources = require("beautiful.xresources")' "$WIBAR_FILE"
     assert_not_contains 'local function configure_screen_dpi(screen, config)' "$WIBAR_FILE"
@@ -115,7 +172,9 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'local function screen_diagonal_inches(screen)' "$WIBAR_FILE"
     assert_contains 'local function create_lock_button(ctpp, actions)' "$WIBAR_FILE"
     assert_contains 'local function create_textclock(ctpp, config, screen)' "$WIBAR_FILE"
+    assert_contains 'local function update_clock()' "$WIBAR_FILE"
     assert_contains 'local clock_widget = wibox.widget {' "$WIBAR_FILE"
+    assert_contains 'clock_widget._refresh = update_clock' "$WIBAR_FILE"
     assert_contains 'bg = ctpp.mantle,' "$WIBAR_FILE"
     assert_contains 'border_color = ctpp.surface1,' "$WIBAR_FILE"
     assert_contains 'local function render_clock_tooltip()' "$WIBAR_FILE"
@@ -132,9 +191,15 @@ test_wibar_owns_bar_widget_creation() {
     assert_not_contains 'show_calendar(' "$WIBAR_FILE"
     assert_contains 'local function create_systray_widget(ctpp)' "$WIBAR_FILE"
     assert_contains 'local function create_separator(ctpp)' "$WIBAR_FILE"
-    assert_contains 'local function create_sysinfo_bundle(config, ctpp, lain_ok, screen, terminal)' "$WIBAR_FILE"
-    assert_contains 'local function create_right_widgets(config, ctpp, lain_ok, target_screen, terminal, clock_widget)' "$WIBAR_FILE"
-    assert_contains 'compact = is_compact_screen(screen, config),' "$WIBAR_FILE"
+    assert_contains 'local function create_sysinfo_bundle(config, screen, compact)' "$WIBAR_FILE"
+    assert_contains 'compact = compact == nil and is_compact_screen(screen, config) or compact' "$WIBAR_FILE"
+    assert_contains 'local function dispose_status_widgets(s)' "$WIBAR_FILE"
+    assert_contains 'local function ensure_primary_status_widgets(config, ctpp, s, compact)' "$WIBAR_FILE"
+    assert_contains 'if s.mystatusbundle and s.mystatusspec == spec then' "$WIBAR_FILE"
+    assert_contains 's.mystatusbundle = {' "$WIBAR_FILE"
+    assert_contains 's.mystatusspec = spec' "$WIBAR_FILE"
+    assert_contains 'local function create_right_widgets(config, ctpp, target_screen, clock_widget)' "$WIBAR_FILE"
+    assert_contains 'compact = compact == nil and is_compact_screen(screen, config) or compact' "$WIBAR_FILE"
     assert_contains 'compact = compact,' "$WIBAR_FILE"
     assert_not_contains 'configure_screen_dpi(s, config)' "$WIBAR_FILE"
     assert_contains 'systray:set_base_size(dpi(20))' "$WIBAR_FILE"
@@ -151,6 +216,7 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'local function create_floating_wibar_content(ctpp, left_widgets, tasklist_widget, right_widgets)' "$WIBAR_FILE"
     assert_contains 'gears.shape.rounded_rect(cr, w, h, dpi(12))' "$WIBAR_FILE"
     assert_contains 'local function setup_floating_wibar(s, ctpp, left_widgets, tasklist_widget, right_widgets)' "$WIBAR_FILE"
+    assert_contains 'if not s.mywibox then' "$WIBAR_FILE"
     assert_contains 'height = dpi(40),' "$WIBAR_FILE"
     assert_contains 'bg = "#00000000",' "$WIBAR_FILE"
     assert_contains 'top = dpi(6),' "$WIBAR_FILE"
@@ -159,14 +225,33 @@ test_wibar_owns_bar_widget_creation() {
     assert_not_contains 'dpi(20, screen)' "$WIBAR_FILE"
 }
 
+test_wibar_refreshes_after_screen_topology_changes() {
+    assert_contains 'local function rebuild_screen_wibar(s)' "$WIBAR_FILE"
+    assert_contains 'local function queue_wibar_refresh()' "$WIBAR_FILE"
+    assert_contains 'gears.timer.delayed_call(function()' "$WIBAR_FILE"
+    assert_contains 'for s in screen do' "$WIBAR_FILE"
+    assert_contains 'rebuild_screen_wibar(s)' "$WIBAR_FILE"
+    assert_contains 'screen.connect_signal("property::geometry", queue_wibar_refresh)' "$WIBAR_FILE"
+    assert_contains 'screen.connect_signal("property::primary", queue_wibar_refresh)' "$WIBAR_FILE"
+    assert_contains 'screen.connect_signal("added", queue_wibar_refresh)' "$WIBAR_FILE"
+    assert_contains 'screen.connect_signal("removed", function(s)' "$WIBAR_FILE"
+    assert_contains 'dispose_status_widgets(s)' "$WIBAR_FILE"
+    assert_contains 'queue_wibar_refresh()' "$WIBAR_FILE"
+    assert_contains 'awesome.connect_signal("screen::change", queue_wibar_refresh)' "$WIBAR_FILE"
+    assert_contains 's.mylockbutton = create_lock_button(ctpp, actions)' "$WIBAR_FILE"
+    assert_contains 'if not s.mytextclock then' "$WIBAR_FILE"
+    assert_contains 's.mytextclock._refresh()' "$WIBAR_FILE"
+    assert_not_contains 'local mytextclock = create_textclock(ctpp, config, s)' "$WIBAR_FILE"
+}
+
 test_wibar_keeps_status_widgets_on_primary_only() {
     assert_contains 'if target_screen == screen.primary then' "$WIBAR_FILE"
-    assert_contains 'local system_bundle = create_sysinfo_bundle(config, ctpp, lain_ok, target_screen, terminal)' "$WIBAR_FILE"
-    assert_contains 'local systray_widget = create_systray_widget(ctpp)' "$WIBAR_FILE"
+    assert_contains 'local status_bundle = ensure_primary_status_widgets(config, ctpp, target_screen, compact)' "$WIBAR_FILE"
+    assert_contains 'dispose_status_widgets(target_screen)' "$WIBAR_FILE"
     assert_contains 'table.insert(right_widgets, sysinfo_widget)' "$WIBAR_FILE"
-    assert_contains 'local right_bundle = create_right_widgets(config, ctpp, lain_ok, s, terminal, mytextclock)' "$WIBAR_FILE"
+    assert_contains 'local right_bundle = create_right_widgets(config, ctpp, s, s.mytextclock)' "$WIBAR_FILE"
     assert_contains 'local right_widgets = right_bundle.right_widgets' "$WIBAR_FILE"
-    assert_not_contains 'local system_bundle = create_sysinfo_bundle(config, ctpp, lain_ok, s, terminal)' "$WIBAR_FILE"
+    assert_not_contains 'local system_bundle = create_sysinfo_bundle(config, s)' "$WIBAR_FILE"
 
     python - "$WIBAR_FILE" <<'PY' || fail "expected non-primary right side to only add the clock widget"
 from pathlib import Path
@@ -177,17 +262,19 @@ start = text.index("local function create_right_widgets")
 end = text.index("\nlocal function create_layoutbox", start)
 chunk = text[start:end]
 primary_marker = "if target_screen == screen.primary then"
+else_marker = "else\n        dispose_status_widgets(target_screen)"
 clock_marker = "clock_widget,"
 
 before_primary = chunk[:chunk.index(primary_marker)]
 primary_start = chunk.index(primary_marker)
+else_start = chunk.index(else_marker)
 clock_start = chunk.index(clock_marker)
 
-assert "create_sysinfo_bundle" not in before_primary
-assert "create_systray_widget" not in before_primary
+assert "ensure_primary_status_widgets" not in before_primary
 assert primary_start < clock_start
 assert "table.insert(right_widgets, sysinfo_widget)" in chunk[primary_start:clock_start]
-assert "create_systray_widget(ctpp)" in chunk[primary_start:clock_start]
+assert else_start < clock_start
+assert "dispose_status_widgets(target_screen)" in chunk[else_start:clock_start]
 PY
 }
 
@@ -271,6 +358,14 @@ test_system_widget_exposes_row_for_extension() {
     assert_contains 'system_row = system_row,' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'local compact = options and options.compact' "$SYSTEM_WIDGETS_FILE"
     assert_not_contains 'local screen = options and options.screen' "$SYSTEM_WIDGETS_FILE"
+    assert_not_contains 'require("lain")' "$SYSTEM_WIDGETS_FILE"
+    assert_contains 'M._private = {' "$SYSTEM_WIDGETS_FILE"
+    assert_contains 'local function stop_timer(timer)' "$SYSTEM_WIDGETS_FILE"
+    assert_contains 'local function dispose()' "$SYSTEM_WIDGETS_FILE"
+    assert_contains 'dispose = dispose,' "$SYSTEM_WIDGETS_FILE"
+    assert_contains 'stop_timer(details_timer)' "$SYSTEM_WIDGETS_FILE"
+    assert_contains 'stop_timer(metrics_timer)' "$SYSTEM_WIDGETS_FILE"
+    assert_contains 'stop_timer(net_timer)' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'gears.shape.rounded_rect(cr, w, h, dpi(8))' "$SYSTEM_WIDGETS_FILE"
     assert_not_contains 'dpi(8, screen)' "$SYSTEM_WIDGETS_FILE"
 }
@@ -284,6 +379,9 @@ test_readme_documents_current_awesome_modules() {
     assert_contains 'ui/wibar.lua' "$README_FILE"
     assert_contains 'widgets/system.lua' "$README_FILE"
     assert_contains 'widgets/volume.lua' "$README_FILE"
+    assert_contains 'CPU/MEM 直接读取 `/proc/stat` 与 `/proc/meminfo`' "$README_FILE"
+    assert_contains '可选外部依赖' "$README_FILE"
+    assert_not_contains 'git clone https://github.com/lcpz/lain.git' "$README_FILE"
 }
 
 test_readme_documents_wibar_visual_tuning() {
@@ -292,6 +390,8 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '其他屏幕右侧只保留时钟' "$README_FILE"
     assert_contains '托盘只放在主屏，并使用更小图标、深色胶囊背景和细边框' "$README_FILE"
     assert_contains '全量模式使用 `CPU/MEM/BAT/VOL` 完整标签' "$README_FILE"
+    assert_contains '外接屏热插拔、`xrandr` 改变几何或主屏切换后' "$README_FILE"
+    assert_contains '重新判断主屏状态区和 full/compact 模式' "$README_FILE"
     assert_contains '时钟使用独立胶囊背景作为右端视觉终点' "$README_FILE"
     assert_contains '整条顶栏使用悬浮圆角容器' "$README_FILE"
     assert_contains '顶部留出少量空隙' "$README_FILE"
@@ -310,6 +410,8 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '悬浮 VOL 会提示左键/右键/滚轮的具体作用' "$README_FILE"
     assert_contains '时钟不绑定点击或滚轮动作' "$README_FILE"
     assert_contains '悬浮时显示完整日期、星期和时间' "$README_FILE"
+    assert_contains '执行 Rofi、Dolphin、截图 OCR 与锁屏前检查关键命令或脚本是否可用' "$README_FILE"
+    assert_contains '缺少依赖或执行失败时会通过 Awesome 通知提示' "$README_FILE"
 }
 
 test_readme_documents_snipaste_f1_conflict() {
@@ -329,11 +431,14 @@ test_readme_documents_plain_i3lock_theme_fallback() {
 test_actions_module_exists
 test_rc_wires_shared_modules
 test_rc_no_longer_builds_bar_widgets_locally
+test_rc_refreshes_runtime_display_layout_on_screen_topology_changes
 test_bindings_use_injected_prompt_runners
 test_bindings_keep_lock_on_mod_shift_l
 test_bindings_leave_bare_f1_to_snipaste
 test_bindings_do_not_duplicate_shortcuts
+test_actions_check_prerequisites_and_notify_failures
 test_wibar_owns_bar_widget_creation
+test_wibar_refreshes_after_screen_topology_changes
 test_wibar_keeps_status_widgets_on_primary_only
 test_wibar_uses_physical_size_before_width_fallback
 test_wibar_escapes_task_titles

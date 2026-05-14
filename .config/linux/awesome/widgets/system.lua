@@ -1,10 +1,281 @@
--- System info widgets: CPU, MEM, NET
--- Returns a container with all system widgets and helper functions
+-- System info widgets: CPU, MEM, NET, BAT
+-- Returns a container with all system widgets and helper functions.
 
 local awful = require("awful")
 local gears = require("gears")
 local wibox = require("wibox")
 local beautiful = require("beautiful")
+
+local M = {}
+
+local function read_file_line(path)
+    local file = io.open(path, "r")
+    if not file then
+        return nil
+    end
+
+    local content = file:read("*l")
+    file:close()
+    return content
+end
+
+local function read_file_all(path)
+    local file = io.open(path, "r")
+    if not file then
+        return nil
+    end
+
+    local content = file:read("*a")
+    file:close()
+    return content
+end
+
+local function parse_proc_stat_line(line)
+    if not line or not line:match("^cpu%s+") then
+        return nil
+    end
+
+    local values = {}
+    for value in line:gmatch("%d+") do
+        values[#values + 1] = tonumber(value) or 0
+    end
+
+    if #values < 4 then
+        return nil
+    end
+
+    local total = 0
+    for _, value in ipairs(values) do
+        total = total + value
+    end
+
+    return {
+        total = total,
+        idle = (values[4] or 0) + (values[5] or 0),
+    }
+end
+
+local function calculate_cpu_usage(previous, current)
+    if not previous or not current then
+        return nil
+    end
+
+    local total_delta = current.total - previous.total
+    local idle_delta = current.idle - previous.idle
+
+    if total_delta <= 0 or idle_delta < 0 then
+        return nil
+    end
+
+    local busy_delta = math.max(total_delta - idle_delta, 0)
+    return math.floor((busy_delta * 100 / total_delta) + 0.5)
+end
+
+local function parse_meminfo(content)
+    if not content then
+        return nil
+    end
+
+    local values = {}
+    for key, value in content:gmatch("([%w_]+):%s+(%d+)") do
+        values[key] = tonumber(value)
+    end
+
+    return values
+end
+
+local function calculate_mem_usage(values)
+    if not values or not values.MemTotal or values.MemTotal <= 0 then
+        return nil
+    end
+
+    local available = values.MemAvailable
+    if not available then
+        available = (values.MemFree or 0) + (values.Buffers or 0) + (values.Cached or 0)
+    end
+
+    if available < 0 then
+        return nil
+    end
+
+    local used = math.max(values.MemTotal - available, 0)
+    return math.floor((used * 100 / values.MemTotal) + 0.5)
+end
+
+local function usage_color(usage, warn_threshold, danger_threshold, ctpp)
+    if not usage then
+        return ctpp.overlay1
+    elseif usage > danger_threshold then
+        return ctpp.red
+    elseif usage > warn_threshold then
+        return ctpp.yellow
+    end
+
+    return ctpp.text
+end
+
+local function interface_matches(interface, patterns)
+    for token in string.gmatch(patterns or "", "[^|]+") do
+        if interface == token or interface:match("^" .. token) then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function parse_default_route_interface(content, patterns)
+    if not content then
+        return nil
+    end
+
+    for line in content:gmatch("[^\r\n]+") do
+        local interface, destination, _, flags = line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)")
+        if interface and destination == "00000000" then
+            local flag_number = tonumber(flags, 16) or 0
+            local route_is_up = (flag_number % 2) == 1
+            if route_is_up and interface_matches(interface, patterns) then
+                return interface
+            end
+        end
+    end
+
+    return nil
+end
+
+local function read_default_route_interface(patterns)
+    return parse_default_route_interface(read_file_all("/proc/net/route"), patterns)
+end
+
+local function parse_network_totals(content, patterns)
+    if not content then
+        return {}
+    end
+
+    local entries = {}
+
+    for line in content:gmatch("[^\r\n]+") do
+        local interface, rest = line:match("^%s*([^:]+):%s*(.+)$")
+        if interface and rest and interface_matches(interface, patterns) then
+            local fields = {}
+            for value in rest:gmatch("%S+") do
+                fields[#fields + 1] = value
+            end
+
+            local recv = tonumber(fields[1])
+            local sent = tonumber(fields[9])
+
+            if recv and sent then
+                entries[#entries + 1] = {
+                    interface = interface,
+                    recv = recv,
+                    sent = sent,
+                }
+            end
+        end
+    end
+
+    return entries
+end
+
+local function choose_network_totals(entries, preferred_interface)
+    if preferred_interface then
+        for _, entry in ipairs(entries or {}) do
+            if entry.interface == preferred_interface then
+                return entry
+            end
+        end
+    end
+
+    return entries and entries[1] or nil
+end
+
+local function read_network_totals(patterns)
+    local content = read_file_all("/proc/net/dev")
+    if not content then
+        return nil
+    end
+
+    local entries = parse_network_totals(content, patterns)
+    return choose_network_totals(entries, read_default_route_interface(patterns))
+end
+
+local function format_speed(bytes_per_sec)
+    if bytes_per_sec < 1024 then
+        return string.format("%.0fB", bytes_per_sec)
+    elseif bytes_per_sec < 10 * 1024 then
+        return string.format("%.1fK", bytes_per_sec / 1024)
+    elseif bytes_per_sec < 1024 * 1024 then
+        return string.format("%.0fK", bytes_per_sec / 1024)
+    elseif bytes_per_sec < 10 * 1024 * 1024 then
+        return string.format("%.1fM", bytes_per_sec / 1024 / 1024)
+    elseif bytes_per_sec < 1024 * 1024 * 1024 then
+        return string.format("%.0fM", bytes_per_sec / 1024 / 1024)
+    end
+
+    return string.format("%.1fG", bytes_per_sec / 1024 / 1024 / 1024)
+end
+
+local function find_battery_path()
+    local handle = io.popen("for path in /sys/class/power_supply/*; do [ -d \"$path\" ] && printf '%s\\n' \"$path\"; done 2>/dev/null")
+    if not handle then
+        return nil
+    end
+
+    for path in handle:lines() do
+        if read_file_line(path .. "/type") == "Battery" and read_file_line(path .. "/capacity") then
+            handle:close()
+            return path
+        end
+    end
+
+    handle:close()
+    return nil
+end
+
+local function render_metric_markup(label, label_color, value_text, value_color)
+    return "<span foreground='" .. label_color .. "'>" .. label .. ":</span><span foreground='" .. value_color .. "'>" .. value_text .. "</span>"
+end
+
+local function read_load_average()
+    local loadavg = read_file_line("/proc/loadavg")
+    if not loadavg then
+        return "N/A"
+    end
+
+    return loadavg:match("^(%S+%s+%S+%s+%S+)") or "N/A"
+end
+
+local function normalize_command_output(output, fallback)
+    output = output or ""
+    output = output:gsub("%s+$", "")
+
+    if output == "" then
+        return fallback
+    end
+
+    return output
+end
+
+local function system_details_command(section)
+    if section == "cpu" then
+        return "LC_ALL=C ps -eo pid,comm,%cpu --sort=-%cpu 2>/dev/null | head -n 5"
+    end
+
+    return "LC_ALL=C ps -eo pid,comm,%mem --sort=-%mem 2>/dev/null | head -n 5"
+end
+
+local function stop_timer(timer)
+    if not timer then
+        return
+    end
+
+    if timer.stop then
+        timer:stop()
+    elseif timer.started ~= nil then
+        timer.started = false
+    end
+end
 
 local function create_system_widgets(config, options)
     local compact = options and options.compact
@@ -20,108 +291,6 @@ local function create_system_widgets(config, options)
         cpu_processes = "process list loading",
         mem_processes = "process list loading",
     }
-
-    local function read_file(path)
-        local file = io.open(path, "r")
-        if not file then
-            return nil
-        end
-
-        local content = file:read("*l")
-        file:close()
-        return content
-    end
-
-    local function find_battery_path()
-        local handle = io.popen("for path in /sys/class/power_supply/*; do [ -d \"$path\" ] && printf '%s\\n' \"$path\"; done 2>/dev/null")
-        if not handle then
-            return nil
-        end
-
-        for path in handle:lines() do
-            if read_file(path .. "/type") == "Battery" and read_file(path .. "/capacity") then
-                handle:close()
-                return path
-            end
-        end
-
-        handle:close()
-        return nil
-    end
-
-    local function interface_matches(interface)
-        for token in string.gmatch(config.net_interfaces or "", "[^|]+") do
-            if interface == token or interface:match("^" .. token) then
-                return true
-            end
-        end
-
-        return false
-    end
-
-    local function read_network_totals()
-        local dev_file = io.open("/proc/net/dev", "r")
-        if not dev_file then
-            return nil
-        end
-
-        for line in dev_file:lines() do
-            local interface, rest = line:match("^%s*([^:]+):%s*(.+)$")
-            if interface and rest and interface_matches(interface) then
-                local fields = {}
-                for value in rest:gmatch("%S+") do
-                    fields[#fields + 1] = value
-                end
-
-                local recv = tonumber(fields[1])
-                local sent = tonumber(fields[9])
-
-                if recv and sent then
-                    dev_file:close()
-                    return {
-                        interface = interface,
-                        recv = recv,
-                        sent = sent,
-                    }
-                end
-            end
-        end
-
-        dev_file:close()
-        return nil
-    end
-
-    local function render_metric_markup(label, label_color, value_text, value_color)
-        return "<span foreground='" .. label_color .. "'>" .. label .. ":</span><span foreground='" .. value_color .. "'>" .. value_text .. "</span>"
-    end
-
-    local function read_load_average()
-        local loadavg = read_file("/proc/loadavg")
-        if not loadavg then
-            return "N/A"
-        end
-
-        return loadavg:match("^(%S+%s+%S+%s+%S+)") or "N/A"
-    end
-
-    local function normalize_command_output(output, fallback)
-        output = output or ""
-        output = output:gsub("%s+$", "")
-
-        if output == "" then
-            return fallback
-        end
-
-        return output
-    end
-
-    local function system_details_command(section)
-        if section == "cpu" then
-            return "LC_ALL=C ps -eo pid,comm,%cpu --sort=-%cpu 2>/dev/null | head -n 5"
-        end
-
-        return "LC_ALL=C ps -eo pid,comm,%mem --sort=-%mem 2>/dev/null | head -n 5"
-    end
 
     local function update_system_details_cache()
         system_state.load_average = read_load_average()
@@ -151,7 +320,7 @@ local function create_system_widgets(config, options)
     end
 
     update_system_details_cache()
-    gears.timer {
+    local details_timer = gears.timer {
         timeout = 5,
         autostart = true,
         callback = update_system_details_cache,
@@ -177,21 +346,49 @@ local function create_system_widgets(config, options)
         end,
     }
 
-    local function format_speed(bytes_per_sec)
-        if bytes_per_sec < 1024 then
-            return string.format("%.0fB", bytes_per_sec)
-        elseif bytes_per_sec < 10 * 1024 then
-            return string.format("%.1fK", bytes_per_sec / 1024)
-        elseif bytes_per_sec < 1024 * 1024 then
-            return string.format("%.0fK", bytes_per_sec / 1024)
-        elseif bytes_per_sec < 10 * 1024 * 1024 then
-            return string.format("%.1fM", bytes_per_sec / 1024 / 1024)
-        elseif bytes_per_sec < 1024 * 1024 * 1024 then
-            return string.format("%.0fM", bytes_per_sec / 1024 / 1024)
-        else
-            return string.format("%.1fG", bytes_per_sec / 1024 / 1024 / 1024)
+    local previous_cpu_totals = nil
+
+    local function update_cpu()
+        local current = parse_proc_stat_line(read_file_line("/proc/stat"))
+        if not current then
+            system_state.cpu_usage = "N/A"
+            cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.blue, "N/A", ctpp.overlay1))
+            return
         end
+
+        local usage = calculate_cpu_usage(previous_cpu_totals, current)
+        previous_cpu_totals = current
+
+        if not usage then
+            usage = 0
+        end
+
+        system_state.cpu_usage = usage .. "%"
+        cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.blue, usage .. "%", usage_color(usage, 50, 80, ctpp)))
     end
+
+    local function update_mem()
+        local usage = calculate_mem_usage(parse_meminfo(read_file_all("/proc/meminfo")))
+        if not usage then
+            system_state.mem_usage = "N/A"
+            mem_widget:set_markup(render_metric_markup(mem_label, ctpp.green, "N/A", ctpp.overlay1))
+            return
+        end
+
+        system_state.mem_usage = usage .. "%"
+        mem_widget:set_markup(render_metric_markup(mem_label, ctpp.green, usage .. "%", usage_color(usage, 60, 80, ctpp)))
+    end
+
+    update_cpu()
+    update_mem()
+    local metrics_timer = gears.timer {
+        timeout = 2,
+        autostart = true,
+        callback = function()
+            update_cpu()
+            update_mem()
+        end,
+    }
 
     -- Network widget
     local net_widget = wibox.widget.textbox()
@@ -222,42 +419,12 @@ local function create_system_widgets(config, options)
 
     -- Battery widget (laptops only)
     local battery_widget = nil
+    local battery_timer = nil
     local battery_path = find_battery_path()
     if battery_path then
         battery_widget = wibox.widget.textbox()
         battery_widget:set_markup(render_metric_markup(battery_label, ctpp.yellow, "0%", ctpp.text))
     end
-
-    -- Load lain for CPU and MEM
-    local lain = require("lain")
-
-    lain.widget.cpu {
-        timeout = 2,
-        settings = function()
-            local color = ctpp.text
-            if tonumber(cpu_now.usage) > 80 then
-                color = ctpp.red
-            elseif tonumber(cpu_now.usage) > 50 then
-                color = ctpp.yellow
-            end
-            system_state.cpu_usage = cpu_now.usage .. "%"
-            cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.blue, cpu_now.usage .. "%", color))
-        end,
-    }
-
-    lain.widget.mem {
-        timeout = 2,
-        settings = function()
-            local color = ctpp.text
-            if tonumber(mem_now.perc) > 80 then
-                color = ctpp.red
-            elseif tonumber(mem_now.perc) > 60 then
-                color = ctpp.yellow
-            end
-            system_state.mem_usage = mem_now.perc .. "%"
-            mem_widget:set_markup(render_metric_markup(mem_label, ctpp.green, mem_now.perc .. "%", color))
-        end,
-    }
 
     -- Network monitoring
     local net_prev = {}
@@ -270,7 +437,7 @@ local function create_system_widgets(config, options)
     end
 
     local function update_net()
-        local totals = read_network_totals()
+        local totals = read_network_totals(config.net_interfaces)
         if not totals then
             set_net_offline()
             return
@@ -294,7 +461,7 @@ local function create_system_widgets(config, options)
     end
 
     update_net()
-    gears.timer {
+    local net_timer = gears.timer {
         timeout = 2,
         autostart = true,
         callback = update_net,
@@ -316,7 +483,7 @@ local function create_system_widgets(config, options)
         end
 
         local function read_battery_number(path)
-            local value = read_file(path)
+            local value = read_file_line(path)
             return value and tonumber(value) or nil
         end
 
@@ -400,12 +567,12 @@ local function create_system_widgets(config, options)
         }
 
         local function update_battery()
-            local capacity = tonumber(read_file(battery_path .. "/capacity"))
+            local capacity = tonumber(read_file_line(battery_path .. "/capacity"))
             if not capacity then
                 return
             end
 
-            local status = read_file(battery_path .. "/status")
+            local status = read_file_line(battery_path .. "/status")
             local color = ctpp.text
             if status == "Charging" then
                 color = ctpp.green
@@ -420,7 +587,7 @@ local function create_system_widgets(config, options)
         end
 
         update_battery()
-        gears.timer {
+        battery_timer = gears.timer {
             timeout = 30,
             autostart = true,
             callback = update_battery,
@@ -471,6 +638,15 @@ local function create_system_widgets(config, options)
         widget = wibox.container.margin,
     }
 
+    local function dispose()
+        stop_timer(details_timer)
+        stop_timer(metrics_timer)
+        stop_timer(net_timer)
+        if battery_timer then
+            stop_timer(battery_timer)
+        end
+    end
+
     return {
         sysinfo_widget = sysinfo_widget,
         system_row = system_row,
@@ -479,9 +655,23 @@ local function create_system_widgets(config, options)
         net_widget = net_widget,
         battery_widget = battery_widget,
         make_separator = make_separator,
+        dispose = dispose,
     }
 end
 
-return {
-    create = create_system_widgets,
+M.create = create_system_widgets
+
+M._private = {
+    parse_proc_stat_line = parse_proc_stat_line,
+    calculate_cpu_usage = calculate_cpu_usage,
+    parse_meminfo = parse_meminfo,
+    calculate_mem_usage = calculate_mem_usage,
+    interface_matches = interface_matches,
+    parse_default_route_interface = parse_default_route_interface,
+    parse_network_totals = parse_network_totals,
+    choose_network_totals = choose_network_totals,
+    format_speed = format_speed,
+    stop_timer = stop_timer,
 }
+
+return M

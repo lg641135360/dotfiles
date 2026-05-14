@@ -119,3 +119,6 @@
 - 对 Awesome 顶栏整体观感，优先使用悬浮圆角容器：外层 wibar 保持透明并继续预留工作区高度，内层状态栏顶部和左右留少量空隙，避免窗口覆盖状态栏同时让顶栏不贴屏幕边缘。
 - 对 Awesome managed 窗口圆角，优先在 `client.lua` 用 `c.shape` 消费 `beautiful.border_radius`；普通/对话框等窗口保持圆角，全屏或最大化时退回 `gears.shape.rectangle`，避免边角露出桌面背景。picom 继续负责阴影、透明和 compositor 层圆角。
 - 对 Codex CLI 0.130.0 的 GPT-5.5 配置，单独设置 `model_context_window = 1000000` / `model_auto_compact_token_limit = 800000` 不会改变 TUI/status 使用的模型目录窗口；优先用 `model_catalog_json` 指向本地 catalog override，并在该 JSON 里把 `gpt-5.5` 的 `context_window`、`max_context_window`、`auto_compact_token_limit` 固定为 `1000000`、`1000000`、`800000`。
+- 对 Awesome 顶栏 CPU/MEM 状态，优先用原生 `/proc/stat` 与 `/proc/meminfo` 读取，不再要求 `lain`；`collision` 仅作为可选浮动窗口辅助依赖保留，缺失时 Awesome 仍应启动。
+- 对 Awesome 桌面动作入口（Rofi、Dolphin、截图 OCR、锁屏等），优先在执行前检查关键命令/脚本能力，缺依赖或执行失败时用 Awesome 通知提示，避免快捷键静默无效；用户主动取消截图/启动器选择不应弹失败提示。
+- 对 Awesome 顶栏多屏状态，优先在屏幕几何、主屏或 RandR 拓扑变化后延迟重建 wibar 内容，重新判断主屏状态区与 full/compact 模式；重建时复用已有 tag/tasklist/prompt，避免破坏标签状态。

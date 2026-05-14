@@ -16,6 +16,63 @@ test_net_pattern_includes_wlp_interfaces() {
         fail "expected net interface pattern to include wlp"
 }
 
+
+test_system_widgets_parse_cpu_and_memory_without_lain() {
+    if grep -F 'require("lain")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
+        fail "expected system widgets to avoid the lain runtime dependency"
+    fi
+
+    lua - "$SYSTEM_WIDGETS_FILE" <<'LUA' || fail "expected native CPU/MEM parser helpers to behave correctly"
+local system_file = arg[1]
+
+package.preload["awful"] = function()
+    return { spawn = { easy_async_with_shell = function() end } }
+end
+package.preload["gears"] = function()
+    return { timer = function() end }
+end
+package.preload["wibox"] = function()
+    return {}
+end
+package.preload["beautiful"] = function()
+    return { ctpp = {} }
+end
+package.preload["beautiful.xresources"] = function()
+    return { apply_dpi = function(value) return value end }
+end
+
+local system = assert(loadfile(system_file))()
+local private = assert(system._private)
+local first = assert(private.parse_proc_stat_line("cpu  100 0 50 850 0 0 0 0 0 0"))
+local second = assert(private.parse_proc_stat_line("cpu  150 0 100 900 0 0 0 0 0 0"))
+assert(first.total == 1000)
+assert(first.idle == 850)
+assert(private.calculate_cpu_usage(first, second) == 67)
+
+	local mem = assert(private.parse_meminfo([[MemTotal:       1000 kB
+MemFree:         100 kB
+MemAvailable:    250 kB
+Buffers:          50 kB
+Cached:          150 kB
+]]))
+	assert(private.calculate_mem_usage(mem) == 75)
+	assert(private.interface_matches("wlp1s0", "wlan0|eth0|enp|wlp"))
+	assert(private.parse_default_route_interface([[Iface Destination Gateway Flags RefCnt Use Metric Mask MTU Window IRTT
+eth0 00000000 0101A8C0 0003 0 0 0 00000000 0 0 0
+wlp1s0 0008FEA9 00000000 0001 0 0 0 00FFFFFF 0 0 0
+]], "wlan0|eth0|enp|wlp") == "eth0")
+	local entries = private.parse_network_totals([[Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+eth0: 100 0 0 0 0 0 0 0 200 0 0 0 0 0 0 0
+wlp1s0: 300 0 0 0 0 0 0 0 400 0 0 0 0 0 0 0
+]], "wlan0|eth0|enp|wlp")
+	assert(#entries == 2)
+	assert(private.choose_network_totals(entries, "wlp1s0").interface == "wlp1s0")
+	assert(private.choose_network_totals(entries, "missing0").interface == "eth0")
+	assert(private.format_speed(1536) == "1.5K")
+LUA
+}
+
 test_net_widget_avoids_shell_pipeline_parsing() {
     if grep -F "cat /proc/net/dev | grep -E" "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
         fail "expected NET widget to avoid shell pipeline parsing of /proc/net/dev"
@@ -23,10 +80,20 @@ test_net_widget_avoids_shell_pipeline_parsing() {
 }
 
 test_net_widget_parses_proc_net_dev_in_lua() {
-    grep -F 'local function read_network_totals()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+    grep -F 'local function parse_default_route_interface(content, patterns)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET widget to parse /proc/net/route for a preferred interface"
+    grep -F 'return parse_default_route_interface(read_file_all("/proc/net/route"), patterns)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET widget to read /proc/net/route directly"
+    grep -F 'local function parse_network_totals(content, patterns)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET widget to parse all matching interfaces before choosing one"
+    grep -F 'local function choose_network_totals(entries, preferred_interface)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET widget to select the preferred interface when available"
+    grep -F 'local function read_network_totals(patterns)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET widget to expose a Lua parser for /proc/net/dev"
-    grep -F 'local dev_file = io.open("/proc/net/dev", "r")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+    grep -F 'local content = read_file_all("/proc/net/dev")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET widget to read /proc/net/dev directly"
+    grep -F 'return choose_network_totals(entries, read_default_route_interface(patterns))' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET widget to prefer the default-route interface"
 }
 
 test_net_widget_seeds_previous_counters_before_speed_display() {
@@ -262,6 +329,7 @@ PY
 }
 
 test_net_pattern_includes_wlp_interfaces
+test_system_widgets_parse_cpu_and_memory_without_lain
 test_net_widget_avoids_shell_pipeline_parsing
 test_net_widget_parses_proc_net_dev_in_lua
 test_net_widget_seeds_previous_counters_before_speed_display

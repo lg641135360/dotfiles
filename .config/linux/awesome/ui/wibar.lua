@@ -142,19 +142,21 @@ local function create_textclock(ctpp, config, screen)
             .. "\n时间：" .. os.date("%H:%M")
     end
 
+    local function update_clock()
+        local date_format = config.date_format
+        if is_compact_screen(screen, config) and config.compact_date_format then
+            date_format = config.compact_date_format
+        end
+
+        local time_str = os.date(date_format)
+        textclock:set_markup("<span foreground='" .. ctpp.lavender .. "'>" .. time_str .. "</span>")
+    end
+
     gears.timer {
         timeout = 60,
         autostart = true,
         call_now = true,
-        callback = function()
-            local date_format = config.date_format
-            if is_compact_screen(screen, config) and config.compact_date_format then
-                date_format = config.compact_date_format
-            end
-
-            local time_str = os.date(date_format)
-            textclock:set_markup("<span foreground='" .. ctpp.lavender .. "'>" .. time_str .. "</span>")
-        end
+        callback = update_clock,
     }
 
     local clock_widget = wibox.widget {
@@ -181,6 +183,8 @@ local function create_textclock(ctpp, config, screen)
             return render_clock_tooltip()
         end,
     }
+
+    clock_widget._refresh = update_clock
 
     return clock_widget
 end
@@ -219,46 +223,70 @@ local function create_separator(ctpp)
     }
 end
 
-local function create_sysinfo_bundle(config, ctpp, lain_ok, screen, terminal)
-    local compact = is_compact_screen(screen, config)
+local function create_sysinfo_bundle(config, screen, compact)
+    compact = compact == nil and is_compact_screen(screen, config) or compact
+    local system_widgets = require("widgets.system").create(config, {
+        compact = compact,
+    })
+    local sysinfo_widget = system_widgets.sysinfo_widget
+    local system_row = system_widgets.system_row
+    local make_separator = system_widgets.make_separator
+    local volume_bundle = nil
 
-    if lain_ok then
-        local system_widgets = require("widgets.system").create(config, {
-            compact = is_compact_screen(screen, config),
-            terminal = terminal,
-        })
-        local sysinfo_widget = system_widgets.sysinfo_widget
-        local system_row = system_widgets.system_row
-        local make_separator = system_widgets.make_separator
-
-        if config.has_volume then
-            local vol_widget = require("widgets.volume").create({
-                compact = compact,
-            })
-            system_row:add(make_separator())
-            system_row:add(vol_widget)
-        end
-
-        return {
-            sysinfo_widget = sysinfo_widget,
-            make_separator = make_separator,
+    if config.has_volume then
+        volume_bundle = require("widgets.volume").create({
             compact = compact,
-        }
+        })
+        system_row:add(make_separator())
+        system_row:add(volume_bundle.widget)
+    end
+
+    local function dispose()
+        if volume_bundle and volume_bundle.dispose then
+            volume_bundle.dispose()
+        end
+        if system_widgets.dispose then
+            system_widgets.dispose()
+        end
     end
 
     return {
+        sysinfo_widget = sysinfo_widget,
+        make_separator = make_separator,
         compact = compact,
-        sysinfo_widget = wibox.widget {
-            markup = "<span foreground='" .. ctpp.overlay0 .. "'>[lain missing]</span>",
-            widget = wibox.widget.textbox,
-        },
-        make_separator = function()
-            return wibox.widget { markup = " ", widget = wibox.widget.textbox }
-        end,
+        dispose = dispose,
     }
 end
 
-local function create_right_widgets(config, ctpp, lain_ok, target_screen, terminal, clock_widget)
+local function dispose_status_widgets(s)
+    if s.mystatusbundle and s.mystatusbundle.dispose then
+        s.mystatusbundle.dispose()
+    end
+    s.mystatusbundle = nil
+    s.mystatusspec = nil
+    s.mysystray_widget = nil
+end
+
+local function ensure_primary_status_widgets(config, ctpp, s, compact)
+    local spec = (compact and "compact" or "full") .. ":" .. (config.has_volume and "vol" or "novol")
+    if s.mystatusbundle and s.mystatusspec == spec then
+        return s.mystatusbundle
+    end
+
+    dispose_status_widgets(s)
+
+    local system_bundle = create_sysinfo_bundle(config, s, compact)
+    s.mysystray_widget = s.mysystray_widget or create_systray_widget(ctpp)
+    s.mystatusbundle = {
+        sysinfo_widget = system_bundle.sysinfo_widget,
+        systray_widget = s.mysystray_widget,
+        dispose = system_bundle.dispose,
+    }
+    s.mystatusspec = spec
+    return s.mystatusbundle
+end
+
+local function create_right_widgets(config, ctpp, target_screen, clock_widget)
     local compact = is_compact_screen(target_screen, config)
     local right_widgets = {
         layout = wibox.layout.fixed.horizontal,
@@ -266,9 +294,9 @@ local function create_right_widgets(config, ctpp, lain_ok, target_screen, termin
     }
 
     if target_screen == screen.primary then
-        local system_bundle = create_sysinfo_bundle(config, ctpp, lain_ok, target_screen, terminal)
-        local sysinfo_widget = system_bundle.sysinfo_widget
-        local systray_widget = create_systray_widget(ctpp)
+        local status_bundle = ensure_primary_status_widgets(config, ctpp, target_screen, compact)
+        local sysinfo_widget = status_bundle.sysinfo_widget
+        local systray_widget = status_bundle.systray_widget
 
         table.insert(right_widgets, sysinfo_widget)
         table.insert(right_widgets, create_separator(ctpp))
@@ -279,6 +307,8 @@ local function create_right_widgets(config, ctpp, lain_ok, target_screen, termin
             widget = wibox.container.margin,
         })
         table.insert(right_widgets, create_separator(ctpp))
+    else
+        dispose_status_widgets(target_screen)
     end
 
     table.insert(right_widgets, {
@@ -450,12 +480,17 @@ end
 local function setup_floating_wibar(s, ctpp, left_widgets, tasklist_widget, right_widgets)
     local floating_content = create_floating_wibar_content(ctpp, left_widgets, tasklist_widget, right_widgets)
 
-    s.mywibox = awful.wibar {
-        position = "top",
-        screen = s,
-        height = dpi(40),
-        bg = "#00000000",
-    }
+    if not s.mywibox then
+        s.mywibox = awful.wibar {
+            position = "top",
+            screen = s,
+            height = dpi(40),
+            bg = "#00000000",
+        }
+    else
+        s.mywibox.height = dpi(40)
+        s.mywibox.bg = "#00000000"
+    end
 
     s.mywibox:setup {
         floating_content,
@@ -470,9 +505,7 @@ function M.setup(args)
     local modkey = args.modkey
     local ctpp = args.ctpp
     local config = args.config
-    local terminal = args.terminal or "alacritty"
     local actions = args.actions or {}
-    local lain_ok = args.lain_ok
 
     local taglist_buttons = gears.table.join(
         awful.button({}, 1, function(t)
@@ -516,24 +549,8 @@ function M.setup(args)
         end)
     )
 
-    awful.screen.connect_for_each_screen(function(s)
-        local lock_button = create_lock_button(ctpp, actions)
-        local mytextclock = create_textclock(ctpp, config, s)
-        local right_bundle = create_right_widgets(config, ctpp, lain_ok, s, terminal, mytextclock)
-        local right_widgets = right_bundle.right_widgets
-
-        awful.tag({ "󰇩 ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
-
-        s.mypromptbox = awful.widget.prompt()
-        s.mylayoutbox = create_layoutbox(ctpp, s)
-        s.mytaglist = awful.widget.taglist {
-            screen = s,
-            filter = awful.widget.taglist.filter.all,
-            buttons = taglist_buttons,
-        }
-        s.mytasklist = create_tasklist(ctpp, s, tasklist_buttons)
-
-        local left_widgets = {
+    local function build_left_widgets(s)
+        return {
             layout = wibox.layout.fixed.horizontal,
             spacing = dpi(4),
             {
@@ -543,13 +560,69 @@ function M.setup(args)
                 widget = wibox.container.margin,
             },
             s.mylayoutbox,
-            lock_button,
+            s.mylockbutton,
             create_separator(ctpp),
             s.mypromptbox,
         }
+    end
+
+    local function rebuild_screen_wibar(s)
+        if not s.mytasklist then
+            return
+        end
+
+        if not s.mytextclock then
+            s.mytextclock = create_textclock(ctpp, config, s)
+        elseif s.mytextclock._refresh then
+            s.mytextclock._refresh()
+        end
+
+        local right_bundle = create_right_widgets(config, ctpp, s, s.mytextclock)
+        local right_widgets = right_bundle.right_widgets
+        local left_widgets = build_left_widgets(s)
 
         setup_floating_wibar(s, ctpp, left_widgets, s.mytasklist, right_widgets)
+    end
+
+    local refresh_queued = false
+    local function queue_wibar_refresh()
+        if refresh_queued then
+            return
+        end
+
+        refresh_queued = true
+        gears.timer.delayed_call(function()
+            refresh_queued = false
+            for s in screen do
+                rebuild_screen_wibar(s)
+            end
+        end)
+    end
+
+    awful.screen.connect_for_each_screen(function(s)
+        awful.tag({ "󰇩 ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
+
+        s.mypromptbox = awful.widget.prompt()
+        s.mylayoutbox = create_layoutbox(ctpp, s)
+        s.mylockbutton = create_lock_button(ctpp, actions)
+        s.mytaglist = awful.widget.taglist {
+            screen = s,
+            filter = awful.widget.taglist.filter.all,
+            buttons = taglist_buttons,
+        }
+        s.mytasklist = create_tasklist(ctpp, s, tasklist_buttons)
+
+        rebuild_screen_wibar(s)
     end)
+
+    screen.connect_signal("property::geometry", queue_wibar_refresh)
+    screen.connect_signal("property::primary", queue_wibar_refresh)
+    screen.connect_signal("added", queue_wibar_refresh)
+    screen.connect_signal("removed", function(s)
+        dispose_status_widgets(s)
+        queue_wibar_refresh()
+    end)
+    awesome.connect_signal("screen::change", queue_wibar_refresh)
 
     return {
         run_prompt = function()

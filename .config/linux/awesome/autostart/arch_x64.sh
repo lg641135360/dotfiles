@@ -5,6 +5,10 @@
 
 . "$(dirname "$0")/common.sh"
 
+if [ "${1:-}" = "--display-layout" ]; then
+    exit 0
+fi
+
 # Wait for X11 to be ready
 sleep 1
 

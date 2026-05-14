@@ -13,6 +13,7 @@
 ├── client.lua          # 窗口规则、titlebar 与焦点边框
 ├── menu.lua            # 主菜单与 freedesktop / Debian fallback
 ├── autostart.sh        # runtime 平台分发 wrapper
+├── display-layout.sh   # runtime 显示布局 wrapper（热插拔后重算）
 ├── ui/
 │   └── wibar.lua       # ui/wibar.lua：顶栏、taglist、tasklist、托盘、时钟
 ├── widgets/
@@ -24,21 +25,18 @@
 │   ├── arch_x64.sh
 │   ├── ubuntu_x64.sh
 │   └── ubuntu_aarch64.sh
-└── collision/          # 外部依赖（浮动窗口管理）
-└── lain/               # 外部依赖（系统监控库）
+└── collision/          # 可选外部依赖（浮动窗口管理）
 ```
 
 ## 外部依赖
 
-以下两个库需要在安装时手动 clone（install.sh 会自动检测并安装）：
+Awesome 顶栏的 CPU / MEM / NET / BAT / VOL 组件不再依赖 `lain`，其中 CPU/MEM 直接读取 `/proc/stat` 与 `/proc/meminfo`。当前仅保留一个可选外部依赖：
 
 ```bash
-git clone https://github.com/lcpz/lain.git ~/.config/awesome/lain
 git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 ```
 
-- **lain** — 系统监控（CPU/内存占用），用于 wibar 的 CPU 和 MEM widget
-- **collision** — 浮动窗口智能布局，防止浮动窗口超出屏幕边界
+- **collision** — 可选的浮动窗口智能布局，防止浮动窗口超出屏幕边界；缺失时 Awesome 仍会继续启动。
 
 ## Wibar 布局
 
@@ -54,10 +52,16 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 - **窗口圆角**：普通/对话框等 managed 窗口使用 `theme.border_radius` 圆角；全屏或最大化窗口会自动退回矩形，避免边角露出桌面背景。picom 继续负责阴影、透明和 compositor 层圆角。
 - **右侧视觉**：系统信息分隔符使用更弱的主题色，时钟使用独立胶囊背景作为右端视觉终点，避免状态区显得过散。
 - **长标题 / 网络细节**：长窗口标题会在单个任务项内尾部省略，避免浏览器或笔记窗口挤压右侧状态区；NET 保持短显示，悬停时显示网卡接口名和带 `/s` 单位的上下行速率。
-- **状态项交互**：NET/CPU/MEM 不绑定点击动作，只在鼠标悬浮时显示内置 detail；NET/CPU/MEM/VOL/BAT 的 tooltip 使用统一中文文案。NET detail 展示网卡接口名和带 `/s` 单位的上下行速率，找不到匹配接口时主栏显示 `NET:N/A` 且 hover 显示离线；CPU/MEM detail 使用各自精简内容：CPU 显示 CPU 使用率、负载（load average）和 top CPU 进程，MEM 显示内存使用率和 top MEM 进程，并使用 5 秒后台缓存，hover 时不临时执行 `ps`；BAT hover 显示充放电状态、当前电量、功率和可估算的剩余/充满时间；VOL 保留左键静音和滚轮调音量，静音后只显示 `MUTE`（如 `VOL:MUTE`），右键 VOL 会打开 `pavucontrol`；悬浮 VOL 会提示左键/右键/滚轮的具体作用。
+- **状态项交互**：NET/CPU/MEM 不绑定点击动作，只在鼠标悬浮时显示内置 detail；NET/CPU/MEM/VOL/BAT 的 tooltip 使用统一中文文案。NET detail 展示网卡接口名和带 `/s` 单位的上下行速率，并优先显示默认路由对应的活跃网卡；找不到匹配接口时主栏显示 `NET:N/A` 且 hover 显示离线；CPU/MEM detail 使用各自精简内容：CPU 显示 CPU 使用率、负载（load average）和 top CPU 进程，MEM 显示内存使用率和 top MEM 进程，并使用 5 秒后台缓存，hover 时不临时执行 `ps`；BAT hover 显示充放电状态、当前电量、功率和可估算的剩余/充满时间；VOL 保留左键静音和滚轮调音量，静音后只显示 `MUTE`（如 `VOL:MUTE`），右键 VOL 会打开 `pavucontrol`；悬浮 VOL 会提示左键/右键/滚轮的具体作用。
 - **全量 / 紧凑模式**：主屏系统信息优先读取 Awesome `screen.outputs` 里的物理尺寸；检测到屏幕物理对角线 **超过 15 英寸** 时使用全量模式，保留完整日期与 MEM 等状态项。全量模式使用 `CPU/MEM/BAT/VOL` 完整标签；只有检测不到物理尺寸时，才回退到 `compact_wibar_max_width = 3000` 的逻辑宽度阈值。
 - **紧凑模式**：主要给 15 英寸及以下内屏的主屏状态区使用，会缩短日期并隐藏 MEM，优先保留 NET / CPU / BAT / VOL / 时钟；非主屏始终只显示时钟。
+- **屏幕拓扑刷新**：外接屏热插拔、`xrandr` 改变几何或主屏切换后，会延迟重建各屏 wibar 内容，重新判断主屏状态区和 full/compact 模式；只复用已有 tag/tasklist/prompt，不重建标签。主屏右侧的 sysinfo / VOL / systray 也会优先复用已有 widget，只有规格从 full/compact 切换时才重建，避免重复后台轮询。
+- **显示布局刷新**：`rc.lua` 还会在屏幕新增/移除或 Awesome 收到 `screen::change` 后，延迟调用 `~/.config/awesome/display-layout.sh` 重算平台布局；这样 aarch64 笔记本在外接屏热插拔后不必重新登录就能重新应用主屏、位置和缩放策略。
 - **时钟交互**：时钟不绑定点击或滚轮动作，避免鼠标经过或误点时弹出月历；悬浮时显示完整日期、星期和时间。
+
+### 桌面动作入口
+
+`actions.lua` 会在执行 Rofi、Dolphin、截图 OCR 与锁屏前检查关键命令或脚本是否可用；缺少依赖或执行失败时会通过 Awesome 通知提示，而不是让快捷键静默无效。截图 OCR 仍使用 `maim` 截图并调用本机 Pot OCR 服务，取消截图选择不会弹失败提示。
 
 ## 锁屏
 
@@ -78,7 +82,7 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 | `Mod+Return` | 打开终端 (alacritty) |
 | `Mod+e` | 打开文件管理器 (dolphin) |
 | `Mod+w` | 显示主菜单 |
-| `Mod+c` | 显示应用菜单 (menubar) |
+| `Mod+c` | 显示 Rofi 应用启动器 |
 | `Mod+r` | 运行命令提示框 |
 | `Mod+s` | 截图 + OCR 翻译 |
 | `Mod+Shift+s` | 显示快捷键帮助 |

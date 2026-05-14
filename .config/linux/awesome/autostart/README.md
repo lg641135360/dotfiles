@@ -7,6 +7,7 @@
 | 文件 | 目标平台 | 说明 |
 |------|----------|------|
 | `../autostart.sh` | runtime wrapper | 由 `rc.lua` 启动，负责选择 `autostart/<platform>.sh` |
+| `../display-layout.sh` | runtime wrapper | 在热插拔后只重算显示布局，不重跑整套自启动 |
 | `common.sh` | 全平台共享 | 公共 helper、Xresources 初始化与公共后台服务启动函数 |
 | `arch_x64.sh` | Arch Linux x86_64 | 桌面端，使用 Snipaste + greenclip |
 | `ubuntu_aarch64.sh` | Ubuntu ARM64 | ARM 笔记本，设置 120Hz 分辨率 + 触摸板 |
@@ -18,6 +19,7 @@
 
 ```text
 rc.lua -> ~/.config/awesome/autostart.sh -> autostart/<platform>.sh
+rc.lua -> ~/.config/awesome/display-layout.sh -> autostart/<platform>.sh --display-layout
 ```
 
 `autostart.sh` 根据 `uname -s`、`uname -m` 和 `/etc/os-release` 选择平台脚本：
@@ -30,7 +32,7 @@ Ubuntu x86_64      → ubuntu_x64.sh
 
 ## 公共功能
 
-三份平台脚本都会先加载 `common.sh`，由它提供 `run()` / `run_custom()` / `run_first_custom()`、`start_background()`、`prepare_xresources()`、显示器检测/布局 helper、随机壁纸 helper、自动锁屏 helper 以及公共服务启动函数。`run()` / `run_custom()` / `run_first_custom()` 会先检查目标命令或可执行路径是否存在，再通过 `start_background()` 优先用 `setsid -f` 分离后台进程；`run_first_custom()` 用于 AppImage 这类可能有多个安装位置的应用，会按候选路径启动第一个可执行文件。`prepare_xresources()` 只在 `xrdb` 和 `~/.Xresources` 都存在时合并；`randomize_wallpaper()` 在 `feh`、壁纸目录或候选图片缺失时静默跳过，避免 Awesome 自启动阶段输出 `not found` 噪音或中断后续服务。`run_idle_lock_service()` 只在 `xautolock` 与 `~/.config/scripts/lock` 都可用时启动 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep`，空闲 10 分钟后自动锁屏，缺少依赖时静默跳过。
+三份平台脚本都会先加载 `common.sh`，由它提供 `run()` / `run_custom()` / `run_first_custom()`、`start_background()`、`prepare_xresources()`、显示器检测/布局 helper、随机壁纸 helper、自动锁屏 helper 以及公共服务启动函数。`run()` / `run_custom()` / `run_first_custom()` 会先检查目标命令或可执行路径是否存在，再通过 `start_background()` 优先用 `setsid -f` 分离后台进程；`run_first_custom()` 用于 AppImage 这类可能有多个安装位置的应用，会按候选路径启动第一个可执行文件。`prepare_xresources()` 只在 `xrdb` 和 `~/.Xresources` 都存在时合并；`randomize_wallpaper()` 在 `feh`、壁纸目录或候选图片缺失时静默跳过，避免 Awesome 自启动阶段输出 `not found` 噪音或中断后续服务。显示器 helper 现在会列出所有已连接外接屏，并在需要时按位置参数链式排列多个外接屏；带缩放时会为每个外接屏读取首选模式并统一计算 framebuffer/position。`run_idle_lock_service()` 只在 `xautolock` 与 `~/.config/scripts/lock` 都可用时启动 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep`，空闲 10 分钟后自动锁屏，缺少依赖时静默跳过。
 
 所有脚本都会按需尝试启动以下服务：
 
@@ -51,7 +53,7 @@ Ubuntu x86_64      → ubuntu_x64.sh
 
 ### ubuntu_aarch64.sh
 
-- **显示器**：运行时检测内屏（`eDP`/`LVDS`/`DSI`）和首个外接屏；内屏设置为 `2880x1800@120Hz` 主屏，外接屏读取首选物理模式（当前 Dell P2722H 为 `1920x1080`）后用 `1.5x1.5` XRandR scaling 放在笔记本屏幕左侧，并显式设置 framebuffer/position，避免缩放后与内屏重叠；全局 `Xft.dpi` 不在这里调整
+- **显示器**：运行时检测内屏（`eDP`/`LVDS`/`DSI`）和所有已连接外接屏；内屏设置为 `2880x1800@120Hz` 主屏，外接屏读取各自首选物理模式后用 `1.5x1.5` XRandR scaling 按顺序放在笔记本屏幕左侧，并显式设置 framebuffer/position，避免缩放后与内屏重叠；`display-layout.sh` 会在热插拔后再次调用同一策略；全局 `Xft.dpi` 不在这里调整
 - **触摸板**：动态检测 Touchpad 设备 ID，配置自然滚动、轻触点击、clickfinger 模式、光标加速、打字时禁用
 - **壁纸**：`/usr/share/backgrounds/*`
 - **壁纸选择**：每次执行 autostart 时通过 `feh --no-fehbg --bg-fill --randomize` 从候选目录重新随机选择，不再优先恢复 `~/.fehbg`

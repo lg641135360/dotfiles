@@ -74,26 +74,36 @@ local mymainmenu = build_main_menu({
     menubar = menubar,
 })
 
-local lain_ok = pcall(require, "lain")
-if not lain_ok then
-    naughty.notify({
-        preset = naughty.config.presets.critical,
-        title = "AwesomeWM: missing dependency",
-        text = "Please install lain: git clone https://github.com/lcpz/lain.git ~/.config/awesome/lain",
-    })
-end
-
 local wibar_actions = require("ui.wibar").setup({
     modkey = modkey,
     ctpp = ctpp,
     config = config,
-    terminal = terminal,
     actions = actions,
-    lain_ok = lain_ok,
 })
+
+local display_layout_refresh_queued = false
+local function queue_display_layout_refresh()
+    if display_layout_refresh_queued then
+        return
+    end
+
+    display_layout_refresh_queued = true
+    gears.timer.start_new(1, function()
+        display_layout_refresh_queued = false
+        awful.spawn.easy_async_with_shell(
+            "test -x ~/.config/awesome/display-layout.sh && ~/.config/awesome/display-layout.sh >/dev/null 2>&1",
+            function() end
+        )
+        return false
+    end)
+end
 
 -- autostart (only on initial startup, not on restart)
 awful.spawn.once("sh -c '~/.config/awesome/autostart.sh'")
+
+screen.connect_signal("added", queue_display_layout_refresh)
+screen.connect_signal("removed", queue_display_layout_refresh)
+awesome.connect_signal("screen::change", queue_display_layout_refresh)
 
 root.buttons(gears.table.join(
     awful.button({ }, 3, function () mymainmenu:toggle() end),

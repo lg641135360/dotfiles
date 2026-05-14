@@ -91,7 +91,7 @@ detect_laptop_display() {
         awk '/ connected/ && $1 ~ /^(eDP|LVDS|DSI)/ { print $1; exit }'
 }
 
-detect_external_display() {
+detect_external_displays() {
     laptop_display=$1
 
     command_available xrandr || return 0
@@ -100,9 +100,12 @@ detect_external_display() {
         awk -v laptop_display="$laptop_display" '
             / connected/ && $1 != laptop_display && $1 !~ /^(eDP|LVDS|DSI)/ {
                 print $1
-                exit
             }
         '
+}
+
+detect_external_display() {
+    detect_external_displays "$1" | awk 'NR == 1 { print; exit }'
 }
 
 detect_display_preferred_mode() {
@@ -190,59 +193,110 @@ display_position_arg() {
 
 configure_scaled_external_display_layout() {
     laptop_display=$1
-    external_display=$2
-    laptop_mode=$3
-    laptop_rate=$4
-    external_position=$5
-    external_scale=$6
+    laptop_mode=$2
+    laptop_rate=$3
+    external_position=$4
+    external_scale=$5
+    shift 5
 
-    external_mode=$(detect_display_preferred_mode "$external_display")
-    [ -n "$external_mode" ] || return 1
+    [ "$#" -gt 0 ] || return 1
 
     laptop_width=$(mode_width "$laptop_mode")
     laptop_height=$(mode_height "$laptop_mode")
-    external_width=$(mode_width "$external_mode")
-    external_height=$(mode_height "$external_mode")
     scale_x=$(scale_x_factor "$external_scale")
     scale_y=$(scale_y_factor "$external_scale")
 
     [ -n "$laptop_width" ] && [ -n "$laptop_height" ] || return 1
-    [ -n "$external_width" ] && [ -n "$external_height" ] || return 1
     [ -n "$scale_x" ] && [ -n "$scale_y" ] || return 1
 
-    external_logical_width=$(scaled_dimension "$external_width" "$scale_x")
-    external_logical_height=$(scaled_dimension "$external_height" "$scale_y")
+    layout_records=
+    total_external_width=0
+    total_external_height=0
+    max_external_width=0
+    max_external_height=0
+
+    for external_display do
+        external_mode=$(detect_display_preferred_mode "$external_display")
+        [ -n "$external_mode" ] || return 1
+
+        external_width=$(mode_width "$external_mode")
+        external_height=$(mode_height "$external_mode")
+        [ -n "$external_width" ] && [ -n "$external_height" ] || return 1
+
+        external_logical_width=$(scaled_dimension "$external_width" "$scale_x")
+        external_logical_height=$(scaled_dimension "$external_height" "$scale_y")
+
+        if [ -n "$layout_records" ]; then
+            layout_records="$layout_records
+$external_display|$external_mode|$external_logical_width|$external_logical_height"
+        else
+            layout_records="$external_display|$external_mode|$external_logical_width|$external_logical_height"
+        fi
+
+        total_external_width=$((total_external_width + external_logical_width))
+        total_external_height=$((total_external_height + external_logical_height))
+        max_external_width=$(max_dimension "$max_external_width" "$external_logical_width")
+        max_external_height=$(max_dimension "$max_external_height" "$external_logical_height")
+    done
 
     case "$external_position" in
         right|right-of)
-            framebuffer_width=$((laptop_width + external_logical_width))
-            framebuffer_height=$(max_dimension "$laptop_height" "$external_logical_height")
+            framebuffer_width=$((laptop_width + total_external_width))
+            framebuffer_height=$(max_dimension "$laptop_height" "$max_external_height")
             laptop_pos="0x0"
-            external_pos="${laptop_width}x0"
+            cursor_x=$laptop_width
+            cursor_y=
             ;;
         above)
-            framebuffer_width=$(max_dimension "$laptop_width" "$external_logical_width")
-            framebuffer_height=$((external_logical_height + laptop_height))
-            external_pos="0x0"
-            laptop_pos="0x${external_logical_height}"
+            framebuffer_width=$(max_dimension "$laptop_width" "$max_external_width")
+            framebuffer_height=$((total_external_height + laptop_height))
+            laptop_pos="0x${total_external_height}"
+            cursor_x=
+            cursor_y=0
             ;;
         below)
-            framebuffer_width=$(max_dimension "$laptop_width" "$external_logical_width")
-            framebuffer_height=$((laptop_height + external_logical_height))
+            framebuffer_width=$(max_dimension "$laptop_width" "$max_external_width")
+            framebuffer_height=$((laptop_height + total_external_height))
             laptop_pos="0x0"
-            external_pos="0x${laptop_height}"
+            cursor_x=
+            cursor_y=$laptop_height
             ;;
         left|left-of|*)
-            framebuffer_width=$((external_logical_width + laptop_width))
-            framebuffer_height=$(max_dimension "$laptop_height" "$external_logical_height")
-            external_pos="0x0"
-            laptop_pos="${external_logical_width}x0"
+            framebuffer_width=$((total_external_width + laptop_width))
+            framebuffer_height=$(max_dimension "$laptop_height" "$max_external_height")
+            laptop_pos="${total_external_width}x0"
+            cursor_x=0
+            cursor_y=
             ;;
     esac
 
-    set -- --fb "${framebuffer_width}x${framebuffer_height}" \
-        --output "$external_display" --mode "$external_mode" --scale "$external_scale" --pos "$external_pos" \
-        --output "$laptop_display" --primary --mode "$laptop_mode"
+    set -- --fb "${framebuffer_width}x${framebuffer_height}"
+
+    old_ifs=$IFS
+    IFS='
+'
+    for record in $layout_records; do
+        external_display=$(printf '%s\n' "$record" | cut -d'|' -f1)
+        external_mode=$(printf '%s\n' "$record" | cut -d'|' -f2)
+        external_logical_width=$(printf '%s\n' "$record" | cut -d'|' -f3)
+        external_logical_height=$(printf '%s\n' "$record" | cut -d'|' -f4)
+
+        case "$external_position" in
+            above|below)
+                external_pos="0x${cursor_y}"
+                cursor_y=$((cursor_y + external_logical_height))
+                ;;
+            *)
+                external_pos="${cursor_x}x0"
+                cursor_x=$((cursor_x + external_logical_width))
+                ;;
+        esac
+
+        set -- "$@" --output "$external_display" --mode "$external_mode" --scale "$external_scale" --pos "$external_pos"
+    done
+    IFS=$old_ifs
+
+    set -- "$@" --output "$laptop_display" --primary --mode "$laptop_mode"
 
     if [ -n "$laptop_rate" ]; then
         set -- "$@" --rate "$laptop_rate"
@@ -264,11 +318,12 @@ configure_laptop_display_layout() {
     laptop_display=$(detect_laptop_display)
     [ -n "$laptop_display" ] || return 0
 
-    external_display=$(detect_external_display "$laptop_display")
+    external_displays=$(detect_external_displays "$laptop_display")
 
-    if [ -n "$external_display" ] && [ -n "$external_scale" ] && [ "$external_scale" != "1x1" ] && [ -n "$laptop_mode" ]; then
+    if [ -n "$external_displays" ] && [ -n "$external_scale" ] && [ "$external_scale" != "1x1" ] && [ -n "$laptop_mode" ]; then
         configure_scaled_external_display_layout \
-            "$laptop_display" "$external_display" "$laptop_mode" "$laptop_rate" "$external_position" "$external_scale" &&
+            "$laptop_display" "$laptop_mode" "$laptop_rate" "$external_position" "$external_scale" \
+            $external_displays &&
             return 0
     fi
 
@@ -282,9 +337,13 @@ configure_laptop_display_layout() {
         set -- "$@" --rate "$laptop_rate"
     fi
 
-    if [ -n "$external_display" ]; then
+    if [ -n "$external_displays" ]; then
         position_arg=$(display_position_arg "$external_position")
-        set -- "$@" --output "$external_display" --auto "$position_arg" "$laptop_display"
+        anchor_display=$laptop_display
+        for external_display in $external_displays; do
+            set -- "$@" --output "$external_display" --auto "$position_arg" "$anchor_display"
+            anchor_display=$external_display
+        done
     fi
 
     xrandr "$@"

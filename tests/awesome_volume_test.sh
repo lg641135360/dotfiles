@@ -23,8 +23,13 @@ test_volume_widget_queries_mute_state() {
 }
 
 test_volume_widget_refreshes_periodically() {
+    assert_contains 'local function stop_timer(timer)' "$VOLUME_FILE"
+    assert_contains 'local refresh_timer = gears.timer {' "$VOLUME_FILE"
     assert_contains 'timeout = 2,' "$VOLUME_FILE"
     assert_contains 'callback = update_volume,' "$VOLUME_FILE"
+    assert_contains 'local function dispose()' "$VOLUME_FILE"
+    assert_contains 'stop_timer(refresh_timer)' "$VOLUME_FILE"
+    assert_contains 'dispose = dispose,' "$VOLUME_FILE"
 }
 
 test_volume_widget_renders_muted_state_explicitly() {

@@ -30,6 +30,18 @@ local function parse_mute_state(output)
     return nil
 end
 
+local function stop_timer(timer)
+    if not timer then
+        return
+    end
+
+    if timer.stop then
+        timer:stop()
+    elseif timer.started ~= nil then
+        timer.started = false
+    end
+end
+
 local function create_volume_widget(options)
     local ctpp = beautiful.ctpp
     local compact = options and options.compact
@@ -174,11 +186,15 @@ local function create_volume_widget(options)
     end
 
     update_volume()
-    gears.timer {
+    local refresh_timer = gears.timer {
         timeout = 2,
         autostart = true,
         callback = update_volume,
     }
+
+    local function dispose()
+        stop_timer(refresh_timer)
+    end
 
     vol_widget:buttons(gears.table.join(
         awful.button({ }, 4, function()
@@ -193,7 +209,11 @@ local function create_volume_widget(options)
         awful.button({ }, 3, open_volume_control)
     ))
 
-    return vol_widget, update_volume
+    return {
+        widget = vol_widget,
+        update = update_volume,
+        dispose = dispose,
+    }
 end
 
 return {

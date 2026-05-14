@@ -8,12 +8,21 @@
 # Add Homebrew PATH (linuxbrew) so awesome-spawned scripts can find brew-installed binaries
 append_path_if_exists "/home/linuxbrew/.linuxbrew/bin"
 
+apply_display_layout() {
+    configure_laptop_display_layout 2880x1800 120 left 1.5x1.5
+}
+
+if [ "${1:-}" = "--display-layout" ]; then
+    apply_display_layout
+    exit 0
+fi
+
 # Wait for X11 to be ready
 sleep 2
 
 prepare_xresources
 
-configure_laptop_display_layout 2880x1800 120 left 1.5x1.5
+apply_display_layout
 
 # set touchpad natural scrolling and tap-to-click
 touchpad_id=$(xinput list 2>/dev/null | grep -i 'Touchpad' | sed 's/.*id=\([0-9]*\).*/\1/')

@@ -306,7 +306,7 @@ main() {
         if command -v awesome >/dev/null 2>&1; then
             awesome_config_dir="$HOME/.config/awesome"
             if [ -d "$awesome_config_dir" ]; then
-                for dep in lain collision; do
+                for dep in collision; do
                     if [ -d "$awesome_config_dir/$dep" ]; then
                         log_info "Saving AwesomeWM dependency: $dep"
                         mkdir -p "$awesome_deps_save_dir"
@@ -336,19 +336,9 @@ main() {
             rm -rf "$awesome_deps_save_dir"
         fi
 
-        # Check and install AwesomeWM external dependencies (if not in backup, clone fresh)
+        # Check and install optional AwesomeWM external dependencies (if not in backup, clone fresh)
         if command -v awesome >/dev/null 2>&1; then
             awesome_config_dir="$HOME/.config/awesome"
-
-            if [ ! -d "$awesome_config_dir/lain" ]; then
-                log_info "Installing AwesomeWM dependency: lain"
-                if command -v git >/dev/null 2>&1; then
-                    git clone https://github.com/lcpz/lain.git "$awesome_config_dir/lain" || \
-                        log_warn "Failed to clone lain, please install it manually"
-                else
-                    log_warn "git not found, cannot install lain automatically"
-                fi
-            fi
 
             if [ ! -d "$awesome_config_dir/collision" ]; then
                 log_info "Installing AwesomeWM dependency: collision"
