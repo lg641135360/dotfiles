@@ -1088,3 +1088,23 @@
 - 已做：提交前复核当前工作树和 diff，确认待提交范围仅为 `AGENTS.md` 与 `logs/trace.md`；复核相关 trace/memory 偏好，确认本轮没有新增个人偏好，因此不修改 `memory/`；准备按 Lore commit 协议创建本地提交，不执行推送。
 - 验证：提交前执行 `git diff --check`，并复核本轮提示词 trace 记录数量与变更范围。
 - 后续：提交完成后复查 `git status --short --branch`，确认本地分支领先远端且工作树干净；如需推送需用户另行要求。
+
+- 目的：按用户要求将当前 live Codex CLI 的 GPT-5.5 context window 从默认约 258k 调回 1M。
+- 已做：先读取项目 memory 与相关 trace，再定位仓库内无 Codex context window 配置；检查 live `/home/rikoo/.codex/config.toml`，发现 `model_context_window = 1000000` 与 `model_auto_compact_token_limit = 800000` 已存在但被注释。已备份原配置到 `/tmp/codex-config-context-window-backup-20260514T023246Z.toml`，随后启用这两个字段，保留 `model = "gpt-5.5"`、`model_provider = "mtcode"`、hooks 与 OMX 其它配置不变。同步更新长期偏好，明确 GPT-5.5 优先显式使用 1M context window 与 800k 自动压缩阈值。
+- 验证：用 Python `tomllib` 解析 `/home/rikoo/.codex/config.toml` 并断言 `model == "gpt-5.5"`、`model_context_window == 1000000`、`model_auto_compact_token_limit == 800000`、`features.hooks is True`；`codex debug models` 成功加载配置并输出模型目录；`codex --help` 正常返回。
+- 后续：新开的 Codex 会话会读取 1M context window；当前已经运行的会话若状态栏仍显示旧窗口，重启/新开 Codex 会话即可。当前仓库只修改 memory 与 trace，没有提交或推送。
+
+- 目的：修正上一轮 GPT-5.5 context window 配置方式；用户反馈重启后仍显示约 258k，说明单独启用顶层 `model_context_window` / `model_auto_compact_token_limit` 未改变 Codex 0.130.0 的有效模型目录窗口。
+- 已做：复核 live `/home/rikoo/.codex/config.toml`、`codex-cli 0.130.0`、Homebrew/npm Codex 来源与 `codex debug models`；确认内置/当前模型目录里的 `gpt-5.5.context_window` 仍为 `272000`。通过临时 `CODEX_HOME` 验证 `model_catalog_json` 是模型目录 JSON 文件路径，并能覆盖 `gpt-5.5` 的窗口。备份 live 配置到 `/tmp/codex-config-gpt55-catalog-backup-20260514T023828Z.toml`，生成 `/home/rikoo/.codex/model-catalog.gpt55-1m.json`，把其中 `gpt-5.5` 的 `context_window`、`max_context_window`、`auto_compact_token_limit` 设为 `1000000`、`1000000`、`800000`；随后在 `/home/rikoo/.codex/config.toml` 增加 `model_catalog_json = "/home/rikoo/.codex/model-catalog.gpt55-1m.json"`，保留原顶层字段作为辅助说明。同步修正长期偏好，明确 Codex 0.130.0 需要 catalog override。
+- 验证：Python `tomllib` 解析 live config 并断言 `model == "gpt-5.5"`、两个顶层窗口字段与 `model_catalog_json` 路径正确；`codex debug models` 现在对 `gpt-5.5` 返回 `context_window=1000000`、`max_context_window=1000000`、`effective_context_window_percent=95`、`auto_compact_token_limit=800000`；直接解析本地 catalog JSON 也确认同样字段；`codex --help` 退出码为 0 且没有目标 deprecated/unstable 警告。
+- 后续：新开的 Codex 会话应显示 1M 窗口；如果升级 Codex 后内置模型目录已经修正或字段语义变化，可移除本地 `model_catalog_json` 覆盖并复跑 `codex debug models` 验证。当前只改 live Codex 配置、本地 catalog 文件、`memory/` 与 `logs/trace.md`，没有提交或推送。
+
+- 目的：按用户要求把当前 Awesome 桌面 managed 窗口调整为圆角，并让已运行桌面立即生效。
+- 已做：先补 `tests/awesome_layout_test.sh` 锁定窗口圆角策略，再在 `.config/linux/awesome/client.lua` 增加 `apply_client_shape(c)`：普通/对话框等 managed 窗口使用 `beautiful.border_radius` 生成 `gears.shape.rounded_rect`，全屏或最大化窗口退回 `gears.shape.rectangle`，并监听 fullscreen/maximized 相关属性变化重新应用 shape。同步更新 `.config/linux/awesome/README.md` 与 `.config/linux/awesome/theme/README.md` 说明窗口圆角、全屏/最大化边界和 picom 职责；更新 `memory/organizing_preferences.md` 记录该 Awesome 圆角策略。已将 `client.lua`、Awesome README 与 theme README 同步到 live `~/.config/awesome`，备份目录为 `/tmp/awesome-client-rounded-live-backup-20260514T025127Z`，并重载 Awesome。
+- 验证：红测阶段 `./tests/awesome_layout_test.sh` 先按预期失败在缺少 `apply_client_shape(c)`；实现后通过 `./tests/awesome_layout_test.sh`、`./tests/awesome_ui_architecture_test.sh`、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、`sh -n .config/scripts/lock .config/linux/awesome/autostart.sh .config/linux/awesome/autostart/*.sh`、`bash -n tests/awesome_*_test.sh`、repo/live `awesome -k`、关键 Lua `loadfile` 检查、repo/live `cmp` 与 `git diff --check`。`picom --diagnostics` 显示 v10 使用 `/home/rikoo/.config/picom.conf` 且 Shape/Composite 可用；`awesome-client 'awesome.restart()'` 因重启断连返回 DBus NoReply，随后 `awesome.startup_errors` 返回 `ok`；运行态检查当前 10 个 managed 窗口 `rounded=10 rectangular=0`。
+- 后续：普通窗口现在应呈现 Awesome 层圆角；如果某个应用仍显示尖角，优先检查它是否是 override-redirect/非 managed 窗口、是否全屏/最大化、或是否被 picom 的 `rounded-corners-exclude` 排除。当前未提交或推送。
+
+- 目的：按用户要求将当前未提交改动发布到 GitHub 远端，范围包含 Awesome managed 窗口圆角实现/文档/测试，以及本轮 Codex GPT-5.5 context window catalog override 的 memory/trace 记录。
+- 已做：提交前复核 `memory/organizing_preferences.md` 与相关 trace，确认待发布范围为 `.config/linux/awesome/README.md`、`.config/linux/awesome/client.lua`、`.config/linux/awesome/theme/README.md`、`tests/awesome_layout_test.sh`、`memory/organizing_preferences.md` 与 `logs/trace.md`；确认本地与 `origin/main` 无分歧，且 Awesome live 文件已经与仓库同步。
+- 验证：发布前通过完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、`sh -n .config/scripts/lock .config/linux/awesome/autostart.sh .config/linux/awesome/autostart/*.sh`、`bash -n tests/awesome_*_test.sh`、repo/live `awesome -k`、关键 Lua `loadfile` 检查、repo/live `cmp`、`git diff --check`；运行态 `awesome.startup_errors` 返回 `ok`，当前 managed 窗口统计为 `rounded=10 rectangular=0`。
+- 后续：按 Lore commit 协议创建本地提交并推送 `origin/main`；推送后复查本地 HEAD、远端 HEAD 与工作树状态。

@@ -117,3 +117,5 @@
 - 当前不用 Firefox / DownThemAll；Awesome 浮动规则不应保留默认示例里的 `DTA` instance 自动浮动规则，避免把历史 Firefox 扩展规则混入当前桌面行为判断。
 - 对钉钉会议的 `tblive` 窗口，优先只处理 `type=utility` 的辅助窗口：设为浮动并 `skip_taskbar=true`，避免会控条/状态条占据任务列表或平铺布局；真正的 `tblive` 普通会议窗口仍应保留为可见任务。
 - 对 Awesome 顶栏整体观感，优先使用悬浮圆角容器：外层 wibar 保持透明并继续预留工作区高度，内层状态栏顶部和左右留少量空隙，避免窗口覆盖状态栏同时让顶栏不贴屏幕边缘。
+- 对 Awesome managed 窗口圆角，优先在 `client.lua` 用 `c.shape` 消费 `beautiful.border_radius`；普通/对话框等窗口保持圆角，全屏或最大化时退回 `gears.shape.rectangle`，避免边角露出桌面背景。picom 继续负责阴影、透明和 compositor 层圆角。
+- 对 Codex CLI 0.130.0 的 GPT-5.5 配置，单独设置 `model_context_window = 1000000` / `model_auto_compact_token_limit = 800000` 不会改变 TUI/status 使用的模型目录窗口；优先用 `model_catalog_json` 指向本地 catalog override，并在该 JSON 里把 `gpt-5.5` 的 `context_window`、`max_context_window`、`auto_compact_token_limit` 固定为 `1000000`、`1000000`、`800000`。

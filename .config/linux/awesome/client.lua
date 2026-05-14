@@ -5,6 +5,17 @@ local beautiful = require("beautiful")
 
 local M = {}
 
+local function apply_client_shape(c)
+    if c.fullscreen or c.maximized or c.maximized_horizontal or c.maximized_vertical then
+        c.shape = gears.shape.rectangle
+        return
+    end
+
+    c.shape = function(cr, w, h)
+        gears.shape.rounded_rect(cr, w, h, beautiful.border_radius or 0)
+    end
+end
+
 function M.setup(args)
     local clientkeys = args.clientkeys
     local clientbuttons = args.clientbuttons
@@ -74,7 +85,13 @@ function M.setup(args)
             awful.placement.no_offscreen(c)
         end
 
+        apply_client_shape(c)
     end)
+
+    client.connect_signal("property::fullscreen", apply_client_shape)
+    client.connect_signal("property::maximized", apply_client_shape)
+    client.connect_signal("property::maximized_horizontal", apply_client_shape)
+    client.connect_signal("property::maximized_vertical", apply_client_shape)
 
     client.connect_signal("request::titlebars", function(c)
         local buttons = gears.table.join(
