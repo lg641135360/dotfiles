@@ -38,8 +38,8 @@ reject_readme() {
 }
 
 editor="$(git config --file "$CONFIG" --get core.editor)"
-if [[ "$editor" != "nvim" ]]; then
-  echo "git core.editor should be nvim, got: $editor"
+if [[ "$editor" != "vim" ]]; then
+  echo "git core.editor should be vim, got: $editor"
   exit 1
 fi
 
@@ -49,8 +49,8 @@ if [[ "$template" != "~/.config/git/template" ]]; then
   exit 1
 fi
 
-grep -q 'core.editor.*nvim\|默认编辑器.*nvim\|Git 默认编辑器' "$README" || {
-  echo "Git README should document nvim as the default editor"
+grep -q 'core.editor.*vim\|默认编辑器.*Vim\|Git 默认编辑器' "$README" || {
+  echo "Git README should document vim as the default editor"
   exit 1
 }
 

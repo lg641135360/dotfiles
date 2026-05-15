@@ -83,6 +83,6 @@
 ## 配置说明
 
 - **自定义 alias** 放在 `~/.config/git/config` 中
-- **Git 默认编辑器** 通过 `core.editor = nvim` 固定为 Neovim，供 `git commit`、`git rebase -i` 等交互式 Git 命令使用
+- **Git 默认编辑器** 通过 `core.editor = vim` 固定为 Vim，供 `git commit`、`git rebase -i` 等交互式 Git 命令使用；当前优先规避 VSCode 集成终端里 `nvim` 的输入兼容问题
 - **oh-my-zsh alias** 通过 `~/.config/zsh/.zshrc` 中的 `zinit snippet OMZP::git` 加载
 - 优先使用 oh-my-zsh 提供的标准 alias，只在必要时添加自定义 alias
