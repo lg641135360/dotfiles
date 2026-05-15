@@ -1292,3 +1292,8 @@
 - 已做：将仓库内 `.config/shared/git/config` 的 `core.editor` 从 `nvim` 改为 `vim`，同步更新 `.config/shared/git/README.md` 与 `tests/git_config_test.sh`；同时把 live `~/.config/git/config` 也从 `nvim` 改成 `vim`，确保当前环境立即生效。README 已说明当前优先用 `vim` 规避 VSCode 集成终端下 `nvim` 的输入兼容问题。没有提交或推送。
 - 验证：`./tests/git_config_test.sh` 通过；`bash -n tests/git_config_test.sh` 通过；`git diff --check -- .config/shared/git/config .config/shared/git/README.md tests/git_config_test.sh` 通过；`git config --get core.editor`、`git config --file .config/shared/git/config --get core.editor` 与 `git config --file /home/rikoo/.config/git/config --get core.editor` 都返回 `vim`；`git config --show-origin --get-all core.editor` 显示当前优先生效的 `file:/home/rikoo/.config/git/config` 已是 `vim`；`cmp -s .config/shared/git/config /home/rikoo/.config/git/config` 通过，repo/live 已同步。
 - 后续：当前 Git 默认编辑器已切到 `vim` 并立即生效；如果后面要把这次 Git 配置调整纳入版本历史，下一步再单独提交 `.config/shared/git/*` 与 `tests/git_config_test.sh`。当前已同步 live，未提交、未推送。
+
+- 目的：按用户要求把这次 Git 默认编辑器调整提交并推送到远程。
+- 已做：先确认 root 仓库相对 `origin/main` 仍可 fast-forward；随后将 `.config/shared/git/config`、`.config/shared/git/README.md`、`tests/git_config_test.sh` 与对应 `logs/trace.md` 记录打包提交为 `dc7c52b`（`Keep Git commits editable in VSCode by falling back to Vim`），并推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`。live `~/.config/git/config` 仍保持与仓库配置一致，为 `vim`。
+- 验证：push 前已复跑 `./tests/git_config_test.sh`、`bash -n tests/git_config_test.sh`、`git diff --check -- .config/shared/git/config .config/shared/git/README.md tests/git_config_test.sh logs/trace.md`；push 返回 `2116eab..dc7c52b  HEAD -> main`，说明该提交已成功发布到远端。
+- 后续：当前还需把这条“已推送”记录本身提交回 `logs/trace.md`，让 trace 与远端状态一致；Git 默认编辑器调整本身已经生效且已发布。
