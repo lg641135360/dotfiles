@@ -1277,3 +1277,8 @@
 - 已做：先在 `.config/shared/nvim` 子仓库复核提交边界，只纳入本轮 Neovim 清理、体感键位增强、Catppuccin 高亮收口、Neo-tree 语义护栏与 `render-markdown` / Treesitter 0.12 兼容层；随后按 Lore commit 协议在子仓库创建本地提交 `61dba51`（`Keep Neovim cleanup aligned with retained workflows and 0.12 behavior`）。root 仓库侧明确排除 `.config/linux/awesome/autostart/ubuntu_x64.sh` 这条无关旧改动，只准备提交 `.config/shared/nvim` submodule pointer、Neovim 根仓库测试与 `logs/trace.md`。
 - 验证：提交前已再次确认 root 仅剩一条无关 Awesome 脏改动未纳入本轮提交范围；子仓库提交创建后，root `git diff --submodule=log -- .config/shared/nvim` 已能正确显示 `9517bde..61dba51` 的 submodule 更新。
 - 后续：下一步只需在 root 仓库提交 submodule pointer、测试与 trace，即完成这一批 Neovim 改动的本地提交整理；当前仍未推送。
+
+- 目的：按用户要求把这一批 Neovim 改动实际发布到远端 GitHub，同时继续排除无关的 Awesome 旧脏改动。
+- 已做：先分别对 `.config/shared/nvim` 子仓库与 root 仓库执行 `git fetch origin main`，确认都还能 fast-forward；随后将子仓库提交 `61dba51` 推送到 `git@github.com:lg641135360/neovim.git` 的 `main`；再将 root 提交 `a1dabf1` 推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`。整轮发布过程中持续排除了 `.config/linux/awesome/autostart/ubuntu_x64.sh` 这条无关旧脏改动，没有把它混进 Neovim 发布。
+- 验证：push 前 ancestry 检查结果为 `SUBMODULE_FF_OK=true`、`ROOT_FF_OK=true`；push 返回分别为 `9517bde..61dba51  HEAD -> main` 与 `dfe60a5..a1dabf1  HEAD -> main`，说明子仓库与 root 仓库都已成功发布到远端。
+- 后续：当前还需把这条“已推送”记录本身提交回 root 仓库，确保 `logs/trace.md` 与实际发布状态一致；Awesome 那条旧脏改动仍留在工作区，未提交、未推送。
