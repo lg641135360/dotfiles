@@ -26,6 +26,8 @@ neo_tree_parity_check="$(mktemp)"
 autopairs_check="$(mktemp)"
 format_keymap_check="$(mktemp)"
 grep_word_check="$(mktemp)"
+grep_dir_check="$(mktemp)"
+grep_advanced_check="$(mktemp)"
 treesitter_compat_check="$(mktemp)"
 lock_file="$NVIM/lazy-lock.json"
 lock_backup="$(mktemp)"
@@ -34,7 +36,7 @@ cp "$lock_file" "$lock_backup"
 
 cleanup() {
   cp "$lock_backup" "$lock_file"
-  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$quit_command_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$diagnostic_nav_check" "$theme_check" "$statusline_check" "$tabline_check" "$cmake_check" "$neo_tree_parity_check" "$autopairs_check" "$format_keymap_check" "$grep_word_check" "$treesitter_compat_check"
+  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$quit_command_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$diagnostic_nav_check" "$theme_check" "$statusline_check" "$tabline_check" "$cmake_check" "$neo_tree_parity_check" "$autopairs_check" "$format_keymap_check" "$grep_word_check" "$grep_dir_check" "$grep_advanced_check" "$treesitter_compat_check"
   rm -f "$lock_backup"
 }
 trap cleanup EXIT
@@ -140,6 +142,9 @@ for _, lhs in ipairs({
   "<leader>ft",
   "<leader>ff",
   "<leader>fg",
+  "<leader>fG",
+  "<leader>fD",
+  "<leader>fd",
   "<leader>sw",
   "<leader>fm",
   "<leader>df",
@@ -187,6 +192,12 @@ require_callback("n", "<leader>ff")
 require_desc_contains("n", "<leader>ff", "Find Files")
 require_callback("n", "<leader>fg")
 require_desc_contains("n", "<leader>fg", "Find Grep")
+require_callback("n", "<leader>fG")
+require_desc_contains("n", "<leader>fG", "Find Grep with constraints")
+require_callback("n", "<leader>fD")
+require_desc_contains("n", "<leader>fD", "Find Grep in current file directory")
+require_callback("n", "<leader>fd")
+require_desc_contains("n", "<leader>fd", "Find Grep in directory")
 require_callback("n", "<leader>sw")
 require_desc_contains("n", "<leader>sw", "Grep word or selection")
 require_callback("x", "<leader>sw")
@@ -703,6 +714,144 @@ Snacks.picker.grep_word = original
 print("GREP_WORD_CALL_COUNT=" .. tostring(call_count))
 LUA
 
+cat >"$grep_dir_check" <<'LUA'
+local function inspect_mapping(lhs, label, expected_desc)
+  local mapping = vim.fn.maparg(lhs, "n", false, true)
+  print(("%s_LHS=%s"):format(label, tostring(mapping.lhs)))
+  print(("%s_DESC=%s"):format(label, tostring(mapping.desc)))
+  print(("%s_CALLBACK=%s"):format(label, tostring(type(mapping.callback) == "function")))
+
+  if type(mapping.callback) ~= "function" then
+    error(("%s should be a callback mapping"):format(lhs))
+  end
+  if mapping.desc ~= expected_desc then
+    error(("%s should use desc %s, got %s"):format(lhs, expected_desc, tostring(mapping.desc)))
+  end
+
+  return mapping
+end
+
+if not Snacks or not Snacks.picker or type(Snacks.picker.grep) ~= "function" then
+  error("Snacks.picker.grep should be available")
+end
+
+local grep_calls = {}
+local original_grep = Snacks.picker.grep
+Snacks.picker.grep = function(opts)
+  grep_calls[#grep_calls + 1] = opts
+end
+
+local root = vim.fn.tempname()
+local current_dir = root .. "/module/subdir"
+local prompt_dir = root .. "/module"
+vim.fn.mkdir(current_dir, "p")
+local file = current_dir .. "/sample.txt"
+vim.fn.writefile({ "grep dir check" }, file)
+vim.cmd.edit(vim.fn.fnameescape(file))
+
+local current_mapping = inspect_mapping("<leader>fD", "GREP_CURRENT_FILE_DIR", "Find Grep in current file directory")
+current_mapping.callback()
+
+local input_called = false
+local input_prompt
+local input_default
+local input_completion
+local original_ui_input = vim.ui.input
+vim.ui.input = function(opts, on_confirm)
+  input_called = true
+  input_prompt = opts.prompt
+  input_default = opts.default
+  input_completion = opts.completion
+  on_confirm(prompt_dir)
+end
+
+local prompt_mapping = inspect_mapping("<leader>fd", "GREP_PROMPT_DIR", "Find Grep in directory")
+prompt_mapping.callback()
+
+vim.ui.input = original_ui_input
+Snacks.picker.grep = original_grep
+
+print("GREP_CURRENT_CALL_COUNT=" .. tostring(#grep_calls >= 1 and 1 or 0))
+print("GREP_CURRENT_DIR=" .. tostring(grep_calls[1] and grep_calls[1].dirs and grep_calls[1].dirs[1]))
+print("GREP_PROMPT_INPUT_CALLED=" .. tostring(input_called))
+print("GREP_PROMPT_INPUT_PROMPT=" .. tostring(input_prompt))
+print("GREP_PROMPT_INPUT_DEFAULT=" .. tostring(input_default))
+print("GREP_PROMPT_INPUT_COMPLETION=" .. tostring(input_completion))
+print("GREP_TOTAL_CALL_COUNT=" .. tostring(#grep_calls))
+print("GREP_PROMPT_SELECTED_DIR=" .. tostring(grep_calls[2] and grep_calls[2].dirs and grep_calls[2].dirs[1]))
+
+vim.cmd.bdelete({ bang = true })
+vim.fn.delete(root, "rf")
+LUA
+
+cat >"$grep_advanced_check" <<'LUA'
+local mapping = vim.fn.maparg("<leader>fG", "n", false, true)
+print("GREP_ADVANCED_LHS=" .. tostring(mapping.lhs))
+print("GREP_ADVANCED_DESC=" .. tostring(mapping.desc))
+print("GREP_ADVANCED_CALLBACK=" .. tostring(type(mapping.callback) == "function"))
+
+if type(mapping.callback) ~= "function" then
+  error("<leader>fG should be a callback mapping")
+end
+
+if not Snacks or not Snacks.picker or type(Snacks.picker.grep) ~= "function" then
+  error("Snacks.picker.grep should be available")
+end
+
+local grep_calls = {}
+local original_grep = Snacks.picker.grep
+Snacks.picker.grep = function(opts)
+  grep_calls[#grep_calls + 1] = opts
+end
+
+local select_called = false
+local select_prompt
+local select_items
+local select_format_result
+local original_ui_select = vim.ui.select
+vim.ui.select = function(items, opts, on_choice)
+  select_called = true
+  select_prompt = opts.prompt
+  select_items = items
+  select_format_result = opts.format_item and opts.format_item(items[2]) or nil
+  on_choice(items[2])
+end
+
+local input_prompts = {}
+local input_defaults = {}
+local original_ui_input = vim.ui.input
+local answers = {
+  ["Include globs (,): "] = "*.lua, *.md",
+  ["Exclude globs (,): "] = "node_modules, .git",
+  ["Extra rg args: "] = "-i --max-filesize 1M",
+}
+
+vim.ui.input = function(opts, on_confirm)
+  input_prompts[#input_prompts + 1] = opts.prompt
+  input_defaults[#input_defaults + 1] = tostring(opts.default)
+  on_confirm(answers[opts.prompt])
+end
+
+mapping.callback()
+
+vim.ui.select = original_ui_select
+vim.ui.input = original_ui_input
+Snacks.picker.grep = original_grep
+
+local opts = grep_calls[1] or {}
+print("GREP_ADVANCED_SELECT_CALLED=" .. tostring(select_called))
+print("GREP_ADVANCED_SELECT_PROMPT=" .. tostring(select_prompt))
+print("GREP_ADVANCED_SELECT_ITEMS=" .. tostring(select_items and #select_items or 0))
+print("GREP_ADVANCED_SELECT_FORMAT=" .. tostring(select_format_result))
+print("GREP_ADVANCED_INPUT_PROMPTS=" .. table.concat(input_prompts, "|"))
+print("GREP_ADVANCED_INPUT_DEFAULTS=" .. table.concat(input_defaults, "|"))
+print("GREP_ADVANCED_CALL_COUNT=" .. tostring(#grep_calls))
+print("GREP_ADVANCED_REGEX=" .. tostring(opts.regex))
+print("GREP_ADVANCED_GLOB=" .. table.concat(opts.glob or {}, ","))
+print("GREP_ADVANCED_EXCLUDE=" .. table.concat(opts.exclude or {}, ","))
+print("GREP_ADVANCED_ARGS=" .. table.concat(opts.args or {}, ","))
+LUA
+
 cat >"$treesitter_compat_check" <<'LUA'
 vim.cmd("enew!")
 vim.bo.filetype = "markdown"
@@ -983,7 +1132,30 @@ require_block_pattern "$ff_files_block" 'Snacks\.picker\.files' "<leader>ff shou
 require_block_pattern "$ff_files_block" 'hidden = true' "<leader>ff files picker should include hidden files/directories by default"
 require_block_pattern "$ff_files_block" 'ignored = false' "<leader>ff files picker should keep ignored/gitignored files disabled by default"
 reject_block_pattern "$ff_files_block" 'ignored = true' "<leader>ff files picker must not enable ignored/gitignored files by default"
-reject_pattern 'grep_with_ripgrep_args|grep_in_directory|grep_current_file_directory|<leader>fG|<leader>fd|<leader>fD' "$NVIM/lua/plugins/snacks.lua" "advanced grep helpers should not be active until reintroduced deliberately"
+fg_advanced_block="$(extract_snacks_keymap_block '<leader>fG' 'Find Grep with constraints' "$NVIM/lua/plugins/snacks.lua")" || {
+  echo "<leader>fG keymap block should exist in snacks.lua"
+  exit 1
+}
+require_block_pattern "$fg_advanced_block" 'grep_with_constraints' "<leader>fG should route through the guided advanced grep helper"
+fd_current_block="$(extract_snacks_keymap_block '<leader>fD' 'Find Grep in current file directory' "$NVIM/lua/plugins/snacks.lua")" || {
+  echo "<leader>fD keymap block should exist in snacks.lua"
+  exit 1
+}
+require_block_pattern "$fd_current_block" 'grep_current_file_directory' "<leader>fD should route through the current-file-directory grep helper"
+fd_prompt_block="$(extract_snacks_keymap_block '<leader>fd' 'Find Grep in directory' "$NVIM/lua/plugins/snacks.lua")" || {
+  echo "<leader>fd keymap block should exist in snacks.lua"
+  exit 1
+}
+require_block_pattern "$fd_prompt_block" 'grep_prompt_directory' "<leader>fd should route through the prompt-driven directory grep helper"
+require_pattern 'local function normalize_directory' "$NVIM/lua/plugins/snacks.lua" "directory grep helpers should normalize user-provided paths"
+require_pattern 'local function split_csv_patterns' "$NVIM/lua/plugins/snacks.lua" "advanced grep helper should split include/exclude globs from comma-separated input"
+require_pattern 'local function split_whitespace_args' "$NVIM/lua/plugins/snacks.lua" "advanced grep helper should split extra rg args from whitespace-separated input"
+require_pattern 'local function current_search_directory' "$NVIM/lua/plugins/snacks.lua" "directory grep helpers should reuse the current buffer directory when available"
+require_pattern 'local function grep_in_directory' "$NVIM/lua/plugins/snacks.lua" "directory grep helpers should funnel through a shared grep_in_directory helper"
+require_pattern 'local function grep_with_constraints' "$NVIM/lua/plugins/snacks.lua" "guided advanced grep helper should exist"
+require_pattern 'vim\.ui\.input\(\{' "$NVIM/lua/plugins/snacks.lua" "directory grep prompt should use vim.ui.input / Snacks input"
+require_pattern 'vim\.ui\.select\(modes' "$NVIM/lua/plugins/snacks.lua" "guided advanced grep helper should start with a mode selector"
+reject_pattern 'grep_with_ripgrep_args' "$NVIM/lua/plugins/snacks.lua" "old raw ripgrep-args helper should not come back"
 require_pattern 'dashboard = \{ enabled = false \}' "$NVIM/lua/plugins/snacks.lua" "snacks dashboard should be disabled for native startup"
 require_pattern 'timeout = 8000' "$NVIM/lua/plugins/snacks.lua" "snacks notifier should keep warnings visible long enough to read"
 require_pattern 'width = \{ min = 50, max = 0\.7 \}' "$NVIM/lua/plugins/snacks.lua" "snacks notifier should use a wider notification window"
@@ -1257,9 +1429,14 @@ reject_pattern 'Trouble diagnostics|folke/trouble.nvim|:Trouble' "$NVIM/README.m
 require_pattern '<leader>ff' "$NVIM/README.md" "README should document snacks file picker keymaps"
 require_pattern '<leader>ff.*隐藏文件|隐藏文件.*<leader>ff|hidden.*<leader>ff|<leader>ff.*hidden' "$NVIM/README.md" "README should document that <leader>ff includes hidden files/directories"
 require_pattern 'ignored.*不.*默认|不.*默认.*ignored|gitignored.*不.*默认|不.*默认.*gitignored' "$NVIM/README.md" "README should document that <leader>ff does not include ignored/gitignored files by default"
+require_pattern '<leader>fG.*高级 grep|高级 grep.*<leader>fG|<leader>fG.*extra rg args|extra rg args.*<leader>fG' "$NVIM/README.md" "README should document the guided advanced grep keymap"
+require_pattern 'regex.*/.*fixed string.*/.*whole word|whole word.*/.*fixed string.*/.*regex' "$NVIM/README.md" "README should document the guided advanced grep search modes"
+require_pattern 'include.*globs|globs.*include|exclude.*globs|globs.*exclude' "$NVIM/README.md" "README should document include/exclude globs for guided advanced grep"
+require_pattern '--max-filesize 1M|-i --max-filesize 1M' "$NVIM/README.md" "README should show an extra rg args example for guided advanced grep"
+require_pattern '<leader>fD.*当前文件.*目录|当前文件.*目录.*<leader>fD|<leader>fD.*目录' "$NVIM/README.md" "README should document the current-file-directory grep keymap"
+require_pattern '<leader>fd.*指定目录|指定目录.*<leader>fd|<leader>fd.*只搜索该目录|只搜索该目录.*<leader>fd' "$NVIM/README.md" "README should document the prompt-based directory grep keymap"
 require_pattern '<A-h>.*hidden|hidden.*<A-h>|<A-h>.*隐藏|隐藏.*<A-h>' "$NVIM/README.md" "README should document the Snacks hidden toggle"
 require_pattern '<A-i>.*ignored|ignored.*<A-i>|<A-i>.*忽略|忽略.*<A-i>' "$NVIM/README.md" "README should document the Snacks ignored toggle"
-reject_pattern '<leader>fG|<leader>fd|<leader>fD' "$NVIM/README.md" "advanced grep keymaps should stay backlog-only for now"
 reject_pattern '`lspkind.nvim`|lspkind\.nvim' "$NVIM/README.md" "README should not list lspkind.nvim as active after inline icon cleanup"
 require_pattern 'kind icons.*本地映射|本地映射.*kind icons' "$NVIM/README.md" "README should document local completion kind icons"
 reject_pattern '`nvim-treesitter-textobjects`|nvim-treesitter-textobjects' "$NVIM/README.md" "README should not list treesitter textobjects as an active plugin after cleanup"
@@ -1411,6 +1588,40 @@ require_pattern 'GREP_WORD_VISUAL_LHS=<(leader|Space)>sw' "$out_file" "<leader>s
 require_pattern 'GREP_WORD_VISUAL_DESC=Grep word or selection' "$out_file" "<leader>sw should describe grep-word search in visual mode"
 require_pattern 'GREP_WORD_VISUAL_CALLBACK=true' "$out_file" "<leader>sw should be a callback mapping in visual mode"
 require_pattern 'GREP_WORD_CALL_COUNT=2' "$out_file" "<leader>sw should route both normal and visual mappings through Snacks.picker.grep_word"
+
+run_nvim_luafile "$grep_dir_check" "directory grep runtime check"
+
+require_pattern 'GREP_CURRENT_FILE_DIR_LHS=<(leader|Space)>fD' "$out_file" "<leader>fD should remain mapped"
+require_pattern 'GREP_CURRENT_FILE_DIR_DESC=Find Grep in current file directory' "$out_file" "<leader>fD should describe current-file-directory grep"
+require_pattern 'GREP_CURRENT_FILE_DIR_CALLBACK=true' "$out_file" "<leader>fD should be a callback mapping"
+require_pattern 'GREP_CURRENT_CALL_COUNT=1' "$out_file" "<leader>fD should trigger a grep call"
+require_pattern 'GREP_CURRENT_DIR=.*/module/subdir/?' "$out_file" "<leader>fD should grep inside the current file directory"
+require_pattern 'GREP_PROMPT_DIR_LHS=<(leader|Space)>fd' "$out_file" "<leader>fd should remain mapped"
+require_pattern 'GREP_PROMPT_DIR_DESC=Find Grep in directory' "$out_file" "<leader>fd should describe prompt-based directory grep"
+require_pattern 'GREP_PROMPT_DIR_CALLBACK=true' "$out_file" "<leader>fd should be a callback mapping"
+require_pattern 'GREP_PROMPT_INPUT_CALLED=true' "$out_file" "<leader>fd should prompt for a target directory"
+require_pattern 'GREP_PROMPT_INPUT_PROMPT=Grep directory: ' "$out_file" "<leader>fd should use a clear directory prompt"
+require_pattern 'GREP_PROMPT_INPUT_DEFAULT=.*/module/subdir/?' "$out_file" "<leader>fd prompt should default to the current file directory"
+require_pattern 'GREP_PROMPT_INPUT_COMPLETION=dir' "$out_file" "<leader>fd prompt should enable directory completion"
+require_pattern 'GREP_TOTAL_CALL_COUNT=2' "$out_file" "<leader>fd should issue a second grep call after confirming a directory"
+require_pattern 'GREP_PROMPT_SELECTED_DIR=.*/module/?' "$out_file" "<leader>fd should grep inside the prompted directory"
+
+run_nvim_luafile "$grep_advanced_check" "guided advanced grep runtime check"
+
+require_pattern 'GREP_ADVANCED_LHS=<(leader|Space)>fG' "$out_file" "<leader>fG should remain mapped"
+require_pattern 'GREP_ADVANCED_DESC=Find Grep with constraints' "$out_file" "<leader>fG should describe guided advanced grep"
+require_pattern 'GREP_ADVANCED_CALLBACK=true' "$out_file" "<leader>fG should be a callback mapping"
+require_pattern 'GREP_ADVANCED_SELECT_CALLED=true' "$out_file" "<leader>fG should begin with a mode selector"
+require_pattern 'GREP_ADVANCED_SELECT_PROMPT=Grep mode:' "$out_file" "<leader>fG should use a clear mode prompt"
+require_pattern 'GREP_ADVANCED_SELECT_ITEMS=3' "$out_file" "<leader>fG should offer regex/fixed/word modes"
+require_pattern 'GREP_ADVANCED_SELECT_FORMAT=Fixed string' "$out_file" "<leader>fG should format select items through their labels"
+require_pattern 'GREP_ADVANCED_INPUT_PROMPTS=Include globs \\(,\\): \\|Exclude globs \\(,\\): \\|Extra rg args: ' "$out_file" "<leader>fG should prompt for include, exclude and extra args in order"
+require_pattern 'GREP_ADVANCED_INPUT_DEFAULTS=nil\\|nil\\|' "$out_file" "guided advanced grep should only default the extra args prompt to an empty string"
+require_pattern 'GREP_ADVANCED_CALL_COUNT=1' "$out_file" "<leader>fG should issue one grep call after collecting constraints"
+require_pattern 'GREP_ADVANCED_REGEX=false' "$out_file" "fixed-string guided grep should disable regex"
+require_pattern 'GREP_ADVANCED_GLOB=.*lua,.*md' "$out_file" "guided advanced grep should pass include globs through opts.glob"
+require_pattern 'GREP_ADVANCED_EXCLUDE=node_modules,.git' "$out_file" "guided advanced grep should pass exclude globs through opts.exclude"
+require_pattern 'GREP_ADVANCED_ARGS=-i,--max-filesize,1M' "$out_file" "guided advanced grep should split extra rg args into separate argv entries"
 
 run_nvim_luafile "$treesitter_compat_check" "treesitter query predicates compat runtime check"
 

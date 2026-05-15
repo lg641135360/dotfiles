@@ -92,8 +92,8 @@
 - 对当前 Neovim `<leader>q` 关闭文件体验，未保存修改时应主动用 Snacks/vim.notify 浮动警告提示保存与强制关闭方式，不要直接让 `:bdelete` 抛左下角 `No write since last change`。
 - 对当前 Neovim `<leader>q` 未保存提示，优先保留 Neovim/`:bdelete` 原生命令错误文本，只把该文本转给 Snacks 浮动通知；不要自定义解释性提示文案。
 - 对当前 Neovim 空目录/空 buffer 场景，若当前 buffer 是未命名、未修改的空 buffer，`<leader>q` 可以直接退出 Neovim，符合“没有文件需要关闭”的语义。
-- 对当前 Neovim 项目搜索体验，保留 Snacks picker/ripgrep 主线，同时补充 VSCode 风格搜索约束入口：`<leader>fd` 指定目录、`<leader>fD` 当前文件目录、`<leader>fG` 查询后追加 ripgrep 参数（include/exclude/case/word/fixed/max-filesize 等）。
-- 对当前 Neovim 搜索快捷键，暂时只保留 `<leader>fg` 作为项目 grep 主入口；`<leader>fd` / `<leader>fD` / `<leader>fG` 这类高级搜索入口先不启用，只记录为后续可能优化方向。
+- 对当前 Neovim 项目搜索体验，保留 Snacks picker/ripgrep 主线，并启用 `<leader>fg` 全项目 grep、`<leader>fD` 当前文件目录 grep、`<leader>fd` 指定目录 grep 这三层范围入口。
+- 对当前 Neovim 搜索快捷键，启用 `<leader>fG` 作为“引导式高级 grep”入口：先选择 regex / fixed string / whole word，再输入 include / exclude globs，最后可选补充额外 rg 参数；不要再退回成单行原始 ripgrep 参数输入。
 - 对当前 Neovim/CMake/clangd 体验，优先用轻量内置命令而不是 CMake 插件：`:CMakeUserPresetInit` 生成本地 `CMakeUserPresets.json`，`:CMakeConfigure [preset]` 生成/刷新 `build/compile_commands.json`，配合 clangd 的 `--compile-commands-dir=build`。
 - 对当前 Neovim 关闭文件体验，交互式 `:q` / `:quit` 也应优先走安全 buffer close 语义（复用 `:bdelete` 包装），避免从 `nvim .` 打开文件后直接退出整个 Neovim；真正退出已有文件会话继续使用 `:qa` / `:qall`。
 - 修改任何子模块内容时，提交前都要考虑是否需要同步调整该子模块自己的 README/使用文档；即使判断无需修改，也应在验证或总结中说明该判断，避免代码、配置与文档脱节。
