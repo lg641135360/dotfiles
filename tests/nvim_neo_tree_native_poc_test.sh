@@ -108,7 +108,7 @@ done
 
 # The active repo config should still keep Neo-tree and netrw disabled.
 rg -q 'nvim-neo-tree/neo-tree.nvim' "$NVIM/lua/plugins/neo-tree.lua"
-rg -q 'vim\.g\.loaded_netrw = 1' "$NVIM/lua/config/options.lua"
-rg -q 'vim\.g\.loaded_netrwPlugin = 1' "$NVIM/lua/config/options.lua"
+rg -q 'vim\.g\.loaded_netrw = 1' "$NVIM/lua/config/options"
+rg -q 'vim\.g\.loaded_netrwPlugin = 1' "$NVIM/lua/config/options"
 
 echo "nvim-neo-tree-native-poc-ok"

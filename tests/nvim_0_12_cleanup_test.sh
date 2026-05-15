@@ -3,6 +3,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NVIM="$ROOT/.config/shared/nvim"
+KEYMAP_ROOT="$NVIM/lua/config"
+OPTIONS_ENTRY="$NVIM/lua/config/options.lua"
+OPTIONS_ROOT="$NVIM/lua/config/options"
 out_file="$(mktemp)"
 data_home="$(mktemp -d)"
 state_home="$(mktemp -d)"
@@ -14,12 +17,16 @@ lsp_check="$(mktemp)"
 ui_check="$(mktemp)"
 active_spec_check="$(mktemp)"
 diagnostics_check="$(mktemp)"
+diagnostic_nav_check="$(mktemp)"
 theme_check="$(mktemp)"
 statusline_check="$(mktemp)"
 tabline_check="$(mktemp)"
 cmake_check="$(mktemp)"
 neo_tree_parity_check="$(mktemp)"
 autopairs_check="$(mktemp)"
+format_keymap_check="$(mktemp)"
+grep_word_check="$(mktemp)"
+treesitter_compat_check="$(mktemp)"
 lock_file="$NVIM/lazy-lock.json"
 lock_backup="$(mktemp)"
 
@@ -27,7 +34,7 @@ cp "$lock_file" "$lock_backup"
 
 cleanup() {
   cp "$lock_backup" "$lock_file"
-  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$quit_command_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$theme_check" "$statusline_check" "$tabline_check" "$cmake_check" "$neo_tree_parity_check" "$autopairs_check"
+  rm -rf "$out_file" "$data_home" "$state_home" "$cache_home" "$keymap_check" "$quit_command_check" "$line_edit_check" "$lsp_check" "$ui_check" "$active_spec_check" "$diagnostics_check" "$diagnostic_nav_check" "$theme_check" "$statusline_check" "$tabline_check" "$cmake_check" "$neo_tree_parity_check" "$autopairs_check" "$format_keymap_check" "$grep_word_check" "$treesitter_compat_check"
   rm -f "$lock_backup"
 }
 trap cleanup EXIT
@@ -133,6 +140,11 @@ for _, lhs in ipairs({
   "<leader>ft",
   "<leader>ff",
   "<leader>fg",
+  "<leader>sw",
+  "<leader>fm",
+  "<leader>df",
+  "<leader>dj",
+  "<leader>dk",
   "<leader>xx",
   "<leader>o",
 }) do
@@ -175,6 +187,18 @@ require_callback("n", "<leader>ff")
 require_desc_contains("n", "<leader>ff", "Find Files")
 require_callback("n", "<leader>fg")
 require_desc_contains("n", "<leader>fg", "Find Grep")
+require_callback("n", "<leader>sw")
+require_desc_contains("n", "<leader>sw", "Grep word or selection")
+require_callback("x", "<leader>sw")
+require_desc_contains("x", "<leader>sw", "Grep word or selection")
+require_callback("n", "<leader>fm")
+require_desc_contains("n", "<leader>fm", "Format buffer")
+require_callback("n", "<leader>df")
+require_desc_contains("n", "<leader>df", "Diagnostic float")
+require_callback("n", "<leader>dj")
+require_desc_contains("n", "<leader>dj", "Next diagnostic")
+require_callback("n", "<leader>dk")
+require_desc_contains("n", "<leader>dk", "Previous diagnostic")
 require_callback("n", "<leader>xx")
 require_desc_contains("n", "<leader>xx", "Diagnostics quickfix")
 require_callback("n", "<leader>o")
@@ -562,6 +586,8 @@ for _, name in ipairs({
   "lspkind-nvim",
   "blink.cmp",
   "snacks.nvim",
+  "avante.nvim",
+  "render-markdown.nvim",
   "nui.nvim",
   "mason-lspconfig.nvim",
   "lualine.nvim",
@@ -616,6 +642,101 @@ print("AUTOPAIRS_TAB_DESC=" .. tostring(tab_mapping.desc))
 print("AUTOPAIRS_STAB_DESC=" .. tostring(stab_mapping.desc))
 LUA
 
+cat >"$format_keymap_check" <<'LUA'
+local mapping = vim.fn.maparg("<leader>fm", "n", false, true)
+print("FORMAT_KEYMAP_LHS=" .. tostring(mapping.lhs))
+print("FORMAT_KEYMAP_DESC=" .. tostring(mapping.desc))
+print("FORMAT_KEYMAP_CALLBACK=" .. tostring(type(mapping.callback) == "function"))
+
+if type(mapping.callback) ~= "function" then
+  error("<leader>fm should be a callback mapping")
+end
+
+local original = package.loaded["conform"]
+local captured
+package.loaded["conform"] = {
+  format = function(opts)
+    captured = opts
+  end,
+}
+
+mapping.callback()
+
+package.loaded["conform"] = original
+
+print("FORMAT_KEYMAP_ASYNC=" .. tostring(captured and captured.async))
+print("FORMAT_KEYMAP_LSP_FALLBACK=" .. tostring(captured and captured.lsp_fallback))
+LUA
+
+cat >"$grep_word_check" <<'LUA'
+local function inspect_mapping(mode)
+  local mapping = vim.fn.maparg("<leader>sw", mode, false, true)
+  print(("GREP_WORD_%s_LHS=%s"):format(mode == "n" and "NORMAL" or "VISUAL", tostring(mapping.lhs)))
+  print(("GREP_WORD_%s_DESC=%s"):format(mode == "n" and "NORMAL" or "VISUAL", tostring(mapping.desc)))
+  print(("GREP_WORD_%s_CALLBACK=%s"):format(mode == "n" and "NORMAL" or "VISUAL", tostring(type(mapping.callback) == "function")))
+
+  if type(mapping.callback) ~= "function" then
+    error(("<leader>sw should be a callback mapping in %s mode"):format(mode))
+  end
+
+  return mapping
+end
+
+if not Snacks or not Snacks.picker or type(Snacks.picker.grep_word) ~= "function" then
+  error("Snacks.picker.grep_word should be available")
+end
+
+local normal_mapping = inspect_mapping("n")
+local visual_mapping = inspect_mapping("x")
+
+local original = Snacks.picker.grep_word
+local call_count = 0
+Snacks.picker.grep_word = function()
+  call_count = call_count + 1
+end
+
+normal_mapping.callback()
+visual_mapping.callback()
+
+Snacks.picker.grep_word = original
+
+print("GREP_WORD_CALL_COUNT=" .. tostring(call_count))
+LUA
+
+cat >"$treesitter_compat_check" <<'LUA'
+vim.cmd("enew!")
+vim.bo.filetype = "markdown"
+vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+  "First",
+  "",
+  "Second",
+})
+
+local query = vim.treesitter.query.parse("markdown", [[
+  (section
+    (paragraph (inline) @value)
+    (paragraph (inline) @value)
+    (#downcase! @value))
+]])
+local parser = vim.treesitter.get_parser(0, "markdown")
+local tree = parser:parse()[1]
+
+local ok, err = pcall(function()
+  for id, _, metadata in query:iter_captures(tree:root(), 0, 0, -1) do
+    print("TS_COMPAT_CAPTURE=" .. tostring(query.captures[id]))
+    if metadata and metadata[id] and metadata[id].text then
+      print("TS_COMPAT_METADATA_TEXT=" .. tostring(metadata[id].text))
+    end
+  end
+end)
+
+print("TS_COMPAT_OK=" .. tostring(ok))
+print("TS_COMPAT_PATCH_APPLIED=" .. tostring(vim.g.nvim_treesitter_query_predicates_compat_applied))
+if not ok then
+  print("TS_COMPAT_ERR=" .. tostring(err))
+end
+LUA
+
 cat >"$diagnostics_check" <<'LUA'
 local mapping = vim.fn.maparg("<leader>xx", "n", false, true)
 print("KEYMAP_LEADER_XX_LHS=" .. tostring(mapping.lhs))
@@ -643,6 +764,53 @@ mapping.callback()
 local qf = vim.fn.getqflist()
 print("DIAGNOSTICS_QF_COUNT=" .. tostring(#qf))
 print("DIAGNOSTICS_QF_TEXT=" .. tostring(qf[1] and qf[1].text or ""))
+LUA
+
+cat >"$diagnostic_nav_check" <<'LUA'
+local float_mapping = vim.fn.maparg("<leader>df", "n", false, true)
+local next_mapping = vim.fn.maparg("<leader>dj", "n", false, true)
+local prev_mapping = vim.fn.maparg("<leader>dk", "n", false, true)
+
+print("DIAGNOSTIC_FLOAT_LHS=" .. tostring(float_mapping.lhs))
+print("DIAGNOSTIC_FLOAT_DESC=" .. tostring(float_mapping.desc))
+print("DIAGNOSTIC_FLOAT_CALLBACK=" .. tostring(type(float_mapping.callback) == "function"))
+print("DIAGNOSTIC_NEXT_LHS=" .. tostring(next_mapping.lhs))
+print("DIAGNOSTIC_NEXT_DESC=" .. tostring(next_mapping.desc))
+print("DIAGNOSTIC_NEXT_CALLBACK=" .. tostring(type(next_mapping.callback) == "function"))
+print("DIAGNOSTIC_PREV_LHS=" .. tostring(prev_mapping.lhs))
+print("DIAGNOSTIC_PREV_DESC=" .. tostring(prev_mapping.desc))
+print("DIAGNOSTIC_PREV_CALLBACK=" .. tostring(type(prev_mapping.callback) == "function"))
+
+if type(float_mapping.callback) ~= "function" or type(next_mapping.callback) ~= "function" or type(prev_mapping.callback) ~= "function" then
+  error("diagnostic float/jump mappings should be callback mappings")
+end
+
+local original_open_float = vim.diagnostic.open_float
+local original_jump = vim.diagnostic.jump
+local captured = {}
+
+vim.diagnostic.open_float = function(bufnr, opts)
+  captured.float = { bufnr = bufnr, opts = opts }
+end
+
+vim.diagnostic.jump = function(opts)
+  captured.jumps = captured.jumps or {}
+  table.insert(captured.jumps, opts)
+end
+
+float_mapping.callback()
+next_mapping.callback()
+prev_mapping.callback()
+
+vim.diagnostic.open_float = original_open_float
+vim.diagnostic.jump = original_jump
+
+print("DIAGNOSTIC_FLOAT_SCOPE=" .. tostring(captured.float and captured.float.opts and captured.float.opts.scope))
+print("DIAGNOSTIC_FLOAT_FOCUS=" .. tostring(captured.float and captured.float.opts and captured.float.opts.focus))
+print("DIAGNOSTIC_NEXT_COUNT=" .. tostring(captured.jumps and captured.jumps[1] and captured.jumps[1].count))
+print("DIAGNOSTIC_NEXT_FLOAT=" .. tostring(captured.jumps and captured.jumps[1] and captured.jumps[1].float))
+print("DIAGNOSTIC_PREV_COUNT=" .. tostring(captured.jumps and captured.jumps[2] and captured.jumps[2].count))
+print("DIAGNOSTIC_PREV_FLOAT=" .. tostring(captured.jumps and captured.jumps[2] and captured.jumps[2].float))
 LUA
 
 
@@ -797,6 +965,8 @@ require_pattern 'blink\.is_visible\(\)' "$NVIM/lua/config/autopairs.lua" "native
 require_pattern 'blink\.accept\(\)' "$NVIM/lua/config/autopairs.lua" "native pairs helper should accept visible blink completion instead of inserting pair newline"
 reject_pattern 'windwp/nvim-autopairs|nvim%-autopairs|nvim-autopairs' "$NVIM/lua/plugins" "nvim-autopairs plugin spec should be removed after native pairs replacement"
 reject_pattern '"nvim-autopairs"' "$NVIM/lazy-lock.json" "nvim-autopairs should not remain in lazy-lock after native pairs replacement"
+require_pattern '"avante.nvim"' "$NVIM/lazy-lock.json" "avante.nvim should remain pinned while the AI workflow is retained"
+require_pattern '"render-markdown.nvim"' "$NVIM/lazy-lock.json" "render-markdown.nvim should remain pinned while Avante markdown rendering is retained"
 require_pattern 'native pairs helper' "$NVIM/README.md" "README should document the native pairs helper"
 reject_pattern 'Editing.*nvim-autopairs|nvim-autopairs.*Editing' "$NVIM/README.md" "README Editing row should not list nvim-autopairs as active"
 reject_pattern 'onsails/lspkind-nvim|require\("lspkind"\)' "$NVIM/lua/plugins" "lspkind-nvim should be removed after inline completion icon cleanup"
@@ -830,20 +1000,44 @@ require_pattern 'hide_gitignored = false' "$NVIM/lua/plugins/neo-tree.lua" "neo-
 require_pattern 'position = "left"' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree should keep the left sidebar position"
 require_pattern 'width = 40' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree sidebar width should be an integer column count"
 reject_pattern 'width = 0\.[0-9]+' "$NVIM/lua/plugins/neo-tree.lua" "neo-tree sidebar width must not be fractional because nvim_win_set_width requires an integer"
-require_pattern 'vim\.g\.loaded_netrw = 1' "$NVIM/lua/config/options.lua" "netrw should stay disabled while Neo-tree remains the file-tree provider"
-require_pattern 'vim\.g\.loaded_netrwPlugin = 1' "$NVIM/lua/config/options.lua" "netrwPlugin should stay disabled while Neo-tree remains the file-tree provider"
+require_pattern 'require\("config.options.base"\)\.setup\(\)' "$OPTIONS_ENTRY" "options.lua should delegate base options to a dedicated module"
+require_pattern 'require\("config.options.ui"\)\.setup\(\)' "$OPTIONS_ENTRY" "options.lua should delegate UI options to a dedicated module"
+require_pattern 'require\("config.options.diagnostics"\)\.setup\(\)' "$OPTIONS_ENTRY" "options.lua should delegate diagnostics options to a dedicated module"
+require_pattern 'require\("config.options.commands"\)\.setup\(\)' "$OPTIONS_ENTRY" "options.lua should delegate custom commands to a dedicated module"
+if [[ ! -e "$OPTIONS_ROOT/base.lua" || ! -e "$OPTIONS_ROOT/ui.lua" || ! -e "$OPTIONS_ROOT/diagnostics.lua" || ! -e "$OPTIONS_ROOT/commands.lua" ]]; then
+  echo "options refactor should keep base.lua/ui.lua/diagnostics.lua/commands.lua under lua/config/options/"
+  exit 1
+fi
+require_pattern 'vim\.g\.loaded_netrw = 1' "$OPTIONS_ROOT" "netrw should stay disabled while Neo-tree remains the file-tree provider"
+require_pattern 'vim\.g\.loaded_netrwPlugin = 1' "$OPTIONS_ROOT" "netrwPlugin should stay disabled while Neo-tree remains the file-tree provider"
 require_pattern 'nvim-treesitter/nvim-treesitter' "$NVIM/lua/plugins/ui.lua" "nvim-treesitter core should remain for syntax highlighting"
+require_pattern 'require\("config\.treesitter_compat"\)\.setup\(\)' "$NVIM/lua/plugins/ui.lua" "nvim-treesitter setup should apply the local query predicates compat patch"
+require_pattern 'first_capture_node' "$NVIM/lua/config/treesitter_compat.lua" "treesitter compat module should unwrap repeated capture lists"
+require_pattern 'query\.add_directive\("downcase!"' "$NVIM/lua/config/treesitter_compat.lua" "treesitter compat module should re-register downcase!"
+require_pattern 'query\.add_directive\("set-lang-from-info-string!"' "$NVIM/lua/config/treesitter_compat.lua" "treesitter compat module should re-register markdown info-string injection language handling"
+require_pattern 'query\.add_predicate\("nth\?"' "$NVIM/lua/config/treesitter_compat.lua" "treesitter compat module should also protect repeated capture predicates"
+require_pattern '"nvim-treesitter/nvim-treesitter"' "$NVIM/lua/plugins/avante.lua" "render-markdown should explicitly depend on nvim-treesitter"
 reject_pattern 'nvim-treesitter/nvim-treesitter-textobjects|nvim-treesitter-textobjects' "$NVIM/lua/plugins" "nvim-treesitter-textobjects should be removed because no textobjects are configured"
 reject_pattern '"nvim-treesitter-textobjects"' "$NVIM/lazy-lock.json" "nvim-treesitter-textobjects should not remain in lazy-lock after cleanup"
 require_pattern '"nvim-treesitter"' "$NVIM/lazy-lock.json" "nvim-treesitter core should remain pinned"
 reject_pattern 'akinsho/bufferline.nvim|BufferLine' "$NVIM/lua/plugins" "bufferline.nvim should be removed after native tabline replacement"
 reject_pattern '"bufferline.nvim"' "$NVIM/lazy-lock.json" "bufferline.nvim should not remain in lazy-lock after native tabline replacement"
-require_pattern '_G\.nvim_native_tabline' "$NVIM/lua/config/options.lua" "native tabline function should be defined in options.lua"
-require_pattern 'vim\.opt\.tabline = "%!v:lua\.nvim_native_tabline\(\)"' "$NVIM/lua/config/options.lua" "tabline should use native Lua tabline expression"
-require_pattern 'vim\.opt\.showtabline = 2' "$NVIM/lua/config/options.lua" "native tabline should stay visible by default"
-require_pattern 'nvim_native_buffer_goto' "$NVIM/lua/config/keymaps.lua" "buffer ordinal keymaps should use native buffer goto helper"
-require_pattern 'nvim_native_buffer_cycle' "$NVIM/lua/config/keymaps.lua" "buffer cycle keymaps should use native buffer cycle helper"
-reject_pattern 'BufferLine' "$NVIM/lua/config/keymaps.lua" "keymaps should not call BufferLine after native tabline replacement"
+require_pattern '_G\.nvim_native_buffer_goto' "$OPTIONS_ROOT" "buffer ordinal helper should remain available before keymaps load"
+require_pattern '_G\.nvim_native_buffer_cycle' "$OPTIONS_ROOT" "buffer cycle helper should remain available before keymaps load"
+require_pattern '_G\.nvim_native_tabline' "$OPTIONS_ROOT" "native tabline function should be defined in options modules"
+require_pattern 'vim\.opt\.tabline = "%!v:lua\.nvim_native_tabline\(\)"' "$OPTIONS_ROOT" "tabline should use native Lua tabline expression"
+require_pattern 'vim\.opt\.showtabline = 2' "$OPTIONS_ROOT" "native tabline should stay visible by default"
+require_pattern 'require\("config.keymaps.navigation"\)\.setup\(\)' "$NVIM/lua/config/keymaps.lua" "keymaps.lua should delegate navigation mappings to a dedicated module"
+require_pattern 'require\("config.keymaps.session"\)\.setup\(\)' "$NVIM/lua/config/keymaps.lua" "keymaps.lua should delegate session/save/quit mappings to a dedicated module"
+require_pattern 'require\("config.keymaps.editing"\)\.setup\(\)' "$NVIM/lua/config/keymaps.lua" "keymaps.lua should delegate editing mappings to a dedicated module"
+require_pattern 'vim\.g\.mapleader = " "' "$NVIM/lua/config/keymaps.lua" "keymaps.lua should keep the leader definition in the thin entrypoint"
+if [[ ! -e "$NVIM/lua/config/keymaps/shared.lua" || ! -e "$NVIM/lua/config/keymaps/navigation.lua" || ! -e "$NVIM/lua/config/keymaps/session.lua" || ! -e "$NVIM/lua/config/keymaps/editing.lua" ]]; then
+  echo "keymap refactor should keep shared.lua/navigation.lua/session.lua/editing.lua under lua/config/keymaps/"
+  exit 1
+fi
+require_pattern 'nvim_native_buffer_goto' "$KEYMAP_ROOT" "buffer ordinal keymaps should use native buffer goto helper"
+require_pattern 'nvim_native_buffer_cycle' "$KEYMAP_ROOT" "buffer cycle keymaps should use native buffer cycle helper"
+reject_pattern 'BufferLine' "$KEYMAP_ROOT" "keymaps should not call BufferLine after native tabline replacement"
 reject_pattern 'stevearc/aerial.nvim|AerialToggle|require\("aerial"\)' "$NVIM/lua/plugins" "aerial.nvim should be removed after native document symbols replacement"
 reject_pattern 'karb94/neoscroll.nvim|require\("neoscroll"\)' "$NVIM/lua/plugins" "neoscroll.nvim should be removed after native scrolling replacement"
 reject_pattern 'attilarepka/header.nvim' "$NVIM/lua/plugins" "header.nvim should be removed after header automation cleanup"
@@ -852,12 +1046,12 @@ reject_pattern '"aerial.nvim"' "$NVIM/lazy-lock.json" "aerial.nvim should not re
 reject_pattern '"neoscroll.nvim"' "$NVIM/lazy-lock.json" "neoscroll.nvim should not remain in lazy-lock after native scrolling replacement"
 reject_pattern '"header.nvim"' "$NVIM/lazy-lock.json" "header.nvim should not remain in lazy-lock after header automation cleanup"
 reject_pattern '"nvim-colorizer.lua"' "$NVIM/lazy-lock.json" "nvim-colorizer.lua should not remain in lazy-lock after color preview cleanup"
-require_pattern 'vim\.lsp\.buf\.document_symbol' "$NVIM/lua/config/keymaps.lua" "<leader>o should use native LSP document symbols"
+require_pattern 'vim\.lsp\.buf\.document_symbol' "$KEYMAP_ROOT" "<leader>o should use native LSP document symbols"
 reject_pattern 'nvim-lualine/lualine.nvim|require\(\"lualine|lualine\.setup' "$NVIM/lua/plugins" "lualine.nvim should be removed after native statusline replacement"
 reject_pattern '"lualine.nvim"' "$NVIM/lazy-lock.json" "lualine.nvim should not remain in lazy-lock after native statusline replacement"
-require_pattern '_G\.nvim_native_statusline' "$NVIM/lua/config/options.lua" "native statusline function should be defined in options.lua"
-require_pattern 'vim\.opt\.statusline = "%!v:lua\.nvim_native_statusline\(\)"' "$NVIM/lua/config/options.lua" "statusline should use native Lua statusline expression"
-require_pattern 'vim\.opt\.laststatus = 3' "$NVIM/lua/config/options.lua" "native statusline should keep global laststatus=3"
+require_pattern '_G\.nvim_native_statusline' "$OPTIONS_ROOT" "native statusline function should be defined in options modules"
+require_pattern 'vim\.opt\.statusline = "%!v:lua\.nvim_native_statusline\(\)"' "$OPTIONS_ROOT" "statusline should use native Lua statusline expression"
+require_pattern 'vim\.opt\.laststatus = 3' "$OPTIONS_ROOT" "native statusline should keep global laststatus=3"
 require_pattern '"nvim-web-devicons"' "$NVIM/lazy-lock.json" "nvim-web-devicons should remain pinned for neo-tree and avante"
 require_pattern 'folke/noice.nvim' "$NVIM/lua/plugins/noice.lua" "noice.nvim should provide the preferred floating command-line popup"
 require_pattern 'view = "cmdline_popup"' "$NVIM/lua/plugins/noice.lua" "Noice should use the cmdline popup view for ':'"
@@ -893,21 +1087,27 @@ reject_pattern '"fidget.nvim"' "$NVIM/lazy-lock.json" "fidget.nvim should not re
 reject_pattern '"lspsaga.nvim"' "$NVIM/lazy-lock.json" "lspsaga.nvim should not remain as an unexplained lock-only plugin"
 reject_pattern '"trouble.nvim"' "$NVIM/lazy-lock.json" "trouble.nvim should not remain in lazy-lock after native diagnostics quickfix replacement"
 reject_pattern 'folke/trouble.nvim|cmd = "Trouble"' "$NVIM/lua/plugins" "Trouble plugin spec should be removed after native diagnostics quickfix replacement"
-reject_pattern ':Trouble diagnostics toggle|Trouble diagnostics' "$NVIM/lua/config/keymaps.lua" "<leader>xx should not call Trouble after native diagnostics quickfix replacement"
-require_pattern 'vim\.diagnostic\.setqflist' "$NVIM/lua/config/keymaps.lua" "<leader>xx should use native vim.diagnostic.setqflist"
-require_pattern '<C-s>' "$NVIM/lua/config/keymaps.lua" "Ctrl-S should be mapped as a quick save key"
-require_pattern '<cmd>write<CR>' "$NVIM/lua/config/keymaps.lua" "Ctrl-S should save through a mode-safe write command"
-require_pattern 'local function close_current_buffer' "$NVIM/lua/config/keymaps.lua" "<leader>q should use a wrapper to protect modified buffers"
-require_pattern 'local function is_empty_unnamed_buffer' "$NVIM/lua/config/keymaps.lua" "<leader>q should detect empty unnamed buffers"
-require_pattern 'vim\.cmd\.quit' "$NVIM/lua/config/keymaps.lua" "<leader>q should quit Neovim from an empty unnamed buffer"
-require_pattern 'pcall\(vim\.cmd\.bdelete\)' "$NVIM/lua/config/keymaps.lua" "<leader>q wrapper should preserve bdelete errors"
-require_pattern 'vim\.notify\(tostring\(err\), vim\.log\.levels\.WARN\)' "$NVIM/lua/config/keymaps.lua" "<leader>q wrapper should forward original bdelete errors to floating notifications"
-require_pattern 'vim\.cmd\.bdelete' "$NVIM/lua/config/keymaps.lua" "<leader>q wrapper should close saved buffers with bdelete"
-require_pattern 'nvim_create_user_command\("BufferClose"' "$NVIM/lua/config/keymaps.lua" "BufferClose command should reuse the safe buffer close wrapper"
-require_pattern 'cnoreabbrev <expr> q .*BufferClose' "$NVIM/lua/config/keymaps.lua" ":q should be routed to BufferClose when typed exactly"
-require_pattern 'cnoreabbrev <expr> quit .*BufferClose' "$NVIM/lua/config/keymaps.lua" ":quit should be routed to BufferClose when typed exactly"
-reject_pattern '当前文件有未保存修改|已取消关闭|强制关闭并放弃修改|未保存修改' "$NVIM/lua/config/keymaps.lua" "<leader>q should not use custom unsaved-buffer wording"
-reject_pattern '<leader>q.*:q<CR>|:q<CR>.*<leader>q' "$NVIM/lua/config/keymaps.lua" "<leader>q should not use :q because it can quit Neovim when closing the last window"
+reject_pattern ':Trouble diagnostics toggle|Trouble diagnostics' "$KEYMAP_ROOT" "<leader>xx should not call Trouble after native diagnostics quickfix replacement"
+require_pattern 'vim\.diagnostic\.setqflist' "$KEYMAP_ROOT" "<leader>xx should use native vim.diagnostic.setqflist"
+require_pattern 'vim\.diagnostic\.open_float' "$KEYMAP_ROOT" "a direct diagnostics float keymap should use vim.diagnostic.open_float"
+require_pattern 'vim\.diagnostic\.jump' "$KEYMAP_ROOT" "diagnostic jump keymaps should use vim.diagnostic.jump"
+require_pattern '<leader>fm' "$KEYMAP_ROOT" "a direct format keymap should exist for immediate formatting"
+require_pattern 'require\("conform"\)\.format' "$KEYMAP_ROOT" "format keymap should route through conform.nvim"
+require_pattern '<leader>sw' "$NVIM/lua/plugins/snacks.lua" "a direct grep-word search keymap should exist"
+require_pattern 'Snacks\.picker\.grep_word' "$NVIM/lua/plugins/snacks.lua" "grep-word keymap should route through Snacks.picker.grep_word"
+require_pattern '<C-s>' "$KEYMAP_ROOT" "Ctrl-S should be mapped as a quick save key"
+require_pattern '<cmd>write<CR>' "$KEYMAP_ROOT" "Ctrl-S should save through a mode-safe write command"
+require_pattern 'local function close_current_buffer' "$KEYMAP_ROOT" "<leader>q should use a wrapper to protect modified buffers"
+require_pattern 'local function is_empty_unnamed_buffer' "$KEYMAP_ROOT" "<leader>q should detect empty unnamed buffers"
+require_pattern 'vim\.cmd\.quit' "$KEYMAP_ROOT" "<leader>q should quit Neovim from an empty unnamed buffer"
+require_pattern 'pcall\(vim\.cmd\.bdelete\)' "$KEYMAP_ROOT" "<leader>q wrapper should preserve bdelete errors"
+require_pattern 'vim\.notify\(tostring\(err\), vim\.log\.levels\.WARN\)' "$KEYMAP_ROOT" "<leader>q wrapper should forward original bdelete errors to floating notifications"
+require_pattern 'vim\.cmd\.bdelete' "$KEYMAP_ROOT" "<leader>q wrapper should close saved buffers with bdelete"
+require_pattern 'nvim_create_user_command\("BufferClose"' "$KEYMAP_ROOT" "BufferClose command should reuse the safe buffer close wrapper"
+require_pattern 'cnoreabbrev <expr> q .*BufferClose' "$KEYMAP_ROOT" ":q should be routed to BufferClose when typed exactly"
+require_pattern 'cnoreabbrev <expr> quit .*BufferClose' "$KEYMAP_ROOT" ":quit should be routed to BufferClose when typed exactly"
+reject_pattern '当前文件有未保存修改|已取消关闭|强制关闭并放弃修改|未保存修改' "$KEYMAP_ROOT" "<leader>q should not use custom unsaved-buffer wording"
+reject_pattern '<leader>q.*:q<CR>|:q<CR>.*<leader>q' "$KEYMAP_ROOT" "<leader>q should not use :q because it can quit Neovim when closing the last window"
 if [[ -e "$NVIM/lua/plugins/trouble.lua" ]]; then
   echo "trouble.lua should be removed after native diagnostics quickfix replacement"
   exit 1
@@ -932,20 +1132,21 @@ if [[ -e "$NVIM/lazyvim.json" ]]; then
   exit 1
 fi
 
-reject_pattern 'LazyVim|lazyvim_' "$NVIM/lua/config/options.lua" "options.lua should not reference LazyVim defaults"
-reject_pattern 'LazyVim|lazyvim_' "$NVIM/lua/config/keymaps.lua" "keymaps.lua should not reference LazyVim defaults"
+reject_pattern 'LazyVim|lazyvim_' "$OPTIONS_ENTRY" "options.lua entrypoint should not reference LazyVim defaults"
+reject_pattern 'LazyVim|lazyvim_' "$OPTIONS_ROOT" "options modules should not reference LazyVim defaults"
+reject_pattern 'LazyVim|lazyvim_' "$KEYMAP_ROOT" "keymaps modules should not reference LazyVim defaults"
 reject_pattern 'LazyVim|lazyvim_' "$NVIM/lua/config/autocmds.lua" "autocmds.lua should not reference LazyVim defaults"
 reject_pattern 'LazyVim|lazyvim\.plugins|add LazyVim' "$NVIM/lua/config/lazy.lua" "lazy.lua should not keep LazyVim import comments"
 reject_pattern 'lazyvim\.json|LazyVim' "$NVIM/README.md" "README should not describe LazyVim residue"
-require_pattern 'vim\.opt\.winborder = "rounded"' "$NVIM/lua/config/options.lua" "winborder should be configured through Neovim 0.12 option defaults"
-require_pattern 'vim\.opt\.pumborder = "rounded"' "$NVIM/lua/config/options.lua" "pumborder should be configured through Neovim 0.12 option defaults"
-require_pattern 'float = \{' "$NVIM/lua/config/options.lua" "diagnostic float config should be explicit"
-require_pattern 'border = "rounded"' "$NVIM/lua/config/options.lua" "diagnostic floating windows should use the rounded border default"
-require_pattern 'source = "if_many"' "$NVIM/lua/config/options.lua" "diagnostic floating windows should show source only when useful"
-require_pattern 'virtual_text = \{' "$NVIM/lua/config/options.lua" "native diagnostic virtual_text should replace tiny-inline-diagnostic"
-require_pattern 'virt_text_pos = "inline"' "$NVIM/lua/config/options.lua" "native diagnostic virtual_text should render inline"
-require_pattern 'virtual_lines = false' "$NVIM/lua/config/options.lua" "native diagnostic virtual_lines should stay disabled to avoid shifting code"
-require_pattern 'severity_sort = true' "$NVIM/lua/config/options.lua" "diagnostics should sort higher severity first"
+require_pattern 'vim\.opt\.winborder = "rounded"' "$OPTIONS_ROOT" "winborder should be configured through Neovim 0.12 option defaults"
+require_pattern 'vim\.opt\.pumborder = "rounded"' "$OPTIONS_ROOT" "pumborder should be configured through Neovim 0.12 option defaults"
+require_pattern 'float = \{' "$OPTIONS_ROOT" "diagnostic float config should be explicit"
+require_pattern 'border = "rounded"' "$OPTIONS_ROOT" "diagnostic floating windows should use the rounded border default"
+require_pattern 'source = "if_many"' "$OPTIONS_ROOT" "diagnostic floating windows should show source only when useful"
+require_pattern 'virtual_text = \{' "$OPTIONS_ROOT" "native diagnostic virtual_text should replace tiny-inline-diagnostic"
+require_pattern 'virt_text_pos = "inline"' "$OPTIONS_ROOT" "native diagnostic virtual_text should render inline"
+require_pattern 'virtual_lines = false' "$OPTIONS_ROOT" "native diagnostic virtual_lines should stay disabled to avoid shifting code"
+require_pattern 'severity_sort = true' "$OPTIONS_ROOT" "diagnostics should sort higher severity first"
 
 require_pattern '<leader>rn' "$NVIM/lua/plugins/lsp.lua" "LSP rename alias must remain"
 require_pattern '<leader>ca' "$NVIM/lua/plugins/lsp.lua" "LSP code action alias must remain"
@@ -1017,6 +1218,11 @@ require_pattern 'Noice.*cmdline_popup|cmdline_popup.*Noice|浮动命令行' "$NV
 require_pattern 'snacks\.nvim.*notifier.*input|Notifier.*input' "$NVIM/README.md" "README should keep snacks notifier/input coverage documented alongside narrow Noice cmdline usage"
 require_pattern 'Notifier.*8 秒|8 秒.*Notifier|notification history' "$NVIM/README.md" "README should document readable longer Snacks notifications and history"
 require_pattern '<C-s>.*保存|保存.*<C-s>' "$NVIM/README.md" "README should document Ctrl-S quick save"
+require_pattern '<leader>sw.*当前词|当前词.*<leader>sw|<leader>sw.*选区|选区.*<leader>sw' "$NVIM/README.md" "README should document the direct grep-word search keymap"
+require_pattern '<leader>fm.*格式化|格式化.*<leader>fm' "$NVIM/README.md" "README should document the direct format keymap"
+require_pattern '<leader>df.*诊断|诊断.*<leader>df' "$NVIM/README.md" "README should document the current-line diagnostic float keymap"
+require_pattern '<leader>dj.*diagnostic|diagnostic.*<leader>dj|<leader>dj.*诊断|诊断.*<leader>dj' "$NVIM/README.md" "README should document the next-diagnostic jump keymap"
+require_pattern '<leader>dk.*diagnostic|diagnostic.*<leader>dk|<leader>dk.*诊断|诊断.*<leader>dk' "$NVIM/README.md" "README should document the previous-diagnostic jump keymap"
 require_pattern '<leader>q.*不退出 Neovim|不退出 Neovim.*<leader>q|:bdelete' "$NVIM/README.md" "README should document that <leader>q closes buffers instead of quitting Neovim"
 require_pattern ':q.*关闭当前文件 buffer|关闭当前文件 buffer.*:q' "$NVIM/README.md" "README should document that :q closes the current buffer in this config"
 require_pattern '原生命令错误文本.*Snacks 浮动通知|Snacks 浮动通知.*原生命令错误文本' "$NVIM/README.md" "README should document that original bdelete errors are forwarded to floating notifications"
@@ -1032,6 +1238,7 @@ require_pattern '<leader>tb' "$NVIM/README.md" "README should document the nativ
 require_pattern '原生.*tabline|tabline.*原生' "$NVIM/README.md" "README should document the native tabline replacement"
 reject_pattern 'UI / Picker.*bufferline\.nvim|`bufferline.nvim`|BufferLine' "$NVIM/README.md" "README should not list bufferline.nvim as active after native tabline replacement"
 require_pattern '<leader>xx.*quickfix|quickfix.*<leader>xx' "$NVIM/README.md" "README should document native quickfix diagnostics for <leader>xx"
+require_pattern '<leader>df.*float|float.*<leader>df|浮窗.*<leader>df' "$NVIM/README.md" "README should document the diagnostic float entry"
 require_pattern '<leader>o.*document symbols|document symbols.*<leader>o' "$NVIM/README.md" "README should document native document symbols for <leader>o"
 require_pattern 'Outline.*gO|gO.*Outline' "$NVIM/README.md" "README should document native gO outline support"
 reject_pattern 'Editing.*neoscroll\.nvim|`neoscroll.nvim`' "$NVIM/README.md" "README should not list neoscroll.nvim as active after native scrolling replacement"
@@ -1040,6 +1247,9 @@ reject_pattern '`header.nvim`|header\.nvim' "$NVIM/README.md" "README should not
 require_pattern '自动文件头.*不.*启用|不.*启用.*自动文件头|header.*不.*启用' "$NVIM/README.md" "README should document that automatic header insertion is not active by default"
 reject_pattern '`nvim-colorizer.lua`|nvim-colorizer\.lua' "$NVIM/README.md" "README should not list nvim-colorizer.lua as active after color preview cleanup"
 require_pattern '颜色预览.*不.*启用|不.*启用.*颜色预览|color preview.*not active' "$NVIM/README.md" "README should document that color preview is not active by default"
+require_pattern 'render-markdown|query predicates|重复 capture|TSNode|0\.12' "$NVIM/README.md" "README should document the local render-markdown / treesitter query predicates compatibility patch"
+require_pattern 'AI[[:space:]]+\| `avante\.nvim`' "$NVIM/README.md" "README should list avante.nvim as the retained AI plugin"
+require_pattern 'render-markdown\.nvim' "$NVIM/README.md" "README should document render-markdown.nvim as part of the retained AI/markdown stack"
 reject_pattern 'Outline.*aerial\.nvim|`aerial.nvim`|Aerial' "$NVIM/README.md" "README should not list aerial.nvim as active after native symbols replacement"
 require_pattern '原生 `statusline`|statusline.*laststatus=3' "$NVIM/README.md" "README should document the native statusline replacement"
 reject_pattern 'UI / Picker.*lualine\.nvim|`lualine.nvim`' "$NVIM/README.md" "README should not list lualine.nvim as active after native statusline replacement"
@@ -1067,6 +1277,7 @@ require_pattern '第一个 `configurePresets\\[\\]\\.name`|linux-base' "$NVIM/RE
 require_pattern 'build preset.*configurePreset|configurePreset.*build preset' "$NVIM/README.md" "README should document build preset to configurePreset resolution"
 require_pattern 'headless 测试' "$NVIM/README.md" "README should document headless runs skip automatic tool installation"
 require_pattern 'conform\.nvim' "$NVIM/README.md" "README should document conform formatting"
+require_pattern 'fallback to LSP|LSP formatter|lsp formatter|fallback 到 LSP' "$NVIM/README.md" "README should document that the direct format keymap can fall back to LSP formatting"
 require_pattern 'neo-tree.*整数宽度|整数宽度.*neo-tree|width.*40' "$NVIM/README.md" "README should document the integer neo-tree sidebar width"
 require_pattern 'Neo-tree.*保留|保留.*Neo-tree' "$NVIM/README.md" "README should document the Neo-tree retention decision"
 require_pattern 'follow current file' "$NVIM/README.md" "README should document follow-current-file as part of the Neo-tree parity reason"
@@ -1138,6 +1349,8 @@ require_pattern 'ACTIVE_PLUGIN lspkind-nvim=false' "$out_file" "lspkind-nvim sho
 require_pattern 'ACTIVE_PLUGIN blink.cmp=true' "$out_file" "blink.cmp should remain active after lspkind removal"
 require_pattern 'ACTIVE_PLUGIN lualine.nvim=false' "$out_file" "lualine should not remain active after native statusline replacement"
 require_pattern 'ACTIVE_PLUGIN snacks.nvim=true' "$out_file" "snacks.nvim should remain active for picker/notifier/input coverage"
+require_pattern 'ACTIVE_PLUGIN avante.nvim=true' "$out_file" "avante.nvim should remain active while the AI workflow is retained"
+require_pattern 'ACTIVE_PLUGIN render-markdown.nvim=true' "$out_file" "render-markdown.nvim should remain active as Avante's markdown renderer"
 require_pattern 'SNACKS_DASHBOARD_ENABLED=false' "$out_file" "snacks dashboard should be disabled at runtime"
 require_pattern 'SNACKS_NOTIFIER_TIMEOUT=8000' "$out_file" "snacks notifier timeout should be longer at runtime"
 require_pattern 'SNACKS_NOTIFIER_WIDTH_MIN=50' "$out_file" "snacks notifier should have a wider minimum width at runtime"
@@ -1181,6 +1394,30 @@ require_pattern 'AUTOPAIRS_CR_DESC=Native pairs: newline inside empty pair' "$ou
 reject_pattern 'AUTOPAIRS_TAB_DESC=Native pairs' "$out_file" "native pairs helper should not own Tab"
 reject_pattern 'AUTOPAIRS_STAB_DESC=Native pairs' "$out_file" "native pairs helper should not own Shift-Tab"
 
+run_nvim_luafile "$format_keymap_check" "format keymap runtime check"
+
+require_pattern 'FORMAT_KEYMAP_LHS=<(leader|Space)>fm' "$out_file" "<leader>fm should remain mapped"
+require_pattern 'FORMAT_KEYMAP_DESC=Format buffer' "$out_file" "<leader>fm should describe direct formatting"
+require_pattern 'FORMAT_KEYMAP_CALLBACK=true' "$out_file" "<leader>fm should be implemented as a callback mapping"
+require_pattern 'FORMAT_KEYMAP_ASYNC=true' "$out_file" "format keymap should format asynchronously"
+require_pattern 'FORMAT_KEYMAP_LSP_FALLBACK=true' "$out_file" "format keymap should allow LSP fallback formatting"
+
+run_nvim_luafile "$grep_word_check" "grep word runtime check"
+
+require_pattern 'GREP_WORD_NORMAL_LHS=<(leader|Space)>sw' "$out_file" "<leader>sw should remain mapped in normal mode"
+require_pattern 'GREP_WORD_NORMAL_DESC=Grep word or selection' "$out_file" "<leader>sw should describe grep-word search in normal mode"
+require_pattern 'GREP_WORD_NORMAL_CALLBACK=true' "$out_file" "<leader>sw should be a callback mapping in normal mode"
+require_pattern 'GREP_WORD_VISUAL_LHS=<(leader|Space)>sw' "$out_file" "<leader>sw should remain mapped in visual mode"
+require_pattern 'GREP_WORD_VISUAL_DESC=Grep word or selection' "$out_file" "<leader>sw should describe grep-word search in visual mode"
+require_pattern 'GREP_WORD_VISUAL_CALLBACK=true' "$out_file" "<leader>sw should be a callback mapping in visual mode"
+require_pattern 'GREP_WORD_CALL_COUNT=2' "$out_file" "<leader>sw should route both normal and visual mappings through Snacks.picker.grep_word"
+
+run_nvim_luafile "$treesitter_compat_check" "treesitter query predicates compat runtime check"
+
+require_pattern 'TS_COMPAT_OK=true' "$out_file" "treesitter compat patch should keep repeated-capture directives from crashing"
+require_pattern 'TS_COMPAT_PATCH_APPLIED=true' "$out_file" "treesitter compat patch should mark itself applied at runtime"
+require_pattern 'TS_COMPAT_METADATA_TEXT=first' "$out_file" "treesitter compat patch should unwrap repeated captures to the first node text"
+
 run_nvim_luafile "$diagnostics_check" "native diagnostics runtime check"
 
 require_pattern 'KEYMAP_LEADER_XX_LHS=<(leader|Space)>xx' "$out_file" "<leader>xx should remain mapped"
@@ -1189,6 +1426,24 @@ require_pattern 'KEYMAP_LEADER_XX_DESC=.*Diagnostics quickfix' "$out_file" "<lea
 require_pattern 'TROUBLE_COMMAND_EXISTS=0' "$out_file" "Trouble command should not exist after native diagnostics quickfix replacement"
 require_pattern 'DIAGNOSTICS_QF_COUNT=[1-9]' "$out_file" "<leader>xx callback should populate the quickfix list from diagnostics"
 require_pattern 'DIAGNOSTICS_QF_TEXT=.*native quickfix diagnostic' "$out_file" "quickfix diagnostics should include the injected diagnostic text"
+
+run_nvim_luafile "$diagnostic_nav_check" "diagnostic float/jump runtime check"
+
+require_pattern 'DIAGNOSTIC_FLOAT_LHS=<(leader|Space)>df' "$out_file" "<leader>df should remain mapped"
+require_pattern 'DIAGNOSTIC_FLOAT_DESC=Diagnostic float' "$out_file" "<leader>df should describe current-line diagnostic float"
+require_pattern 'DIAGNOSTIC_FLOAT_CALLBACK=true' "$out_file" "<leader>df should be a callback mapping"
+require_pattern 'DIAGNOSTIC_NEXT_LHS=<(leader|Space)>dj' "$out_file" "<leader>dj should remain mapped"
+require_pattern 'DIAGNOSTIC_NEXT_DESC=Next diagnostic' "$out_file" "<leader>dj should describe next diagnostic jump"
+require_pattern 'DIAGNOSTIC_NEXT_CALLBACK=true' "$out_file" "<leader>dj should be a callback mapping"
+require_pattern 'DIAGNOSTIC_PREV_LHS=<(leader|Space)>dk' "$out_file" "<leader>dk should remain mapped"
+require_pattern 'DIAGNOSTIC_PREV_DESC=Previous diagnostic' "$out_file" "<leader>dk should describe previous diagnostic jump"
+require_pattern 'DIAGNOSTIC_PREV_CALLBACK=true' "$out_file" "<leader>dk should be a callback mapping"
+require_pattern 'DIAGNOSTIC_FLOAT_SCOPE=line' "$out_file" "<leader>df should open a line-scoped diagnostic float"
+require_pattern 'DIAGNOSTIC_FLOAT_FOCUS=false' "$out_file" "<leader>df should open diagnostics float without stealing focus"
+require_pattern 'DIAGNOSTIC_NEXT_COUNT=1' "$out_file" "<leader>dj should jump to the next diagnostic"
+require_pattern 'DIAGNOSTIC_NEXT_FLOAT=true' "$out_file" "<leader>dj should show a float when jumping to the next diagnostic"
+require_pattern 'DIAGNOSTIC_PREV_COUNT=-1' "$out_file" "<leader>dk should jump to the previous diagnostic"
+require_pattern 'DIAGNOSTIC_PREV_FLOAT=true' "$out_file" "<leader>dk should show a float when jumping to the previous diagnostic"
 
 run_nvim_luafile "$theme_check" "theme runtime check"
 
