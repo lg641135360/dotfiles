@@ -21,6 +21,6 @@ run_first_custom "Snipaste" \
     "$HOME"/Downloads/Snipaste-2.11.2-x86_64.AppImage \
     "$HOME"/Documents/Snipaste-2.11.2-x86_64.AppImage
 run_common_tray_services
-run_common_desktop_services picom --experimental-backends
+run_common_desktop_services picom
 run greenclip daemon
 # run dunst  # use naughty instead

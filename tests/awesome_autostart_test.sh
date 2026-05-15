@@ -578,6 +578,9 @@ test_platform_specific_behaviors_remain_declared() {
     assert_contains '"$HOME"/Applications/Snipaste-2.11.2-*.AppImage' "$UBUNTU_X64_FILE"
     assert_contains '"$HOME"/Applications/Snipaste-*.AppImage' "$UBUNTU_X64_FILE"
     assert_not_contains 'run_custom "Snipaste-2.11.2-x86_64.AppImage" ~/Documents/Snipaste-2.11.2-x86_64.AppImage' "$UBUNTU_X64_FILE"
+    assert_contains 'run_common_desktop_services picom' "$UBUNTU_X64_FILE"
+    assert_not_contains 'run_common_desktop_services picom --experimental-backends' "$UBUNTU_X64_FILE"
+    assert_contains 'run_common_desktop_services picom --experimental-backends' "$UBUNTU_ARM_FILE"
     assert_contains 'run greenclip daemon' "$UBUNTU_X64_FILE"
 }
 

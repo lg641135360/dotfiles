@@ -1282,3 +1282,8 @@
 - 已做：先分别对 `.config/shared/nvim` 子仓库与 root 仓库执行 `git fetch origin main`，确认都还能 fast-forward；随后将子仓库提交 `61dba51` 推送到 `git@github.com:lg641135360/neovim.git` 的 `main`；再将 root 提交 `a1dabf1` 推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`。整轮发布过程中持续排除了 `.config/linux/awesome/autostart/ubuntu_x64.sh` 这条无关旧脏改动，没有把它混进 Neovim 发布。
 - 验证：push 前 ancestry 检查结果为 `SUBMODULE_FF_OK=true`、`ROOT_FF_OK=true`；push 返回分别为 `9517bde..61dba51  HEAD -> main` 与 `dfe60a5..a1dabf1  HEAD -> main`，说明子仓库与 root 仓库都已成功发布到远端。
 - 后续：当前还需把这条“已推送”记录本身提交回 root 仓库，确保 `logs/trace.md` 与实际发布状态一致；Awesome 那条旧脏改动仍留在工作区，未提交、未推送。
+
+- 目的：按用户要求把之前残留的 `.config/linux/awesome/autostart/ubuntu_x64.sh` 改动也单独收口并发布，不与前面的 Neovim 提交混在一起。
+- 已做：将 `.config/linux/awesome/autostart/ubuntu_x64.sh` 中 `run_common_desktop_services picom --experimental-backends` 调整为 `run_common_desktop_services picom`，并顺手去掉尾随空白；同时扩展 `tests/awesome_autostart_test.sh`，显式锁定 Ubuntu x86_64 不再传 `--experimental-backends`、而 Ubuntu aarch64 仍保留该参数，避免后续平台脚本再次混淆。未更新 README：当前 `.config/linux/awesome/autostart/README.md` 只说明 `picom` 是公共服务，不描述 Ubuntu x86_64 的 backend flag 细节，因此这轮无需额外文档改写。尚未同步 live `~/.config/awesome`。
+- 验证：`./tests/awesome_autostart_test.sh` 通过；`sh -n .config/linux/awesome/autostart.sh .config/linux/awesome/autostart/common.sh .config/linux/awesome/autostart/*.sh` 通过；`bash -n tests/awesome_autostart_test.sh` 通过；`git diff --check -- .config/linux/awesome/autostart/ubuntu_x64.sh tests/awesome_autostart_test.sh` 通过。
+- 后续：下一步只需把这条 Awesome autostart 调整连同 trace 一起提交并推送；当前未同步 live、未提交、未推送。
