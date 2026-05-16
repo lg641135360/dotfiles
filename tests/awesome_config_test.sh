@@ -36,6 +36,10 @@ test_volume_widget_uses_capability_detection() {
     assert_contains 'has_volume = (platform.os == "Linux" and command_exists("pactl")),' "$CONFIG_FILE"
 }
 
+test_brightness_widget_is_limited_to_aarch64_profiles() {
+    assert_contains 'has_brightness = (platform.os == "Linux" and (platform.arch == "aarch64" or platform.arch == "arm64")),' "$CONFIG_FILE"
+}
+
 test_net_interfaces_are_flattened_after_convergence() {
     assert_contains 'net_interfaces = "wlan0|eth0|enp|wlp",' "$CONFIG_FILE"
     assert_not_contains 'and "wlan0|eth0|enp|wlp"' "$CONFIG_FILE"
@@ -55,6 +59,7 @@ test_config_keeps_xft_dpi_global_without_per_screen_overrides() {
 
 test_config_exposes_command_capability_helper
 test_volume_widget_uses_capability_detection
+test_brightness_widget_is_limited_to_aarch64_profiles
 test_net_interfaces_are_flattened_after_convergence
 test_config_exposes_compact_wibar_thresholds
 test_config_keeps_xft_dpi_global_without_per_screen_overrides

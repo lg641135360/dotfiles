@@ -57,6 +57,9 @@ local config = {
     -- Volume widget: enabled on systems with pulseaudio/pipewire command surface
     has_volume = (platform.os == "Linux" and command_exists("pactl")),
 
+    -- Brightness widget: only enabled for Linux aarch64/arm64 Awesome profile
+    has_brightness = (platform.os == "Linux" and (platform.arch == "aarch64" or platform.arch == "arm64")),
+
     -- Network interface pattern
     net_interfaces = "wlan0|eth0|enp|wlp",
 

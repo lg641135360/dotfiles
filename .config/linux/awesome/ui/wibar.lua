@@ -301,7 +301,19 @@ local function create_sysinfo_bundle(config, screen, compact)
     local sysinfo_widget = system_widgets.sysinfo_widget
     local system_row = system_widgets.system_row
     local make_separator = system_widgets.make_separator
+    local brightness_bundle = nil
     local volume_bundle = nil
+
+    if config.has_brightness then
+        brightness_bundle = require("widgets.brightness").create({
+            compact = compact,
+        })
+    end
+
+    if brightness_bundle then
+        system_row:add(make_separator())
+        system_row:add(brightness_bundle.widget)
+    end
 
     if config.has_volume then
         volume_bundle = require("widgets.volume").create({
@@ -312,6 +324,9 @@ local function create_sysinfo_bundle(config, screen, compact)
     end
 
     local function dispose()
+        if brightness_bundle and brightness_bundle.dispose then
+            brightness_bundle.dispose()
+        end
         if volume_bundle and volume_bundle.dispose then
             volume_bundle.dispose()
         end

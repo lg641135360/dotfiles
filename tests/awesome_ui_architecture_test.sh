@@ -7,6 +7,7 @@ BINDINGS_FILE=$REPO_ROOT/.config/linux/awesome/bindings.lua
 WIBAR_FILE=$REPO_ROOT/.config/linux/awesome/ui/wibar.lua
 ACTIONS_FILE=$REPO_ROOT/.config/linux/awesome/actions.lua
 SYSTEM_WIDGETS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/system.lua
+BRIGHTNESS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/brightness.lua
 README_FILE=$REPO_ROOT/.config/linux/awesome/README.md
 
 fail() {
@@ -206,6 +207,12 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'local function create_separator(ctpp)' "$WIBAR_FILE"
     assert_contains 'local function create_sysinfo_bundle(config, screen, compact)' "$WIBAR_FILE"
     assert_contains 'compact = compact == nil and is_compact_screen(screen, config) or compact' "$WIBAR_FILE"
+    assert_contains 'local brightness_bundle = nil' "$WIBAR_FILE"
+    assert_contains 'if config.has_brightness then' "$WIBAR_FILE"
+    assert_contains 'brightness_bundle = require("widgets.brightness").create({' "$WIBAR_FILE"
+    assert_contains 'if brightness_bundle then' "$WIBAR_FILE"
+    assert_contains 'brightness_bundle.widget' "$WIBAR_FILE"
+    assert_contains 'brightness_bundle.dispose()' "$WIBAR_FILE"
     assert_contains 'local function dispose_status_widgets(s)' "$WIBAR_FILE"
     assert_contains 'local function ensure_primary_status_widgets(config, ctpp, s, compact)' "$WIBAR_FILE"
     assert_contains 'if s.mystatusbundle and s.mystatusspec == spec then' "$WIBAR_FILE"
@@ -516,8 +523,11 @@ test_readme_documents_current_awesome_modules() {
     assert_contains 'autostart.sh' "$README_FILE"
     assert_contains 'ui/wibar.lua' "$README_FILE"
     assert_contains 'widgets/system.lua' "$README_FILE"
+    assert_contains 'widgets/brightness.lua' "$README_FILE"
     assert_contains 'widgets/volume.lua' "$README_FILE"
     assert_contains 'CPU/MEM 直接读取 `/proc/stat` 与 `/proc/meminfo`' "$README_FILE"
+    assert_contains 'aarch64/arm64 的笔记本 Awesome 配置会额外启用 BRI' "$README_FILE"
+    assert_contains '直接读取 `/sys/class/backlight`' "$README_FILE"
     assert_contains '可选外部依赖' "$README_FILE"
     assert_not_contains 'git clone https://github.com/lcpz/lain.git' "$README_FILE"
 }
@@ -534,6 +544,8 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains 'sysinfo / clock / systray 的胶囊权重会一起再压一档' "$README_FILE"
     assert_contains 'sysinfo / clock / systray 的胶囊权重会一起再压一档' "$README_FILE"
     assert_contains '托盘只放在主屏，并使用更小图标、深色胶囊背景和细边框' "$README_FILE"
+    assert_contains '只在 Linux aarch64/arm64 的 Awesome 配置里尝试启用' "$README_FILE"
+    assert_contains '只有检测到背光设备时才显示' "$README_FILE"
     assert_contains '全量模式使用 `CPU/MEM/BAT/VOL` 完整标签' "$README_FILE"
     assert_contains '外接屏热插拔、`xrandr` 改变几何或主屏切换后' "$README_FILE"
     assert_contains '重新判断主屏状态区和 full/compact 模式' "$README_FILE"
@@ -551,6 +563,10 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains 'MEM 显示内存使用率和 top MEM 进程' "$README_FILE"
     assert_contains 'BAT hover 显示充放电状态、当前电量、功率和可估算的剩余/充满时间' "$README_FILE"
     assert_contains '检测到多个电池时会聚合成一个 BAT 读数' "$README_FILE"
+    assert_contains '在 Linux aarch64/arm64 且检测到背光设备时，BRI hover 会显示当前亮度百分比、背光设备名与原始亮度值' "$README_FILE"
+    assert_contains '安装 `brightnessctl` 且当前用户对背光设备有写权限时，可在 BRI 上用滚轮加减亮度' "$README_FILE"
+    assert_contains '未安装时滚轮会提示缺少 `brightnessctl` 并给出安装命令' "$README_FILE"
+    assert_contains '若 `brightnessctl` 已安装但当前用户没有写权限，则会提示把用户加入对应设备组' "$README_FILE"
     assert_contains '使用 5 秒后台缓存，hover 时不临时执行 `ps`' "$README_FILE"
     assert_contains '右键 VOL 会尝试打开 `pavucontrol`' "$README_FILE"
     assert_contains '缺少 `pavucontrol` 或启动失败时会提示' "$README_FILE"
