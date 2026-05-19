@@ -13,10 +13,10 @@ Three platform-specific configs, deployed by `install.sh` to `~/.config/picom.co
 ## Features
 
 - **Backend**: glx compositor baseline
-- **Blur**: Ubuntu x64 当前使用 dual_kawase strength 10，并保留背景模糊；其它平台仍按各自原始基线
+- **Blur**: Ubuntu x64 当前使用 dual_kawase strength 12，并保留背景和窗口 frame 模糊；其它平台仍按各自原始基线
 - **Shadows**: Ubuntu x64 当前使用 12px radius、0.28 opacity、`-6/-6` offset，并让 `utility/dialog` 恢复轻阴影同时排除 `tblive`；其它平台继续保留各自原始策略
 - **Rounded corners**: Ubuntu x64 当前收口到 12px，与 Awesome 窗口 `border_radius = 12` 对齐；其它平台仍保持原始半径
-- **Opacity**: Ubuntu x64 当前使用 0.90 inactive、1.0 active、1.0 frame、0.95 menus；Alacritty/kitty 不再被 picom 强制拉回 100% opacity，而是交回终端自己的透明度设置
+- **Opacity**: Ubuntu x64 当前使用 0.90 inactive、0.98 active、0.92 frame、0.95 menus；Alacritty/kitty 不再被 picom 强制拉回 100% opacity，而是交回终端自己的透明度设置
 - **Fading**: 0.03 step in/out with 5ms delta
 
 ## Autostart

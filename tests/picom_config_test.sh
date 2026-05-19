@@ -27,7 +27,8 @@ test_shared_visual_baseline() {
     assert_contains 'shadow-offset-x = -6' "$PICOM_UBUNTU_FILE"
     assert_contains 'shadow-offset-y = -6' "$PICOM_UBUNTU_FILE"
     assert_contains 'inactive-opacity = 0.90' "$PICOM_UBUNTU_FILE"
-    assert_contains 'frame-opacity = 1.0' "$PICOM_UBUNTU_FILE"
+    assert_contains 'active-opacity = 0.98' "$PICOM_UBUNTU_FILE"
+    assert_contains 'frame-opacity = 0.92' "$PICOM_UBUNTU_FILE"
     assert_contains 'corner-radius = 12' "$PICOM_UBUNTU_FILE"
     assert_contains 'corner-radius = 12; }' "$PICOM_UBUNTU_FILE"
     assert_contains "utility = { shadow = true; corner-radius = 12; }" "$PICOM_UBUNTU_FILE"
@@ -36,8 +37,12 @@ test_shared_visual_baseline() {
 
 test_ubuntu_x64_keeps_live_blur_route_and_x64_excludes() {
     assert_contains 'blur-method = "dual_kawase"' "$PICOM_UBUNTU_FILE"
-    assert_contains 'blur-strength = 10' "$PICOM_UBUNTU_FILE"
+    assert_contains 'blur-strength = 12' "$PICOM_UBUNTU_FILE"
+    assert_contains 'blur-background-frame = true' "$PICOM_UBUNTU_FILE"
     assert_contains 'blur-background = true' "$PICOM_UBUNTU_FILE"
+    if awk '/blur-background-exclude = \[/{in_blur=1} in_blur && /override_redirect = true/{found=1} in_blur && /\];/{in_blur=0} END{exit found ? 0 : 1}' "$PICOM_UBUNTU_FILE"; then
+        fail "did not expect override_redirect in Ubuntu x64 blur-background-exclude"
+    fi
     assert_contains '"window_type = '\''splash'\''"' "$PICOM_UBUNTU_FILE"
     assert_contains '"window_type = '\''tooltip'\''"' "$PICOM_UBUNTU_FILE"
     assert_contains '"class_g = '\''maim'\''"' "$PICOM_UBUNTU_FILE"
@@ -74,8 +79,8 @@ test_readme_documents_current_visual_targets() {
     assert_contains '不强求三平台使用完全相同的参数' "$README_FILE"
     assert_contains 'Ubuntu x64 当前使用 12px radius、0.28 opacity、`-6/-6` offset' "$README_FILE"
     assert_contains 'Ubuntu x64 当前收口到 12px' "$README_FILE"
-    assert_contains 'Ubuntu x64 当前使用 dual_kawase strength 10' "$README_FILE"
-    assert_contains 'Ubuntu x64 当前使用 0.90 inactive、1.0 active、1.0 frame' "$README_FILE"
+    assert_contains 'Ubuntu x64 当前使用 dual_kawase strength 12' "$README_FILE"
+    assert_contains 'Ubuntu x64 当前使用 0.90 inactive、0.98 active、0.92 frame' "$README_FILE"
     assert_contains 'Alacritty/kitty 不再被 picom 强制拉回 100% opacity' "$README_FILE"
     assert_contains '`utility/dialog` 恢复轻阴影' "$README_FILE"
     assert_contains 'Ubuntu x64: `run picom`' "$README_FILE"
