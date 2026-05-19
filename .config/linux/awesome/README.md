@@ -54,6 +54,7 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 - **右侧细节**：主屏右侧状态区会继续统一收紧 spacing；systray 与时钟外侧 margin 更紧，sysinfo / clock / systray 的胶囊权重会一起再压一档，尽量把空间留给 tasklist。
 - **整体视觉**：整条顶栏使用悬浮圆角容器，外层 wibar 保持透明并继续预留工作区高度；顶部留出少量空隙，左右也留出边距，让状态栏不再贴住屏幕边缘。
 - **窗口圆角**：普通/对话框等 managed 窗口使用 `theme.border_radius` 圆角；全屏或最大化窗口会自动退回矩形，避免边角露出桌面背景。picom 继续负责阴影、透明和 compositor 层圆角。
+- **回退标题栏**：日常主体验默认不显示 titlebar；只有显式 class 白名单中的少数配置类工具窗会启用一条紧凑的 fallback titlebar，用于拖动和关闭窗口。该 titlebar 进一步收紧成更矮的条带、左对齐标题和低噪音 Catppuccin 胶囊按钮，不再使用 Awesome 默认 PNG 按钮；右侧只保留 `floating / maximized / close` 三个文字按钮，其中激活态改成更克制的 `surface1` 底 + 蓝字，关闭按钮保持低噪音深底 + 红字，让窗口焦点的主信号重新回到蓝色边框本身。普通 `utility` 窗口不会因为类型本身就自动启用它，像 `tblive` 这类辅助条窗口也会继续排除在外。
 - **右侧视觉**：系统信息分隔符使用更弱的主题色，时钟使用独立胶囊背景作为右端视觉终点，避免状态区显得过散。
 - **长标题 / 网络细节**：长窗口标题会在单个任务项内尾部省略，避免浏览器或笔记窗口挤压右侧状态区；tasklist 标题最大宽度会按当前屏幕宽度与 compact/full 规格自适应，不再固定死一个像素值；tasklist 悬浮会显示完整窗口标题和应用名，方便在省略后补看全名；tasklist 项在 compact 屏上也会进一步收紧 padding 与 item spacing；NET 保持短显示，悬停时显示网卡接口名和带 `/s` 单位的上下行速率。
 - **状态项交互**：NET/CPU/MEM 不绑定点击动作，只在鼠标悬浮时显示内置 detail；NET/CPU/MEM/VOL/BAT 的 tooltip 使用统一中文文案。NET detail 展示网卡接口名和带 `/s` 单位的上下行速率，并优先显示默认路由对应的活跃网卡；找不到匹配接口时主栏显示 `NET:N/A` 且 hover 显示离线；CPU/MEM detail 使用各自精简内容：CPU 显示 CPU 使用率、负载（load average）和 top CPU 进程，MEM 显示内存使用率和 top MEM 进程，并使用 5 秒后台缓存，hover 时不临时执行 `ps`；BAT hover 显示充放电状态、当前电量、功率和可估算的剩余/充满时间，检测到多个电池时会聚合成一个 BAT 读数并在 tooltip 中标出电池数量；在 Linux aarch64/arm64 且检测到背光设备时，BRI hover 会显示当前亮度百分比、背光设备名与原始亮度值；安装 `brightnessctl` 且当前用户对背光设备有写权限时，可在 BRI 上用滚轮加减亮度；未安装时滚轮会提示缺少 `brightnessctl` 并给出安装命令；若 `brightnessctl` 已安装但当前用户没有写权限，则会提示把用户加入对应设备组（如 `video`）后重新登录；VOL 保留左键静音和滚轮调音量，静音后只显示 `MUTE`（如 `VOL:MUTE`），右键 VOL 会尝试打开 `pavucontrol`，缺少 `pavucontrol` 或启动失败时会提示；悬浮 VOL 会提示左键/右键/滚轮的具体作用。
@@ -168,3 +169,5 @@ Snipaste 自己接管裸 `F1` 截图；Awesome 不绑定 `F1`。如果 Snipaste 
 默认 Awesome 示例里的 `DTA`（Firefox / DownThemAll 历史规则）不保留；当前不用 Firefox，且该 instance 名容易把历史浏览器扩展规则混进钉钉等 Electron/Qt 窗口判断。
 
 钉钉会议会额外创建多个 `tblive` / `utility` 辅助窗口（例如会控条、状态条等）。这些辅助窗口不代表独立应用窗口，因此规则只对 `class = tblive` 且 `type = utility` 的窗口设置 `skip_taskbar = true` 并保持浮动；真正的 `tblive` 普通会议窗口仍会保留在任务列表中。
+
+普通 `normal` / `dialog` 窗口继续默认不显示 titlebar；只有显式 class 白名单里的少数配置类浮动工具窗才会启用紧凑 fallback titlebar，主要用于拖动与快速关闭；普通 `utility` 窗口不会仅因为 `type=utility` 就自动出现标题栏，也不会再因为通用 role 自动命中 fallback titlebar。

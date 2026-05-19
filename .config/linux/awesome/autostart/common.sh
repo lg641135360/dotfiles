@@ -76,6 +76,41 @@ run_first_custom() {
     done
 }
 
+pick_latest_executable_candidate() {
+    latest_candidate=
+    latest_name=
+
+    for candidate do
+        command_available "$candidate" || continue
+
+        candidate_name=$(basename "$candidate")
+        if [ -z "$latest_candidate" ]; then
+            latest_candidate=$candidate
+            latest_name=$candidate_name
+            continue
+        fi
+
+        newest_name=$(printf '%s\n%s\n' "$latest_name" "$candidate_name" | sort -V | tail -n 1)
+        if [ "$newest_name" = "$candidate_name" ] && [ "$candidate_name" != "$latest_name" ]; then
+            latest_candidate=$candidate
+            latest_name=$candidate_name
+        fi
+    done
+
+    [ -n "$latest_candidate" ] || return 1
+    printf '%s\n' "$latest_candidate"
+}
+
+run_latest_custom() {
+    [ "$#" -gt 1 ] || return 0
+
+    pattern=$1
+    shift
+
+    latest_candidate=$(pick_latest_executable_candidate "$@") || return 0
+    run_custom "$pattern" "$latest_candidate"
+}
+
 append_path_if_exists() {
     dir=$1
 

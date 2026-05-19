@@ -88,6 +88,8 @@ test_common_module_exposes_shared_helpers() {
     assert_contains 'setsid -f "$@" >/dev/null 2>&1' "$COMMON_FILE"
     assert_contains 'nohup "$@" >/dev/null 2>&1 &' "$COMMON_FILE"
     assert_contains 'run_first_custom() {' "$COMMON_FILE"
+    assert_contains 'pick_latest_executable_candidate() {' "$COMMON_FILE"
+    assert_contains 'run_latest_custom() {' "$COMMON_FILE"
     assert_contains 'detect_laptop_display() {' "$COMMON_FILE"
     assert_contains 'detect_external_displays() {' "$COMMON_FILE"
     assert_contains 'detect_external_display() {' "$COMMON_FILE"
@@ -204,6 +206,53 @@ EOF
     )
 
     wait_for_file_contains 'Snipaste-2.11.2-x86_64.AppImage' "$log_file"
+
+    rm -rf "$tmpdir"
+}
+
+test_run_latest_custom_prefers_highest_version_candidate() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    app_dir=$tmpdir/apps
+    download_dir=$tmpdir/downloads
+    log_file=$tmpdir/snipaste.log
+
+    mkdir -p "$bin_dir" "$app_dir" "$download_dir"
+
+    cat >"$bin_dir/pgrep" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+    chmod +x "$bin_dir/pgrep"
+
+    cat >"$app_dir/Snipaste-2.11.2-x86_64.AppImage" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$0 $*" >>"$SNIPASTE_LOG"
+EOF
+    chmod +x "$app_dir/Snipaste-2.11.2-x86_64.AppImage"
+
+    cat >"$download_dir/Snipaste-2.11.3-x86_64.AppImage" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$0 $*" >>"$SNIPASTE_LOG"
+EOF
+    chmod +x "$download_dir/Snipaste-2.11.3-x86_64.AppImage"
+
+    (
+        PATH="$bin_dir:/usr/bin:/bin"
+        SNIPASTE_LOG=$log_file
+        export PATH SNIPASTE_LOG
+        . "$COMMON_FILE"
+        run_latest_custom "Snipaste" \
+            "$app_dir/Snipaste-2.11.2-x86_64.AppImage" \
+            "$download_dir/Snipaste-2.11.3-x86_64.AppImage"
+        wait
+    )
+
+    wait_for_file_contains 'Snipaste-2.11.3-x86_64.AppImage' "$log_file"
+
+    if grep -F 'Snipaste-2.11.2-x86_64.AppImage' "$log_file" >/dev/null 2>&1; then
+        fail "expected run_latest_custom to skip older Snipaste candidates"
+    fi
 
     rm -rf "$tmpdir"
 }
@@ -574,9 +623,10 @@ test_platform_specific_behaviors_remain_declared() {
     assert_contains 'if [ "${1:-}" = "--display-layout" ]; then' "$UBUNTU_X64_FILE"
     assert_contains 'randomize_wallpaper "$HOME/Pictures/wall" "$HOME/Pictures" "/usr/share/backgrounds"' "$UBUNTU_X64_FILE"
     assert_contains 'randomize_wallpaper "$HOME/Pictures/wall" "$HOME/Pictures" "/usr/share/backgrounds"' "$UBUNTU_ARM_FILE"
-    assert_contains 'run_first_custom "Snipaste"' "$UBUNTU_X64_FILE"
-    assert_contains '"$HOME"/Applications/Snipaste-2.11.2-*.AppImage' "$UBUNTU_X64_FILE"
+    assert_contains 'run_latest_custom "Snipaste"' "$UBUNTU_X64_FILE"
     assert_contains '"$HOME"/Applications/Snipaste-*.AppImage' "$UBUNTU_X64_FILE"
+    assert_contains '"$HOME"/Downloads/Snipaste-*.AppImage' "$UBUNTU_X64_FILE"
+    assert_contains '"$HOME"/Documents/Snipaste-*.AppImage' "$UBUNTU_X64_FILE"
     assert_not_contains 'run_custom "Snipaste-2.11.2-x86_64.AppImage" ~/Documents/Snipaste-2.11.2-x86_64.AppImage' "$UBUNTU_X64_FILE"
     assert_contains 'run_common_desktop_services picom' "$UBUNTU_X64_FILE"
     assert_not_contains 'run_common_desktop_services picom --experimental-backends' "$UBUNTU_X64_FILE"
@@ -607,9 +657,9 @@ test_readme_documents_idle_lock_service() {
 test_readme_documents_ubuntu_x64_snipaste_candidates() {
     assert_contains 'start_background()' "$README_FILE"
     assert_contains 'setsid -f' "$README_FILE"
-    assert_contains 'run_first_custom()' "$README_FILE"
-    assert_contains '~/Applications/Snipaste-2.11.2-*.AppImage' "$README_FILE"
-    assert_contains '~/Downloads/Snipaste-2.11.2-x86_64.AppImage' "$README_FILE"
+    assert_contains 'run_latest_custom()' "$README_FILE"
+    assert_contains '~/Applications/Snipaste-*.AppImage' "$README_FILE"
+    assert_contains '按版本号选择最新一项' "$README_FILE"
 }
 
 
@@ -633,6 +683,7 @@ test_common_module_exposes_shared_helpers
 test_optional_autostart_commands_are_skipped_when_missing
 test_run_custom_ignores_current_shell_when_checking_duplicates
 test_run_first_custom_uses_first_available_candidate
+test_run_latest_custom_prefers_highest_version_candidate
 test_xresources_and_wallpaper_helpers_skip_missing_optional_tools
 test_xresources_helper_only_merges_existing_file
 test_wallpaper_helper_uses_feh_when_available

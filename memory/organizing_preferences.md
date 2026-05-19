@@ -64,7 +64,12 @@
 - 对 tmux session 持久化，优先只保留 `tmux-resurrect` 的手动保存/恢复；不要启用 `tmux-continuum` 这类自动保存 session 插件。
 - 对 tmux session 销毁行为，优先让当前客户端 detach，不要在退出当前 session 后自动切回最近使用的其它 session；对应 `detach-on-destroy` 保持 `on`。
 - 对 Awesome 的 autostart 可选服务，优先在共享 `run()` / `run_custom()` 层做命令可用性检查；缺失时静默跳过，避免在启动阶段输出 `not found` 噪音，平台脚本继续只声明各自想启动的服务。
-- 对 Ubuntu x86_64 Awesome autostart 的 Snipaste，优先从 AppImageLauncher 集成后的 `~/Applications/Snipaste-2.11.2-*.AppImage` 启动；保留 `~/Applications/Snipaste-*.AppImage`、`~/Downloads/Snipaste-2.11.2-x86_64.AppImage` 和旧 `~/Documents/...` 作为候选路径，并通过共享 helper 选择第一个可执行候选，避免硬编码已不存在的单一路径。
+- 对 Awesome 的 titlebar，当前偏好是把它收口成显式 class 白名单中的少数配置类工具窗 fallback，而不是给所有 `utility` 泛开，也不要再靠通用 role 白名单兜底；普通窗口继续无 titlebar，普通 `utility` 也不因类型自动出现 titlebar，fallback titlebar 优先保持紧凑 Catppuccin 风格，并只保留 `floating / maximized / close` 三个按钮。
+- 对当前桌面的 picom 工具窗层次感，优先给 `utility/dialog` 恢复轻阴影，但继续在 `shadow-exclude` 里排除 `tblive` 这类辅助条窗口，避免会控条/状态条重新带回阴影噪音。
+- 对当前 Ubuntu x64 + picom v10 环境，`shadow-exclude` 里的 `_GTK_FRAME_EXTENTS@` 会触发 `c2_parse_target` 解析错误；不要在 Ubuntu x64 的 picom 配置里继续保留它，除非后面先实机验证 parser 已恢复兼容。
+- 对当前桌面的 picom 透明策略，优先不要再用 `opacity-rule` 把 Alacritty/kitty 强制拉回 100% opacity；终端应使用自身配置里的透明度，这样 blur 才能真正可见，浏览器/Thunderbird 这类窗口再按需保持 100%。
+- 对这个 dotfiles 仓库中的 picom，美观调优优先只改当前平台，不强求 `ubuntu_x64`、`arch_x64`、`arch_aarch64` 三份配置同步收口；除非用户明确要求跨平台统一，否则其它平台先保持原始策略。
+- 对 Ubuntu x86_64 Awesome autostart 的 Snipaste，优先在 `~/Applications/Snipaste-*.AppImage`、`~/Downloads/Snipaste-*.AppImage` 和旧 `~/Documents/Snipaste-*.AppImage` 这些候选里按版本号选择最新的可执行 AppImage；不要再把候选固定死在某个历史版本号或只取第一个匹配项。
 - 对 Awesome autostart 后台服务，优先通过共享 `start_background()` 用 `setsid -f` 分离进程；这对 Snipaste/AppImage 这类父 shell 结束后可能被回收的 GUI 服务尤其重要，缺少 `setsid` 时再回退到 `nohup` 或普通后台启动。
 - 对 Snipaste 裸 `F1` 截图，优先让 Snipaste 自己注册全局热键，Awesome 不绑定裸 `F1`；若 `F1` 无效，优先检查 KDE `kglobalaccel5` / `~/.config/kglobalshortcutsrc` 是否把 `[org.flameshot.Flameshot.desktop] Capture` 设成了 `F1`，应改为 `none,none,进行截图` 并重启 Snipaste 观察日志是否不再出现 `Unable to register global hotkey`。
 - 对 Ubuntu aarch64 的 Awesome autostart，当前外接屏持久方案是：先运行时检测内屏、首个外接屏和外接屏首选物理模式；内屏保持 `2880x1800@120Hz` 主屏；外接屏使用首选物理模式（当前 Dell P2722H 为 `1920x1080`）并通过 `1.5x1.5` XRandR scaling 放在笔记本左侧，同时显式设置 framebuffer/position 避免重叠；不要在这里改全局 `Xft.dpi`、Awesome per-screen DPI 或 rofi focused-screen `ROFI_SCALE`。

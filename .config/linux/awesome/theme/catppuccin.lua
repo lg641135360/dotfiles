@@ -70,6 +70,31 @@ theme.border_focus  = palette.blue
 theme.border_marked = palette.peach
 theme.border_radius = dpi(12)
 
+-- Fallback titlebar styling (only for select floating utility/config windows)
+theme.titlebar_size = dpi(26)
+theme.titlebar_radius = dpi(8)
+theme.titlebar_spacing = dpi(3)
+theme.titlebar_side_padding = dpi(6)
+theme.titlebar_section_padding = dpi(4)
+theme.titlebar_bg_normal = palette.mantle
+theme.titlebar_bg_focus = palette.surface0
+theme.titlebar_fg_normal = palette.subtext0
+theme.titlebar_fg_focus = palette.text
+theme.titlebar_border_color = palette.surface1
+theme.titlebar_border_color_focus = palette.blue
+theme.titlebar_border_width = dpi(1)
+theme.titlebar_font = "Maple Mono NF CN 10.5"
+theme.titlebar_button_font = "Maple Mono NF CN 10.5"
+theme.titlebar_button_radius = dpi(6)
+theme.titlebar_button_padding_x = dpi(5)
+theme.titlebar_button_padding_y = dpi(1)
+theme.titlebar_button_bg_normal = palette.base
+theme.titlebar_button_bg_active = palette.surface1
+theme.titlebar_button_bg_close = palette.base
+theme.titlebar_button_fg_normal = palette.overlay1
+theme.titlebar_button_fg_active = palette.blue
+theme.titlebar_button_fg_close = palette.red
+
 -- Taglist configuration
 theme.taglist_spacing = dpi(8)
 -- No background color change on selected workspace - only icon color changes

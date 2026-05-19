@@ -32,7 +32,7 @@ Ubuntu x86_64      → ubuntu_x64.sh
 
 ## 公共功能
 
-三份平台脚本都会先加载 `common.sh`，由它提供 `run()` / `run_custom()` / `run_first_custom()`、`start_background()`、`prepare_xresources()`、显示器检测/布局 helper、随机壁纸 helper、自动锁屏 helper 以及公共服务启动函数。`run()` / `run_custom()` / `run_first_custom()` 会先检查目标命令或可执行路径是否存在，再通过 `start_background()` 优先用 `setsid -f` 分离后台进程；`run_first_custom()` 用于 AppImage 这类可能有多个安装位置的应用，会按候选路径启动第一个可执行文件。`prepare_xresources()` 只在 `xrdb` 和 `~/.Xresources` 都存在时合并；`randomize_wallpaper()` 在 `feh`、壁纸目录或候选图片缺失时静默跳过，避免 Awesome 自启动阶段输出 `not found` 噪音或中断后续服务。显示器 helper 现在会列出所有已连接外接屏，并在需要时按位置参数链式排列多个外接屏；带缩放时会为每个外接屏读取首选模式并统一计算 framebuffer/position。`run_idle_lock_service()` 只在 `xautolock` 与 `~/.config/scripts/lock` 都可用时启动 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep`，空闲 10 分钟后自动锁屏，缺少依赖时静默跳过。
+三份平台脚本都会先加载 `common.sh`，由它提供 `run()` / `run_custom()` / `run_first_custom()` / `run_latest_custom()`、`start_background()`、`prepare_xresources()`、显示器检测/布局 helper、随机壁纸 helper、自动锁屏 helper 以及公共服务启动函数。`run()` / `run_custom()` / `run_first_custom()` / `run_latest_custom()` 会先检查目标命令或可执行路径是否存在，再通过 `start_background()` 优先用 `setsid -f` 分离后台进程；`run_first_custom()` 用于“候选顺序本身就是优先级”的场景，`run_latest_custom()` 用于 AppImage 这类可能在多个目录并存多个版本的应用，会在所有可执行候选里按版本号选择最新一项。`prepare_xresources()` 只在 `xrdb` 和 `~/.Xresources` 都存在时合并；`randomize_wallpaper()` 在 `feh`、壁纸目录或候选图片缺失时静默跳过，避免 Awesome 自启动阶段输出 `not found` 噪音或中断后续服务。显示器 helper 现在会列出所有已连接外接屏，并在需要时按位置参数链式排列多个外接屏；带缩放时会为每个外接屏读取首选模式并统一计算 framebuffer/position。`run_idle_lock_service()` 只在 `xautolock` 与 `~/.config/scripts/lock` 都可用时启动 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep`，空闲 10 分钟后自动锁屏，缺少依赖时静默跳过。
 
 所有脚本都会按需尝试启动以下服务：
 
@@ -61,7 +61,7 @@ Ubuntu x86_64      → ubuntu_x64.sh
 ### arch_x64.sh / ubuntu_x64.sh
 
 - **截图**：Snipaste
-- **Ubuntu x86_64 Snipaste**：优先从 AppImageLauncher 的 `~/Applications/Snipaste-2.11.2-*.AppImage` 启动，找不到时再尝试 `~/Applications/Snipaste-*.AppImage`、`~/Downloads/Snipaste-2.11.2-x86_64.AppImage` 和旧的 `~/Documents/Snipaste-2.11.2-x86_64.AppImage`
+- **Ubuntu x86_64 Snipaste**：通过 `run_latest_custom` 在 `~/Applications/Snipaste-*.AppImage`、`~/Downloads/Snipaste-*.AppImage` 和 `~/Documents/Snipaste-*.AppImage` 这些可执行候选里按版本号选择最新一项启动；例如同时存在 `2.11.2` 和 `2.11.3` 时，会优先启动 `2.11.3`
 - **剪贴板**：greenclip daemon
 - **壁纸**：`~/Pictures/*` 或 `~/Pictures/*`
 - **壁纸选择**：每次执行 autostart 时通过 `feh --no-fehbg --bg-fill --randomize` 从候选目录重新随机选择，不再优先恢复 `~/.fehbg`

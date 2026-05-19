@@ -578,6 +578,29 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '缺少依赖或执行失败时会通过 Awesome 通知提示' "$README_FILE"
 }
 
+test_theme_exposes_fallback_titlebar_tokens() {
+    THEME_FILE=$REPO_ROOT/.config/linux/awesome/theme/catppuccin.lua
+    THEME_README_FILE=$REPO_ROOT/.config/linux/awesome/theme/README.md
+
+    assert_contains 'theme.titlebar_size = dpi(26)' "$THEME_FILE"
+    assert_contains 'theme.titlebar_radius = dpi(8)' "$THEME_FILE"
+    assert_contains 'theme.titlebar_spacing = dpi(3)' "$THEME_FILE"
+    assert_contains 'theme.titlebar_bg_normal = palette.mantle' "$THEME_FILE"
+    assert_contains 'theme.titlebar_bg_focus = palette.surface0' "$THEME_FILE"
+    assert_contains 'theme.titlebar_fg_normal = palette.subtext0' "$THEME_FILE"
+    assert_contains 'theme.titlebar_fg_focus = palette.text' "$THEME_FILE"
+    assert_contains 'theme.titlebar_font = "Maple Mono NF CN 10.5"' "$THEME_FILE"
+    assert_contains 'theme.titlebar_button_font = "Maple Mono NF CN 10.5"' "$THEME_FILE"
+    assert_contains 'theme.titlebar_button_radius = dpi(6)' "$THEME_FILE"
+    assert_contains 'theme.titlebar_button_bg_active = palette.surface1' "$THEME_FILE"
+    assert_contains 'theme.titlebar_button_fg_active = palette.blue' "$THEME_FILE"
+    assert_contains 'theme.titlebar_button_bg_close = palette.base' "$THEME_FILE"
+    assert_contains 'theme.titlebar_button_fg_close = palette.red' "$THEME_FILE"
+    assert_contains '回退标题栏' "$THEME_README_FILE"
+    assert_contains 'titlebar_bg_*' "$THEME_README_FILE"
+    assert_contains 'titlebar_button_*' "$THEME_README_FILE"
+}
+
 test_readme_documents_snipaste_f1_conflict() {
     assert_contains 'Snipaste 自己接管裸 `F1` 截图；Awesome 不绑定 `F1`' "$README_FILE"
     assert_contains '[org.flameshot.Flameshot.desktop]' "$README_FILE"
@@ -614,6 +637,7 @@ test_wibar_avoids_container_insert_on_sysinfo_widget
 test_system_widget_exposes_row_for_extension
 test_readme_documents_current_awesome_modules
 test_readme_documents_wibar_visual_tuning
+test_theme_exposes_fallback_titlebar_tokens
 test_readme_documents_snipaste_f1_conflict
 test_readme_documents_plain_i3lock_theme_fallback
 

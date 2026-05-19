@@ -72,6 +72,57 @@ test_clients_use_rounded_shape_except_fullscreen_or_maximized() {
     assert_contains '全屏或最大化窗口会自动退回矩形' "$README_FILE"
 }
 
+test_titlebar_stays_fallback_only_for_select_floating_windows() {
+    assert_contains 'titlebars_enabled = false,' "$CLIENT_FILE"
+    assert_contains 'properties = { titlebars_enabled = true },' "$CLIENT_FILE"
+    assert_contains 'except_any = {' "$CLIENT_FILE"
+    assert_contains '"tblive",' "$CLIENT_FILE"
+    assert_not_contains 'type = {' "$CLIENT_FILE"
+    assert_contains '普通 `normal` / `dialog` 窗口继续默认不显示 titlebar' "$README_FILE"
+    assert_contains '只有显式 class 白名单里的少数配置类浮动工具窗才会启用紧凑 fallback titlebar' "$README_FILE"
+    assert_contains '普通 `utility` 窗口不会仅因为 `type=utility` 就自动出现标题栏' "$README_FILE"
+    assert_contains '不会再因为通用 role 自动命中 fallback titlebar' "$README_FILE"
+
+    python - "$CLIENT_FILE" <<'PY' || fail "expected titlebar fallback rule to rely on explicit class whitelist only"
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+start = text.index('properties = { titlebars_enabled = true },')
+block = text[:start]
+block = block[block.rfind('{', 0, block.rfind('rule_any = {')):]
+
+if 'role = {' in block:
+    raise SystemExit('titlebar fallback rule still contains role whitelist')
+if 'type = {' in block:
+    raise SystemExit('titlebar fallback rule still contains type whitelist')
+if 'class = {' not in block:
+    raise SystemExit('titlebar fallback rule lost explicit class whitelist')
+PY
+}
+
+test_titlebar_controls_are_minimal_and_styleable() {
+    assert_contains 'local function update_titlebar_style(c)' "$CLIENT_FILE"
+    assert_contains 'local function create_titlebar_control(c, spec)' "$CLIENT_FILE"
+    assert_contains 'c._fallback_titlebar = titlebar' "$CLIENT_FILE"
+    assert_contains 'c._fallback_titlebar_background = background' "$CLIENT_FILE"
+    assert_contains "label = \"◇\"" "$CLIENT_FILE"
+    assert_contains "active_label = \"◆\"" "$CLIENT_FILE"
+    assert_contains "label = \"□\"" "$CLIENT_FILE"
+    assert_contains "active_label = \"▣\"" "$CLIENT_FILE"
+    assert_contains "label = \"×\"" "$CLIENT_FILE"
+    assert_contains 'awful.client.floating.toggle(client_object)' "$CLIENT_FILE"
+    assert_contains 'client_object.maximized = not client_object.maximized' "$CLIENT_FILE"
+    assert_contains 'client_object:kill()' "$CLIENT_FILE"
+    assert_not_contains 'awful.titlebar.widget.floatingbutton(c),' "$CLIENT_FILE"
+    assert_not_contains 'awful.titlebar.widget.maximizedbutton(c),' "$CLIENT_FILE"
+    assert_not_contains 'awful.titlebar.widget.closebutton(c),' "$CLIENT_FILE"
+    assert_not_contains 'awful.titlebar.widget.stickybutton(c),' "$CLIENT_FILE"
+    assert_not_contains 'awful.titlebar.widget.ontopbutton(c),' "$CLIENT_FILE"
+    assert_contains 'left = dpi(3),' "$CLIENT_FILE"
+    assert_contains 'top = dpi(2),' "$CLIENT_FILE"
+}
+
 test_default_layout_is_tile_left
 test_layout_keys_still_adjust_master_width_factor
 test_client_rules_ignore_size_hints_for_tiling
@@ -79,5 +130,7 @@ test_no_dingtalk_specific_layout_hook
 test_no_legacy_dta_auto_float_rule
 test_dingtalk_tlive_utility_helpers_are_not_tasklist_clients
 test_clients_use_rounded_shape_except_fullscreen_or_maximized
+test_titlebar_stays_fallback_only_for_select_floating_windows
+test_titlebar_controls_are_minimal_and_styleable
 
 printf 'PASS: awesome layout tests\n'
