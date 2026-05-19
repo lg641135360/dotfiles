@@ -8,6 +8,12 @@ export SUDO_EDITOR=nvim
 export FCEDIT=nvim
 export TERMINAL=alacritty
 
+if [[ "$OSTYPE" == linux* ]]; then
+    export XDG_CURRENT_DESKTOP=awesome
+    export XDG_SESSION_DESKTOP=awesome
+    export GTK_USE_PORTAL=1
+fi
+
 # Use bat as pager
 if [[ -x "$(command -v bat)" ]]; then
     export MANPAGER="sh -c 'col -bx | bat -l man -p'"

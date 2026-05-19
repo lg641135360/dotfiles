@@ -3,6 +3,7 @@ set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 PATH_FILE=$REPO_ROOT/.config/shared/zsh/path.zsh
+ENV_FILE=$REPO_ROOT/.config/shared/zsh/env.zsh
 ZSH_BIN=$(command -v zsh || true)
 
 fail() {
@@ -26,6 +27,16 @@ run_path_zsh() {
     )
     rm -rf "$tmpdir"
     printf '%s\n' "$path_value"
+}
+
+run_env_zsh() {
+    tmpdir=$(mktemp -d)
+    env_value=$(
+        PATH=/usr/bin:/bin HOME="$HOME" ZDOTDIR="$tmpdir" "$ZSH_BIN" -fc \
+            ". \"$ENV_FILE\"; printf '%s|%s|%s\n' \"\$XDG_CURRENT_DESKTOP\" \"\$XDG_SESSION_DESKTOP\" \"\$GTK_USE_PORTAL\""
+    )
+    rm -rf "$tmpdir"
+    printf '%s\n' "$env_value"
 }
 
 test_linux_path_includes_usr_local_nodejs_bin() {
@@ -70,7 +81,25 @@ test_linux_path_includes_user_npm_global_bin() {
     assert_path_contains "$HOME/.npm-global/bin" "$path_value"
 }
 
+test_linux_desktop_portal_environment_targets_awesome() {
+    if [ "$(uname)" != "Linux" ]; then
+        printf 'SKIP: zsh environment test requires Linux\n'
+        return 0
+    fi
+
+    if [ -z "$ZSH_BIN" ]; then
+        printf 'SKIP: zsh is not installed\n'
+        return 0
+    fi
+
+    env_value=$(run_env_zsh)
+
+    [ "$env_value" = "awesome|awesome|1" ] ||
+        fail "expected Awesome portal environment, got: $env_value"
+}
+
 test_linux_path_includes_usr_local_nodejs_bin
 test_linux_path_includes_user_npm_global_bin
+test_linux_desktop_portal_environment_targets_awesome
 
 printf 'PASS: zsh path tests\n'
