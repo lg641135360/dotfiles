@@ -157,9 +157,8 @@ process_config() {
 shared_configs=(
     "command -v tmux|.config/shared/tmux/.tmux.conf|~/.tmux.conf|Tmux"
     "command -v tmux|.config/shared/tmux/tmux-tab-title|~/.config/tmux/tmux-tab-title|Tmux tab title script"
-    "command -v kitty|.config/shared/kitty/kitty.conf|~/.config/kitty/kitty.conf|Kitty"
-    "command -v kitty|.config/shared/kitty/Dracula.conf|~/.config/kitty/themes/Dracula.conf|kitty_theme"
     "command -v alacritty|.config/shared/alacritty/alacritty.toml|~/.config/alacritty/alacritty.toml|Alacritty"
+    "command -v ssh|.config/shared/ssh/config|~/.ssh/config.base|SSH base config"
 )
 
 # Directory configurations
@@ -180,7 +179,7 @@ zsh_files=(
     "|.config/shared/zsh/aliases.zsh|~/.config/zsh/aliases.zsh|zsh aliases"
     "|.config/shared/zsh/functions.zsh|~/.config/zsh/functions.zsh|zsh functions"
     "|.config/shared/zsh/integrations.zsh|~/.config/zsh/integrations.zsh|zsh integrations"
-    "|.config/shared/zsh/zsh-syntax-highlighting-tokyonight.zsh|~/.config/zsh/zsh-syntax-highlighting-tokyonight.zsh|zsh syntax-highlighting-tokyonight"
+    "|.config/shared/zsh/zsh-syntax-highlighting-catppuccin-mocha.zsh|~/.config/zsh/zsh-syntax-highlighting-catppuccin-mocha.zsh|zsh syntax-highlighting-catppuccin-mocha"
 )
 
 # .zshrc.pre is only needed when grml-zsh is installed (fixes fpath issues)
@@ -193,6 +192,7 @@ macos_configs=(
     "command -v rift|.config/macos/rift/config.toml|~/.config/rift/config.toml|Rift"
     "command -v alacritty|.config/shared/alacritty/keys.macos.toml|~/.config/alacritty/keys.toml|Alacritty keys"
     "command -v alacritty|.config/shared/alacritty/window.macos.toml|~/.config/alacritty/window.toml|Alacritty window"
+    "command -v ssh|.config/macos/ssh/config|~/.ssh/config|SSH config (macOS)"
 )
 
 linux_configs=(
@@ -292,8 +292,28 @@ main() {
             IFS='|' read -r check_cmd source target name <<< "$config"
             process_config "$check_cmd" "$source" "$target" "$name"
         done
+
+        # Check optional macOS dependencies
+        if ! command -v borders &> /dev/null; then
+            log_warn "borders not found — install with: brew install felixkratz/formulae/borders"
+        fi
+
+        if [ -f "$cur_path/.config/macos/Brewfile" ]; then
+            log_info "Brewfile found — run: brew bundle --file $cur_path/.config/macos/Brewfile"
+        fi
+
+        # macOS system defaults (run once)
+        if [ -f "$cur_path/.config/macos/defaults.sh" ]; then
+            log_info "Setting macOS system defaults..."
+            bash "$cur_path/.config/macos/defaults.sh"
+        fi
     elif [[ "$os" == "Linux" ]]; then
         log_info "Processing Linux configurations..."
+
+        if [ -f "$cur_path/.config/linux/Brewfile" ]; then
+            log_info "Linux Brewfile found — run: brew bundle --file $cur_path/.config/linux/Brewfile"
+        fi
+
         for config in "${linux_configs[@]}"; do
             IFS='|' read -r check_cmd source target name <<< "$config"
             process_config "$check_cmd" "$source" "$target" "$name"

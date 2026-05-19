@@ -16,3 +16,4 @@ source "$ZSH_CONF/history.zsh"       # history config
 source "$ZSH_CONF/aliases.zsh"       # command aliases
 source "$ZSH_CONF/functions.zsh"     # utility functions
 source "$ZSH_CONF/integrations.zsh"  # zoxide, tmuxifier, p10k, conda
+source "$ZSH_CONF/zsh-syntax-highlighting-catppuccin-mocha.zsh"  # Catppuccin Mocha theme

@@ -32,7 +32,11 @@ pathappend "$HOME/.cargo/bin"
 pathappend "$HOME/.config/tmux/plugins/tmuxifier/bin"
 
 # Platform-specific
-if [[ "$(uname)" == "Linux" ]]; then
+if [[ "$(uname)" == "Darwin" ]]; then
+    # Apple Silicon Homebrew
+    pathprepend "/opt/homebrew/bin"
+    pathprepend "/usr/local/bin"
+elif [[ "$(uname)" == "Linux" ]]; then
     pathappend "/home/linuxbrew/.linuxbrew/bin"
     pathappend "$HOME/.npm-global/bin"
     pathappend "/usr/local/nodejs/bin"

@@ -1,0 +1,27 @@
+# Linux Homebrew Bundle
+# Usage: brew bundle --file ~/.config/linux/Brewfile
+#
+# GUI / X11 工具（rofi, feh, picom, dunst, xautolock 等）请用系统包管理器安装：
+#   apt-get install rofi feh picom dunst xautolock i3lock-color pavucontrol \
+#       flameshot xclip greenclip fcitx5 redshift nm-applet blueman pasystray xorg-xrdb
+
+# CLI tools
+brew "bat"
+brew "fd"
+brew "fzf"
+brew "git"
+brew "lazygit"
+brew "lsd"
+brew "neovim"
+brew "ripgrep"
+brew "rsync"
+brew "tmux"
+brew "yazi"
+brew "zoxide"
+brew "zsh"
+brew "zsh-completions"
+brew "zsh-autosuggestions"
+brew "zsh-syntax-highlighting"
+
+# Terminal
+cask "alacritty"

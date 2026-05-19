@@ -1,0 +1,2 @@
+Include ~/.ssh/config.base
+UseKeychain yes

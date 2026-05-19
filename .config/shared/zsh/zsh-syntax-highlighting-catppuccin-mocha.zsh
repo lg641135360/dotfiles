@@ -1,0 +1,65 @@
+# Catppuccin Mocha — zsh-syntax-highlighting theme
+
+# Comments
+ZSH_HIGHLIGHT_STYLES[comment]='fg=#6c7086'
+
+# Commands / aliases / functions
+ZSH_HIGHLIGHT_STYLES[alias]='fg=#89b4fa'
+ZSH_HIGHLIGHT_STYLES[suffix-alias]='fg=#89b4fa'
+ZSH_HIGHLIGHT_STYLES[global-alias]='fg=#89b4fa,bold'
+ZSH_HIGHLIGHT_STYLES[function]='fg=#89b4fa'
+ZSH_HIGHLIGHT_STYLES[command]='fg=#89b4fa'
+ZSH_HIGHLIGHT_STYLES[precommand]='fg=#89b4fa,italic'
+ZSH_HIGHLIGHT_STYLES[autodirectory]='fg=#fab387,italic,bold'
+
+# Options
+ZSH_HIGHLIGHT_STYLES[single-hyphen-option]='fg=#fab387'
+ZSH_HIGHLIGHT_STYLES[double-hyphen-option]='fg=#fab387'
+
+# Builtins / reserved
+ZSH_HIGHLIGHT_STYLES[builtin]='fg=#89dceb,bold'
+ZSH_HIGHLIGHT_STYLES[reserved-word]='fg=#89dceb,bold'
+ZSH_HIGHLIGHT_STYLES[hashed-command]='fg=#89dceb,bold'
+
+# Strings
+ZSH_HIGHLIGHT_STYLES[single-quoted-argument]='fg=#a6e3a1'
+ZSH_HIGHLIGHT_STYLES[single-quoted-argument-unclosed]='fg=#f38ba8'
+ZSH_HIGHLIGHT_STYLES[double-quoted-argument]='fg=#a6e3a1'
+ZSH_HIGHLIGHT_STYLES[double-quoted-argument-unclosed]='fg=#f38ba8'
+ZSH_HIGHLIGHT_STYLES[command-substitution-quoted]='fg=#a6e3a1'
+ZSH_HIGHLIGHT_STYLES[command-substitution-delimiter-quoted]='fg=#a6e3a1'
+ZSH_HIGHLIGHT_STYLES[rc-quote]='fg=#a6e3a1'
+
+# Variables / parameters
+ZSH_HIGHLIGHT_STYLES[dollar-quoted-argument]='fg=#cdd6f4'
+ZSH_HIGHLIGHT_STYLES[dollar-quoted-argument-unclosed]='fg=#f38ba8'
+ZSH_HIGHLIGHT_STYLES[dollar-double-quoted-argument]='fg=#cdd6f4'
+ZSH_HIGHLIGHT_STYLES[assign]='fg=#cdd6f4'
+ZSH_HIGHLIGHT_STYLES[named-fd]='fg=#cdd6f4'
+ZSH_HIGHLIGHT_STYLES[numeric-fd]='fg=#cdd6f4'
+
+# Paths
+ZSH_HIGHLIGHT_STYLES[path]='fg=#b4befe,bold'
+ZSH_HIGHLIGHT_STYLES[path_pathseparator]='fg=#f38ba8'
+ZSH_HIGHLIGHT_STYLES[path_prefix]='fg=#b4befe'
+ZSH_HIGHLIGHT_STYLES[path_prefix_pathseparator]='fg=#f38ba8'
+ZSH_HIGHLIGHT_STYLES[globbing]='fg=#b4befe'
+
+# Punctuation
+ZSH_HIGHLIGHT_STYLES[commandseparator]='fg=#f38ba8'
+ZSH_HIGHLIGHT_STYLES[command-substitution-delimiter]='fg=#cdd6f4'
+ZSH_HIGHLIGHT_STYLES[command-substitution-delimiter-unquoted]='fg=#cdd6f4'
+ZSH_HIGHLIGHT_STYLES[process-substitution-delimiter]='fg=#cdd6f4'
+ZSH_HIGHLIGHT_STYLES[back-quoted-argument-delimiter]='fg=#f38ba8'
+ZSH_HIGHLIGHT_STYLES[back-double-quoted-argument]='fg=#f38ba8'
+ZSH_HIGHLIGHT_STYLES[back-dollar-quoted-argument]='fg=#f38ba8'
+
+# Others
+ZSH_HIGHLIGHT_STYLES[history-expansion]='fg=#cba6f7'
+ZSH_HIGHLIGHT_STYLES[back-quoted-argument]='fg=#cba6f7'
+ZSH_HIGHLIGHT_STYLES[back-quoted-argument-unclosed]='fg=#f38ba8'
+ZSH_HIGHLIGHT_STYLES[redirection]='fg=#cdd6f4'
+ZSH_HIGHLIGHT_STYLES[arg0]='fg=#cdd6f4'
+ZSH_HIGHLIGHT_STYLES[default]='fg=#cdd6f4'
+ZSH_HIGHLIGHT_STYLES[unknown-token]='fg=#f38ba8'
+ZSH_HIGHLIGHT_STYLES[cursor]='standout'
