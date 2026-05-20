@@ -1,5 +1,6 @@
 local awful = require("awful")
 local naughty = require("naughty")
+local common = require("lib.common")
 
 local ROFI_COMMAND = "~/.config/scripts/rofi-launch"
 local LOCK_COMMAND = "~/.config/scripts/lock"
@@ -8,12 +9,11 @@ local POT_OCR_URL = "http://127.0.0.1:60828/ocr_translate?screenshot=false"
 
 local M = {}
 
+local truncate_message = common.truncate_message
+local shell_quote = common.shell_quote
+
 local function expand_home(path)
     return (path:gsub("^~", os.getenv("HOME") or "~"))
-end
-
-local function shell_quote(value)
-    return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
 end
 
 local function command_check(commands)
@@ -26,17 +26,6 @@ end
 
 local function executable_check(path)
     return "test -x " .. shell_quote(expand_home(path))
-end
-
-local function truncate_message(text)
-    text = (text or ""):gsub("^%s+", ""):gsub("%s+$", "")
-    if text == "" then
-        return nil
-    end
-    if #text > 240 then
-        return text:sub(1, 237) .. "..."
-    end
-    return text
 end
 
 local function notify_action_failure(title, text)

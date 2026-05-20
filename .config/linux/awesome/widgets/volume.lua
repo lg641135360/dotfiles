@@ -6,6 +6,10 @@ local gears = require("gears")
 local naughty = require("naughty")
 local wibox = require("wibox")
 local beautiful = require("beautiful")
+local common = require("lib.common")
+
+local stop_timer = common.stop_timer
+local truncate_message = common.truncate_message
 
 local function parse_volume_percent(output)
     if not output then
@@ -29,29 +33,6 @@ local function parse_mute_state(output)
     end
 
     return nil
-end
-
-local function stop_timer(timer)
-    if not timer then
-        return
-    end
-
-    if timer.stop then
-        timer:stop()
-    elseif timer.started ~= nil then
-        timer.started = false
-    end
-end
-
-local function truncate_message(text)
-    text = (text or ""):gsub("^%s+", ""):gsub("%s+$", "")
-    if text == "" then
-        return nil
-    end
-    if #text > 240 then
-        return text:sub(1, 237) .. "..."
-    end
-    return text
 end
 
 local function notify_volume_failure(title, text)

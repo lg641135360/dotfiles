@@ -5,8 +5,11 @@ local awful = require("awful")
 local gears = require("gears")
 local wibox = require("wibox")
 local beautiful = require("beautiful")
+local common = require("lib.common")
 
 local M = {}
+
+local stop_timer = common.stop_timer
 
 local function read_file_line(path)
     local file = io.open(path, "r")
@@ -368,18 +371,6 @@ local function system_details_command(section)
     end
 
     return "LC_ALL=C ps -eo pid,comm,%mem --sort=-%mem 2>/dev/null | head -n 5"
-end
-
-local function stop_timer(timer)
-    if not timer then
-        return
-    end
-
-    if timer.stop then
-        timer:stop()
-    elseif timer.started ~= nil then
-        timer.started = false
-    end
 end
 
 local function create_system_widgets(config, options)

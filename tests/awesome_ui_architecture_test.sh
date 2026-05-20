@@ -119,6 +119,7 @@ local actions_file = arg[1]
 local notifications = {}
 local shell_commands = {}
 local direct_spawns = {}
+package.path = actions_file:gsub("/actions%.lua$", "/?.lua") .. ";" .. package.path
 
 package.preload["awful"] = function()
     return {
@@ -505,7 +506,7 @@ test_system_widget_exposes_row_for_extension() {
     assert_not_contains 'local screen = options and options.screen' "$SYSTEM_WIDGETS_FILE"
     assert_not_contains 'require("lain")' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'M._private = {' "$SYSTEM_WIDGETS_FILE"
-    assert_contains 'local function stop_timer(timer)' "$SYSTEM_WIDGETS_FILE"
+    assert_contains 'local stop_timer = common.stop_timer' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'local function dispose()' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'dispose = dispose,' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'stop_timer(details_timer)' "$SYSTEM_WIDGETS_FILE"
@@ -513,6 +514,41 @@ test_system_widget_exposes_row_for_extension() {
     assert_contains 'stop_timer(net_timer)' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'gears.shape.rounded_rect(cr, w, h, dpi(8))' "$SYSTEM_WIDGETS_FILE"
     assert_not_contains 'dpi(8, screen)' "$SYSTEM_WIDGETS_FILE"
+}
+
+test_modules_use_shared_common_helpers() {
+    COMMON_FILE=$REPO_ROOT/.config/linux/awesome/lib/common.lua
+    VOLUME_FILE=$REPO_ROOT/.config/linux/awesome/widgets/volume.lua
+
+    [ -f "$COMMON_FILE" ] || fail "expected shared common helper module to exist"
+
+    assert_contains 'local common = require("lib.common")' "$ACTIONS_FILE"
+    assert_contains 'local truncate_message = common.truncate_message' "$ACTIONS_FILE"
+    assert_contains 'local shell_quote = common.shell_quote' "$ACTIONS_FILE"
+    assert_not_contains 'local function truncate_message(text)' "$ACTIONS_FILE"
+    assert_not_contains 'local function shell_quote(value)' "$ACTIONS_FILE"
+
+    assert_contains 'local common = require("lib.common")' "$BRIGHTNESS_FILE"
+    assert_contains 'local read_command_output = common.read_command_output' "$BRIGHTNESS_FILE"
+    assert_contains 'local command_exists = common.command_exists' "$BRIGHTNESS_FILE"
+    assert_contains 'local stop_timer = common.stop_timer' "$BRIGHTNESS_FILE"
+    assert_contains 'local truncate_message = common.truncate_message' "$BRIGHTNESS_FILE"
+    assert_contains 'local shell_quote = common.shell_quote' "$BRIGHTNESS_FILE"
+    assert_not_contains 'local function read_command_output(command)' "$BRIGHTNESS_FILE"
+    assert_not_contains 'local function command_exists(command)' "$BRIGHTNESS_FILE"
+    assert_not_contains 'local function stop_timer(timer)' "$BRIGHTNESS_FILE"
+    assert_not_contains 'local function truncate_message(text)' "$BRIGHTNESS_FILE"
+    assert_not_contains 'local function shell_quote(value)' "$BRIGHTNESS_FILE"
+
+    assert_contains 'local common = require("lib.common")' "$SYSTEM_WIDGETS_FILE"
+    assert_contains 'local stop_timer = common.stop_timer' "$SYSTEM_WIDGETS_FILE"
+    assert_not_contains 'local function stop_timer(timer)' "$SYSTEM_WIDGETS_FILE"
+
+    assert_contains 'local common = require("lib.common")' "$VOLUME_FILE"
+    assert_contains 'local stop_timer = common.stop_timer' "$VOLUME_FILE"
+    assert_contains 'local truncate_message = common.truncate_message' "$VOLUME_FILE"
+    assert_not_contains 'local function stop_timer(timer)' "$VOLUME_FILE"
+    assert_not_contains 'local function truncate_message(text)' "$VOLUME_FILE"
 }
 
 test_readme_documents_current_awesome_modules() {
@@ -635,6 +671,7 @@ test_wibar_escapes_task_titles
 test_wibar_exposes_prompt_runners
 test_wibar_avoids_container_insert_on_sysinfo_widget
 test_system_widget_exposes_row_for_extension
+test_modules_use_shared_common_helpers
 test_readme_documents_current_awesome_modules
 test_readme_documents_wibar_visual_tuning
 test_theme_exposes_fallback_titlebar_tokens

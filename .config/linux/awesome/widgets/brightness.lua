@@ -6,6 +6,13 @@ local gears = require("gears")
 local naughty = require("naughty")
 local wibox = require("wibox")
 local beautiful = require("beautiful")
+local common = require("lib.common")
+
+local read_command_output = common.read_command_output
+local command_exists = common.command_exists
+local stop_timer = common.stop_timer
+local truncate_message = common.truncate_message
+local shell_quote = common.shell_quote
 
 local function read_file_line(path)
     local file = io.open(path, "r")
@@ -16,31 +23,6 @@ local function read_file_line(path)
     local content = file:read("*l")
     file:close()
     return content
-end
-
-local function read_command_output(command)
-    local handle = io.popen(command .. " 2>/dev/null")
-    if not handle then
-        return nil
-    end
-
-    local output = handle:read("*l")
-    handle:close()
-
-    if not output then
-        return nil
-    end
-
-    output = output:gsub("%s+$", "")
-    if output == "" then
-        return nil
-    end
-
-    return output
-end
-
-local function command_exists(command)
-    return read_command_output("command -v " .. command .. " >/dev/null 2>&1 && printf yes || printf no") == "yes"
 end
 
 local function find_backlight_path()
@@ -73,29 +55,6 @@ local function calculate_brightness_percent(current, maximum)
     return math.floor((current * 100 / maximum) + 0.5)
 end
 
-local function stop_timer(timer)
-    if not timer then
-        return
-    end
-
-    if timer.stop then
-        timer:stop()
-    elseif timer.started ~= nil then
-        timer.started = false
-    end
-end
-
-local function truncate_message(text)
-    text = (text or ""):gsub("^%s+", ""):gsub("%s+$", "")
-    if text == "" then
-        return nil
-    end
-    if #text > 240 then
-        return text:sub(1, 237) .. "..."
-    end
-    return text
-end
-
 local function notify_brightness_failure(title, text)
     local preset = naughty.config
         and naughty.config.presets
@@ -107,10 +66,6 @@ local function notify_brightness_failure(title, text)
         title = title,
         text = text,
     })
-end
-
-local function shell_quote(value)
-    return "'" .. tostring(value):gsub("'", [['"'"']]) .. "'"
 end
 
 local function file_writable(path)
