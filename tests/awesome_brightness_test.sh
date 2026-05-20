@@ -32,6 +32,7 @@ test_brightness_widget_uses_native_backlight_sysfs() {
 test_brightness_widget_calculates_percent_and_exposes_private_helpers() {
     lua - "$BRIGHTNESS_FILE" <<'LUA' || fail "expected brightness helpers to round percentages and quote device names safely"
 local brightness_file = arg[1]
+package.path = brightness_file:gsub("/widgets/brightness%.lua$", "/?.lua") .. ";" .. package.path
 
 package.preload["awful"] = function()
     return { spawn = { easy_async_with_shell = function() end } }
@@ -57,7 +58,7 @@ assert(private.calculate_brightness_percent(nil, 500) == nil)
 assert(private.calculate_brightness_percent(100, 0) == nil)
 assert(private.brightnessctl_install_hint() == "sudo apt install brightnessctl")
 assert(private.shell_quote("m1000_backlight") == "'m1000_backlight'")
-assert(private.shell_quote("foo'bar") == [['foo'"'"'bar']])
+assert(private.shell_quote("foo'bar") == "'foo'\\''bar'")
 LUA
 }
 
@@ -84,8 +85,9 @@ test_brightness_widget_has_hover_details_and_optional_scroll_hint() {
 
 test_brightness_widget_refreshes_periodically_and_optionally_uses_brightnessctl() {
     assert_contains 'local naughty = require("naughty")' "$BRIGHTNESS_FILE"
-    assert_contains 'local function read_command_output(command)' "$BRIGHTNESS_FILE"
-    assert_contains 'local function truncate_message(text)' "$BRIGHTNESS_FILE"
+    assert_contains 'local common = require("lib.common")' "$BRIGHTNESS_FILE"
+    assert_contains 'local read_command_output = common.read_command_output' "$BRIGHTNESS_FILE"
+    assert_contains 'local truncate_message = common.truncate_message' "$BRIGHTNESS_FILE"
     assert_contains 'local function notify_brightness_failure(title, text)' "$BRIGHTNESS_FILE"
     assert_contains 'local function file_writable(path)' "$BRIGHTNESS_FILE"
     assert_contains 'local function file_group_name(path)' "$BRIGHTNESS_FILE"
@@ -115,7 +117,7 @@ test_brightness_widget_refreshes_periodically_and_optionally_uses_brightnessctl(
 }
 
 test_brightness_widget_is_aarch64_only_in_config_and_wibar() {
-    assert_contains 'has_brightness = (platform.os == "Linux" and (platform.arch == "aarch64" or platform.arch == "arm64")),' "$CONFIG_FILE"
+    assert_contains 'brightness_override ~= "0" and platform.os == "Linux" and (platform.arch == "aarch64" or platform.arch == "arm64")' "$CONFIG_FILE"
     assert_contains 'if config.has_brightness then' "$WIBAR_FILE"
     assert_contains 'brightness_bundle = require("widgets.brightness").create({' "$WIBAR_FILE"
     assert_contains 'if brightness_bundle then' "$WIBAR_FILE"

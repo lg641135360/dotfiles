@@ -24,6 +24,7 @@ test_system_widgets_parse_cpu_and_memory_without_lain() {
 
     lua - "$SYSTEM_WIDGETS_FILE" <<'LUA' || fail "expected native CPU/MEM parser helpers to behave correctly"
 local system_file = arg[1]
+package.path = system_file:gsub("/widgets/system%.lua$", "/?.lua") .. ";" .. package.path
 
 package.preload["awful"] = function()
     return { spawn = { easy_async_with_shell = function() end } }

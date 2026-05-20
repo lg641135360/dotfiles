@@ -35,6 +35,7 @@ test_system_widgets_aggregate_multiple_batteries() {
 
     lua - "$SYSTEM_WIDGETS_FILE" <<'LUA' || fail "expected battery aggregation helpers to combine multiple batteries correctly"
 local system_file = arg[1]
+package.path = system_file:gsub("/widgets/system%.lua$", "/?.lua") .. ";" .. package.path
 
 package.preload["awful"] = function()
     return { spawn = { easy_async_with_shell = function() end } }
