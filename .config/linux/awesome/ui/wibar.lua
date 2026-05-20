@@ -353,7 +353,11 @@ local function dispose_status_widgets(s)
 end
 
 local function ensure_primary_status_widgets(config, ctpp, s, compact)
-    local spec = (compact and "compact" or "full") .. ":" .. (config.has_volume and "vol" or "novol")
+    local spec = table.concat({
+        compact and "compact" or "full",
+        config.has_volume and "vol" or "novol",
+        config.has_brightness and "bri" or "nobri",
+    }, ":")
     if s.mystatusbundle and s.mystatusspec == spec then
         return s.mystatusbundle
     end

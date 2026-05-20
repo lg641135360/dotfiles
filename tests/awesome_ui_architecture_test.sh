@@ -551,6 +551,14 @@ test_modules_use_shared_common_helpers() {
     assert_not_contains 'local function truncate_message(text)' "$VOLUME_FILE"
 }
 
+test_wibar_status_spec_accounts_for_brightness_and_volume() {
+    assert_contains 'local spec = table.concat({' "$WIBAR_FILE"
+    assert_contains 'compact and "compact" or "full",' "$WIBAR_FILE"
+    assert_contains 'config.has_volume and "vol" or "novol",' "$WIBAR_FILE"
+    assert_contains 'config.has_brightness and "bri" or "nobri",' "$WIBAR_FILE"
+    assert_contains '}, ":")' "$WIBAR_FILE"
+}
+
 test_readme_documents_current_awesome_modules() {
     assert_contains 'actions.lua' "$README_FILE"
     assert_contains 'bindings.lua' "$README_FILE"
@@ -672,6 +680,7 @@ test_wibar_exposes_prompt_runners
 test_wibar_avoids_container_insert_on_sysinfo_widget
 test_system_widget_exposes_row_for_extension
 test_modules_use_shared_common_helpers
+test_wibar_status_spec_accounts_for_brightness_and_volume
 test_readme_documents_current_awesome_modules
 test_readme_documents_wibar_visual_tuning
 test_theme_exposes_fallback_titlebar_tokens
