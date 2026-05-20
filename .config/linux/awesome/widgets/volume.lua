@@ -204,7 +204,7 @@ local function create_volume_widget(options)
 
     update_volume()
     local refresh_timer = gears.timer {
-        timeout = 2,
+        timeout = 5,
         autostart = true,
         callback = update_volume,
     }

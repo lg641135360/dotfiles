@@ -559,6 +559,13 @@ test_wibar_status_spec_accounts_for_brightness_and_volume() {
     assert_contains '}, ":")' "$WIBAR_FILE"
 }
 
+test_volume_widget_uses_relaxed_background_polling() {
+    VOLUME_FILE=$REPO_ROOT/.config/linux/awesome/widgets/volume.lua
+    assert_contains 'local refresh_timer = gears.timer {' "$VOLUME_FILE"
+    assert_contains 'timeout = 5,' "$VOLUME_FILE"
+    assert_contains 'local refresh_delays = { 0.15, 0.5, 1.2 }' "$VOLUME_FILE"
+}
+
 test_readme_documents_current_awesome_modules() {
     assert_contains 'actions.lua' "$README_FILE"
     assert_contains 'bindings.lua' "$README_FILE"
@@ -681,6 +688,7 @@ test_wibar_avoids_container_insert_on_sysinfo_widget
 test_system_widget_exposes_row_for_extension
 test_modules_use_shared_common_helpers
 test_wibar_status_spec_accounts_for_brightness_and_volume
+test_volume_widget_uses_relaxed_background_polling
 test_readme_documents_current_awesome_modules
 test_readme_documents_wibar_visual_tuning
 test_theme_exposes_fallback_titlebar_tokens
