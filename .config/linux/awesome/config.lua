@@ -44,6 +44,8 @@ else
 end
 
 -- Platform-specific settings
+local brightness_override = os.getenv("AWESOME_HAS_BRIGHTNESS")
+
 local config = {
     -- Theme: all platforms now use Catppuccin
     theme_path = "~/.config/awesome/theme/catppuccin.lua",
@@ -57,8 +59,8 @@ local config = {
     -- Volume widget: enabled on systems with pulseaudio/pipewire command surface
     has_volume = (platform.os == "Linux" and command_exists("pactl")),
 
-    -- Brightness widget: only enabled for Linux aarch64/arm64 Awesome profile
-    has_brightness = (platform.os == "Linux" and (platform.arch == "aarch64" or platform.arch == "arm64")),
+    -- Brightness widget: default to Linux aarch64/arm64, with explicit env override for tests and special hosts
+    has_brightness = brightness_override == "1" or (brightness_override ~= "0" and platform.os == "Linux" and (platform.arch == "aarch64" or platform.arch == "arm64")),
 
     -- Network interface pattern
     net_interfaces = "wlan0|eth0|enp|wlp",

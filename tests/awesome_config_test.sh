@@ -37,7 +37,12 @@ test_volume_widget_uses_capability_detection() {
 }
 
 test_brightness_widget_is_limited_to_aarch64_profiles() {
-    assert_contains 'has_brightness = (platform.os == "Linux" and (platform.arch == "aarch64" or platform.arch == "arm64")),' "$CONFIG_FILE"
+    assert_contains 'brightness_override ~= "0" and platform.os == "Linux" and (platform.arch == "aarch64" or platform.arch == "arm64")' "$CONFIG_FILE"
+}
+
+test_brightness_override_is_supported_without_changing_default_policy() {
+    assert_contains 'local brightness_override = os.getenv("AWESOME_HAS_BRIGHTNESS")' "$CONFIG_FILE"
+    assert_contains 'has_brightness = brightness_override == "1" or (brightness_override ~= "0" and platform.os == "Linux" and (platform.arch == "aarch64" or platform.arch == "arm64")),' "$CONFIG_FILE"
 }
 
 test_net_interfaces_are_flattened_after_convergence() {
@@ -60,6 +65,7 @@ test_config_keeps_xft_dpi_global_without_per_screen_overrides() {
 test_config_exposes_command_capability_helper
 test_volume_widget_uses_capability_detection
 test_brightness_widget_is_limited_to_aarch64_profiles
+test_brightness_override_is_supported_without_changing_default_policy
 test_net_interfaces_are_flattened_after_convergence
 test_config_exposes_compact_wibar_thresholds
 test_config_keeps_xft_dpi_global_without_per_screen_overrides
