@@ -9,6 +9,7 @@ my config files
   - nvim
   - zsh(on ~/.config/zsh)
   - zed settings
+  - Claude Code statusline
 - macintosh
   - aerospace[window manager]
   - rift[window manager]
@@ -26,3 +27,8 @@ my config files
 chmod +x install.sh
 ./install.sh
 ```
+
+The installer copies configs instead of symlinking them. When `claude` and `jq`
+are available, it also installs `.config/shared/cc/statusline.sh` to
+`~/.config/cc/statusline.sh` and points `~/.claude/settings.json` at that
+command.

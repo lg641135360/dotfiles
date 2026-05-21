@@ -1406,3 +1406,10 @@
 - 已做：新增 `.config/linux/awesome/lib/common.lua` 与 `tests/awesome_common_test.sh`；将 `actions.lua`、`widgets/brightness.lua`、`widgets/volume.lua`、`widgets/system.lua` 的通用 shell/timer/string helper 迁到 `lib.common`；在 `config.lua` 增加 `AWESOME_HAS_BRIGHTNESS` 显式覆盖，同时保留 Linux aarch64/arm64 默认；把 `ui/wibar.lua` 的状态区缓存 spec 扩展为 compact/full、vol/novol、bri/nobri 三个维度；把 volume 被动刷新从 2 秒放宽到 5 秒，并同步更新相关 Awesome 测试。没有同步 live `~/.config/awesome`，没有重载 Awesome，也没有推送。
 - 验证：按计划复跑 `tests/awesome_common_test.sh`、`tests/awesome_config_test.sh`、`tests/awesome_ui_architecture_test.sh`、`tests/awesome_layout_test.sh`、`tests/awesome_volume_test.sh`、`tests/awesome_brightness_test.sh`、`tests/awesome_net_test.sh`、`tests/awesome_battery_test.sh`、`tests/awesome_menu_test.sh`、`tests/awesome_autostart_test.sh`、`tests/awesome_lock_test.sh`、`tests/awesome_wallpaper_test.sh` 全部通过；`sh -n` 覆盖新增/修改测试脚本通过；`git diff --check -- .config/linux/awesome tests` 通过；`awesome -k -c "$PWD/.config/linux/awesome/rc.lua"` 返回配置语法 OK。由于当前 PATH 没有 `lua`，Awesome Lua 测试使用临时 `lua -> /home/linuxbrew/.linuxbrew/bin/luajit` wrapper 运行。
 - 后续：当前仓库实现和测试已完成并分阶段提交；若要在当前桌面立即使用，需要另行同步 live Awesome 配置并重载，本轮未执行这些运行态操作。
+
+## 2026-05-21
+
+- 目的：按用户要求检测当前工作区改动，并把新增 Claude Code statusline 安装行为补齐 README 与轻量回归后准备发布到远端 GitHub。
+- 已做：确认工作区原始改动为 `install.sh` 新增 Claude Code statusline 配置函数与新增 `.config/shared/cc/statusline.sh`。在根 `README.md` 增加 Claude Code statusline 说明，并新增 `.config/shared/cc/README.md` 记录安装路径、`~/.claude/settings.json` 的 `statusLine` 命令配置以及 statusline 显示内容；同时新增 `tests/install_claude_statusline_test.sh`，覆盖 statusline 渲染、隔离 HOME 下安装脚本写入/合并 Claude settings、保留其它 settings key 与 README 文档护栏。将 `.config/shared/cc/statusline.sh` 与新增测试脚本设为可执行。没有同步 live `~/.claude`，也没有运行根 `install.sh` 触碰真实用户配置。
+- 验证：`./tests/install_claude_statusline_test.sh`、`./tests/install_redshift_test.sh`、`bash -n install.sh`、`bash -n .config/shared/cc/statusline.sh`、`sh -n tests/install_claude_statusline_test.sh`、`sh -n tests/install_redshift_test.sh` 与 `git diff --check` 均通过。
+- 后续：下一步按 Lore commit 协议提交并推送 `main`；推送完成后补记发布状态。当前未同步 live、未提交、未推送。

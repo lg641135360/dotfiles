@@ -226,6 +226,64 @@ ubuntu_amd64_configs=(
     "command -v picom|.config/linux/picom/picom-ubuntu_x64.conf|~/.config/picom.conf|picom configuration"
 )
 
+
+# Configure Claude Code statusline
+configure_claude_code_statusline() {
+    if ! command -v claude >/dev/null 2>&1; then
+        log_info "Claude Code not found, skipping Claude statusline configuration"
+        return 0
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        log_warn "jq not found, skipping Claude statusline configuration"
+        return 0
+    fi
+
+    local script_source="$cur_path/.config/shared/cc/statusline.sh"
+    local script_target="$HOME/.config/cc/statusline.sh"
+    local settings_dir="$HOME/.claude"
+    local settings_file="$settings_dir/settings.json"
+    local temp_file
+    local statusline_command
+
+    copy_config "$script_source" "$script_target" "Claude Code statusline script"
+    chmod +x "$script_target"
+    ensure_dir "$settings_dir"
+
+    statusline_command="$script_target"
+    temp_file=$(mktemp)
+
+    if [ -f "$settings_file" ]; then
+        if ! jq --arg cmd "$statusline_command" '.statusLine = {type: "command", command: $cmd}' "$settings_file" > "$temp_file"; then
+            rm -f "$temp_file"
+            log_warn "Failed to update Claude Code settings.json, skipping Claude statusline configuration"
+            return 0
+        fi
+    else
+        if ! jq -n --arg cmd "$statusline_command" '{statusLine: {type: "command", command: $cmd}}' > "$temp_file"; then
+            rm -f "$temp_file"
+            log_warn "Failed to create Claude Code settings.json, skipping Claude statusline configuration"
+            return 0
+        fi
+    fi
+
+    if cmp -s "$temp_file" "$settings_file" 2>/dev/null; then
+        rm -f "$temp_file"
+        log_info "Claude Code statusline already configured"
+        return 0
+    fi
+
+    if [ -f "$settings_file" ]; then
+        local backup_path="$settings_file.backup.$timestamp"
+        cp -p "$settings_file" "$backup_path"
+        clean_old_backups "$settings_file"
+        log_info "Backed up existing Claude Code settings to $(basename "$backup_path")"
+    fi
+
+    mv "$temp_file" "$settings_file"
+    log_info "Configured Claude Code statusline"
+}
+
 # Main installation function
 main() {
     local start_time=$(date +%s)
@@ -418,10 +476,14 @@ main() {
         log_warn "Unsupported operating system: $os"
     fi
 
+    configure_claude_code_statusline
+
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
     log_info "Installation completed in $duration seconds"
 }
 
 # Run main function
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi
