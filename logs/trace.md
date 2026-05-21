@@ -1413,3 +1413,8 @@
 - 已做：确认工作区原始改动为 `install.sh` 新增 Claude Code statusline 配置函数与新增 `.config/shared/cc/statusline.sh`。在根 `README.md` 增加 Claude Code statusline 说明，并新增 `.config/shared/cc/README.md` 记录安装路径、`~/.claude/settings.json` 的 `statusLine` 命令配置以及 statusline 显示内容；同时新增 `tests/install_claude_statusline_test.sh`，覆盖 statusline 渲染、隔离 HOME 下安装脚本写入/合并 Claude settings、保留其它 settings key 与 README 文档护栏。将 `.config/shared/cc/statusline.sh` 与新增测试脚本设为可执行。没有同步 live `~/.claude`，也没有运行根 `install.sh` 触碰真实用户配置。
 - 验证：`./tests/install_claude_statusline_test.sh`、`./tests/install_redshift_test.sh`、`bash -n install.sh`、`bash -n .config/shared/cc/statusline.sh`、`sh -n tests/install_claude_statusline_test.sh`、`sh -n tests/install_redshift_test.sh` 与 `git diff --check` 均通过。
 - 后续：下一步按 Lore commit 协议提交并推送 `main`；推送完成后补记发布状态。当前未同步 live、未提交、未推送。
+
+- 目的：记录本轮 Claude Code statusline README/安装器改动已经按用户要求发布到远端 GitHub。
+- 已做：将 README、`.config/shared/cc/statusline.sh`、`.config/shared/cc/README.md`、`install.sh`、`tests/install_claude_statusline_test.sh` 与 trace 记录提交为 `601caf8`（`Make Claude statusline setup reproducible from the dotfiles installer`），随后推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`。本轮没有同步 live `~/.claude`，也没有运行真实 HOME 下的安装器。
+- 验证：推送返回 `bf4a7c9..601caf8  main -> main`，说明功能提交已发布到 GitHub；发布前 `origin/main` 已 fetch 且 `HEAD...origin/main` 为 `0 0`，功能提交后本地领先 1 个提交再推送成功。
+- 后续：继续把这条发布记录本身提交并推送，确保远端 trace 与实际发布状态一致；追加 trace 本身不再递归记录第二条 trace。
