@@ -268,7 +268,7 @@ local function create_brightness_widget(options)
 
     update_brightness()
     local refresh_timer = gears.timer {
-        timeout = 5,
+        timeout = 10,
         autostart = true,
         callback = update_brightness,
     }

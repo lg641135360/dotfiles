@@ -7,6 +7,7 @@ BINDINGS_FILE=$REPO_ROOT/.config/linux/awesome/bindings.lua
 WIBAR_FILE=$REPO_ROOT/.config/linux/awesome/ui/wibar.lua
 ACTIONS_FILE=$REPO_ROOT/.config/linux/awesome/actions.lua
 SYSTEM_WIDGETS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/system.lua
+VOLUME_FILE=$REPO_ROOT/.config/linux/awesome/widgets/volume.lua
 BRIGHTNESS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/brightness.lua
 README_FILE=$REPO_ROOT/.config/linux/awesome/README.md
 
@@ -160,6 +161,41 @@ assert(shell_commands[1]:match("command %-v 'dolphin'"))
 LUA
 }
 
+test_volume_widget_uses_lower_idle_polling() {
+    assert_contains 'timeout = 10,' "$VOLUME_FILE"
+    assert_not_contains 'timeout = 5,' "$VOLUME_FILE"
+    assert_contains 'local refresh_delays = { 0.15, 0.5, 1.2 }' "$VOLUME_FILE"
+}
+
+test_brightness_widget_uses_lower_idle_polling() {
+    assert_contains 'timeout = 10,' "$BRIGHTNESS_FILE"
+    assert_not_contains 'timeout = 5,' "$BRIGHTNESS_FILE"
+    assert_contains 'local refresh_delays = { 0.15, 0.5, 1.2 }' "$BRIGHTNESS_FILE"
+}
+
+test_volume_widget_does_not_switch_to_event_subscription() {
+    assert_not_contains 'pactl subscribe' "$VOLUME_FILE"
+}
+
+test_tasklist_does_not_switch_to_icon_only_mode() {
+    assert_not_contains 'icon_only' "$WIBAR_FILE"
+    assert_contains 'id = "text_role",' "$WIBAR_FILE"
+}
+
+test_wibar_uses_task_density_tiers() {
+    assert_contains 'local function current_tag_client_count(screen)' "$WIBAR_FILE"
+    assert_contains 'local function task_density_tier(screen)' "$WIBAR_FILE"
+    assert_contains 'if client_count >= 7 then' "$WIBAR_FILE"
+    assert_contains 'if client_count >= 4 then' "$WIBAR_FILE"
+    assert_contains 'local density = task_density_tier(screen)' "$WIBAR_FILE"
+}
+
+test_wibar_task_title_width_depends_on_density() {
+    assert_contains 'local density = task_density_tier(screen)' "$WIBAR_FILE"
+    assert_contains 'if density == "tight" then' "$WIBAR_FILE"
+    assert_contains 'elseif density == "compact" then' "$WIBAR_FILE"
+}
+
 test_wibar_owns_bar_widget_creation() {
     assert_contains 'local config = args.config' "$WIBAR_FILE"
     assert_contains 'local actions = args.actions or {}' "$WIBAR_FILE"
@@ -237,9 +273,17 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'id = "text_constraint_role",' "$WIBAR_FILE"
     assert_contains 'strategy = "max",' "$WIBAR_FILE"
     assert_contains 'width = task_title_max_width(screen, config),' "$WIBAR_FILE"
-    assert_contains 'local item_spacing = is_compact_screen(screen, config) and 4 or 6' "$WIBAR_FILE"
-    assert_contains 'local item_h_padding = is_compact_screen(screen, config) and 6 or 8' "$WIBAR_FILE"
-    assert_contains 'local item_v_padding = is_compact_screen(screen, config) and 1 or 2' "$WIBAR_FILE"
+    assert_contains 'local compact = is_compact_screen(screen, config)' "$WIBAR_FILE"
+    assert_contains 'local density = task_density_tier(screen)' "$WIBAR_FILE"
+    assert_contains 'local item_spacing = compact and 4 or 6' "$WIBAR_FILE"
+    assert_contains 'local item_h_padding = compact and 6 or 8' "$WIBAR_FILE"
+    assert_contains 'local item_v_padding = compact and 1 or 2' "$WIBAR_FILE"
+    assert_contains 'if density == "tight" then' "$WIBAR_FILE"
+    assert_contains 'item_spacing = compact and 2 or 4' "$WIBAR_FILE"
+    assert_contains 'item_h_padding = compact and 4 or 6' "$WIBAR_FILE"
+    assert_contains 'elseif density == "compact" then' "$WIBAR_FILE"
+    assert_contains 'item_spacing = compact and 3 or 5' "$WIBAR_FILE"
+    assert_contains 'item_h_padding = compact and 5 or 7' "$WIBAR_FILE"
     assert_contains 'self._task_tooltip_text = render_task_tooltip(c)' "$WIBAR_FILE"
     assert_contains 'if not self._task_tooltip then' "$WIBAR_FILE"
     assert_contains 'objects = { self },' "$WIBAR_FILE"
@@ -562,7 +606,7 @@ test_wibar_status_spec_accounts_for_brightness_and_volume() {
 test_volume_widget_uses_relaxed_background_polling() {
     VOLUME_FILE=$REPO_ROOT/.config/linux/awesome/widgets/volume.lua
     assert_contains 'local refresh_timer = gears.timer {' "$VOLUME_FILE"
-    assert_contains 'timeout = 5,' "$VOLUME_FILE"
+    assert_contains 'timeout = 10,' "$VOLUME_FILE"
     assert_contains 'local refresh_delays = { 0.15, 0.5, 1.2 }' "$VOLUME_FILE"
 }
 
@@ -675,6 +719,12 @@ test_bindings_keep_lock_on_mod_shift_l
 test_bindings_leave_bare_f1_to_snipaste
 test_bindings_do_not_duplicate_shortcuts
 test_actions_check_prerequisites_and_notify_failures
+test_volume_widget_uses_lower_idle_polling
+test_brightness_widget_uses_lower_idle_polling
+test_volume_widget_does_not_switch_to_event_subscription
+test_tasklist_does_not_switch_to_icon_only_mode
+test_wibar_uses_task_density_tiers
+test_wibar_task_title_width_depends_on_density
 test_wibar_owns_bar_widget_creation
 test_wibar_refreshes_after_screen_topology_changes
 test_wibar_exposes_hidden_probe_state_for_runtime_visibility_checks

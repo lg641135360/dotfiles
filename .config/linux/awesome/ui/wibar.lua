@@ -97,12 +97,46 @@ local function is_compact_screen(screen, config)
     return screen and screen.geometry and screen.geometry.width <= max_width
 end
 
+local function current_tag_client_count(screen)
+    if not screen or not screen.selected_tag then
+        return 0
+    end
+
+    return #screen.selected_tag:clients()
+end
+
+local function task_density_tier(screen)
+    local client_count = current_tag_client_count(screen)
+
+    if client_count >= 7 then
+        return "tight"
+    end
+
+    if client_count >= 4 then
+        return "compact"
+    end
+
+    return "relaxed"
+end
+
 local function task_title_max_width(screen, config)
     local compact = is_compact_screen(screen, config)
+    local density = task_density_tier(screen)
     local screen_width = screen and screen.geometry and screen.geometry.width or 1920
     local ratio = compact and 0.12 or 0.16
     local min_width = compact and 220 or 320
     local max_width = compact and 360 or 640
+
+    if density == "tight" then
+        ratio = compact and 0.09 or 0.12
+        min_width = compact and 160 or 220
+        max_width = compact and 260 or 360
+    elseif density == "compact" then
+        ratio = compact and 0.1 or 0.14
+        min_width = compact and 190 or 260
+        max_width = compact and 320 or 480
+    end
+
     local computed_width = math.floor((screen_width * ratio) + 0.5)
     return dpi(clamp(computed_width, min_width, max_width))
 end
@@ -496,9 +530,20 @@ local function create_layoutbox(ctpp, screen)
 end
 
 local function create_tasklist(ctpp, screen, tasklist_buttons, config)
-    local item_spacing = is_compact_screen(screen, config) and 4 or 6
-    local item_h_padding = is_compact_screen(screen, config) and 6 or 8
-    local item_v_padding = is_compact_screen(screen, config) and 1 or 2
+    local compact = is_compact_screen(screen, config)
+    local density = task_density_tier(screen)
+    local item_spacing = compact and 4 or 6
+    local item_h_padding = compact and 6 or 8
+    local item_v_padding = compact and 1 or 2
+
+    if density == "tight" then
+        item_spacing = compact and 2 or 4
+        item_h_padding = compact and 4 or 6
+    elseif density == "compact" then
+        item_spacing = compact and 3 or 5
+        item_h_padding = compact and 5 or 7
+    end
+
     return awful.widget.tasklist {
         screen = screen,
         filter = awful.widget.tasklist.filter.currenttags,
