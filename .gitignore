@@ -6,5 +6,7 @@
 
 .codex
 
+docs/superpowers/
+
 # OMX runtime state
 .omx/
