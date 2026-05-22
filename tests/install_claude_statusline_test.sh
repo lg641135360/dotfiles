@@ -44,17 +44,40 @@ test_statusline_script_renders_claude_payload() {
     git -C "$repo" commit -q -m init
     printf 'dirty\n' >"$repo/tracked.txt"
 
-    output=$(printf '{"workspace":{"current_dir":"%s"},"model":{"display_name":"Opus"},"effort_level":"high","context_window":{"used_percentage":42,"total_input_tokens":12000,"context_window_size":200000}}\n' "$repo" |
-        "$STATUSLINE_FILE")
+    payload=$(printf '{"workspace":{"current_dir":"%s"},"model":{"display_name":"Opus","max_context_tokens":1000000},"effort_level":"high","context_window":{"used_percentage":42,"total_input_tokens":12000,"context_window_size":200000}}\n' "$repo")
+    output=$(printf '%s' "$payload" |
+        env -u CLAUDE_CODE_AUTO_COMPACT_WINDOW -u CLAUDE_CODE_MAX_CONTEXT_TOKENS "$STATUSLINE_FILE")
 
     printf '%s\n' "$output" | grep -F 'Opus' >/dev/null 2>&1 ||
         fail "expected rendered statusline to include model"
     printf '%s\n' "$output" | grep -F 'high' >/dev/null 2>&1 ||
         fail "expected rendered statusline to include effort"
-    printf '%s\n' "$output" | grep -F 'CTX 42% (12k/200k)' >/dev/null 2>&1 ||
+    printf '%s\n' "$output" | grep -F 'CTX 12k/200k max:1M' >/dev/null 2>&1 ||
         fail "expected rendered statusline to include formatted context"
     printf '%s\n' "$output" | grep -E '\[[^]]+\*\]' >/dev/null 2>&1 ||
         fail "expected rendered statusline to include dirty git branch"
+
+    rm -rf "$tmpdir"
+}
+
+test_statusline_script_prefers_claude_env_for_context_limits() {
+    tmpdir=$(mktemp -d)
+    repo=$tmpdir/repo
+
+    mkdir -p "$repo"
+    git -C "$repo" init -q
+    git -C "$repo" config user.email test@example.invalid
+    git -C "$repo" config user.name Test
+    printf 'clean\n' >"$repo/tracked.txt"
+    git -C "$repo" add tracked.txt
+    git -C "$repo" commit -q -m init
+
+    payload=$(printf '{"workspace":{"current_dir":"%s"},"model":{"display_name":"Opus"},"effort_level":"high","context_window":{"total_input_tokens":48000,"context_window_size":1000000}}\n' "$repo")
+    output=$(printf '%s' "$payload" |
+        env CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000 CLAUDE_CODE_MAX_CONTEXT_TOKENS=1000000 "$STATUSLINE_FILE")
+
+    printf '%s\n' "$output" | grep -F 'CTX 48k/400k max:1M' >/dev/null 2>&1 ||
+        fail "expected rendered statusline to prefer Claude env context limits"
 
     rm -rf "$tmpdir"
 }
@@ -149,6 +172,7 @@ assert_file_exists "$STATUSLINE_FILE"
 [ -x "$STATUSLINE_FILE" ] || fail "expected repo Claude statusline script to be executable"
 
 test_statusline_script_renders_claude_payload
+test_statusline_script_prefers_claude_env_for_context_limits()
 test_install_configures_claude_statusline
 test_install_updates_existing_claude_settings_without_clobbering_other_keys
 test_docs_describe_claude_statusline_install

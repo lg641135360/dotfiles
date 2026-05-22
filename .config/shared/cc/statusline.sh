@@ -54,10 +54,17 @@ effort=$(get '.effort_level // .effortLevel')
 
 used_pct=$(get '.context_window.used_percentage')
 used_total=$(get '.context_window.total_input_tokens')
-win_size=$(get '.context_window.context_window_size')
+auto_compact_size=$(get '.context_window.auto_compact_window_size')
+[ -z "$auto_compact_size" ] && auto_compact_size=${CLAUDE_CODE_AUTO_COMPACT_WINDOW:-}
+[ -z "$auto_compact_size" ] && auto_compact_size=$(get '.context_window.context_window_size')
+max_context_tokens=$(get '.model.max_context_tokens // .max_context_tokens // .context_window.max_context_tokens')
+[ -z "$max_context_tokens" ] && max_context_tokens=${CLAUDE_CODE_MAX_CONTEXT_TOKENS:-}
 
-if used_fmt=$(short "$used_total") && win_fmt=$(short "$win_size") && [ -n "$used_pct" ] && [ "$used_pct" != "null" ]; then
-    ctx="CTX ${used_pct}% (${used_fmt}/${win_fmt})"
+if used_fmt=$(short "$used_total") && compact_fmt=$(short "$auto_compact_size"); then
+    ctx="CTX ${used_fmt}/${compact_fmt}"
+    if max_fmt=$(short "$max_context_tokens"); then
+        ctx="$ctx max:${max_fmt}"
+    fi
 else
     ctx='CTX ?'
 fi
