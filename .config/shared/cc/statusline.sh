@@ -60,7 +60,12 @@ auto_compact_size=$(get '.context_window.auto_compact_window_size')
 max_context_tokens=$(get '.model.max_context_tokens // .max_context_tokens // .context_window.max_context_tokens')
 [ -z "$max_context_tokens" ] && max_context_tokens=${CLAUDE_CODE_MAX_CONTEXT_TOKENS:-}
 
-if used_fmt=$(short "$used_total") && compact_fmt=$(short "$auto_compact_size"); then
+projected_used=''
+if [ -n "$used_total" ] && [ "$used_total" != "null" ] && [ -n "$auto_compact_size" ] && [ "$auto_compact_size" != "null" ] && [ "$auto_compact_size" -gt 0 ] 2>/dev/null; then
+    projected_used=$((used_total % auto_compact_size))
+fi
+
+if used_fmt=$(short "$projected_used") && compact_fmt=$(short "$auto_compact_size"); then
     ctx="CTX ${used_fmt}/${compact_fmt}"
     if max_fmt=$(short "$max_context_tokens"); then
         ctx="$ctx max:${max_fmt}"

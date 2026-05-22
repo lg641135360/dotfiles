@@ -44,7 +44,7 @@ test_statusline_script_renders_claude_payload() {
     git -C "$repo" commit -q -m init
     printf 'dirty\n' >"$repo/tracked.txt"
 
-    payload=$(printf '{"workspace":{"current_dir":"%s"},"model":{"display_name":"Opus","max_context_tokens":1000000},"effort_level":"high","context_window":{"used_percentage":42,"total_input_tokens":12000,"context_window_size":200000}}\n' "$repo")
+    payload=$(printf '{"workspace":{"current_dir":"%s"},"model":{"display_name":"Opus","max_context_tokens":1000000},"effort_level":"high","context_window":{"used_percentage":42,"total_input_tokens":212000,"auto_compact_window_size":200000,"context_window_size":200000}}\n' "$repo")
     output=$(printf '%s' "$payload" |
         env -u CLAUDE_CODE_AUTO_COMPACT_WINDOW -u CLAUDE_CODE_MAX_CONTEXT_TOKENS "$STATUSLINE_FILE")
 
@@ -160,7 +160,7 @@ test_docs_describe_claude_statusline_install() {
     assert_contains "Claude Code statusline" "$README_FILE"
     assert_contains ".config/shared/cc/statusline.sh" "$README_FILE"
     assert_contains "statusLine" "$CC_README_FILE"
-    assert_contains "model, effort, context usage" "$CC_README_FILE"
+    assert_contains "compact-window progress modulo total context" "$CC_README_FILE"
 }
 
 test_install_main_is_guarded_for_shell_tests() {
@@ -172,7 +172,7 @@ assert_file_exists "$STATUSLINE_FILE"
 [ -x "$STATUSLINE_FILE" ] || fail "expected repo Claude statusline script to be executable"
 
 test_statusline_script_renders_claude_payload
-test_statusline_script_prefers_claude_env_for_context_limits()
+test_statusline_script_prefers_claude_env_for_context_limits
 test_install_configures_claude_statusline
 test_install_updates_existing_claude_settings_without_clobbering_other_keys
 test_docs_describe_claude_statusline_install

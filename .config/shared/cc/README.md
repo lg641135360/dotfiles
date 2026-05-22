@@ -19,5 +19,6 @@ marks the installed copy executable, and writes this entry to
 ```
 
 The script reads Claude Code statusline JSON from stdin and renders ANSI
-segments for model, effort, context usage, current directory, Git branch, and
-dirty state. It falls back gracefully when optional fields are missing.
+segments for model, effort, compact-window progress modulo total context,
+current directory, Git branch, and dirty state. It falls back gracefully when
+optional fields are missing.
