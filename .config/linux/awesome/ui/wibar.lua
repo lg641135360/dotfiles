@@ -3,173 +3,11 @@ local gears = require("gears")
 local wibox = require("wibox")
 local beautiful = require("beautiful")
 local dpi = require("beautiful.xresources").apply_dpi
+local tasklist = require("ui.tasklist")
+local status_area = require("ui.status_area")
+local is_compact_screen = assert(status_area.is_compact_screen)
 
 local M = {}
-
-local xml_escape = gears.string.xml_escape
-
-local function render_task_text(c, ctpp)
-    local name = xml_escape(c.name or "")
-
-    if name == "" then
-        name = "untitled"
-    end
-
-    if c.minimized then
-        return '<span color="' .. ctpp.overlay2 .. '">[min] ' .. name .. '</span>'
-    end
-
-    if client and c == client.focus then
-        return '<span foreground="' .. ctpp.blue .. '"><b>' .. name .. '</b></span>'
-    end
-
-    return '<span foreground="' .. ctpp.text .. '">' .. name .. '</span>'
-end
-
-local function render_task_tooltip(c)
-    local title = c.name or "untitled"
-    local app_name = c.class or c.instance
-    local lines = { "窗口", "标题：" .. title }
-
-    if app_name and app_name ~= "" then
-        lines[#lines + 1] = "应用：" .. app_name
-    end
-
-    if c.minimized then
-        lines[#lines + 1] = "状态：最小化"
-    elseif c.urgent then
-        lines[#lines + 1] = "状态：紧急"
-    end
-
-    return table.concat(lines, "\n")
-end
-
-local function clamp(value, min_value, max_value)
-    if value < min_value then
-        return min_value
-    end
-    if value > max_value then
-        return max_value
-    end
-    return value
-end
-
-local function output_diagonal_inches(output)
-    if not output then
-        return nil
-    end
-
-    local mm_width = tonumber(output.mm_width)
-    local mm_height = tonumber(output.mm_height)
-
-    if not mm_width or not mm_height or mm_width <= 0 or mm_height <= 0 then
-        return nil
-    end
-
-    return math.sqrt(mm_width * mm_width + mm_height * mm_height) / 25.4
-end
-
-local function screen_diagonal_inches(screen)
-    if not screen or not screen.outputs then
-        return nil
-    end
-
-    local max_diagonal = nil
-
-    for _, output in pairs(screen.outputs) do
-        local diagonal = output_diagonal_inches(output)
-        if diagonal and (not max_diagonal or diagonal > max_diagonal) then
-            max_diagonal = diagonal
-        end
-    end
-
-    return max_diagonal
-end
-
-local function is_compact_screen(screen, config)
-    local max_diagonal_inches = (config and config.compact_wibar_max_diagonal_inches) or 15
-    local diagonal_inches = screen_diagonal_inches(screen)
-    if diagonal_inches then
-        return diagonal_inches <= max_diagonal_inches
-    end
-
-    local max_width = (config and config.compact_wibar_max_width) or 3000
-    return screen and screen.geometry and screen.geometry.width <= max_width
-end
-
-local function current_tag_client_count(screen)
-    if not screen or not screen.selected_tag then
-        return 0
-    end
-
-    return #screen.selected_tag:clients()
-end
-
-local function task_density_tier(screen)
-    local client_count = current_tag_client_count(screen)
-
-    if client_count >= 7 then
-        return "tight"
-    end
-
-    if client_count >= 4 then
-        return "compact"
-    end
-
-    return "relaxed"
-end
-
-local function task_title_max_width(screen, config)
-    local compact = is_compact_screen(screen, config)
-    local density = task_density_tier(screen)
-    local screen_width = screen and screen.geometry and screen.geometry.width or 1920
-    local ratio = compact and 0.12 or 0.16
-    local min_width = compact and 220 or 320
-    local max_width = compact and 360 or 640
-
-    if density == "tight" then
-        ratio = compact and 0.09 or 0.12
-        min_width = compact and 160 or 220
-        max_width = compact and 260 or 360
-    elseif density == "compact" then
-        ratio = compact and 0.1 or 0.14
-        min_width = compact and 190 or 260
-        max_width = compact and 320 or 480
-    end
-
-    local computed_width = math.floor((screen_width * ratio) + 0.5)
-    return dpi(clamp(computed_width, min_width, max_width))
-end
-
-local function update_task_item(self, c, ctpp, screen, config)
-    local img = self:get_children_by_id("icon_role")[1]
-    if img then
-        img.forced_width = dpi(20)
-        img.forced_height = dpi(20)
-    end
-
-    local text_constraint = self:get_children_by_id("text_constraint_role")[1]
-    if text_constraint then
-        text_constraint.width = task_title_max_width(screen, config)
-    end
-
-    local text = self:get_children_by_id("text_role")[1]
-    if text then
-        text.markup = render_task_text(c, ctpp)
-    end
-
-    local focused = client and c == client.focus
-    local urgent = c.urgent
-    local background = self:get_children_by_id("background_role")[1]
-    if background then
-        background.bg = focused and ctpp.surface0 or ctpp.base
-    end
-
-    local indicator = self:get_children_by_id("focus_indicator_role")[1]
-    if indicator then
-        indicator.bg = urgent and ctpp.red or (focused and ctpp.blue or ctpp.base)
-    end
-end
 
 local function create_lock_button(ctpp, actions)
     local lock = actions.lock or function() end
@@ -202,249 +40,6 @@ local function create_lock_button(ctpp, actions)
     }
 
     return lock_button
-end
-
-local function stop_timer(timer)
-    if not timer then
-        return
-    end
-
-    if timer.stop then
-        timer:stop()
-    elseif timer.started ~= nil then
-        timer.started = false
-    end
-end
-
-
-local function create_textclock(ctpp, config, screen)
-    local textclock = wibox.widget.textbox()
-    local clock_h_padding = is_compact_screen(screen, config) and 5 or 6
-    local clock_v_padding = is_compact_screen(screen, config) and 1 or 2
-    local weekdays = {
-        "星期日",
-        "星期一",
-        "星期二",
-        "星期三",
-        "星期四",
-        "星期五",
-        "星期六",
-    }
-
-    local function render_clock_tooltip()
-        local now = os.date("*t")
-        local weekday = weekdays[now.wday] or ""
-
-        return "时间"
-            .. "\n日期：" .. os.date("%Y-%m-%d")
-            .. "\n星期：" .. weekday
-            .. "\n当前：" .. os.date("%H:%M")
-    end
-
-    local function update_clock()
-        local date_format = config.date_format
-        if is_compact_screen(screen, config) and config.compact_date_format then
-            date_format = config.compact_date_format
-        end
-
-        local time_str = os.date(date_format)
-        textclock:set_markup("<span foreground='" .. ctpp.lavender .. "'>" .. time_str .. "</span>")
-    end
-
-    local clock_timer = gears.timer {
-        timeout = 60,
-        autostart = true,
-        call_now = true,
-        callback = update_clock,
-    }
-
-    local clock_widget = wibox.widget {
-        {
-            textclock,
-            left = clock_h_padding,
-            right = clock_h_padding,
-            top = clock_v_padding,
-            bottom = clock_v_padding,
-            widget = wibox.container.margin,
-        },
-        bg = ctpp.mantle,
-        border_width = dpi(1),
-        border_color = ctpp.surface1,
-        shape = function(cr, w, h)
-            gears.shape.rounded_rect(cr, w, h, dpi(8))
-        end,
-        widget = wibox.container.background,
-    }
-
-    awful.tooltip {
-        objects = { clock_widget },
-        timer_function = function()
-            return render_clock_tooltip()
-        end,
-    }
-
-    local function dispose()
-        stop_timer(clock_timer)
-    end
-
-    clock_widget._refresh = update_clock
-    clock_widget._dispose = dispose
-
-    return clock_widget
-end
-
-local function create_systray_widget(ctpp)
-    local systray = wibox.widget.systray()
-    systray:set_base_size(dpi(20))
-
-    return wibox.widget {
-        {
-            {
-                systray,
-                valign = "center",
-                widget = wibox.container.place,
-            },
-            left = 4,
-            right = 4,
-            top = 2,
-            bottom = 2,
-            widget = wibox.container.margin,
-        },
-        bg = ctpp.mantle,
-        border_width = dpi(1),
-        border_color = ctpp.surface1,
-        shape = function(cr, w, h)
-            gears.shape.rounded_rect(cr, w, h, dpi(8))
-        end,
-        widget = wibox.container.background,
-    }
-end
-
-local function create_separator(ctpp)
-    return wibox.widget {
-        markup = "<span foreground='" .. ctpp.surface1 .. "'>│</span>",
-        widget = wibox.widget.textbox,
-    }
-end
-
-local function create_sysinfo_bundle(config, screen, compact)
-    compact = compact == nil and is_compact_screen(screen, config) or compact
-    local system_widgets = require("widgets.system").create(config, {
-        compact = compact,
-    })
-    local sysinfo_widget = system_widgets.sysinfo_widget
-    local system_row = system_widgets.system_row
-    local make_separator = system_widgets.make_separator
-    local brightness_bundle = nil
-    local volume_bundle = nil
-
-    if config.has_brightness then
-        brightness_bundle = require("widgets.brightness").create({
-            compact = compact,
-        })
-    end
-
-    if brightness_bundle then
-        system_row:add(make_separator())
-        system_row:add(brightness_bundle.widget)
-    end
-
-    if config.has_volume then
-        volume_bundle = require("widgets.volume").create({
-            compact = compact,
-        })
-        system_row:add(make_separator())
-        system_row:add(volume_bundle.widget)
-    end
-
-    local function dispose()
-        if brightness_bundle and brightness_bundle.dispose then
-            brightness_bundle.dispose()
-        end
-        if volume_bundle and volume_bundle.dispose then
-            volume_bundle.dispose()
-        end
-        if system_widgets.dispose then
-            system_widgets.dispose()
-        end
-    end
-
-    return {
-        sysinfo_widget = sysinfo_widget,
-        make_separator = make_separator,
-        compact = compact,
-        dispose = dispose,
-    }
-end
-
-local function dispose_status_widgets(s)
-    if s.mystatusbundle and s.mystatusbundle.dispose then
-        s.mystatusbundle.dispose()
-    end
-    s.mystatusbundle = nil
-    s.mystatusspec = nil
-    s.mysystray_widget = nil
-end
-
-local function ensure_primary_status_widgets(config, ctpp, s, compact)
-    local spec = table.concat({
-        compact and "compact" or "full",
-        config.has_volume and "vol" or "novol",
-        config.has_brightness and "bri" or "nobri",
-    }, ":")
-    if s.mystatusbundle and s.mystatusspec == spec then
-        return s.mystatusbundle
-    end
-
-    dispose_status_widgets(s)
-
-    local system_bundle = create_sysinfo_bundle(config, s, compact)
-    s.mysystray_widget = s.mysystray_widget or create_systray_widget(ctpp)
-    s.mystatusbundle = {
-        sysinfo_widget = system_bundle.sysinfo_widget,
-        systray_widget = s.mysystray_widget,
-        dispose = system_bundle.dispose,
-    }
-    s.mystatusspec = spec
-    return s.mystatusbundle
-end
-
-local function create_right_widgets(config, ctpp, target_screen, clock_widget)
-    local compact = is_compact_screen(target_screen, config)
-    local right_widgets = {
-        layout = wibox.layout.fixed.horizontal,
-        spacing = compact and 2 or 4,
-    }
-
-    if target_screen == screen.primary then
-        local status_bundle = ensure_primary_status_widgets(config, ctpp, target_screen, compact)
-        local sysinfo_widget = status_bundle.sysinfo_widget
-        local systray_widget = status_bundle.systray_widget
-
-        table.insert(right_widgets, sysinfo_widget)
-        table.insert(right_widgets, create_separator(ctpp))
-        table.insert(right_widgets, {
-            systray_widget,
-            left = 1,
-            right = 1,
-            widget = wibox.container.margin,
-        })
-        table.insert(right_widgets, create_separator(ctpp))
-    else
-        dispose_status_widgets(target_screen)
-    end
-
-        table.insert(right_widgets, {
-            clock_widget,
-            left = 0,
-            right = compact and 2 or 4,
-            widget = wibox.container.margin,
-        })
-
-    return {
-        right_widgets = right_widgets,
-        compact = compact,
-    }
 end
 
 local function create_layoutbox(ctpp, screen)
@@ -527,91 +122,6 @@ local function create_layoutbox(ctpp, screen)
     ))
 
     return layoutbox
-end
-
-local function create_tasklist(ctpp, screen, tasklist_buttons, config)
-    local compact = is_compact_screen(screen, config)
-    local density = task_density_tier(screen)
-    local item_spacing = compact and 4 or 6
-    local item_h_padding = compact and 6 or 8
-    local item_v_padding = compact and 1 or 2
-
-    if density == "tight" then
-        item_spacing = compact and 2 or 4
-        item_h_padding = compact and 4 or 6
-    elseif density == "compact" then
-        item_spacing = compact and 3 or 5
-        item_h_padding = compact and 5 or 7
-    end
-
-    return awful.widget.tasklist {
-        screen = screen,
-        filter = awful.widget.tasklist.filter.currenttags,
-        buttons = tasklist_buttons,
-        layout = {
-            spacing = dpi(3),
-            layout = wibox.layout.fixed.horizontal,
-        },
-        widget_template = {
-            {
-                {
-                    {
-                        id = "focus_indicator_role",
-                        forced_width = dpi(3),
-                        widget = wibox.container.background,
-                    },
-                    {
-                        {
-                            id = "icon_role",
-                            widget = wibox.widget.imagebox,
-                        },
-                        valign = "center",
-                        widget = wibox.container.place,
-                    },
-                    {
-                        {
-                            id = "text_role",
-                            ellipsize = "end",
-                            widget = wibox.widget.textbox,
-                        },
-                        id = "text_constraint_role",
-                        strategy = "max",
-                        width = task_title_max_width(screen, config),
-                        widget = wibox.container.constraint,
-                    },
-                    spacing = item_spacing,
-                    layout = wibox.layout.fixed.horizontal,
-                },
-                left = item_h_padding,
-                right = item_h_padding,
-                top = item_v_padding,
-                bottom = item_v_padding,
-                widget = wibox.container.margin,
-            },
-            id = "background_role",
-            bg = ctpp.base,
-            shape = function(cr, w, h)
-                gears.shape.rounded_rect(cr, w, h, dpi(7))
-            end,
-            widget = wibox.container.background,
-            create_callback = function(self, c)
-                self._task_tooltip_text = render_task_tooltip(c)
-                if not self._task_tooltip then
-                    self._task_tooltip = awful.tooltip {
-                        objects = { self },
-                        timer_function = function()
-                            return self._task_tooltip_text or ""
-                        end,
-                    }
-                end
-                update_task_item(self, c, ctpp, screen, config)
-            end,
-            update_callback = function(self, c)
-                self._task_tooltip_text = render_task_tooltip(c)
-                update_task_item(self, c, ctpp, screen, config)
-            end,
-        },
-    }
 end
 
 local function create_floating_wibar_content(ctpp, left_widgets, tasklist_widget, right_widgets)
@@ -783,7 +293,7 @@ function M.setup(args)
 
         if s == screen.primary then
             table.insert(left_widgets, s.mylockbutton)
-            table.insert(left_widgets, create_separator(ctpp))
+            table.insert(left_widgets, status_area.create_separator(ctpp))
             table.insert(left_widgets, s.mypromptbox)
         end
 
@@ -792,19 +302,21 @@ function M.setup(args)
 
     local function rebuild_screen_wibar(s)
         if not s.mytextclock then
-            s.mytextclock = create_textclock(ctpp, config, s)
+            local clock_widget = status_area.create_textclock(ctpp, config, s)
+            s.mytextclock = clock_widget
         elseif s.mytextclock._refresh then
             s.mytextclock._refresh()
         end
 
-        local desired_tasklist_width = task_title_max_width(s, config)
+        local desired_tasklist_width = tasklist.task_title_max_width(s, config, is_compact_screen(s, config))
         if not s.mytasklist or s.mytasklist_width ~= desired_tasklist_width then
-            s.mytasklist = create_tasklist(ctpp, s, tasklist_buttons, config)
+            s.mytasklist = tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, is_compact_screen(s, config))
             s.mytasklist_width = desired_tasklist_width
         end
 
-        local right_bundle = create_right_widgets(config, ctpp, s, s.mytextclock)
-        local right_widgets = right_bundle.right_widgets
+        local clock_widget = s.mytextclock
+        local right_widget_data = status_area.create_right_widgets(config, ctpp, s, clock_widget)
+        local right_widgets = right_widget_data.right_widgets
         local left_widgets = build_left_widgets(s)
 
         setup_floating_wibar(s, ctpp, left_widgets, s.mytasklist, right_widgets)
@@ -845,7 +357,7 @@ function M.setup(args)
     screen.connect_signal("property::primary", queue_wibar_refresh)
     screen.connect_signal("added", queue_wibar_refresh)
     screen.connect_signal("removed", function(s)
-        dispose_status_widgets(s)
+        status_area.dispose_status_widgets(s)
         if s.mytextclock and s.mytextclock._dispose then
             s.mytextclock._dispose()
         end
@@ -876,10 +388,10 @@ function M.setup(args)
 end
 
 M._private = {
-    output_diagonal_inches = output_diagonal_inches,
-    screen_diagonal_inches = screen_diagonal_inches,
     is_compact_screen = is_compact_screen,
-    task_title_max_width = task_title_max_width,
+    task_title_max_width = function(s, config)
+        return tasklist.task_title_max_width(s, config, is_compact_screen(s, config))
+    end,
 }
 
 return M
