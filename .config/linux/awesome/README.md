@@ -10,7 +10,12 @@
 ├── config.lua          # 平台特定设置
 ├── actions.lua         # rofi / 文件管理器 / OCR / 锁屏等桌面动作
 ├── bindings.lua        # 全局与窗口快捷键
-├── client.lua          # 窗口规则、titlebar 与焦点边框
+├── client.lua          # client 入口兼容层
+├── client/
+│   ├── init.lua        # client setup 入口
+│   ├── policies.lua    # app-specific 窗口策略数据
+│   ├── rules.lua       # 根据策略组装 Awesome client rules
+│   └── decorations.lua # 窗口圆角、fallback titlebar 与焦点样式
 ├── menu.lua            # 主菜单与 freedesktop / Debian fallback
 ├── autostart.sh        # runtime 平台分发 wrapper
 ├── display-layout.sh   # runtime 显示布局 wrapper（热插拔后重算）
@@ -56,6 +61,7 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 - **右侧**: 只有主屏显示 NET / CPU / MEM / BAT / VOL 与系统托盘；其他屏幕右侧只保留时钟，减少多屏状态重复和视觉噪音。托盘只放在主屏，并使用更小图标、深色胶囊背景和细边框。`BRI` 只在 Linux aarch64/arm64 的 Awesome 配置里尝试启用，并且只有检测到背光设备时才显示；没有 `/sys/class/backlight/*` 时会完全隐藏，不占位置。
 - **右侧细节**：主屏右侧状态区会继续统一收紧 spacing；systray 与时钟外侧 margin 更紧，sysinfo / clock / systray 的胶囊权重会一起再压一档，尽量把空间留给 tasklist。
 - **整体视觉**：整条顶栏使用悬浮圆角容器，外层 wibar 保持透明并继续预留工作区高度；顶部留出少量空隙，左右也留出边距，让状态栏不再贴住屏幕边缘。
+- **client 模块边界**：`client.lua` 只保留 `require("client.init")` 兼容入口；`client/init.lua` 负责串接 rules 与 decorations；`client/policies.lua` 集中维护浮动窗口、fallback titlebar 白名单和 `tblive` 辅助窗口等数据驱动策略；`client/rules.lua` 根据这些策略组装 Awesome client rules；`client/decorations.lua` 负责窗口圆角、紧凑 fallback titlebar 与焦点边框样式。
 - **窗口圆角**：普通/对话框等 managed 窗口使用 `theme.border_radius` 圆角；全屏或最大化窗口会自动退回矩形，避免边角露出桌面背景。picom 继续负责阴影、透明和 compositor 层圆角。
 - **回退标题栏**：日常主体验默认不显示 titlebar；只有显式 class 白名单中的少数配置类工具窗会启用一条紧凑的 fallback titlebar，用于拖动和关闭窗口。该 titlebar 进一步收紧成更矮的条带、左对齐标题和低噪音 Catppuccin 胶囊按钮，不再使用 Awesome 默认 PNG 按钮；右侧只保留 `floating / maximized / close` 三个文字按钮，其中激活态改成更克制的 `surface1` 底 + 蓝字，关闭按钮保持低噪音深底 + 红字，让窗口焦点的主信号重新回到蓝色边框本身。普通 `utility` 窗口不会因为类型本身就自动启用它，像 `tblive` 这类辅助条窗口也会继续排除在外。
 - **右侧视觉**：系统信息分隔符使用更弱的主题色，时钟使用独立胶囊背景作为右端视觉终点，避免状态区显得过散。
@@ -133,10 +139,6 @@ Snipaste 自己接管裸 `F1` 截图；Awesome 不绑定 `F1`。如果 Snipaste 
 |--------|------|
 | `Mod+h` | 缩小主区域宽度 |
 | `Mod+l` | 扩大主区域宽度 |
-| `Mod+Shift+h` | 增加主区域窗口数量 |
-| `Mod+Ctrl+Shift+l` | 减少主区域窗口数量 |
-| `Mod+Ctrl+h` | 增加列数 |
-| `Mod+Ctrl+l` | 减少列数 |
 | `Mod+Space` | 切换到下一个布局 |
 | `Mod+Shift+Space` | 切换到上一个布局 |
 

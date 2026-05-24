@@ -11,6 +11,12 @@ ACTIONS_FILE=$REPO_ROOT/.config/linux/awesome/actions.lua
 SYSTEM_WIDGETS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/system.lua
 VOLUME_FILE=$REPO_ROOT/.config/linux/awesome/widgets/volume.lua
 BRIGHTNESS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/brightness.lua
+CLIENT_SHIM_FILE=$REPO_ROOT/.config/linux/awesome/client.lua
+CLIENT_INIT_FILE=$REPO_ROOT/.config/linux/awesome/client/init.lua
+CLIENT_POLICIES_FILE=$REPO_ROOT/.config/linux/awesome/client/policies.lua
+CLIENT_RULES_FILE=$REPO_ROOT/.config/linux/awesome/client/rules.lua
+CLIENT_DECORATIONS_FILE=$REPO_ROOT/.config/linux/awesome/client/decorations.lua
+README_FILE=$REPO_ROOT/.config/linux/awesome/README.md
 
 fail() {
     printf 'FAIL: %s\n' "$1" >&2
@@ -112,6 +118,115 @@ if duplicates:
         print(f"duplicate {'+'.join(mods)}+{key}: lines {lines}", file=sys.stderr)
     raise SystemExit(1)
 PY
+}
+
+test_bindings_use_shared_occupied_tag_helper() {
+    python - "$BINDINGS_FILE" <<'PY' || fail "expected occupied-tag navigation to use one shared directional helper"
+from pathlib import Path
+import re
+import sys
+
+text = Path(sys.argv[1]).read_text()
+
+old_helpers = (
+    "local function view_previous_occupied_tag()",
+    "local function view_next_occupied_tag()",
+)
+for helper in old_helpers:
+    assert helper not in text, f"old duplicated helper remains: {helper}"
+
+assert text.count("local function find_occupied_tag(") == 1
+assert text.count("local function view_occupied_tag(direction)") == 1
+
+def function_body(name):
+    pattern = re.compile(rf"local function {name}[^\n]*\n(.*?)(?=\nlocal function |\nfunction M\.setup)", re.S)
+    match = pattern.search(text)
+    assert match, f"missing local function {name}"
+    return match.group(1)
+
+find_body = function_body("find_occupied_tag")
+assert "direction" in find_body
+assert ":clients()" in find_body
+assert "return tags[i]" in find_body
+assert find_body.count("for i =") >= 2, "helper should handle forward and wrapped traversal"
+
+view_body = function_body("view_occupied_tag")
+assert "find_occupied_tag(tags, current_tag_index, direction)" in view_body
+assert "target_tag:view_only()" in view_body
+
+assert "view_occupied_tag(-1)" in text
+assert "view_occupied_tag(1)" in text
+PY
+}
+
+test_client_module_is_split_into_focused_submodules() {
+    [ -f "$CLIENT_INIT_FILE" ] || fail "expected client init module to exist"
+    [ -f "$CLIENT_POLICIES_FILE" ] || fail "expected client policies module to exist"
+    [ -f "$CLIENT_RULES_FILE" ] || fail "expected client rules module to exist"
+    [ -f "$CLIENT_DECORATIONS_FILE" ] || fail "expected client decorations module to exist"
+
+    assert_contains 'return require("client.init")' "$CLIENT_SHIM_FILE"
+    assert_contains 'local rules = require("client.rules")' "$CLIENT_INIT_FILE"
+    assert_contains 'local decorations = require("client.decorations")' "$CLIENT_INIT_FILE"
+    assert_contains 'function M.setup(args)' "$CLIENT_INIT_FILE"
+    assert_contains 'rules.setup({' "$CLIENT_INIT_FILE"
+    assert_contains 'decorations.setup()' "$CLIENT_INIT_FILE"
+
+    lua - "$CLIENT_INIT_FILE" <<'LUA' || fail "expected client init setup to delegate to rules and decorations setup"
+local init_file = arg[1]
+local calls = {
+    rules = 0,
+    decorations = 0,
+}
+local expected_keys = {}
+local expected_buttons = {}
+
+package.loaded["client.rules"] = nil
+package.loaded["client.decorations"] = nil
+package.preload["client.rules"] = function()
+    return {
+        setup = function(args)
+            calls.rules = calls.rules + 1
+            assert(args.clientkeys == expected_keys)
+            assert(args.clientbuttons == expected_buttons)
+        end,
+    }
+end
+package.preload["client.decorations"] = function()
+    return {
+        setup = function()
+            calls.decorations = calls.decorations + 1
+        end,
+    }
+end
+
+local init = assert(loadfile(init_file))()
+init.setup({
+    clientkeys = expected_keys,
+    clientbuttons = expected_buttons,
+})
+
+assert(calls.rules == 1)
+assert(calls.decorations == 1)
+LUA
+}
+
+
+test_client_rules_use_data_driven_policy_lists() {
+    assert_contains 'floating_classes = {' "$CLIENT_POLICIES_FILE"
+    assert_contains 'fallback_titlebar_classes = {' "$CLIENT_POLICIES_FILE"
+    assert_contains 'extra_rules = {' "$CLIENT_POLICIES_FILE"
+    assert_contains 'class = policies.floating_classes,' "$CLIENT_RULES_FILE"
+    assert_contains 'class = policies.fallback_titlebar_classes,' "$CLIENT_RULES_FILE"
+    assert_contains 'table.unpack(policies.extra_rules)' "$CLIENT_RULES_FILE"
+    assert_contains 'rule = { class = "tblive", type = "utility" }' "$CLIENT_POLICIES_FILE"
+    assert_contains 'skip_taskbar = true,' "$CLIENT_POLICIES_FILE"
+    assert_contains 'client.lua          # client 入口兼容层' "$README_FILE"
+    assert_contains '├── client/' "$README_FILE"
+    assert_contains '│   ├── init.lua        # client setup 入口' "$README_FILE"
+    assert_contains '│   ├── policies.lua    # app-specific 窗口策略数据' "$README_FILE"
+    assert_contains '│   ├── rules.lua       # 根据策略组装 Awesome client rules' "$README_FILE"
+    assert_contains '│   └── decorations.lua # 窗口圆角、fallback titlebar 与焦点样式' "$README_FILE"
 }
 
 
@@ -634,6 +749,9 @@ test_bindings_use_injected_prompt_runners
 test_bindings_keep_lock_on_mod_shift_l
 test_bindings_leave_bare_f1_to_snipaste
 test_bindings_do_not_duplicate_shortcuts
+test_bindings_use_shared_occupied_tag_helper
+test_client_module_is_split_into_focused_submodules
+test_client_rules_use_data_driven_policy_lists
 test_actions_check_prerequisites_and_notify_failures
 test_volume_widget_uses_lower_idle_polling
 test_brightness_widget_uses_lower_idle_polling

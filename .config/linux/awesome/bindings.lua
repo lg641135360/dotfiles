@@ -4,10 +4,28 @@ local hotkeys_popup = require("awful.hotkeys_popup")
 
 local M = {}
 
-local function view_previous_occupied_tag()
+local function find_occupied_tag(tags, current_tag_index, direction)
+    local limit = direction > 0 and #tags or 1
+    local wrap_start = direction > 0 and 1 or #tags
+
+    for i = current_tag_index + direction, limit, direction do
+        if #tags[i]:clients() > 0 then
+            return tags[i]
+        end
+    end
+
+    for i = wrap_start, current_tag_index - direction, direction do
+        if #tags[i]:clients() > 0 then
+            return tags[i]
+        end
+    end
+
+    return nil
+end
+
+local function view_occupied_tag(direction)
     local screen = awful.screen.focused()
     local tags = screen.tags
-    local target_tag = nil
     local current_tag_index = 0
 
     for i, tag in ipairs(tags) do
@@ -17,59 +35,19 @@ local function view_previous_occupied_tag()
         end
     end
 
-    for i = current_tag_index - 1, 1, -1 do
-        if #tags[i]:clients() > 0 then
-            target_tag = tags[i]
-            break
-        end
-    end
-
-    if not target_tag then
-        for i = #tags, current_tag_index + 1, -1 do
-            if #tags[i]:clients() > 0 then
-                target_tag = tags[i]
-                break
-            end
-        end
-    end
+    local target_tag = find_occupied_tag(tags, current_tag_index, direction)
 
     if target_tag then
         target_tag:view_only()
     end
 end
 
-local function view_next_occupied_tag()
-    local screen = awful.screen.focused()
-    local tags = screen.tags
-    local target_tag = nil
-    local current_tag_index = 0
+local function view_previous_occupied()
+    view_occupied_tag(-1)
+end
 
-    for i, tag in ipairs(tags) do
-        if tag.selected then
-            current_tag_index = i
-            break
-        end
-    end
-
-    for i = current_tag_index + 1, #tags do
-        if #tags[i]:clients() > 0 then
-            target_tag = tags[i]
-            break
-        end
-    end
-
-    if not target_tag then
-        for i = 1, current_tag_index - 1 do
-            if #tags[i]:clients() > 0 then
-                target_tag = tags[i]
-                break
-            end
-        end
-    end
-
-    if target_tag then
-        target_tag:view_only()
-    end
+local function view_next_occupied()
+    view_occupied_tag(1)
 end
 
 function M.setup(args)
@@ -124,9 +102,9 @@ function M.setup(args)
             end
         end, { description = "go back", group = "client" }),
 
-        awful.key({ modkey }, "a", view_previous_occupied_tag,
+        awful.key({ modkey }, "a", view_previous_occupied,
             { description = "view previous tag with clients", group = "tag" }),
-        awful.key({ modkey }, "d", view_next_occupied_tag,
+        awful.key({ modkey }, "d", view_next_occupied,
             { description = "view next tag with clients", group = "tag" }),
 
         awful.key({ modkey }, "Return", function()
@@ -145,18 +123,6 @@ function M.setup(args)
         awful.key({ modkey }, "h", function()
             awful.tag.incmwfact(-0.05)
         end, { description = "decrease master width factor", group = "layout" }),
-        awful.key({ modkey, "Shift" }, "h", function()
-            awful.tag.incnmaster(1, nil, true)
-        end, { description = "increase the number of master clients", group = "layout" }),
-        awful.key({ modkey, "Control", "Shift" }, "l", function()
-            awful.tag.incnmaster(-1, nil, true)
-        end, { description = "decrease the number of master clients", group = "layout" }),
-        awful.key({ modkey, "Control" }, "h", function()
-            awful.tag.incncol(1, nil, true)
-        end, { description = "increase the number of columns", group = "layout" }),
-        awful.key({ modkey, "Control" }, "l", function()
-            awful.tag.incncol(-1, nil, true)
-        end, { description = "decrease the number of columns", group = "layout" }),
         awful.key({ modkey }, "space", function()
             awful.layout.inc(1)
         end, { description = "select next", group = "layout" }),
