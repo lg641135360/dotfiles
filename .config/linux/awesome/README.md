@@ -15,7 +15,9 @@
 ├── autostart.sh        # runtime 平台分发 wrapper
 ├── display-layout.sh   # runtime 显示布局 wrapper（热插拔后重算）
 ├── ui/
-│   └── wibar.lua       # ui/wibar.lua：顶栏、taglist、tasklist、托盘、时钟
+│   ├── tasklist.lua    # ui/tasklist.lua：tasklist 渲染、tooltip、density 与标题宽度策略
+│   ├── status_area.lua # ui/status_area.lua：时钟、托盘、主屏状态区与复用/销毁逻辑
+│   └── wibar.lua       # ui/wibar.lua：顶栏装配、screen refresh 与整体布局编排
 ├── widgets/
 │   ├── system.lua      # widgets/system.lua：CPU / MEM / NET 监控组件
 │   ├── brightness.lua  # widgets/brightness.lua：亮度读数（可选 brightnessctl 滚轮调节）
@@ -46,6 +48,7 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 副屏: ┌─[标签]─[布局]─────────[任务列表]─────────│[时钟]─┐
 ```
 
+- **UI 模块边界**：`ui/wibar.lua` 负责 screen 级装配与刷新；`ui/tasklist.lua` 负责中间窗口列表的渲染与密度策略；`ui/status_area.lua` 负责右侧时钟、托盘和主屏状态区生命周期。
 - **左侧**: 主屏保留 5 个标签页（Nerd Font 图标）+ 布局指示器 + 锁屏按钮 + 提示框；次屏左侧只保留标签与布局，不再重复显示锁屏按钮、分隔符和空 prompt 区域，减少重复入口和留白。
 - **左侧细节**：锁屏按钮悬浮会提示用途与快捷键；布局指示器悬浮会提示当前布局和切换方式。次屏左侧 spacing 和 taglist 右侧 margin 也会更紧一点，避免只剩标签/布局时仍显得空。
 - **tooltip 风格**：lock / layout / tasklist 的 tooltip 文案也统一成标题 + 字段行，和时钟、音量、状态项保持更接近的阅读节奏。

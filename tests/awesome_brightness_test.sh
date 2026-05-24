@@ -4,7 +4,7 @@ set -eu
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 CONFIG_FILE=$REPO_ROOT/.config/linux/awesome/config.lua
 BRIGHTNESS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/brightness.lua
-WIBAR_FILE=$REPO_ROOT/.config/linux/awesome/ui/wibar.lua
+STATUS_AREA_FILE=$REPO_ROOT/.config/linux/awesome/ui/status_area.lua
 
 fail() {
     printf 'FAIL: %s\n' "$1" >&2
@@ -96,7 +96,7 @@ test_brightness_widget_refreshes_periodically_and_optionally_uses_brightnessctl(
     assert_contains 'local function brightness_permission_hint(brightness_file)' "$BRIGHTNESS_FILE"
     assert_contains 'sudo apt install brightnessctl' "$BRIGHTNESS_FILE"
     assert_contains 'local refresh_timer = gears.timer {' "$BRIGHTNESS_FILE"
-    assert_contains 'timeout = 5,' "$BRIGHTNESS_FILE"
+    assert_contains 'timeout = 10,' "$BRIGHTNESS_FILE"
     assert_contains 'callback = update_brightness,' "$BRIGHTNESS_FILE"
     assert_contains 'local refresh_delays = { 0.15, 0.5, 1.2 }' "$BRIGHTNESS_FILE"
     assert_contains 'command_exists("brightnessctl")' "$BRIGHTNESS_FILE"
@@ -116,13 +116,13 @@ test_brightness_widget_refreshes_periodically_and_optionally_uses_brightnessctl(
     assert_contains 'adjust_brightness("5%-")' "$BRIGHTNESS_FILE"
 }
 
-test_brightness_widget_is_aarch64_only_in_config_and_wibar() {
+test_brightness_widget_is_aarch64_only_in_config_and_status_area() {
     assert_contains 'brightness_override ~= "0" and platform.os == "Linux" and (platform.arch == "aarch64" or platform.arch == "arm64")' "$CONFIG_FILE"
-    assert_contains 'if config.has_brightness then' "$WIBAR_FILE"
-    assert_contains 'brightness_bundle = require("widgets.brightness").create({' "$WIBAR_FILE"
-    assert_contains 'if brightness_bundle then' "$WIBAR_FILE"
-    assert_contains 'brightness_bundle.widget' "$WIBAR_FILE"
-    python - "$WIBAR_FILE" <<'PY' || fail "expected wibar to gate brightness by config and append it before volume"
+    assert_contains 'if config.has_brightness then' "$STATUS_AREA_FILE"
+    assert_contains 'brightness_bundle = require("widgets.brightness").create({' "$STATUS_AREA_FILE"
+    assert_contains 'if brightness_bundle then' "$STATUS_AREA_FILE"
+    assert_contains 'brightness_bundle.widget' "$STATUS_AREA_FILE"
+    python - "$STATUS_AREA_FILE" <<'PY' || fail "expected status area to gate brightness by config and append it before volume"
 from pathlib import Path
 import sys
 
@@ -141,6 +141,6 @@ test_brightness_widget_calculates_percent_and_exposes_private_helpers
 test_brightness_widget_uses_tight_value_spacing
 test_brightness_widget_has_hover_details_and_optional_scroll_hint
 test_brightness_widget_refreshes_periodically_and_optionally_uses_brightnessctl
-test_brightness_widget_is_aarch64_only_in_config_and_wibar
+test_brightness_widget_is_aarch64_only_in_config_and_status_area
 
 printf 'PASS: awesome brightness tests\n'

@@ -5,6 +5,7 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 CONFIG_FILE=$REPO_ROOT/.config/linux/awesome/config.lua
 SYSTEM_WIDGETS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/system.lua
 WIBAR_FILE=$REPO_ROOT/.config/linux/awesome/ui/wibar.lua
+STATUS_AREA_FILE=$REPO_ROOT/.config/linux/awesome/ui/status_area.lua
 
 fail() {
     printf 'FAIL: %s\n' "$1" >&2
@@ -166,7 +167,7 @@ test_net_widget_uses_compact_spacing() {
         fail "expected sysinfo top padding to be compacted to 2"
     grep -F 'bottom = 2,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected sysinfo bottom padding to be compacted to 2"
-    grep -F 'spacing = compact and 2 or 4,' "$WIBAR_FILE" >/dev/null 2>&1 ||
+    grep -F 'spacing = compact and 2 or 4,' "$STATUS_AREA_FILE" >/dev/null 2>&1 ||
         fail "expected right side wibar spacing to adapt between tighter compact and full layouts"
 }
 

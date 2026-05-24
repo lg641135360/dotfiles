@@ -26,7 +26,7 @@ test_volume_widget_refreshes_periodically() {
     assert_contains 'local common = require("lib.common")' "$VOLUME_FILE"
     assert_contains 'local stop_timer = common.stop_timer' "$VOLUME_FILE"
     assert_contains 'local refresh_timer = gears.timer {' "$VOLUME_FILE"
-    assert_contains 'timeout = 5,' "$VOLUME_FILE"
+    assert_contains 'timeout = 10,' "$VOLUME_FILE"
     assert_contains 'callback = update_volume,' "$VOLUME_FILE"
     assert_contains 'local function dispose()' "$VOLUME_FILE"
     assert_contains 'stop_timer(refresh_timer)' "$VOLUME_FILE"
