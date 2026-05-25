@@ -128,16 +128,16 @@ end
 local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact)
     compact = compact == true
     local density = task_density_tier(screen)
-    local item_spacing = compact and 4 or 6
-    local item_h_padding = compact and 6 or 8
+    local item_spacing = compact and 3 or 5
+    local item_h_padding = compact and 5 or 7
     local item_v_padding = compact and 1 or 2
 
     if density == "tight" then
-        item_spacing = compact and 2 or 4
-        item_h_padding = compact and 4 or 6
+        item_spacing = compact and 2 or 3
+        item_h_padding = compact and 4 or 5
     elseif density == "compact" then
-        item_spacing = compact and 3 or 5
-        item_h_padding = compact and 5 or 7
+        item_spacing = compact and 3 or 4
+        item_h_padding = compact and 5 or 6
     end
 
     return awful.widget.tasklist {
@@ -187,7 +187,7 @@ local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact)
             id = "background_role",
             bg = ctpp.base,
             shape = function(cr, w, h)
-                gears.shape.rounded_rect(cr, w, h, dpi(7))
+                gears.shape.rounded_rect(cr, w, h, dpi(8))
             end,
             widget = wibox.container.background,
             create_callback = function(self, c)

@@ -71,27 +71,27 @@ theme.border_marked = palette.peach
 theme.border_radius = dpi(12)
 
 -- Fallback titlebar styling (only for select floating utility/config windows)
-theme.titlebar_size = dpi(26)
+theme.titlebar_size = dpi(24)
 theme.titlebar_radius = dpi(8)
-theme.titlebar_spacing = dpi(3)
+theme.titlebar_spacing = dpi(4)
 theme.titlebar_side_padding = dpi(6)
 theme.titlebar_section_padding = dpi(4)
-theme.titlebar_bg_normal = palette.mantle
-theme.titlebar_bg_focus = palette.surface0
+theme.titlebar_bg_normal = palette.surface0
+theme.titlebar_bg_focus = palette.surface1
 theme.titlebar_fg_normal = palette.subtext0
 theme.titlebar_fg_focus = palette.text
-theme.titlebar_border_color = palette.surface1
-theme.titlebar_border_color_focus = palette.blue
+theme.titlebar_border_color = palette.overlay0
+theme.titlebar_border_color_focus = palette.surface2
 theme.titlebar_border_width = dpi(1)
 theme.titlebar_font = "Maple Mono NF CN 10.5"
 theme.titlebar_button_font = "Maple Mono NF CN 10.5"
-theme.titlebar_button_radius = dpi(6)
+theme.titlebar_button_radius = dpi(5)
 theme.titlebar_button_padding_x = dpi(5)
 theme.titlebar_button_padding_y = dpi(1)
-theme.titlebar_button_bg_normal = palette.base
-theme.titlebar_button_bg_active = palette.surface1
-theme.titlebar_button_bg_close = palette.base
-theme.titlebar_button_fg_normal = palette.overlay1
+theme.titlebar_button_bg_normal = palette.mantle
+theme.titlebar_button_bg_active = palette.surface0
+theme.titlebar_button_bg_close = palette.mantle
+theme.titlebar_button_fg_normal = palette.subtext0
 theme.titlebar_button_fg_active = palette.blue
 theme.titlebar_button_fg_close = palette.red
 
@@ -135,12 +135,12 @@ theme.notification_margin = dpi(10)
 theme.menu_submenu_icon = themes_path.."default/submenu.png"
 theme.menu_height = dpi(35)
 theme.menu_width  = dpi(200)
-theme.menu_bg_normal = palette.base
+theme.menu_bg_normal = palette.mantle
 theme.menu_bg_focus = palette.surface0
 theme.menu_fg_normal = palette.text
 theme.menu_fg_focus = palette.blue
-theme.menu_border_color = palette.surface1
-theme.menu_border_width = dpi(2)
+theme.menu_border_color = palette.overlay0
+theme.menu_border_width = dpi(1)
 theme.menu_shape = function(cr, w, h)
     gears.shape.rounded_rect(cr, w, h, dpi(8))
 end
@@ -156,9 +156,9 @@ theme.prompt_shape = function(cr, w, h)
 end
 
 -- Tooltip styling
-theme.tooltip_bg = palette.crust
+theme.tooltip_bg = palette.mantle
 theme.tooltip_fg = palette.text
-theme.tooltip_border_color = palette.surface1
+theme.tooltip_border_color = palette.overlay0
 theme.tooltip_border_width = dpi(1)
 theme.tooltip_shape = function(cr, w, h)
     gears.shape.rounded_rect(cr, w, h, dpi(8))

@@ -22,12 +22,12 @@ assert_contains() {
 }
 
 test_shared_visual_baseline() {
-    assert_contains 'shadow-radius = 12' "$PICOM_UBUNTU_FILE"
-    assert_contains 'shadow-opacity = 0.28' "$PICOM_UBUNTU_FILE"
-    assert_contains 'shadow-offset-x = -6' "$PICOM_UBUNTU_FILE"
-    assert_contains 'shadow-offset-y = -6' "$PICOM_UBUNTU_FILE"
+    assert_contains 'shadow-radius = 16' "$PICOM_UBUNTU_FILE"
+    assert_contains 'shadow-opacity = 0.22' "$PICOM_UBUNTU_FILE"
+    assert_contains 'shadow-offset-x = -8' "$PICOM_UBUNTU_FILE"
+    assert_contains 'shadow-offset-y = -8' "$PICOM_UBUNTU_FILE"
     assert_contains 'inactive-opacity = 0.90' "$PICOM_UBUNTU_FILE"
-    assert_contains 'active-opacity = 0.98' "$PICOM_UBUNTU_FILE"
+    assert_contains 'active-opacity = 0.94' "$PICOM_UBUNTU_FILE"
     assert_contains 'frame-opacity = 0.92' "$PICOM_UBUNTU_FILE"
     assert_contains 'corner-radius = 12' "$PICOM_UBUNTU_FILE"
     assert_contains 'corner-radius = 12; }' "$PICOM_UBUNTU_FILE"
@@ -69,18 +69,19 @@ test_non_current_platform_configs_remain_platform_specific() {
     assert_contains 'corner-radius = 16' "$PICOM_ARCH_X64_FILE"
     assert_contains "100:class_g = 'firefox'" "$PICOM_ARCH_X64_FILE"
 
-    assert_contains 'strength = 8;' "$PICOM_ARCH_AARCH64_FILE"
-    assert_contains "100:class_g = 'Alacritty'" "$PICOM_ARCH_AARCH64_FILE"
-    assert_contains "100:class_g = 'kitty'" "$PICOM_ARCH_AARCH64_FILE"
+    assert_contains 'strength = 4;' "$PICOM_ARCH_AARCH64_FILE"
+    assert_contains 'inactive-opacity = 0.87' "$PICOM_ARCH_AARCH64_FILE"
     assert_contains 'corner-radius = 16' "$PICOM_ARCH_AARCH64_FILE"
+    assert_contains "100:class_g = 'firefox'" "$PICOM_ARCH_AARCH64_FILE"
+    assert_contains "100:class_g = 'Thunderbird'" "$PICOM_ARCH_AARCH64_FILE"
 }
 
 test_readme_documents_current_visual_targets() {
     assert_contains '不强求三平台使用完全相同的参数' "$README_FILE"
-    assert_contains 'Ubuntu x64 当前使用 12px radius、0.28 opacity、`-6/-6` offset' "$README_FILE"
+    assert_contains 'Ubuntu x64 当前使用 16px radius、0.22 opacity、`-8/-8` offset' "$README_FILE"
     assert_contains 'Ubuntu x64 当前收口到 12px' "$README_FILE"
     assert_contains 'Ubuntu x64 当前使用 dual_kawase strength 12' "$README_FILE"
-    assert_contains 'Ubuntu x64 当前使用 0.90 inactive、0.98 active、0.92 frame' "$README_FILE"
+    assert_contains 'Ubuntu x64 当前使用 0.90 inactive、0.94 active、0.92 frame、0.96 menus' "$README_FILE"
     assert_contains 'Alacritty/kitty 不再被 picom 强制拉回 100% opacity' "$README_FILE"
     assert_contains '`utility/dialog` 恢复轻阴影' "$README_FILE"
     assert_contains 'Ubuntu x64: `run picom`' "$README_FILE"
