@@ -7,6 +7,7 @@ BINDINGS_FILE=$REPO_ROOT/.config/linux/awesome/bindings.lua
 WIBAR_FILE=$REPO_ROOT/.config/linux/awesome/ui/wibar.lua
 TASKLIST_FILE=$REPO_ROOT/.config/linux/awesome/ui/tasklist.lua
 HIDDEN_WINDOWS_FILE=$REPO_ROOT/.config/linux/awesome/ui/hidden_windows.lua
+WINDOW_MENU_FILE=$REPO_ROOT/.config/linux/awesome/ui/window_menu.lua
 STATUS_AREA_FILE=$REPO_ROOT/.config/linux/awesome/ui/status_area.lua
 ACTIONS_FILE=$REPO_ROOT/.config/linux/awesome/actions.lua
 SYSTEM_WIDGETS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/system.lua
@@ -44,6 +45,10 @@ assert_not_contains() {
 
 test_actions_module_exists() {
     [ -f "$ACTIONS_FILE" ] || fail "expected Awesome actions module to exist"
+}
+
+test_window_menu_module_exists() {
+    [ -f "$WINDOW_MENU_FILE" ] || fail "expected current-tag window menu module to exist"
 }
 
 test_rc_wires_shared_modules() {
@@ -216,9 +221,15 @@ LUA
 test_client_rules_use_data_driven_policy_lists() {
     assert_contains 'floating_classes = {' "$CLIENT_POLICIES_FILE"
     assert_contains 'fallback_titlebar_classes = {' "$CLIENT_POLICIES_FILE"
+    assert_contains 'browser_classes = {' "$CLIENT_POLICIES_FILE"
     assert_contains 'extra_rules = {' "$CLIENT_POLICIES_FILE"
     assert_contains 'class = policies.floating_classes,' "$CLIENT_RULES_FILE"
     assert_contains 'class = policies.fallback_titlebar_classes,' "$CLIENT_RULES_FILE"
+    assert_contains 'class = policies.browser_classes,' "$CLIENT_RULES_FILE"
+    assert_contains 'local function semantic_tag_index(key)' "$CLIENT_RULES_FILE"
+    assert_contains 'local function tag_by_index(target_screen, index)' "$CLIENT_RULES_FILE"
+    assert_contains 'tag = tag_by_index(awful.screen.preferred(), browser_tag_index),' "$CLIENT_RULES_FILE"
+    assert_contains 'switch_to_tags = false,' "$CLIENT_RULES_FILE"
     assert_contains 'table.unpack(policies.extra_rules)' "$CLIENT_RULES_FILE"
     assert_contains 'rule = { class = "tblive", type = "utility" }' "$CLIENT_POLICIES_FILE"
     assert_contains 'skip_taskbar = true,' "$CLIENT_POLICIES_FILE"
@@ -656,6 +667,14 @@ LUA
 }
 
 
+test_hidden_window_indicator_tracks_and_restores_hidden_clients() {
+    assert_contains 'local function collect_hidden_clients(target_screen)' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'local function restore_client(c)' "$HIDDEN_WINDOWS_FILE"
+    assert_contains '数量：' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'label = "隐:" .. client_label(first) .. " +" .. (hidden_count - 1)' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'label = "隐:" .. client_label(first)' "$HIDDEN_WINDOWS_FILE"
+}
+
 test_wibar_owns_bar_widget_creation() {
     assert_contains 'local config = args.config' "$WIBAR_FILE"
     assert_contains 'local actions = args.actions or {}' "$WIBAR_FILE"
@@ -908,6 +927,7 @@ package.preload["ui.tasklist"] = function()
     }
 end
 
+
 package.preload["ui.hidden_windows"] = function()
     return {
         create_indicator = function()
@@ -921,6 +941,11 @@ package.preload["ui.hidden_windows"] = function()
     }
 end
 
+package.preload["ui.window_menu"] = function()
+    return {
+        show_current_tag_menu = function() end,
+    }
+end
 package.preload["ui.status_area"] = function()
     return {
         is_compact_screen = function()
@@ -1206,9 +1231,37 @@ test_wibar_escapes_task_titles() {
     assert_contains 'gears.string.xml_escape' "$TASKLIST_FILE"
 }
 
+test_wibar_uses_current_tag_window_menu() {
+    assert_contains 'local window_menu = require("ui.window_menu")' "$WIBAR_FILE"
+    assert_contains 'window_menu.show_current_tag_menu(target_screen)' "$WIBAR_FILE"
+    assert_not_contains 'awful.menu.client_list({ theme = { width = 250 } })' "$WIBAR_FILE"
+    assert_contains 'local target_screen = c and c.screen or awful.screen.focused()' "$WIBAR_FILE"
+}
+
+test_semantic_tag_definitions_exist() {
+    assert_contains 'local TAG_DEFINITIONS = {' "$WIBAR_FILE"
+    assert_contains 'name = "浏览器"' "$WIBAR_FILE"
+    assert_contains 'name = "开发"' "$WIBAR_FILE"
+    assert_contains 'name = "文档"' "$WIBAR_FILE"
+    assert_contains 'name = "沟通"' "$WIBAR_FILE"
+    assert_contains 'name = "杂项"' "$WIBAR_FILE"
+    assert_contains 'local function tag_definition(tag)' "$WIBAR_FILE"
+    assert_contains 'local function tag_icons()' "$WIBAR_FILE"
+    assert_contains 'semantic_tags = {' "$CLIENT_POLICIES_FILE"
+    assert_contains 'awful.tag(tag_icons(), s, awful.layout.layouts[1])' "$WIBAR_FILE"
+}
+
 test_wibar_exposes_prompt_runners() {
     assert_contains 'run_prompt = function()' "$WIBAR_FILE"
     assert_contains 'run_lua_prompt = function()' "$WIBAR_FILE"
+}
+
+test_taglist_uses_lightweight_tooltips() {
+    assert_contains 'local function tag_tooltip_text(tag)' "$WIBAR_FILE"
+    assert_contains 'widget_template = {' "$WIBAR_FILE"
+    assert_contains 'self._tag_tooltip_text = tag_tooltip_text(tag)' "$WIBAR_FILE"
+    assert_contains '名称：' "$WIBAR_FILE"
+    assert_contains '窗口：' "$WIBAR_FILE"
 }
 
 test_wibar_avoids_container_insert_on_sysinfo_widget() {
@@ -1282,6 +1335,7 @@ test_volume_widget_uses_relaxed_background_polling() {
     assert_contains 'local refresh_delays = { 0.15, 0.5, 1.2 }' "$VOLUME_FILE"
 }
 
+test_window_menu_module_exists
 test_actions_module_exists
 test_rc_wires_shared_modules
 test_rc_no_longer_builds_bar_widgets_locally
@@ -1312,7 +1366,10 @@ test_wibar_uses_physical_size_before_width_fallback
 test_wibar_scales_task_title_width_by_screen_size
 test_tasklist_expands_title_when_only_one_visible_window
 test_wibar_escapes_task_titles
+test_wibar_uses_current_tag_window_menu
+test_semantic_tag_definitions_exist
 test_wibar_exposes_prompt_runners
+test_taglist_uses_lightweight_tooltips
 test_wibar_avoids_container_insert_on_sysinfo_widget
 test_system_widget_exposes_row_for_extension
 test_modules_use_shared_common_helpers

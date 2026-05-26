@@ -114,7 +114,7 @@ local function usage_color(usage, warn_threshold, danger_threshold, ctpp)
         return ctpp.yellow
     end
 
-    return ctpp.text
+    return ctpp.subtext0
 end
 
 local function interface_matches(interface, patterns)
@@ -424,7 +424,7 @@ local function create_system_widgets(config, options)
 
     -- CPU widget
     local cpu_widget = wibox.widget.textbox()
-    cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.blue, "0%", ctpp.text))
+    cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.overlay1, "0%", ctpp.subtext0))
     awful.tooltip {
         objects = { cpu_widget },
         timer_function = function()
@@ -434,7 +434,7 @@ local function create_system_widgets(config, options)
 
     -- Memory widget
     local mem_widget = wibox.widget.textbox()
-    mem_widget:set_markup(render_metric_markup(mem_label, ctpp.green, "0%", ctpp.text))
+    mem_widget:set_markup(render_metric_markup(mem_label, ctpp.overlay1, "0%", ctpp.subtext0))
     awful.tooltip {
         objects = { mem_widget },
         timer_function = function()
@@ -448,7 +448,7 @@ local function create_system_widgets(config, options)
         local current = parse_proc_stat_line(read_file_line("/proc/stat"))
         if not current then
             system_state.cpu_usage = "N/A"
-            cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.blue, "N/A", ctpp.overlay1))
+            cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.overlay1, "N/A", ctpp.overlay1))
             return
         end
 
@@ -460,19 +460,19 @@ local function create_system_widgets(config, options)
         end
 
         system_state.cpu_usage = usage .. "%"
-        cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.blue, usage .. "%", usage_color(usage, 50, 80, ctpp)))
+        cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.overlay1, usage .. "%", usage_color(usage, 50, 80, ctpp)))
     end
 
     local function update_mem()
         local usage = calculate_mem_usage(parse_meminfo(read_file_all("/proc/meminfo")))
         if not usage then
             system_state.mem_usage = "N/A"
-            mem_widget:set_markup(render_metric_markup(mem_label, ctpp.green, "N/A", ctpp.overlay1))
+            mem_widget:set_markup(render_metric_markup(mem_label, ctpp.overlay1, "N/A", ctpp.overlay1))
             return
         end
 
         system_state.mem_usage = usage .. "%"
-        mem_widget:set_markup(render_metric_markup(mem_label, ctpp.green, usage .. "%", usage_color(usage, 60, 80, ctpp)))
+        mem_widget:set_markup(render_metric_markup(mem_label, ctpp.overlay1, usage .. "%", usage_color(usage, 60, 80, ctpp)))
     end
 
     update_cpu()
@@ -491,7 +491,10 @@ local function create_system_widgets(config, options)
     local net_tooltip_text = "网络\n状态：离线\n接口：未匹配"
 
     local function render_net_markup(recv_speed, sent_speed)
-        return "<span foreground='" .. ctpp.blue .. "'>↓" .. format_speed(recv_speed) .. "</span> <span foreground='" .. ctpp.peach .. "'>↑" .. format_speed(sent_speed) .. "</span>"
+        local active = (recv_speed + sent_speed) > 0
+        local down_color = active and ctpp.blue or ctpp.overlay1
+        local up_color = active and ctpp.peach or ctpp.overlay1
+        return "<span foreground='" .. down_color .. "'>↓" .. format_speed(recv_speed) .. "</span> <span foreground='" .. up_color .. "'>↑" .. format_speed(sent_speed) .. "</span>"
     end
 
     local function render_net_offline_markup()
@@ -519,7 +522,7 @@ local function create_system_widgets(config, options)
     local battery_paths = find_battery_paths()
     if #battery_paths > 0 then
         battery_widget = wibox.widget.textbox()
-        battery_widget:set_markup(render_metric_markup(battery_label, ctpp.yellow, "0%", ctpp.text))
+        battery_widget:set_markup(render_metric_markup(battery_label, ctpp.overlay1, "0%", ctpp.subtext0))
     end
 
     -- Network monitoring
@@ -693,7 +696,7 @@ local function create_system_widgets(config, options)
 
             local capacity = summary.capacity
             local status = summary.status
-            local color = ctpp.text
+            local color = ctpp.subtext0
             if status == "Charging" then
                 color = ctpp.green
             elseif capacity and capacity <= 15 then
@@ -704,7 +707,7 @@ local function create_system_widgets(config, options)
                 color = ctpp.overlay1
             end
 
-            battery_widget:set_markup(render_metric_markup(battery_label, ctpp.yellow, capacity and (capacity .. "%") or "N/A", color))
+            battery_widget:set_markup(render_metric_markup(battery_label, ctpp.overlay1, capacity and (capacity .. "%") or "N/A", color))
             update_battery_tooltip(summary)
         end
 
@@ -749,7 +752,7 @@ local function create_system_widgets(config, options)
     -- System info container
     local sysinfo_widget = wibox.widget {
         system_row,
-        bg = ctpp.surface0,
+        bg = ctpp.mantle,
         shape = function(cr, w, h)
             gears.shape.rounded_rect(cr, w, h, dpi(8))
         end,

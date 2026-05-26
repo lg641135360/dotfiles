@@ -39,6 +39,45 @@ local M = {
         "xtightvncviewer",
     },
 
+    semantic_tags = {
+        {
+            key = "browser",
+            name = "浏览器",
+            icon = "󰓠 ",
+        },
+        {
+            key = "dev",
+            name = "开发",
+            icon = "󰇩 ",
+        },
+        {
+            key = "docs",
+            name = "文档",
+            icon = " ",
+        },
+        {
+            key = "chat",
+            name = "沟通",
+            icon = "󰠮 ",
+        },
+        {
+            key = "misc",
+            name = "杂项",
+            icon = " ",
+        },
+    },
+
+    browser_classes = {
+        "firefox",
+        "zen-browser",
+        "google-chrome",
+        "chromium",
+        "chromium-browser",
+        "microsoft-edge",
+        "brave-browser",
+        "vivaldi-stable",
+    },
+
     -- Complete awful.rules.rules entries appended after the base rules.
     extra_rules = {
         {

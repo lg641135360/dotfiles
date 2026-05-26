@@ -19,7 +19,7 @@ local function render_task_text(c, ctpp)
     end
 
     if c.minimized then
-        return '<span color="' .. ctpp.overlay2 .. '">[min] ' .. name .. '</span>'
+        return '<span foreground="' .. ctpp.overlay1 .. '">[min] ' .. name .. '</span>'
     end
 
     if client and c == client.focus then
@@ -167,7 +167,7 @@ local function update_task_item(self, c, ctpp, screen, config, compact, availabl
 
     local indicator = self:get_children_by_id("focus_indicator_role")[1]
     if indicator then
-        indicator.bg = urgent and ctpp.red or (focused and ctpp.blue or ctpp.base)
+        indicator.bg = urgent and ctpp.red or (focused and ctpp.blue or ctpp.overlay0)
     end
 end
 

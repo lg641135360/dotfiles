@@ -144,7 +144,24 @@ local function hidden_tooltip_text(clients)
         return "隐藏窗口\n无"
     end
 
-    local lines = { "隐藏窗口" }
+    local hidden_count = 0
+    local minimized_count = 0
+    local urgent_count = 0
+    for _, c in ipairs(clients) do
+        if c.urgent then
+            urgent_count = urgent_count + 1
+        end
+        if c.hidden then
+            hidden_count = hidden_count + 1
+        elseif c.minimized then
+            minimized_count = minimized_count + 1
+        end
+    end
+
+    local lines = {
+        "隐藏窗口",
+        "数量：" .. #clients .. "（紧急 " .. urgent_count .. " / 隐藏 " .. hidden_count .. " / 最小化 " .. minimized_count .. "）",
+    }
     for index, c in ipairs(clients) do
         local line = index .. ". " .. client_label(c)
         local app = client_app(c)
@@ -325,8 +342,13 @@ local function create_indicator(ctpp, target_screen)
         local hidden_count = #clients
         local first = clients[1]
         local has_urgent = first and first.urgent == true
-        local label = hidden_count == 1 and ("隐:" .. client_label(first)) or ("隐:" .. hidden_count)
-        local fg = has_urgent and ctpp.red or ctpp.subtext1
+        local label
+        if hidden_count == 1 then
+            label = "隐:" .. client_label(first)
+        else
+            label = "隐:" .. client_label(first) .. " +" .. (hidden_count - 1)
+        end
+        local fg = has_urgent and ctpp.red or ctpp.overlay1
 
         local text = self:get_children_by_id("hidden_indicator_text_role")[1]
         if text then
@@ -335,7 +357,7 @@ local function create_indicator(ctpp, target_screen)
 
         local background = self:get_children_by_id("hidden_indicator_background_role")[1]
         if background then
-            background.bg = has_urgent and ctpp.surface0 or ctpp.base
+            background.bg = has_urgent and ctpp.surface0 or ctpp.mantle
         end
 
         self._tooltip_text = hidden_tooltip_text(clients)

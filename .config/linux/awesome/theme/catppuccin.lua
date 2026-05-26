@@ -59,7 +59,7 @@ theme.bg_systray    = theme.bg_normal
 -- Foreground colors
 theme.fg_normal     = palette.text
 theme.fg_focus      = palette.blue
-theme.fg_urgent     = palette.base
+theme.fg_urgent     = palette.red
 theme.fg_minimize   = palette.subtext0
 
 -- Window borders
@@ -113,8 +113,8 @@ theme.taglist_squares_unsel = theme_assets.taglist_squares_unsel(
 
 -- Tasklist configuration
 theme.tasklist_bg_normal = palette.base
-theme.tasklist_bg_focus = palette.surface0
-theme.tasklist_bg_urgent = palette.surface0
+theme.tasklist_bg_focus = palette.base
+theme.tasklist_bg_urgent = palette.base
 theme.tasklist_fg_normal = palette.subtext0
 theme.tasklist_fg_focus = palette.blue
 theme.tasklist_fg_urgent = palette.red
@@ -137,7 +137,7 @@ theme.menu_height = dpi(35)
 theme.menu_width  = dpi(200)
 theme.menu_bg_normal = palette.mantle
 theme.menu_bg_focus = palette.surface0
-theme.menu_fg_normal = palette.text
+theme.menu_fg_normal = palette.subtext1
 theme.menu_fg_focus = palette.blue
 theme.menu_border_color = palette.overlay0
 theme.menu_border_width = dpi(1)

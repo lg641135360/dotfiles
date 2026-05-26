@@ -5,10 +5,70 @@ local beautiful = require("beautiful")
 local dpi = require("beautiful.xresources").apply_dpi
 local tasklist = require("ui.tasklist")
 local hidden_windows = require("ui.hidden_windows")
+local window_menu = require("ui.window_menu")
 local status_area = require("ui.status_area")
 local is_compact_screen = assert(status_area.is_compact_screen)
 
+local TAG_DEFINITIONS = {
+    {
+        icon = "󰓠 ",
+        name = "浏览器",
+        description = "浏览器、网页检索与在线工作流。",
+    },
+    {
+        icon = "󰇩 ",
+        name = "开发",
+        description = "终端、编辑器、调试与构建任务。",
+    },
+    {
+        icon = " ",
+        name = "文档",
+        description = "资料阅读、PDF、笔记与文档整理。",
+    },
+    {
+        icon = "󰠮 ",
+        name = "沟通",
+        description = "IM、会议与即时协作。",
+    },
+    {
+        icon = " ",
+        name = "杂项",
+        description = "临时工具、文件处理与未归类窗口。",
+    },
+}
+
+local function tag_definition(tag)
+    if not tag or not tag.screen or not tag.screen.tags then
+        return nil
+    end
+
+    for index, candidate in ipairs(tag.screen.tags) do
+        if candidate == tag then
+            return TAG_DEFINITIONS[index]
+        end
+    end
+
+    return nil
+end
+
+local function tag_display_name(tag)
+    local definition = tag_definition(tag)
+    if definition and definition.name then
+        return definition.name
+    end
+
+    return tag and tag.name or "untitled"
+end
+
 local M = {}
+
+local function tag_icons()
+    local icons = {}
+    for _, definition in ipairs(TAG_DEFINITIONS) do
+        icons[#icons + 1] = definition.icon
+    end
+    return icons
+end
 
 local function create_lock_button(ctpp, actions)
     local lock = actions.lock or function() end
@@ -182,6 +242,80 @@ local function count_sequence_items(tbl)
     return count
 end
 
+local excluded_tag_tooltip_client_types = {
+    desktop = true,
+    dock = true,
+    splash = true,
+}
+
+local function tag_tooltip_text(tag)
+    local definition = tag_definition(tag)
+    local regular = {}
+    local visible_count = 0
+    local minimized_count = 0
+    local hidden_count = 0
+    local urgent_count = 0
+
+    for _, c in ipairs(tag and tag:clients() or {}) do
+        if c.valid ~= false and not c.skip_taskbar and not excluded_tag_tooltip_client_types[c.type] then
+            regular[#regular + 1] = c
+            if c.urgent then
+                urgent_count = urgent_count + 1
+            end
+            if c.hidden then
+                hidden_count = hidden_count + 1
+            elseif c.minimized then
+                minimized_count = minimized_count + 1
+            else
+                visible_count = visible_count + 1
+            end
+        end
+    end
+
+    local lines = { "标签", "名称：" .. tag_display_name(tag) }
+    if definition and definition.description then
+        lines[#lines + 1] = "语义：" .. definition.description
+    end
+    lines[#lines + 1] = "窗口：" .. #regular
+    lines[#lines + 1] = "可见：" .. visible_count .. " / 最小化：" .. minimized_count .. " / 隐藏：" .. hidden_count
+
+    if urgent_count > 0 then
+        lines[#lines + 1] = "紧急：" .. urgent_count
+    end
+
+    table.sort(regular, function(a, b)
+        local a_name = a.name or a.class or a.instance or "untitled"
+        local b_name = b.name or b.class or b.instance or "untitled"
+        return a_name < b_name
+    end)
+
+    for index, c in ipairs(regular) do
+        if index > 5 then
+            lines[#lines + 1] = "……"
+            break
+        end
+
+        local title = c.name or c.class or c.instance or "untitled"
+        local state = {}
+        if c.urgent then
+            state[#state + 1] = "紧急"
+        end
+        if c.hidden then
+            state[#state + 1] = "隐藏"
+        elseif c.minimized then
+            state[#state + 1] = "最小化"
+        end
+
+        if #state > 0 then
+            lines[#lines + 1] = index .. ". " .. title .. "（" .. table.concat(state, " / ") .. "）"
+        else
+            lines[#lines + 1] = index .. ". " .. title
+        end
+    end
+
+    return table.concat(lines, "\n")
+end
+
 local function materialize_widget(widget)
     if not widget then
         return nil
@@ -320,8 +454,9 @@ function M.setup(args)
                 c:emit_signal("request::activate", "tasklist", { raise = true })
             end
         end),
-        awful.button({}, 3, function()
-            awful.menu.client_list({ theme = { width = 250 } })
+        awful.button({}, 3, function(c)
+            local target_screen = c and c.screen or awful.screen.focused()
+            window_menu.show_current_tag_menu(target_screen)
         end),
         awful.button({}, 4, function()
             awful.client.focus.byidx(1)
@@ -423,7 +558,7 @@ function M.setup(args)
     end
 
     awful.screen.connect_for_each_screen(function(s)
-        awful.tag({ "󰇩 ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
+        awful.tag(tag_icons(), s, awful.layout.layouts[1])
         awful.tag.attached_connect_signal(s, "property::selected", queue_wibar_refresh)
 
         s.mypromptbox = awful.widget.prompt()
@@ -433,6 +568,33 @@ function M.setup(args)
             screen = s,
             filter = awful.widget.taglist.filter.all,
             buttons = taglist_buttons,
+            widget_template = {
+                {
+                    {
+                        id = "text_role",
+                        widget = wibox.widget.textbox,
+                    },
+                    left = 8,
+                    right = 8,
+                    widget = wibox.container.margin,
+                },
+                id = "background_role",
+                widget = wibox.container.background,
+                create_callback = function(self, tag)
+                    self._tag_tooltip_text = tag_tooltip_text(tag)
+                    if not self._tag_tooltip then
+                        self._tag_tooltip = awful.tooltip {
+                            objects = { self },
+                            timer_function = function()
+                                return self._tag_tooltip_text or ""
+                            end,
+                        }
+                    end
+                end,
+                update_callback = function(self, tag)
+                    self._tag_tooltip_text = tag_tooltip_text(tag)
+                end,
+            },
         }
 
         rebuild_screen_wibar(s)

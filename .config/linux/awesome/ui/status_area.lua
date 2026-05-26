@@ -281,7 +281,7 @@ local function create_right_widgets(config, ctpp, target_screen, clock_widget)
     table.insert(right_widgets, {
         clock_widget,
         left = 0,
-        right = compact and 2 or 4,
+        right = compact and 1 or 3,
         widget = wibox.container.margin,
     })
 
