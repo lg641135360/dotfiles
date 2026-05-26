@@ -124,11 +124,11 @@ local function create_layoutbox(ctpp, screen)
     return layoutbox
 end
 
-local function create_floating_wibar_content(ctpp, left_widgets, tasklist_widget, right_widgets)
+local function create_floating_wibar_content(ctpp, left_widgets, task_cluster, right_widgets)
     local content = wibox.widget {
         layout = wibox.layout.align.horizontal,
         left_widgets,
-        tasklist_widget,
+        task_cluster,
         right_widgets,
     }
 
@@ -149,8 +149,8 @@ local function create_floating_wibar_content(ctpp, left_widgets, tasklist_widget
     }
 end
 
-local function setup_floating_wibar(s, ctpp, left_widgets, tasklist_widget, right_widgets)
-    local floating_content = create_floating_wibar_content(ctpp, left_widgets, tasklist_widget, right_widgets)
+local function setup_floating_wibar(s, ctpp, left_widgets, task_cluster, right_widgets)
+    local floating_content = create_floating_wibar_content(ctpp, left_widgets, task_cluster, right_widgets)
 
     if not s.mywibox then
         s.mywibox = awful.wibar {
@@ -313,14 +313,33 @@ function M.setup(args)
             s.mytasklist = tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, is_compact_screen(s, config))
             s.mytasklist_width = desired_tasklist_width
         end
+        s.mytaskoverflow = s.mytaskoverflow or tasklist.create_overflow_indicator(ctpp, s)
+
+        local task_cluster = {
+            s.mytasklist,
+            s.mytaskoverflow,
+            layout = wibox.layout.fixed.horizontal,
+            spacing = dpi(4),
+        }
 
         local clock_widget = s.mytextclock
         local right_widget_data = status_area.create_right_widgets(config, ctpp, s, clock_widget)
         local right_widgets = right_widget_data.right_widgets
         local left_widgets = build_left_widgets(s)
+        local screen_width = s and s.geometry and s.geometry.width or 0
+        local probe_height = s.mywibox and s.mywibox.height or dpi(40)
+        local left_width = select(1, widget_fit_size(left_widgets, screen_width, probe_height))
+        local right_width = select(1, widget_fit_size(right_widgets, screen_width, probe_height))
 
-        setup_floating_wibar(s, ctpp, left_widgets, s.mytasklist, right_widgets)
-        update_wibar_probe_state(s, left_widgets, s.mytasklist, right_widgets, config)
+        local available_width = math.max(screen_width - left_width - right_width, 0)
+        s._omx_task_available_width = available_width
+
+        if s.mytaskoverflow.update then
+            s.mytaskoverflow:update(available_width)
+        end
+
+        setup_floating_wibar(s, ctpp, left_widgets, task_cluster, right_widgets)
+        update_wibar_probe_state(s, left_widgets, task_cluster, right_widgets, config)
     end
 
     local refresh_queued = false

@@ -298,6 +298,65 @@ test_tasklist_does_not_switch_to_icon_only_mode() {
     assert_contains 'id = "text_role",' "$TASKLIST_FILE"
 }
 
+test_tasklist_switches_to_icon_only_mode_at_high_density() {
+    assert_contains 'local function task_title_display_mode(screen, available_width, config, compact)' "$TASKLIST_FILE"
+    assert_contains 'if client_count < 5 then' "$TASKLIST_FILE"
+    assert_contains 'return "icon_only"' "$TASKLIST_FILE"
+    assert_contains 'local display_mode = task_title_display_mode(screen, available_width, config, compact)' "$TASKLIST_FILE"
+    assert_contains 'text.visible = display_mode ~= "icon_only"' "$TASKLIST_FILE"
+}
+
+test_tasklist_exposes_overflow_indicator_support() {
+    assert_contains 'local function task_overflow_indicator_text(hidden_count)' "$TASKLIST_FILE"
+    assert_contains 'return "+" .. hidden_count' "$TASKLIST_FILE"
+    assert_contains 'local overflow_text = task_overflow_indicator_text(hidden_count)' "$TASKLIST_FILE"
+    assert_contains '还有" .. hidden_count .. " 个窗口未显示' "$TASKLIST_FILE"
+    assert_contains 'function M.create_overflow_indicator(ctpp, screen)' "$TASKLIST_FILE"
+    assert_contains 'id = "task_overflow_text_role",' "$TASKLIST_FILE"
+    assert_contains 'awful.menu.client_list({ theme = { width = 250 } })' "$TASKLIST_FILE"
+    assert_contains 'self.visible = hidden_count > 0' "$TASKLIST_FILE"
+}
+
+test_tasklist_hidden_count_uses_layout_budget() {
+    assert_contains 'local function hidden_task_count(screen, available_width)' "$TASKLIST_FILE"
+    assert_contains 'local available_width = math.max(screen_width - left_width - right_width, 0)' "$WIBAR_FILE"
+    assert_contains 's.mytaskoverflow:update(available_width)' "$WIBAR_FILE"
+    assert_not_contains 'local reserved_width = screen_width < 1800 and 980 or 1320' "$TASKLIST_FILE"
+}
+
+test_tasklist_slot_width_prefers_measured_fit() {
+    assert_contains 'local function measured_task_slot_width(screen, available_width)' "$TASKLIST_FILE"
+    assert_contains 'return math.max(math.floor(fit_width + 0.5), 1)' "$TASKLIST_FILE"
+    assert_contains 'local measured_width = measured_task_slot_width(screen, budget_width)' "$TASKLIST_FILE"
+    assert_contains 'local fallback_width = current_tag_client_count(screen) >= 8 and 36 or 220' "$TASKLIST_FILE"
+    assert_contains 'local slot_width = measured_width or fallback_width' "$TASKLIST_FILE"
+}
+
+test_tasklist_icon_only_threshold_uses_budget_pressure() {
+    assert_contains 'local function task_title_display_mode(screen, available_width, config, compact)' "$TASKLIST_FILE"
+    assert_contains 'if client_count < 5 then' "$TASKLIST_FILE"
+    assert_contains 'local average_width = math.floor((budget_width / client_count) + 0.5)' "$TASKLIST_FILE"
+    assert_contains 'local text_threshold = task_title_max_width(screen, config, compact)' "$TASKLIST_FILE"
+    assert_contains 'if average_width < text_threshold then' "$TASKLIST_FILE"
+    assert_contains 'local display_mode = task_title_display_mode(screen, available_width, config, compact)' "$TASKLIST_FILE"
+}
+
+test_tasklist_live_available_width_reaches_update_path() {
+    assert_not_contains 'update_task_item(self, c, ctpp, screen, config, compact, 0)' "$TASKLIST_FILE"
+    assert_contains 'local current_available_width = math.max((screen and screen._omx_task_available_width) or 0, 0)' "$TASKLIST_FILE"
+    assert_contains 'update_task_item(self, c, ctpp, screen, config, compact, current_available_width)' "$TASKLIST_FILE"
+    assert_contains 's._omx_task_available_width = available_width' "$WIBAR_FILE"
+}
+
+test_tasklist_overflow_indicator_uses_lighter_visual_weight() {
+    assert_contains 'left = dpi(4),' "$TASKLIST_FILE"
+    assert_contains 'right = dpi(4),' "$TASKLIST_FILE"
+    assert_contains 'top = dpi(1),' "$TASKLIST_FILE"
+    assert_contains 'bottom = dpi(1),' "$TASKLIST_FILE"
+    assert_contains 'bg = ctpp.base,' "$TASKLIST_FILE"
+    assert_contains '.. ctpp.subtext1 ..' "$TASKLIST_FILE"
+}
+
 test_wibar_uses_task_density_tiers() {
     assert_contains 'local function current_tag_client_count(screen)' "$TASKLIST_FILE"
     assert_contains 'local function task_density_tier(screen)' "$TASKLIST_FILE"
@@ -327,6 +386,7 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'local function screen_diagonal_inches(screen)' "$STATUS_AREA_FILE"
     assert_contains 'local tasklist = require("ui.tasklist")' "$WIBAR_FILE"
     assert_contains 'tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, is_compact_screen(s, config))' "$WIBAR_FILE"
+    assert_contains 'tasklist.create_overflow_indicator(ctpp, s)' "$WIBAR_FILE"
     assert_contains 'tasklist.task_title_max_width(s, config, is_compact_screen(s, config))' "$WIBAR_FILE"
     assert_not_contains 'local function render_task_text(c, ctpp)' "$WIBAR_FILE"
     assert_not_contains 'local function render_task_tooltip(c)' "$WIBAR_FILE"
@@ -340,8 +400,9 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'local function current_tag_client_count(screen)' "$TASKLIST_FILE"
     assert_contains 'local function task_density_tier(screen)' "$TASKLIST_FILE"
     assert_contains 'local function task_title_max_width(screen, config, compact)' "$TASKLIST_FILE"
-    assert_contains 'local function update_task_item(self, c, ctpp, screen, config, compact)' "$TASKLIST_FILE"
+    assert_contains 'local function update_task_item(self, c, ctpp, screen, config, compact, available_width)' "$TASKLIST_FILE"
     assert_contains 'local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact)' "$TASKLIST_FILE"
+    assert_contains 'create_overflow_indicator = M.create_overflow_indicator,' "$TASKLIST_FILE"
     assert_contains 'return {' "$TASKLIST_FILE"
     assert_contains 'create_tasklist = create_tasklist,' "$TASKLIST_FILE"
     assert_contains 'local function create_lock_button(ctpp, actions)' "$WIBAR_FILE"
@@ -414,9 +475,12 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'right = item_h_padding,' "$TASKLIST_FILE"
     assert_contains 'top = item_v_padding,' "$TASKLIST_FILE"
     assert_contains 'bottom = item_v_padding,' "$TASKLIST_FILE"
-    assert_contains 'local function create_floating_wibar_content(ctpp, left_widgets, tasklist_widget, right_widgets)' "$WIBAR_FILE"
+    assert_contains 'local function create_floating_wibar_content(ctpp, left_widgets, task_cluster, right_widgets)' "$WIBAR_FILE"
+    assert_contains 'local task_cluster = {' "$WIBAR_FILE"
+    assert_contains 's.mytaskoverflow = s.mytaskoverflow or tasklist.create_overflow_indicator(ctpp, s)' "$WIBAR_FILE"
+    assert_contains 's.mytaskoverflow:update(available_width)' "$WIBAR_FILE"
     assert_contains 'gears.shape.rounded_rect(cr, w, h, dpi(12))' "$WIBAR_FILE"
-    assert_contains 'local function setup_floating_wibar(s, ctpp, left_widgets, tasklist_widget, right_widgets)' "$WIBAR_FILE"
+    assert_contains 'local function setup_floating_wibar(s, ctpp, left_widgets, task_cluster, right_widgets)' "$WIBAR_FILE"
     assert_contains 'if not s.mywibox then' "$WIBAR_FILE"
     assert_contains 'height = dpi(40),' "$WIBAR_FILE"
     assert_contains 'bg = "#00000000",' "$WIBAR_FILE"
@@ -468,7 +532,7 @@ test_wibar_exposes_hidden_probe_state_for_runtime_visibility_checks() {
     assert_contains 'right_width = right_width,' "$WIBAR_FILE"
     assert_contains 'tasklist_width = tasklist_width,' "$WIBAR_FILE"
     assert_contains 'has_promptbox = s == screen.primary,' "$WIBAR_FILE"
-    assert_contains 'update_wibar_probe_state(s, left_widgets, s.mytasklist, right_widgets, config)' "$WIBAR_FILE"
+    assert_contains 'update_wibar_probe_state(s, left_widgets, task_cluster, right_widgets, config)' "$WIBAR_FILE"
 }
 
 test_wibar_keeps_status_widgets_on_primary_only() {
@@ -756,7 +820,13 @@ test_actions_check_prerequisites_and_notify_failures
 test_volume_widget_uses_lower_idle_polling
 test_brightness_widget_uses_lower_idle_polling
 test_volume_widget_does_not_switch_to_event_subscription
-test_tasklist_does_not_switch_to_icon_only_mode
+test_tasklist_switches_to_icon_only_mode_at_high_density
+test_tasklist_exposes_overflow_indicator_support
+test_tasklist_hidden_count_uses_layout_budget
+test_tasklist_slot_width_prefers_measured_fit
+test_tasklist_icon_only_threshold_uses_budget_pressure
+test_tasklist_live_available_width_reaches_update_path
+test_tasklist_overflow_indicator_uses_lighter_visual_weight
 test_wibar_uses_task_density_tiers
 test_wibar_task_title_width_depends_on_density
 test_wibar_owns_bar_widget_creation
