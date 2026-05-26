@@ -233,6 +233,23 @@ local function widget_fit_size(widget, width, height, target_screen)
     return tonumber(fit_width) or 0, tonumber(fit_height) or 0
 end
 
+local function tasklist_available_width(s, left_widgets, hidden_indicator, right_widgets)
+    local screen_width = s and s.geometry and s.geometry.width or 0
+    local probe_height = s and s.mywibox and s.mywibox.height or dpi(40)
+    local left_width = select(1, widget_fit_size(left_widgets, screen_width, probe_height, s))
+    local right_width = select(1, widget_fit_size(right_widgets, screen_width, probe_height, s))
+    local hidden_width = 0
+
+    if hidden_indicator and hidden_indicator.visible ~= false then
+        hidden_width = select(1, widget_fit_size(hidden_indicator, screen_width, probe_height, s))
+    end
+
+    local floating_chrome_width = dpi(32)
+    local task_cluster_spacing = hidden_width > 0 and dpi(4) or 0
+
+    return math.max(screen_width - left_width - right_width - hidden_width - floating_chrome_width - task_cluster_spacing, 0)
+end
+
 local function update_wibar_probe_state(s, left_widgets, tasklist_widget, right_widgets, config)
     local function snapshot()
         local screen_width = s and s.geometry and s.geometry.width or 0
@@ -344,14 +361,24 @@ function M.setup(args)
             s.mytextclock._refresh()
         end
 
-        local desired_tasklist_width = tasklist.task_title_max_width(s, config, is_compact_screen(s, config))
-        if not s.mytasklist or s.mytasklist_width ~= desired_tasklist_width then
-            s.mytasklist = tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, is_compact_screen(s, config))
-            s.mytasklist_width = desired_tasklist_width
-        end
         s.myhiddenwindows = s.myhiddenwindows or hidden_windows.create_indicator(ctpp, s)
         if s.myhiddenwindows.update then
             s.myhiddenwindows:update()
+        end
+
+        local compact = is_compact_screen(s, config)
+        local clock_widget = s.mytextclock
+        local right_widget_data = status_area.create_right_widgets(config, ctpp, s, clock_widget)
+        local right_widgets = materialize_widget(right_widget_data.right_widgets)
+        local left_widgets = materialize_widget(build_left_widgets(s))
+        local available_tasklist_width = tasklist_available_width(s, left_widgets, s.myhiddenwindows, right_widgets)
+        local desired_tasklist_width = tasklist.task_title_max_width(s, config, compact, available_tasklist_width)
+        if not s.mytasklist
+            or s.mytasklist_width ~= desired_tasklist_width
+            or s.mytasklist_available_width ~= available_tasklist_width then
+            s.mytasklist = tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, compact, available_tasklist_width)
+            s.mytasklist_width = desired_tasklist_width
+            s.mytasklist_available_width = available_tasklist_width
         end
         local task_cluster = materialize_widget {
             s.mytasklist,
@@ -360,10 +387,6 @@ function M.setup(args)
             spacing = dpi(4),
         }
 
-        local clock_widget = s.mytextclock
-        local right_widget_data = status_area.create_right_widgets(config, ctpp, s, clock_widget)
-        local right_widgets = materialize_widget(right_widget_data.right_widgets)
-        local left_widgets = materialize_widget(build_left_widgets(s))
         setup_floating_wibar(s, ctpp, left_widgets, task_cluster, right_widgets)
         update_wibar_probe_state(s, left_widgets, task_cluster, right_widgets, config)
     end
@@ -383,8 +406,25 @@ function M.setup(args)
         end)
     end
 
+    if client and client.connect_signal then
+        for _, signal in ipairs({
+            "property::minimized",
+            "property::hidden",
+            "property::skip_taskbar",
+            "property::screen",
+            "tagged",
+            "untagged",
+            "manage",
+            "unmanage",
+            "list",
+        }) do
+            client.connect_signal(signal, queue_wibar_refresh)
+        end
+    end
+
     awful.screen.connect_for_each_screen(function(s)
         awful.tag({ "󰇩 ", "󰓠 ", "󰠮 ", " ", " " }, s, awful.layout.layouts[1])
+        awful.tag.attached_connect_signal(s, "property::selected", queue_wibar_refresh)
 
         s.mypromptbox = awful.widget.prompt()
         s.mylayoutbox = create_layoutbox(ctpp, s)
@@ -435,9 +475,10 @@ end
 
 M._private = {
     is_compact_screen = is_compact_screen,
-    task_title_max_width = function(s, config)
-        return tasklist.task_title_max_width(s, config, is_compact_screen(s, config))
+    task_title_max_width = function(s, config, available_width)
+        return tasklist.task_title_max_width(s, config, is_compact_screen(s, config), available_width)
     end,
+    tasklist_available_width = tasklist_available_width,
     widget_fit_size = widget_fit_size,
 }
 

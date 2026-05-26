@@ -300,7 +300,7 @@ test_tasklist_keeps_text_for_focused_window() {
     assert_contains 'id = "text_role",' "$TASKLIST_FILE"
     assert_contains 'text_constraint.visible = true' "$TASKLIST_FILE"
     assert_contains 'text.visible = true' "$TASKLIST_FILE"
-    assert_contains 'local function update_task_item(self, c, ctpp, screen, config, compact)' "$TASKLIST_FILE"
+    assert_contains 'local function update_task_item(self, c, ctpp, screen, config, compact, available_width)' "$TASKLIST_FILE"
 }
 
 test_tasklist_sources_only_focused_current_tag_client() {
@@ -671,10 +671,10 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'local function screen_diagonal_inches(screen)' "$STATUS_AREA_FILE"
     assert_contains 'local tasklist = require("ui.tasklist")' "$WIBAR_FILE"
     assert_contains 'local hidden_windows = require("ui.hidden_windows")' "$WIBAR_FILE"
-    assert_contains 'tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, is_compact_screen(s, config))' "$WIBAR_FILE"
+    assert_contains 'tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, compact, available_tasklist_width)' "$WIBAR_FILE"
     assert_contains 'local function focused_task_source(target_screen)' "$TASKLIST_FILE"
     assert_contains 'local function focused_task_filter(c)' "$TASKLIST_FILE"
-    assert_contains 'tasklist.task_title_max_width(s, config, is_compact_screen(s, config))' "$WIBAR_FILE"
+    assert_contains 'tasklist.task_title_max_width(s, config, compact, available_tasklist_width)' "$WIBAR_FILE"
     assert_not_contains 'local function render_task_text(c, ctpp)' "$WIBAR_FILE"
     assert_not_contains 'local function render_task_tooltip(c)' "$WIBAR_FILE"
     assert_not_contains 'local function current_tag_client_count(screen)' "$WIBAR_FILE"
@@ -684,9 +684,10 @@ test_wibar_owns_bar_widget_creation() {
     assert_not_contains 'local function create_tasklist(ctpp, screen, tasklist_buttons, config)' "$WIBAR_FILE"
     assert_contains 'local function render_task_text(c, ctpp)' "$TASKLIST_FILE"
     assert_contains 'local function render_task_tooltip(c)' "$TASKLIST_FILE"
-    assert_contains 'local function task_title_max_width(screen, config, compact)' "$TASKLIST_FILE"
-    assert_contains 'local function update_task_item(self, c, ctpp, screen, config, compact)' "$TASKLIST_FILE"
-    assert_contains 'local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact)' "$TASKLIST_FILE"
+    assert_contains 'local function visible_current_tag_task_count(target_screen)' "$TASKLIST_FILE"
+    assert_contains 'local function task_title_max_width(screen, config, compact, available_width)' "$TASKLIST_FILE"
+    assert_contains 'local function update_task_item(self, c, ctpp, screen, config, compact, available_width)' "$TASKLIST_FILE"
+    assert_contains 'local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact, available_width)' "$TASKLIST_FILE"
     assert_contains 'return {' "$TASKLIST_FILE"
     assert_contains 'create_tasklist = create_tasklist,' "$TASKLIST_FILE"
     assert_contains 'local function create_lock_button(ctpp, actions)' "$WIBAR_FILE"
@@ -705,8 +706,8 @@ test_wibar_owns_bar_widget_creation() {
     assert_not_contains 'local function ensure_primary_status_widgets(config, ctpp, s, compact)' "$WIBAR_FILE"
     assert_not_contains 'local function create_right_widgets(config, ctpp, target_screen, clock_widget)' "$WIBAR_FILE"
     assert_contains 'local is_compact_screen = assert(status_area.is_compact_screen)' "$WIBAR_FILE"
-    assert_contains 'tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, is_compact_screen(s, config))' "$WIBAR_FILE"
-    assert_contains 'tasklist.task_title_max_width(s, config, is_compact_screen(s, config))' "$WIBAR_FILE"
+    assert_contains 'tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, compact, available_tasklist_width)' "$WIBAR_FILE"
+    assert_contains 'tasklist.task_title_max_width(s, config, compact, available_tasklist_width)' "$WIBAR_FILE"
     assert_contains 'local function create_textclock(ctpp, config, screen)' "$STATUS_AREA_FILE"
     assert_contains 'local function create_systray_widget(ctpp)' "$STATUS_AREA_FILE"
     assert_contains 'local function create_separator(ctpp)' "$STATUS_AREA_FILE"
@@ -740,7 +741,7 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'ellipsize = "end",' "$TASKLIST_FILE"
     assert_contains 'id = "text_constraint_role",' "$TASKLIST_FILE"
     assert_contains 'strategy = "max",' "$TASKLIST_FILE"
-    assert_contains 'width = task_title_max_width(screen, config, compact),' "$TASKLIST_FILE"
+    assert_contains 'width = task_title_max_width(screen, config, compact, available_width),' "$TASKLIST_FILE"
     assert_not_contains 'local function is_compact_screen(screen, config)' "$TASKLIST_FILE"
     assert_not_contains 'local function screen_diagonal_inches(screen)' "$TASKLIST_FILE"
     assert_not_contains 'local function output_diagonal_inches(output)' "$TASKLIST_FILE"
@@ -785,6 +786,12 @@ test_wibar_refreshes_after_screen_topology_changes() {
     assert_contains 'gears.timer.delayed_call(function()' "$WIBAR_FILE"
     assert_contains 'for s in screen do' "$WIBAR_FILE"
     assert_contains 'rebuild_screen_wibar(s)' "$WIBAR_FILE"
+    assert_contains 'client.connect_signal(signal, queue_wibar_refresh)' "$WIBAR_FILE"
+    assert_contains '"property::minimized",' "$WIBAR_FILE"
+    assert_contains '"property::hidden",' "$WIBAR_FILE"
+    assert_contains '"manage",' "$WIBAR_FILE"
+    assert_contains '"unmanage",' "$WIBAR_FILE"
+    assert_contains 'awful.tag.attached_connect_signal(s, "property::selected", queue_wibar_refresh)' "$WIBAR_FILE"
     assert_contains 'screen.connect_signal("property::geometry", queue_wibar_refresh)' "$WIBAR_FILE"
     assert_contains 'screen.connect_signal("property::primary", queue_wibar_refresh)' "$WIBAR_FILE"
     assert_contains 'screen.connect_signal("added", queue_wibar_refresh)' "$WIBAR_FILE"
@@ -798,10 +805,12 @@ test_wibar_refreshes_after_screen_topology_changes() {
     assert_contains 's.mylockbutton = create_lock_button(ctpp, actions)' "$WIBAR_FILE"
     assert_contains 'if not s.mytextclock then' "$WIBAR_FILE"
     assert_contains 's.mytextclock._refresh()' "$WIBAR_FILE"
-    assert_contains 'local desired_tasklist_width = tasklist.task_title_max_width(s, config, is_compact_screen(s, config))' "$WIBAR_FILE"
-    assert_contains 'if not s.mytasklist or s.mytasklist_width ~= desired_tasklist_width then' "$WIBAR_FILE"
-    assert_contains 's.mytasklist = tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, is_compact_screen(s, config))' "$WIBAR_FILE"
+    assert_contains 'local available_tasklist_width = tasklist_available_width(s, left_widgets, s.myhiddenwindows, right_widgets)' "$WIBAR_FILE"
+    assert_contains 'local desired_tasklist_width = tasklist.task_title_max_width(s, config, compact, available_tasklist_width)' "$WIBAR_FILE"
+    assert_contains 'or s.mytasklist_available_width ~= available_tasklist_width then' "$WIBAR_FILE"
+    assert_contains 's.mytasklist = tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, compact, available_tasklist_width)' "$WIBAR_FILE"
     assert_contains 's.mytasklist_width = desired_tasklist_width' "$WIBAR_FILE"
+    assert_contains 's.mytasklist_available_width = available_tasklist_width' "$WIBAR_FILE"
     assert_not_contains 'local mytextclock = create_textclock(ctpp, config, s)' "$WIBAR_FILE"
 }
 
@@ -809,6 +818,7 @@ test_wibar_exposes_probe_state_for_runtime_visibility_checks() {
     assert_contains 'local function count_sequence_items(tbl)' "$WIBAR_FILE"
     assert_contains 'local function materialize_widget(widget)' "$WIBAR_FILE"
     assert_contains 'local function widget_fit_size(widget, width, height, target_screen)' "$WIBAR_FILE"
+    assert_contains 'local function tasklist_available_width(s, left_widgets, hidden_indicator, right_widgets)' "$WIBAR_FILE"
     assert_contains 'local function update_wibar_probe_state(s, left_widgets, tasklist_widget, right_widgets, config)' "$WIBAR_FILE"
     assert_contains 'return wibox.widget(widget)' "$WIBAR_FILE"
     assert_contains 'return fit_widget:fit({ screen = target_screen }, width, height)' "$WIBAR_FILE"
@@ -1123,6 +1133,75 @@ assert(task_title_max_width({ geometry = { width = 3840 }, outputs = { ["DP-1"] 
 LUA
 }
 
+test_tasklist_expands_title_when_only_one_visible_window() {
+    lua - "$TASKLIST_FILE" <<'LUA' || fail "expected single visible current-tag task to use available tasklist width"
+local tasklist_file = arg[1]
+
+package.preload["awful"] = function()
+    return {
+        widget = {
+            tasklist = {
+                filter = {
+                    currenttags = function(c, target_screen)
+                        return c.screen == target_screen and c.on_current_tag ~= false
+                    end,
+                },
+            },
+        },
+    }
+end
+
+package.preload["gears"] = function()
+    return {
+        string = {
+            xml_escape = function(value)
+                return value
+            end,
+        },
+    }
+end
+
+package.preload["wibox"] = function()
+    return {}
+end
+
+package.preload["beautiful.xresources"] = function()
+    return {
+        apply_dpi = function(value)
+            return value
+        end,
+    }
+end
+
+local tasklist = assert(loadfile(tasklist_file))()
+local width = assert(tasklist._private.task_title_max_width)
+local visible_count = assert(tasklist._private.visible_current_tag_task_count)
+local fake_screen = { geometry = { width = 1366 } }
+local focused = { name = "focused", screen = fake_screen }
+local hidden = { name = "hidden", screen = fake_screen, hidden = true }
+local minimized = { name = "minimized", screen = fake_screen, minimized = true }
+local skipped = { name = "skipped", screen = fake_screen, skip_taskbar = true }
+local dock = { name = "dock", screen = fake_screen, type = "dock" }
+
+client = {
+    get = function()
+        return { focused, hidden, minimized, skipped, dock }
+    end,
+}
+
+assert(visible_count(fake_screen) == 1)
+assert(width(fake_screen, {}, true, 1000) == 938)
+
+local other = { name = "other", screen = fake_screen }
+client.get = function()
+    return { focused, other }
+end
+
+assert(visible_count(fake_screen) == 2)
+assert(width(fake_screen, {}, true, 1000) == 220)
+LUA
+}
+
 test_wibar_escapes_task_titles() {
     assert_contains 'gears.string.xml_escape' "$TASKLIST_FILE"
 }
@@ -1231,6 +1310,7 @@ test_wibar_hides_lock_button_on_secondary_screens
 test_status_area_owns_compact_screen_policy
 test_wibar_uses_physical_size_before_width_fallback
 test_wibar_scales_task_title_width_by_screen_size
+test_tasklist_expands_title_when_only_one_visible_window
 test_wibar_escapes_task_titles
 test_wibar_exposes_prompt_runners
 test_wibar_avoids_container_insert_on_sysinfo_widget

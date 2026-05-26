@@ -5,6 +5,12 @@ local dpi = require("beautiful.xresources").apply_dpi
 
 local xml_escape = gears.string.xml_escape
 
+local excluded_task_types = {
+    desktop = true,
+    dock = true,
+    splash = true,
+}
+
 local function render_task_text(c, ctpp)
     local name = xml_escape(c.name or "")
 
@@ -67,7 +73,40 @@ local function focused_task_source(target_screen)
     return { client.focus }
 end
 
-local function task_title_max_width(screen, config, compact)
+local function is_regular_task_client(c)
+    return c
+        and c.valid ~= false
+        and not c.skip_taskbar
+        and not excluded_task_types[c.type]
+end
+
+local function is_current_tag_task_client(c, target_screen)
+    local ok, matched = pcall(function()
+        return awful.widget.tasklist.filter.currenttags(c, target_screen)
+    end)
+
+    return ok and matched == true
+end
+
+local function visible_current_tag_task_count(target_screen)
+    if not client or not client.get then
+        return nil
+    end
+
+    local count = 0
+    for _, c in ipairs(client.get()) do
+        if is_regular_task_client(c)
+            and not c.minimized
+            and not c.hidden
+            and is_current_tag_task_client(c, target_screen) then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
+local function default_task_title_max_width(screen, compact)
     compact = compact == true
     local screen_width = screen and screen.geometry and screen.geometry.width or 1920
     local ratio = compact and 0.12 or 0.16
@@ -78,7 +117,29 @@ local function task_title_max_width(screen, config, compact)
     return dpi(clamp(computed_width, min_width, max_width))
 end
 
-local function update_task_item(self, c, ctpp, screen, config, compact)
+local function expanded_single_task_title_max_width(screen, compact, available_width)
+    local default_width = default_task_title_max_width(screen, compact)
+    local screen_width = screen and screen.geometry and screen.geometry.width or 1920
+    local fallback_ratio = compact and 0.46 or 0.52
+    local fallback_width = dpi(math.floor((screen_width * fallback_ratio) + 0.5))
+    local task_chrome_width = dpi(compact and 62 or 74)
+    local expanded_width = math.floor(math.max((tonumber(available_width) or fallback_width) - task_chrome_width, 0) + 0.5)
+
+    return math.max(default_width, expanded_width)
+end
+
+local function task_title_max_width(screen, config, compact, available_width)
+    compact = compact == true
+    local visible_task_count = visible_current_tag_task_count(screen)
+
+    if visible_task_count ~= nil and visible_task_count <= 1 then
+        return expanded_single_task_title_max_width(screen, compact, available_width)
+    end
+
+    return default_task_title_max_width(screen, compact)
+end
+
+local function update_task_item(self, c, ctpp, screen, config, compact, available_width)
     local img = self:get_children_by_id("icon_role")[1]
     if img then
         img.forced_width = dpi(20)
@@ -87,7 +148,7 @@ local function update_task_item(self, c, ctpp, screen, config, compact)
 
     local text_constraint = self:get_children_by_id("text_constraint_role")[1]
     if text_constraint then
-        text_constraint.width = task_title_max_width(screen, config, compact)
+        text_constraint.width = task_title_max_width(screen, config, compact, available_width)
         text_constraint.visible = true
     end
 
@@ -110,7 +171,7 @@ local function update_task_item(self, c, ctpp, screen, config, compact)
     end
 end
 
-local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact)
+local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact, available_width)
     compact = compact == true
     local item_spacing = compact and 3 or 5
     local item_h_padding = compact and 5 or 7
@@ -149,7 +210,7 @@ local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact)
                         },
                         id = "text_constraint_role",
                         strategy = "max",
-                        width = task_title_max_width(screen, config, compact),
+                        width = task_title_max_width(screen, config, compact, available_width),
                         widget = wibox.container.constraint,
                     },
                     spacing = item_spacing,
@@ -174,11 +235,11 @@ local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact)
                         end,
                     }
                 end
-                update_task_item(self, c, ctpp, screen, config, compact)
+                update_task_item(self, c, ctpp, screen, config, compact, available_width)
             end,
             update_callback = function(self, c)
                 self._task_tooltip_text = render_task_tooltip(c)
-                update_task_item(self, c, ctpp, screen, config, compact)
+                update_task_item(self, c, ctpp, screen, config, compact, available_width)
             end,
         },
     }
@@ -190,6 +251,9 @@ return {
     _private = {
         focused_task_filter = focused_task_filter,
         focused_task_source = focused_task_source,
+        visible_current_tag_task_count = visible_current_tag_task_count,
+        default_task_title_max_width = default_task_title_max_width,
+        expanded_single_task_title_max_width = expanded_single_task_title_max_width,
         task_title_max_width = task_title_max_width,
     },
 }

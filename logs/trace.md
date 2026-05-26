@@ -1473,3 +1473,17 @@
 - 已做：复跑 Awesome 全量轻量回归、repo/live 配置语法检查与 diff 空白检查后，将本轮 Awesome tasklist/hidden windows/README/tests/memory/trace 改动提交为 `27be0a7`（`Keep Awesome task visibility focused and recoverable`），随后推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`。由于本地原本还领先 `origin/main` 一个提交，本次 push 一并发布了此前的 `2f54b72`，远端从 `638df62` 前进到 `27be0a7`。
 - 验证：发布前 `git fetch origin` 后 `git rev-list --left-right --count HEAD...origin/main` 为 `1 0`，说明远端可快进；发布前验证包括 `sh -n tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh`、`lua` loadfile 检查、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、repo/live `awesome -k` 与 `git diff --check`，全部通过；push 返回 `638df62..27be0a7  main -> main`。
 - 后续：本条发布记录将作为 trace-only 提交再推送一次；追加 trace 本身不递归追加第二条 trace。当前 live Awesome 已同步并重载，远端也已包含本轮功能改动。
+
+## 2026-05-26
+
+- 目的：按用户要求调整 Awesome focused-only tasklist，使当前标签页只有一个可见普通窗口时尽量完整显示窗口标题，而不是继续按固定短宽度省略。
+- 已做：在 `.config/linux/awesome/ui/tasklist.lua` 中新增当前标签页可见普通任务窗口计数，排除隐藏/最小化、`skip_taskbar` 以及 dock/desktop/splash 辅助窗口；单个可见窗口时按 wibar 中间区可用宽度扩展标题约束，多个可见窗口时保留原 compact/full 保守宽度与尾部省略。在 `.config/linux/awesome/ui/wibar.lua` 中测量左侧、右侧与隐藏窗口提示宽度，向 tasklist 传入可用宽度，并在窗口隐藏/最小化、manage/unmanage、tag 变化后延迟重建 wibar，避免隐藏提示出现后挤占标题空间。同步更新 `.config/linux/awesome/README.md`、`tests/awesome_ui_architecture_test.sh`、`tests/awesome_docs_theme_test.sh` 与 `memory/organizing_preferences.md`。
+- 验证：`./tests/awesome_ui_architecture_test.sh`、`./tests/awesome_docs_theme_test.sh`、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、`lua -e 'assert(loadfile(".config/linux/awesome/ui/tasklist.lua")); assert(loadfile(".config/linux/awesome/ui/wibar.lua"))'`、repo/live `awesome -k` 与 `git diff --check -- .config/linux/awesome/ui/tasklist.lua .config/linux/awesome/ui/wibar.lua .config/linux/awesome/README.md tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh memory/organizing_preferences.md` 均通过。
+- 后续：本轮只修改仓库文件，没有同步 live `~/.config/awesome`，没有重载 Awesome，也没有提交推送；若要当前桌面立即生效，需要另行同步 live Awesome 配置并重载。
+
+## 2026-05-26
+
+- 目的：按用户要求将 Awesome 单窗口 tasklist 标题完整显示改动发布到远端 GitHub。
+- 已做：发布前确认 `origin/main` 与本地 `HEAD` 同步、当前待提交文件均为本轮 Awesome tasklist/README/tests/memory/trace 改动，并确认 repo 与 live `~/.config/awesome` 的 `README.md`、`ui/tasklist.lua`、`ui/wibar.lua` 内容一致；随后按 Lore 协议提交当前修改并推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`。本轮没有额外执行 live 同步或 Awesome 重载。
+- 验证：发布前 `git fetch origin && git rev-list --left-right --count HEAD...origin/main` 返回 `0 0`；`for t in tests/awesome_*_test.sh; do "$t"; done` 全部通过；`sh -n tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh`、`lua -e 'assert(loadfile(".config/linux/awesome/ui/tasklist.lua")); assert(loadfile(".config/linux/awesome/ui/wibar.lua"))'`、repo/live `awesome -k` 与 `git diff --check` 均通过。
+- 后续：推送完成后远端 `main` 即包含本轮单窗口标题扩展策略；追加 trace 本身不再递归追加第二条 trace。

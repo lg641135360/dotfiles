@@ -133,3 +133,4 @@
 - 对 Awesome focused-only tasklist，当前窗口任务项背景应保持与状态栏同色，不再用额外背景色区分；焦点识别优先依靠蓝色标题文字与左侧细条。
 - 对 Awesome focused-only tasklist，任务项背景应透明透出状态栏底色，不再绘制单独灰色/圆角胶囊背景；焦点识别继续依靠蓝色标题文字与左侧细条。
 - 对 Awesome tasklist 自定义透明背景时，不要把自定义容器命名为内置 `background_role`；该 role 会被 Awesome tasklist 自动重新上色，优先使用非内置 id（如 `task_background_role`）承载透明容器。
+- 对 Awesome focused-only tasklist，若当前标签页只有一个可见普通窗口，标题应优先使用顶栏中间区可用空间尽量完整显示；只有存在多个可见窗口时才回到保守宽度与尾部省略，避免挤压右侧状态区。
