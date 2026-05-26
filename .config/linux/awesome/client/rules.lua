@@ -32,6 +32,14 @@ local function tag_by_index(target_screen, index)
     return target_screen.tags[index]
 end
 
+local function tag_by_client_screen(c, index)
+    if not c or not c.screen then
+        return nil
+    end
+
+    return tag_by_index(c.screen, index)
+end
+
 function M.setup(args)
     local browser_tag_index = semantic_tag_index("browser")
 
@@ -76,7 +84,9 @@ function M.setup(args)
                 class = policies.browser_classes,
             },
             properties = {
-                tag = tag_by_index(awful.screen.preferred(), browser_tag_index),
+                tag = function(c)
+                    return tag_by_client_screen(c, browser_tag_index)
+                end,
                 switch_to_tags = false,
             },
         },
@@ -88,6 +98,7 @@ M._private = {
     semantic_tag_icons = semantic_tag_icons,
     semantic_tag_index = semantic_tag_index,
     tag_by_index = tag_by_index,
+    tag_by_client_screen = tag_by_client_screen,
 }
 
 return M

@@ -41,14 +41,14 @@ local M = {
 
     semantic_tags = {
         {
-            key = "browser",
-            name = "浏览器",
-            icon = "󰓠 ",
-        },
-        {
             key = "dev",
             name = "开发",
             icon = "󰇩 ",
+        },
+        {
+            key = "browser",
+            name = "浏览器",
+            icon = "󰓠 ",
         },
         {
             key = "docs",

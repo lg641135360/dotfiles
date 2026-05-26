@@ -1,4 +1,5 @@
 local awful = require("awful")
+local widget_common = require("awful.widget.common")
 local gears = require("gears")
 local wibox = require("wibox")
 local beautiful = require("beautiful")
@@ -11,14 +12,14 @@ local is_compact_screen = assert(status_area.is_compact_screen)
 
 local TAG_DEFINITIONS = {
     {
-        icon = "󰓠 ",
-        name = "浏览器",
-        description = "浏览器、网页检索与在线工作流。",
-    },
-    {
         icon = "󰇩 ",
         name = "开发",
         description = "终端、编辑器、调试与构建任务。",
+    },
+    {
+        icon = "󰓠 ",
+        name = "浏览器",
+        description = "浏览器、网页检索与在线工作流。",
     },
     {
         icon = " ",
@@ -248,6 +249,85 @@ local excluded_tag_tooltip_client_types = {
     splash = true,
 }
 
+local function xml_escape(text)
+    return gears.string.xml_escape(tostring(text or ""))
+end
+
+local function tag_clients(tag)
+    if not tag or not tag.clients then
+        return {}
+    end
+
+    local ok, clients = pcall(function()
+        return tag:clients()
+    end)
+    if ok and clients then
+        return clients
+    end
+
+    return {}
+end
+
+local function is_regular_tag_client(c)
+    return c
+        and c.valid ~= false
+        and not c.skip_taskbar
+        and not excluded_tag_tooltip_client_types[c.type]
+end
+
+local function tag_has_regular_client(tag)
+    for _, c in ipairs(tag_clients(tag)) do
+        if is_regular_tag_client(c) then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function tag_has_urgent_client(tag)
+    for _, c in ipairs(tag_clients(tag)) do
+        if is_regular_tag_client(c) and c.urgent then
+            return true
+        end
+    end
+
+    return tag and tag.urgent == true or false
+end
+
+local function render_tag_markup(tag, ctpp)
+    local selected = tag and tag.selected == true
+    local occupied = tag_has_regular_client(tag)
+    local fg = selected and ctpp.blue or (occupied and ctpp.lavender or ctpp.subtext0)
+    local weight = selected and " weight='bold'" or ""
+
+    return "<span foreground='" .. fg .. "'" .. weight .. ">" .. xml_escape(tag and tag.name or "") .. "</span>"
+end
+
+local function update_tag_indicator(self, tag, ctpp)
+    local indicator = self:get_children_by_id("tag_indicator_role")[1]
+    if not indicator then
+        return
+    end
+
+    local selected = tag and tag.selected == true
+    local occupied = tag_has_regular_client(tag)
+    local urgent = tag_has_urgent_client(tag)
+
+    indicator.visible = urgent or (occupied and not selected)
+    indicator.color = urgent and ctpp.red or ctpp.lavender
+end
+
+local function create_taglist_update_function(ctpp)
+    return function(w, buttons, _, data, tags, args)
+        local function label(tag)
+            return render_tag_markup(tag, ctpp), "#00000000", nil, nil, {}
+        end
+
+        widget_common.list_update(w, buttons, label, data, tags, args)
+    end
+end
+
 local function tag_tooltip_text(tag)
     local definition = tag_definition(tag)
     local regular = {}
@@ -256,8 +336,8 @@ local function tag_tooltip_text(tag)
     local hidden_count = 0
     local urgent_count = 0
 
-    for _, c in ipairs(tag and tag:clients() or {}) do
-        if c.valid ~= false and not c.skip_taskbar and not excluded_tag_tooltip_client_types[c.type] then
+    for _, c in ipairs(tag_clients(tag)) do
+        if is_regular_tag_client(c) then
             regular[#regular + 1] = c
             if c.urgent then
                 urgent_count = urgent_count + 1
@@ -568,20 +648,39 @@ function M.setup(args)
             screen = s,
             filter = awful.widget.taglist.filter.all,
             buttons = taglist_buttons,
+            update_function = create_taglist_update_function(ctpp),
             widget_template = {
                 {
                     {
-                        id = "text_role",
-                        widget = wibox.widget.textbox,
+                        {
+                            id = "text_role",
+                            widget = wibox.widget.textbox,
+                        },
+                        left = 8,
+                        right = 8,
+                        widget = wibox.container.margin,
                     },
-                    left = 8,
-                    right = 8,
-                    widget = wibox.container.margin,
+                    {
+                        {
+                            id = "tag_indicator_role",
+                            forced_width = dpi(6),
+                            forced_height = dpi(6),
+                            color = ctpp.lavender,
+                            shape = gears.shape.circle,
+                            visible = false,
+                            widget = wibox.widget.separator,
+                        },
+                        halign = "right",
+                        valign = "top",
+                        widget = wibox.container.place,
+                    },
+                    layout = wibox.layout.stack,
                 },
                 id = "background_role",
                 widget = wibox.container.background,
                 create_callback = function(self, tag)
                     self._tag_tooltip_text = tag_tooltip_text(tag)
+                    update_tag_indicator(self, tag, ctpp)
                     if not self._tag_tooltip then
                         self._tag_tooltip = awful.tooltip {
                             objects = { self },
@@ -593,6 +692,7 @@ function M.setup(args)
                 end,
                 update_callback = function(self, tag)
                     self._tag_tooltip_text = tag_tooltip_text(tag)
+                    update_tag_indicator(self, tag, ctpp)
                 end,
             },
         }

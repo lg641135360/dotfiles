@@ -55,14 +55,14 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 ```
 
 - **UI 模块边界**：`ui/wibar.lua` 负责 screen 级装配与刷新；`ui/tasklist.lua` 负责中间聚焦窗口信息的渲染与 tooltip；`ui/hidden_windows.lua` 负责隐藏/最小化窗口提示、tooltip 列表和恢复入口；`ui/status_area.lua` 负责右侧时钟、托盘和主屏状态区生命周期。
-- **左侧**: 主屏保留 5 个标签页（Nerd Font 图标）+ 布局指示器 + 锁屏按钮 + 提示框；次屏左侧只保留标签与布局，不再重复显示锁屏按钮、分隔符和空 prompt 区域，减少重复入口和留白。
-- **左侧细节**：锁屏按钮悬浮会提示用途与快捷键；布局指示器悬浮会提示当前布局和切换方式。次屏左侧 spacing 和 taglist 右侧 margin 也会更紧一点，避免只剩标签/布局时仍显得空。
+- **左侧**: 主屏保留 5 个标签页（Nerd Font 图标），标签顺序：开发、浏览器、文档、沟通、杂项；随后是布局指示器 + 锁屏按钮 + 提示框。次屏左侧只保留标签与布局，不再重复显示锁屏按钮、分隔符和空 prompt 区域，减少重复入口和留白。
+- **左侧细节**：锁屏按钮悬浮会提示用途与快捷键；布局指示器悬浮会提示当前布局和切换方式。非当前且有窗口的工作区在图标右上角用淡紫小点提示；工作区有通知时在右上角改用红色小圆点提示；这些点不占用标签文字宽度，当前工作区仍保持蓝色图标，不再被 urgent 背景或方块提示抢走焦点。次屏左侧 spacing 和 taglist 右侧 margin 也会更紧一点，避免只剩标签/布局时仍显得空。
 - **tooltip 风格**：lock / layout / tasklist 的 tooltip 文案也统一成标题 + 字段行，和时钟、音量、状态项保持更接近的阅读节奏；tooltip/menu 是更轻的浮层卡片层，它们通过更轻一点的表面色和更柔和的边线与普通胶囊区分，但不抢主界面焦点。
 - **中间**: 只显示当前聚焦窗口的信息，不再列出同一标签页里的其它窗口；切换焦点时由 Awesome tasklist 的 focus/unfocus 刷新路径更新这一个条目。聚焦窗口的任务项背景保持透明，直接透出状态栏底色，不再绘制额外灰色胶囊背景；实现上避开 Awesome tasklist 内置的 `background_role` 自动上色，只保留自定义透明背景容器，避免运行时又被刷回灰色。当前输入目标主要通过蓝色文字和左侧细条高亮确认；旁边的隐藏窗口提示只在存在 `minimized` / `hidden` 的普通任务窗口时出现，显示 `隐:<数量或标题>`，hover 列出隐藏窗口标题、应用与标签，左键恢复第一个，右键打开恢复菜单；恢复菜单会在隐藏列表变化、焦点切换或标签切换后自动关闭，避免外部恢复窗口后留下 stale 菜单；`skip_taskbar`、dock、desktop、splash 等辅助窗口不会进入该提示。主屏 / 浮动顶栏继续使用 12px 主圆角，tasklist、隐藏提示、tooltip、菜单与 fallback titlebar 控件使用更紧凑的 8px 次级圆角。
 - **右侧**: 只有主屏显示 NET / CPU / MEM / BAT / VOL 与系统托盘；其他屏幕右侧只保留时钟，减少多屏状态重复和视觉噪音。托盘只放在主屏，并使用更小图标、深色胶囊背景和细边框。`BRI` 只在 Linux aarch64/arm64 的 Awesome 配置里尝试启用，并且只有检测到背光设备时才显示；没有 `/sys/class/backlight/*` 时会完全隐藏，不占位置。
 - **右侧细节**：主屏右侧状态区会继续统一收紧 spacing；systray 与时钟外侧 margin 更紧，sysinfo / clock / systray 的胶囊权重会一起再压一档，尽量把空间留给 tasklist。
 - **整体视觉**：整条顶栏使用悬浮圆角容器，外层 wibar 保持透明并继续预留工作区高度；顶部留出少量空隙，左右也留出边距，让状态栏不再贴住屏幕边缘。
-- **client 模块边界**：`client.lua` 只保留 `require("client.init")` 兼容入口；`client/init.lua` 负责串接 rules 与 decorations；`client/policies.lua` 集中维护浮动窗口、fallback titlebar 白名单和 `tblive` 辅助窗口等数据驱动策略；`client/rules.lua` 根据这些策略组装 Awesome client rules；`client/decorations.lua` 负责窗口圆角、紧凑 fallback titlebar 与焦点边框样式。
+- **client 模块边界**：`client.lua` 只保留 `require("client.init")` 兼容入口；`client/init.lua` 负责串接 rules 与 decorations；`client/policies.lua` 集中维护浮动窗口、fallback titlebar 白名单和 `tblive` 辅助窗口等数据驱动策略；`client/rules.lua` 根据这些策略组装 Awesome client rules，其中浏览器自动分配标签会在具体 client 已有 screen 后再解析目标标签，避免 Awesome 启动期无 client 调用 `awful.screen.preferred()`；`client/decorations.lua` 负责窗口圆角、紧凑 fallback titlebar 与焦点边框样式。
 - **窗口圆角**：普通/对话框等 managed 窗口使用 `theme.border_radius` 圆角；全屏或最大化窗口会自动退回矩形，避免边角露出桌面背景。picom 继续负责阴影、透明和 compositor 层圆角。
 - **回退标题栏**：日常主体验默认不显示 titlebar；只有显式 class 白名单中的少数配置类工具窗会启用一条紧凑的 fallback titlebar，用于拖动和关闭窗口。该 titlebar 进一步收紧成更矮的条带、左对齐标题和低噪音 Catppuccin 胶囊按钮，不再使用 Awesome 默认 PNG 按钮；右侧只保留 `floating / maximized / close` 三个文字按钮，其中激活态改成更克制的 `surface1` 底 + 蓝字，关闭按钮保持低噪音深底 + 红字，让窗口焦点的主信号重新回到蓝色边框本身。fallback titlebar 是更稳重的紧凑工具条层；焦点仍然主要靠蓝色窗口边框表达，titlebar 只做辅助层级；按钮保持低噪音材质感，激活态只轻微抬升，不做强对比强调。普通 `utility` 窗口不会因为类型本身就自动启用它，像 `tblive` 这类辅助条窗口也会继续排除在外。
 - **右侧视觉**：系统信息分隔符使用更弱的主题色，时钟使用独立胶囊背景作为右端视觉终点，避免状态区显得过散。

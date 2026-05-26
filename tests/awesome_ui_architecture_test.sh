@@ -43,6 +43,19 @@ assert_not_contains() {
     fi
 }
 
+assert_line_before() {
+    first=$1
+    second=$2
+    file=$3
+
+    first_line=$(grep -nF -- "$first" "$file" | head -n 1 | cut -d: -f1 || true)
+    second_line=$(grep -nF -- "$second" "$file" | head -n 1 | cut -d: -f1 || true)
+
+    [ -n "$first_line" ] || fail "expected '$first' in $file"
+    [ -n "$second_line" ] || fail "expected '$second' in $file"
+    [ "$first_line" -lt "$second_line" ] || fail "expected '$first' before '$second' in $file"
+}
+
 test_actions_module_exists() {
     [ -f "$ACTIONS_FILE" ] || fail "expected Awesome actions module to exist"
 }
@@ -228,7 +241,10 @@ test_client_rules_use_data_driven_policy_lists() {
     assert_contains 'class = policies.browser_classes,' "$CLIENT_RULES_FILE"
     assert_contains 'local function semantic_tag_index(key)' "$CLIENT_RULES_FILE"
     assert_contains 'local function tag_by_index(target_screen, index)' "$CLIENT_RULES_FILE"
-    assert_contains 'tag = tag_by_index(awful.screen.preferred(), browser_tag_index),' "$CLIENT_RULES_FILE"
+    assert_contains 'local function tag_by_client_screen(c, index)' "$CLIENT_RULES_FILE"
+    assert_contains 'tag = function(c)' "$CLIENT_RULES_FILE"
+    assert_contains 'return tag_by_client_screen(c, browser_tag_index)' "$CLIENT_RULES_FILE"
+    assert_not_contains 'tag = tag_by_index(awful.screen.preferred(), browser_tag_index),' "$CLIENT_RULES_FILE"
     assert_contains 'switch_to_tags = false,' "$CLIENT_RULES_FILE"
     assert_contains 'table.unpack(policies.extra_rules)' "$CLIENT_RULES_FILE"
     assert_contains 'rule = { class = "tblive", type = "utility" }' "$CLIENT_POLICIES_FILE"
@@ -867,6 +883,12 @@ package.preload["awful"] = function()
     return {}
 end
 
+package.preload["awful.widget.common"] = function()
+    return {
+        list_update = function() end,
+    }
+end
+
 package.preload["gears"] = function()
     return {
         shape = {},
@@ -1116,6 +1138,12 @@ package.preload["awful"] = function()
     return {}
 end
 
+package.preload["awful.widget.common"] = function()
+    return {
+        list_update = function() end,
+    }
+end
+
 package.preload["gears"] = function()
     return {
         string = {
@@ -1249,6 +1277,33 @@ test_semantic_tag_definitions_exist() {
     assert_contains 'local function tag_icons()' "$WIBAR_FILE"
     assert_contains 'semantic_tags = {' "$CLIENT_POLICIES_FILE"
     assert_contains 'awful.tag(tag_icons(), s, awful.layout.layouts[1])' "$WIBAR_FILE"
+    assert_line_before 'name = "开发"' 'name = "浏览器"' "$WIBAR_FILE"
+    assert_line_before 'key = "dev"' 'key = "browser"' "$CLIENT_POLICIES_FILE"
+    assert_contains '标签顺序：开发、浏览器、文档、沟通、杂项' "$README_FILE"
+}
+
+test_taglist_notification_indicator_stays_subtle() {
+    assert_contains 'local widget_common = require("awful.widget.common")' "$WIBAR_FILE"
+    assert_contains 'local function tag_has_urgent_client(tag)' "$WIBAR_FILE"
+    assert_contains 'local function render_tag_markup(tag, ctpp)' "$WIBAR_FILE"
+    assert_contains 'local function update_tag_indicator(self, tag, ctpp)' "$WIBAR_FILE"
+    assert_contains 'local function create_taglist_update_function(ctpp)' "$WIBAR_FILE"
+    assert_contains 'widget_common.list_update(w, buttons, label, data, tags, args)' "$WIBAR_FILE"
+    assert_contains 'id = "tag_indicator_role"' "$WIBAR_FILE"
+    assert_contains 'layout = wibox.layout.stack' "$WIBAR_FILE"
+    assert_contains 'halign = "right"' "$WIBAR_FILE"
+    assert_contains 'valign = "top"' "$WIBAR_FILE"
+    assert_contains 'widget = wibox.widget.separator' "$WIBAR_FILE"
+    assert_contains 'indicator.visible = urgent or (occupied and not selected)' "$WIBAR_FILE"
+    assert_contains 'indicator.color = urgent and ctpp.red or ctpp.lavender' "$WIBAR_FILE"
+    assert_not_contains 'indicator.bg = urgent and ctpp.red or ctpp.lavender' "$WIBAR_FILE"
+    assert_not_contains "ctpp.lavender .. \"'>•</span>\"" "$WIBAR_FILE"
+    assert_contains 'return render_tag_markup(tag, ctpp), "#00000000", nil, nil, {}' "$WIBAR_FILE"
+    assert_contains 'update_function = create_taglist_update_function(ctpp),' "$WIBAR_FILE"
+    assert_contains '非当前且有窗口的工作区在图标右上角用淡紫小点提示' "$README_FILE"
+    assert_contains '工作区有通知时在右上角改用红色小圆点提示' "$README_FILE"
+    assert_contains '这些点不占用标签文字宽度' "$README_FILE"
+    assert_contains '当前工作区仍保持蓝色图标' "$README_FILE"
 }
 
 test_wibar_exposes_prompt_runners() {
@@ -1368,6 +1423,7 @@ test_tasklist_expands_title_when_only_one_visible_window
 test_wibar_escapes_task_titles
 test_wibar_uses_current_tag_window_menu
 test_semantic_tag_definitions_exist
+test_taglist_notification_indicator_stays_subtle
 test_wibar_exposes_prompt_runners
 test_taglist_uses_lightweight_tooltips
 test_wibar_avoids_container_insert_on_sysinfo_widget

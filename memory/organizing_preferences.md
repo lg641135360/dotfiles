@@ -134,3 +134,7 @@
 - 对 Awesome focused-only tasklist，任务项背景应透明透出状态栏底色，不再绘制单独灰色/圆角胶囊背景；焦点识别继续依靠蓝色标题文字与左侧细条。
 - 对 Awesome tasklist 自定义透明背景时，不要把自定义容器命名为内置 `background_role`；该 role 会被 Awesome tasklist 自动重新上色，优先使用非内置 id（如 `task_background_role`）承载透明容器。
 - 对 Awesome focused-only tasklist，若当前标签页只有一个可见普通窗口，标题应优先使用顶栏中间区可用空间尽量完整显示；只有存在多个可见窗口时才回到保守宽度与尾部省略，避免挤压右侧状态区。
+- 对 Awesome 工作区顺序，当前偏好保持开发在第 1、浏览器在第 2，后续文档/沟通/杂项依次排列；状态栏图标、tooltip 语义和窗口自动分配规则应同步遵循这个顺序。
+- 对 Awesome 工作区占用/通知提示，当前偏好是：当前工作区始终保持蓝色图标作为主焦点；非当前且有窗口的工作区在图标右上角 overlay 克制的淡紫小点；urgent/通知在右上角显示红色小圆点；提示点不占用标签文字宽度，不再使用醒目的红色背景或默认方块提示。
+- 对 Awesome 4.3 的 overlay 小圆点，优先使用 `wibox.widget.separator` 这类自身可绘制的 widget；不要用没有 child 的 `wibox.container.background` 当纯色点，因为 background 容器在无子 widget 时不会绘制背景。
+- 对 Awesome client rules 中依赖目标屏幕的标签分配，优先写成接收 client 的回调并从 `c.screen` 解析 tag；不要在配置 setup 阶段无参调用 `awful.screen.preferred()`，避免启动期 `screen.lua` 因 nil client 报错。
