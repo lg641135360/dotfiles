@@ -1466,3 +1466,10 @@
 - 已做：将 `.config/linux/awesome/ui/tasklist.lua` 的任务项背景容器从内置 `background_role` 改为自定义 `task_background_role`，继续保持 `#00000000` 透明背景，避开 Awesome tasklist 自动上色；同步更新 `.config/linux/awesome/README.md`、`tests/awesome_ui_architecture_test.sh`、`tests/awesome_docs_theme_test.sh` 与 `memory/organizing_preferences.md`。随后把 `README.md`、`ui/tasklist.lua`、`ui/wibar.lua`、`ui/hidden_windows.lua` 同步到 live `~/.config/awesome`，同步前备份到 `/tmp/awesome-tasklist-live-backup-20260526T110937`，并执行 `awesome.restart()` 重载当前 Awesome 会话。
 - 验证：重载前后 `awesome -k -c "$PWD/.config/linux/awesome/rc.lua"` 与 `awesome -k -c "$HOME/.config/awesome/rc.lua"` 均通过；完整 `for t in tests/awesome_*_test.sh; do "$t"; done` 全部通过；运行时 `awesome-client` 检查确认 `ui.tasklist` 已加载 focused-only 模块、`create_overflow_indicator` 不存在、内置 `background_role` 数量为 0，当前聚焦屏的 `task_background_role` 背景为 `rgba(0,0,0,0)`，说明灰色任务项背景不再来自 tasklist 自身。`awesome.restart()` 的 DBus 请求返回 `NoReply`，但后续 `awesome-client 'return awesome.version'` 返回 `v4.3`，说明 Awesome 已恢复响应。
 - 后续：当前 live Awesome 已同步并重载；若仍看到灰色区域，那应是父级悬浮状态栏底色或左/右侧 separator 胶囊，而不是 tasklist 条目背景，需要按截图或运行时 widget tree 继续定位具体区域。
+
+## 2026-05-26
+
+- 目的：按用户要求把当前 Awesome focused-only tasklist、隐藏窗口提示、透明 tasklist 背景以及 live 修复记录发布到远端 GitHub。
+- 已做：复跑 Awesome 全量轻量回归、repo/live 配置语法检查与 diff 空白检查后，将本轮 Awesome tasklist/hidden windows/README/tests/memory/trace 改动提交为 `27be0a7`（`Keep Awesome task visibility focused and recoverable`），随后推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`。由于本地原本还领先 `origin/main` 一个提交，本次 push 一并发布了此前的 `2f54b72`，远端从 `638df62` 前进到 `27be0a7`。
+- 验证：发布前 `git fetch origin` 后 `git rev-list --left-right --count HEAD...origin/main` 为 `1 0`，说明远端可快进；发布前验证包括 `sh -n tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh`、`lua` loadfile 检查、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、repo/live `awesome -k` 与 `git diff --check`，全部通过；push 返回 `638df62..27be0a7  main -> main`。
+- 后续：本条发布记录将作为 trace-only 提交再推送一次；追加 trace 本身不递归追加第二条 trace。当前 live Awesome 已同步并重载，远端也已包含本轮功能改动。
