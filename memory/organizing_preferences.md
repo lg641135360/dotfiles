@@ -127,3 +127,9 @@
 - 对 Awesome 顶栏 CPU/MEM 状态，优先用原生 `/proc/stat` 与 `/proc/meminfo` 读取，不再要求 `lain`；`collision` 仅作为可选浮动窗口辅助依赖保留，缺失时 Awesome 仍应启动。
 - 对 Awesome 桌面动作入口（Rofi、Dolphin、截图 OCR、锁屏等），优先在执行前检查关键命令/脚本能力，缺依赖或执行失败时用 Awesome 通知提示，避免快捷键静默无效；用户主动取消截图/启动器选择不应弹失败提示。
 - 对 Awesome 顶栏多屏状态，优先在屏幕几何、主屏或 RandR 拓扑变化后延迟重建 wibar 内容，重新判断主屏状态区与 full/compact 模式；重建时复用已有 tag/tasklist/prompt，避免破坏标签状态。
+- 对 Awesome 顶栏 tasklist，当前偏好只显示当前聚焦窗口的信息；同一标签页里的其它窗口不在顶栏列出，也不使用图标模式或 `+N` overflow，切换焦点后再刷新这一个聚焦窗口条目。
+- 对 Awesome 顶栏 focused-only tasklist，隐藏或最小化窗口应通过独立的“隐藏窗口”提示保留可视入口；提示只统计普通任务窗口，排除 `skip_taskbar` 与 dock/desktop/splash 辅助窗口，并提供 hover 列表、左键恢复第一个、右键选择恢复。
+- 对 Awesome 隐藏窗口提示的右键恢复菜单，打开后若隐藏列表变化、焦点切换或标签切换，应自动关闭，避免外部恢复窗口后留下 stale 菜单。
+- 对 Awesome focused-only tasklist，当前窗口任务项背景应保持与状态栏同色，不再用额外背景色区分；焦点识别优先依靠蓝色标题文字与左侧细条。
+- 对 Awesome focused-only tasklist，任务项背景应透明透出状态栏底色，不再绘制单独灰色/圆角胶囊背景；焦点识别继续依靠蓝色标题文字与左侧细条。
+- 对 Awesome tasklist 自定义透明背景时，不要把自定义容器命名为内置 `background_role`；该 role 会被 Awesome tasklist 自动重新上色，优先使用非内置 id（如 `task_background_role`）承载透明容器。

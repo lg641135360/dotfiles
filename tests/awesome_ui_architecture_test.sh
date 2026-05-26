@@ -6,6 +6,7 @@ RC_FILE=$REPO_ROOT/.config/linux/awesome/rc.lua
 BINDINGS_FILE=$REPO_ROOT/.config/linux/awesome/bindings.lua
 WIBAR_FILE=$REPO_ROOT/.config/linux/awesome/ui/wibar.lua
 TASKLIST_FILE=$REPO_ROOT/.config/linux/awesome/ui/tasklist.lua
+HIDDEN_WINDOWS_FILE=$REPO_ROOT/.config/linux/awesome/ui/hidden_windows.lua
 STATUS_AREA_FILE=$REPO_ROOT/.config/linux/awesome/ui/status_area.lua
 ACTIONS_FILE=$REPO_ROOT/.config/linux/awesome/actions.lua
 SYSTEM_WIDGETS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/system.lua
@@ -293,83 +294,367 @@ test_volume_widget_does_not_switch_to_event_subscription() {
     assert_not_contains 'pactl subscribe' "$VOLUME_FILE"
 }
 
-test_tasklist_does_not_switch_to_icon_only_mode() {
+test_tasklist_keeps_text_for_focused_window() {
     assert_not_contains 'icon_only' "$TASKLIST_FILE"
+    assert_not_contains 'task_title_display_mode' "$TASKLIST_FILE"
     assert_contains 'id = "text_role",' "$TASKLIST_FILE"
+    assert_contains 'text_constraint.visible = true' "$TASKLIST_FILE"
+    assert_contains 'text.visible = true' "$TASKLIST_FILE"
+    assert_contains 'local function update_task_item(self, c, ctpp, screen, config, compact)' "$TASKLIST_FILE"
 }
 
-test_tasklist_switches_to_icon_only_mode_at_high_density() {
-    assert_contains 'local function task_title_display_mode(screen, available_width, config, compact)' "$TASKLIST_FILE"
-    assert_contains 'if client_count < 5 then' "$TASKLIST_FILE"
-    assert_contains 'return "icon_only"' "$TASKLIST_FILE"
-    assert_contains 'local display_mode = task_title_display_mode(screen, available_width, config, compact)' "$TASKLIST_FILE"
-    assert_contains 'text.visible = display_mode ~= "icon_only"' "$TASKLIST_FILE"
+test_tasklist_sources_only_focused_current_tag_client() {
+    assert_contains 'local function focused_task_filter(c)' "$TASKLIST_FILE"
+    assert_contains 'local function focused_task_source(target_screen)' "$TASKLIST_FILE"
+    assert_contains 'return { client.focus }' "$TASKLIST_FILE"
+    assert_contains 'source = focused_task_source,' "$TASKLIST_FILE"
+    assert_contains 'filter = focused_task_filter,' "$TASKLIST_FILE"
+    assert_not_contains 'filter = awful.widget.tasklist.filter.currenttags' "$TASKLIST_FILE"
+
+    lua - "$TASKLIST_FILE" <<'LUA' || fail "expected tasklist source/filter to expose only the focused current-tag client"
+local tasklist_file = arg[1]
+
+package.preload["awful"] = function()
+    local tasklist_widget = setmetatable({
+        filter = {
+            currenttags = function(c, target_screen)
+                return c.screen == target_screen and c.on_current_tag ~= false
+            end,
+        },
+    }, {
+        __call = function(_, opts)
+            return opts
+        end,
+    })
+
+    return {
+        widget = {
+            tasklist = tasklist_widget,
+        },
+        tooltip = function()
+            return {}
+        end,
+    }
+end
+
+package.preload["gears"] = function()
+    return {
+        string = {
+            xml_escape = function(value)
+                return value
+            end,
+        },
+        shape = {
+            rounded_rect = function() end,
+        },
+    }
+end
+
+package.preload["wibox"] = function()
+    return {
+        widget = {
+            textbox = {},
+            imagebox = {},
+        },
+        container = {
+            margin = {},
+            background = {},
+            place = {},
+            constraint = {},
+        },
+        layout = {
+            fixed = {
+                horizontal = {},
+            },
+        },
+    }
+end
+
+package.preload["beautiful.xresources"] = function()
+    return {
+        apply_dpi = function(value)
+            return value
+        end,
+    }
+end
+
+local tasklist = assert(loadfile(tasklist_file))()
+local fake_screen = {
+    geometry = { width = 1366 },
+}
+local focused = {
+    name = "focused",
+    screen = fake_screen,
+}
+local other = {
+    name = "other",
+    screen = fake_screen,
 }
 
-test_tasklist_exposes_overflow_indicator_support() {
-    assert_contains 'local function task_overflow_indicator_text(hidden_count)' "$TASKLIST_FILE"
-    assert_contains 'return "+" .. hidden_count' "$TASKLIST_FILE"
-    assert_contains 'local overflow_text = task_overflow_indicator_text(hidden_count)' "$TASKLIST_FILE"
-    assert_contains '还有" .. hidden_count .. " 个窗口未显示' "$TASKLIST_FILE"
-    assert_contains 'function M.create_overflow_indicator(ctpp, screen)' "$TASKLIST_FILE"
-    assert_contains 'id = "task_overflow_text_role",' "$TASKLIST_FILE"
-    assert_contains 'awful.menu.client_list({ theme = { width = 250 } })' "$TASKLIST_FILE"
-    assert_contains 'self.visible = hidden_count > 0' "$TASKLIST_FILE"
+client = {
+    focus = focused,
 }
 
-test_tasklist_hidden_count_uses_layout_budget() {
-    assert_contains 'local function hidden_task_count(screen, available_width)' "$TASKLIST_FILE"
-    assert_contains 'local available_width = math.max(screen_width - left_width - right_width, 0)' "$WIBAR_FILE"
-    assert_contains 's.mytaskoverflow:update(available_width)' "$WIBAR_FILE"
-    assert_not_contains 'local reserved_width = screen_width < 1800 and 980 or 1320' "$TASKLIST_FILE"
+local opts = tasklist.create_tasklist({
+    base = "#11111b",
+    surface0 = "#313244",
+    blue = "#89b4fa",
+    red = "#f38ba8",
+    text = "#cdd6f4",
+    overlay2 = "#9399b2",
+}, fake_screen, {}, {}, true)
+
+assert(opts.source == tasklist._private.focused_task_source)
+assert(opts.filter == tasklist._private.focused_task_filter)
+assert(opts.filter(focused) == true)
+assert(opts.filter(other) == false)
+
+local clients = opts.source(fake_screen)
+assert(#clients == 1 and clients[1] == focused)
+
+focused.on_current_tag = false
+assert(#opts.source(fake_screen) == 0)
+
+client.focus = nil
+assert(#opts.source(fake_screen) == 0)
+LUA
 }
 
-test_tasklist_slot_width_prefers_measured_fit() {
-    assert_contains 'local function measured_task_slot_width(screen, available_width)' "$TASKLIST_FILE"
-    assert_contains 'return math.max(math.floor(fit_width + 0.5), 1)' "$TASKLIST_FILE"
-    assert_contains 'local measured_width = measured_task_slot_width(screen, budget_width)' "$TASKLIST_FILE"
-    assert_contains 'local fallback_width = current_tag_client_count(screen) >= 8 and 36 or 220' "$TASKLIST_FILE"
-    assert_contains 'local slot_width = measured_width or fallback_width' "$TASKLIST_FILE"
+test_tasklist_drops_overflow_and_density_budget_logic() {
+    assert_not_contains 'local function current_tag_client_count(screen)' "$TASKLIST_FILE"
+    assert_not_contains 'local function task_density_tier(screen)' "$TASKLIST_FILE"
+    assert_not_contains 'local function hidden_task_count(screen, available_width)' "$TASKLIST_FILE"
+    assert_not_contains 'local function measured_task_slot_width(screen, available_width)' "$TASKLIST_FILE"
+    assert_not_contains 'create_overflow_indicator' "$TASKLIST_FILE"
+    assert_not_contains 'mytaskoverflow' "$WIBAR_FILE"
+    assert_not_contains '_omx_task_available_width' "$WIBAR_FILE"
 }
 
-test_tasklist_icon_only_threshold_uses_budget_pressure() {
-    assert_contains 'local function task_title_display_mode(screen, available_width, config, compact)' "$TASKLIST_FILE"
-    assert_contains 'if client_count < 5 then' "$TASKLIST_FILE"
-    assert_contains 'local average_width = math.floor((budget_width / client_count) + 0.5)' "$TASKLIST_FILE"
-    assert_contains 'local text_threshold = task_title_max_width(screen, config, compact)' "$TASKLIST_FILE"
-    assert_contains 'if average_width < text_threshold then' "$TASKLIST_FILE"
-    assert_contains 'local display_mode = task_title_display_mode(screen, available_width, config, compact)' "$TASKLIST_FILE"
+test_hidden_window_indicator_tracks_and_restores_hidden_clients() {
+    [ -f "$HIDDEN_WINDOWS_FILE" ] || fail "expected hidden window indicator module to exist"
+    assert_contains 'local function hidden_client_filter(c, target_screen)' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'c.minimized or c.hidden' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'c.skip_taskbar or excluded_types[c.type]' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'local function restore_client(c)' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'c.hidden = false' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'c.minimized = false' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'local function hide_active_menu()' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'active_menu = awful.menu({' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'active_menu:show()' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'indicator:update(true)' "$HIDDEN_WINDOWS_FILE"
+    assert_contains 'client.connect_signal(signal, queue_update)' "$HIDDEN_WINDOWS_FILE"
+
+    lua - "$HIDDEN_WINDOWS_FILE" <<'LUA' || fail "expected hidden indicator to count, render, and restore hidden taskbar clients"
+local hidden_windows_file = arg[1]
+local connected_signals = {}
+local tooltip_config
+local menu_config
+local menu_objects = {}
+
+package.preload["awful"] = function()
+    return {
+        button = function(...)
+            return { ... }
+        end,
+        tooltip = function(config)
+            tooltip_config = config
+            return config
+        end,
+        menu = function(config)
+            menu_config = config
+            local menu = {
+                show = function(self)
+                    self.shown = true
+                end,
+                hide = function(self)
+                    self.hidden = true
+                end,
+            }
+            menu_objects[#menu_objects + 1] = menu
+            return menu
+        end,
+        tag = {
+            attached_connect_signal = function(target_screen, signal, callback)
+                connected_signals["tag::" .. signal] = callback
+            end,
+        },
+    }
+end
+
+package.preload["gears"] = function()
+    return {
+        string = {
+            xml_escape = function(value)
+                return value
+            end,
+        },
+        table = {
+            join = function(...)
+                return { ... }
+            end,
+        },
+        shape = {
+            rounded_rect = function() end,
+        },
+        timer = {
+            delayed_call = function(callback)
+                callback()
+            end,
+        },
+    }
+end
+
+package.preload["wibox"] = function()
+    local widget = setmetatable({
+        textbox = {},
+    }, {
+        __call = function(_, spec)
+            local object = {
+                _spec = spec,
+                visible = true,
+                _children = {
+                    hidden_indicator_text_role = { {} },
+                    hidden_indicator_background_role = { {} },
+                },
+                buttons = function(self, buttons)
+                    self._buttons = buttons
+                end,
+                get_children_by_id = function(self, id)
+                    return self._children[id] or {}
+                end,
+            }
+            return object
+        end,
+    })
+
+    return {
+        widget = widget,
+        container = {
+            margin = {},
+            background = {},
+            constraint = {},
+        },
+    }
+end
+
+package.preload["beautiful.xresources"] = function()
+    return {
+        apply_dpi = function(value)
+            return value
+        end,
+    }
+end
+
+local hidden_windows = assert(loadfile(hidden_windows_file))()
+local screen_one = { index = 1 }
+local screen_two = { index = 2 }
+local tag_one = { name = "1", screen = screen_one }
+local tag_two = { name = "2", screen = screen_two }
+local restored
+local hidden = {
+    name = "Firefox",
+    class = "firefox",
+    minimized = true,
+    screen = screen_one,
+    first_tag = tag_one,
+    tags = function()
+        return { tag_one }
+    end,
+    jump_to = function(self, merge)
+        restored = { self = self, merge = merge }
+    end,
+}
+local urgent_hidden = {
+    name = "Chat",
+    hidden = true,
+    urgent = true,
+    screen = screen_one,
+    first_tag = tag_one,
+}
+local skipped = {
+    name = "helper",
+    hidden = true,
+    skip_taskbar = true,
+    screen = screen_one,
+}
+local dock = {
+    name = "dock",
+    hidden = true,
+    type = "dock",
+    screen = screen_one,
+}
+local other_screen = {
+    name = "other",
+    hidden = true,
+    screen = screen_two,
+    first_tag = tag_two,
 }
 
-test_tasklist_live_available_width_reaches_update_path() {
-    assert_not_contains 'update_task_item(self, c, ctpp, screen, config, compact, 0)' "$TASKLIST_FILE"
-    assert_contains 'local current_available_width = math.max((screen and screen._omx_task_available_width) or 0, 0)' "$TASKLIST_FILE"
-    assert_contains 'update_task_item(self, c, ctpp, screen, config, compact, current_available_width)' "$TASKLIST_FILE"
-    assert_contains 's._omx_task_available_width = available_width' "$WIBAR_FILE"
+client = {
+    get = function()
+        return { hidden, skipped, dock, other_screen, urgent_hidden }
+    end,
+    connect_signal = function(signal, callback)
+        connected_signals[signal] = callback
+    end,
 }
 
-test_tasklist_overflow_indicator_uses_lighter_visual_weight() {
-    assert_contains 'left = dpi(4),' "$TASKLIST_FILE"
-    assert_contains 'right = dpi(4),' "$TASKLIST_FILE"
-    assert_contains 'top = dpi(1),' "$TASKLIST_FILE"
-    assert_contains 'bottom = dpi(1),' "$TASKLIST_FILE"
-    assert_contains 'bg = ctpp.base,' "$TASKLIST_FILE"
-    assert_contains '.. ctpp.subtext1 ..' "$TASKLIST_FILE"
+local private = assert(hidden_windows._private)
+local clients = private.collect_hidden_clients(screen_one)
+assert(#clients == 2)
+assert(clients[1] == urgent_hidden)
+assert(private.hidden_client_filter(hidden, screen_one) == true)
+assert(private.hidden_client_filter(skipped, screen_one) == false)
+assert(private.hidden_client_filter(dock, screen_one) == false)
+assert(private.hidden_client_filter(other_screen, screen_one) == false)
+assert(private.hidden_tooltip_text(clients):match("隐藏窗口"))
+assert(private.hidden_tooltip_text(clients):match("Firefox"))
+assert(private.hidden_tooltip_text(clients):match("标签 1"))
+
+local indicator = hidden_windows.create_indicator({
+    base = "#11111b",
+    surface0 = "#313244",
+    red = "#f38ba8",
+    subtext1 = "#bac2de",
+}, screen_one)
+
+indicator:update()
+assert(indicator.visible == true)
+assert(indicator._children.hidden_indicator_text_role[1].markup:match("隐:2"))
+assert(indicator._children.hidden_indicator_text_role[1].markup:match("#f38ba8"))
+assert(tooltip_config.objects[1] == indicator)
+assert(connected_signals["property::minimized"])
+assert(connected_signals["property::hidden"])
+assert(connected_signals["focus"])
+assert(connected_signals["tag::property::selected"])
+
+indicator._buttons[2][3]()
+assert(menu_config.items[1][1]:match("Chat"))
+assert(menu_config.theme.width == 320)
+assert(menu_config._hidden_signature and menu_config._hidden_signature:match("hidden"))
+assert(menu_objects[#menu_objects].shown == true)
+
+connected_signals["focus"]()
+assert(menu_objects[#menu_objects].hidden == true)
+
+indicator._buttons[2][3]()
+local menu_before_restore = menu_objects[#menu_objects]
+urgent_hidden.hidden = false
+connected_signals["property::hidden"]()
+assert(menu_before_restore.hidden == true)
+assert(indicator._children.hidden_indicator_text_role[1].markup:match("隐:Firefox"))
+assert(not indicator._children.hidden_indicator_text_role[1].markup:match("#f38ba8"))
+
+indicator._buttons[2][3]()
+local menu_before_direct_restore = menu_objects[#menu_objects]
+private.restore_client(hidden)
+assert(menu_before_direct_restore.hidden == true)
+assert(hidden.hidden == false)
+assert(hidden.minimized == false)
+assert(restored and restored.self == hidden and restored.merge == false)
+LUA
 }
 
-test_wibar_uses_task_density_tiers() {
-    assert_contains 'local function current_tag_client_count(screen)' "$TASKLIST_FILE"
-    assert_contains 'local function task_density_tier(screen)' "$TASKLIST_FILE"
-    assert_contains 'if client_count >= 7 then' "$TASKLIST_FILE"
-    assert_contains 'if client_count >= 4 then' "$TASKLIST_FILE"
-    assert_contains 'local density = task_density_tier(screen)' "$TASKLIST_FILE"
-}
-
-test_wibar_task_title_width_depends_on_density() {
-    assert_contains 'local density = task_density_tier(screen)' "$TASKLIST_FILE"
-    assert_contains 'if density == "tight" then' "$TASKLIST_FILE"
-    assert_contains 'elseif density == "compact" then' "$TASKLIST_FILE"
-}
 
 test_wibar_owns_bar_widget_creation() {
     assert_contains 'local config = args.config' "$WIBAR_FILE"
@@ -385,8 +670,10 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'local function is_compact_screen(screen, config)' "$STATUS_AREA_FILE"
     assert_contains 'local function screen_diagonal_inches(screen)' "$STATUS_AREA_FILE"
     assert_contains 'local tasklist = require("ui.tasklist")' "$WIBAR_FILE"
+    assert_contains 'local hidden_windows = require("ui.hidden_windows")' "$WIBAR_FILE"
     assert_contains 'tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, is_compact_screen(s, config))' "$WIBAR_FILE"
-    assert_contains 'tasklist.create_overflow_indicator(ctpp, s)' "$WIBAR_FILE"
+    assert_contains 'local function focused_task_source(target_screen)' "$TASKLIST_FILE"
+    assert_contains 'local function focused_task_filter(c)' "$TASKLIST_FILE"
     assert_contains 'tasklist.task_title_max_width(s, config, is_compact_screen(s, config))' "$WIBAR_FILE"
     assert_not_contains 'local function render_task_text(c, ctpp)' "$WIBAR_FILE"
     assert_not_contains 'local function render_task_tooltip(c)' "$WIBAR_FILE"
@@ -397,12 +684,9 @@ test_wibar_owns_bar_widget_creation() {
     assert_not_contains 'local function create_tasklist(ctpp, screen, tasklist_buttons, config)' "$WIBAR_FILE"
     assert_contains 'local function render_task_text(c, ctpp)' "$TASKLIST_FILE"
     assert_contains 'local function render_task_tooltip(c)' "$TASKLIST_FILE"
-    assert_contains 'local function current_tag_client_count(screen)' "$TASKLIST_FILE"
-    assert_contains 'local function task_density_tier(screen)' "$TASKLIST_FILE"
     assert_contains 'local function task_title_max_width(screen, config, compact)' "$TASKLIST_FILE"
-    assert_contains 'local function update_task_item(self, c, ctpp, screen, config, compact, available_width)' "$TASKLIST_FILE"
+    assert_contains 'local function update_task_item(self, c, ctpp, screen, config, compact)' "$TASKLIST_FILE"
     assert_contains 'local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact)' "$TASKLIST_FILE"
-    assert_contains 'create_overflow_indicator = M.create_overflow_indicator,' "$TASKLIST_FILE"
     assert_contains 'return {' "$TASKLIST_FILE"
     assert_contains 'create_tasklist = create_tasklist,' "$TASKLIST_FILE"
     assert_contains 'local function create_lock_button(ctpp, actions)' "$WIBAR_FILE"
@@ -444,7 +728,13 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'systray:set_base_size(dpi(20))' "$STATUS_AREA_FILE"
     assert_contains 'border_color = ctpp.surface1,' "$STATUS_AREA_FILE"
     assert_contains 'id = "focus_indicator_role",' "$TASKLIST_FILE"
-    assert_contains 'id = "background_role",' "$TASKLIST_FILE"
+    assert_contains 'id = "task_background_role",' "$TASKLIST_FILE"
+    assert_not_contains 'id = "background_role",' "$TASKLIST_FILE"
+    assert_contains 'background.bg = "#00000000"' "$TASKLIST_FILE"
+    assert_contains 'bg = "#00000000",' "$TASKLIST_FILE"
+    assert_not_contains 'bg = ctpp.base,' "$TASKLIST_FILE"
+    assert_not_contains 'background.bg = focused and ctpp.surface0 or ctpp.base' "$TASKLIST_FILE"
+    assert_not_contains 'background.bg = ctpp.base' "$TASKLIST_FILE"
     assert_contains 'local lines = { "窗口", "标题：" .. title }' "$TASKLIST_FILE"
     assert_contains 'layout = wibox.layout.fixed.horizontal,' "$TASKLIST_FILE"
     assert_contains 'ellipsize = "end",' "$TASKLIST_FILE"
@@ -454,16 +744,9 @@ test_wibar_owns_bar_widget_creation() {
     assert_not_contains 'local function is_compact_screen(screen, config)' "$TASKLIST_FILE"
     assert_not_contains 'local function screen_diagonal_inches(screen)' "$TASKLIST_FILE"
     assert_not_contains 'local function output_diagonal_inches(output)' "$TASKLIST_FILE"
-    assert_contains 'local density = task_density_tier(screen)' "$TASKLIST_FILE"
     assert_contains 'local item_spacing = compact and 3 or 5' "$TASKLIST_FILE"
     assert_contains 'local item_h_padding = compact and 5 or 7' "$TASKLIST_FILE"
     assert_contains 'local item_v_padding = compact and 1 or 2' "$TASKLIST_FILE"
-    assert_contains 'if density == "tight" then' "$TASKLIST_FILE"
-    assert_contains 'item_spacing = compact and 2 or 3' "$TASKLIST_FILE"
-    assert_contains 'item_h_padding = compact and 4 or 5' "$TASKLIST_FILE"
-    assert_contains 'elseif density == "compact" then' "$TASKLIST_FILE"
-    assert_contains 'item_spacing = compact and 3 or 4' "$TASKLIST_FILE"
-    assert_contains 'item_h_padding = compact and 5 or 6' "$TASKLIST_FILE"
     assert_contains 'self._task_tooltip_text = render_task_tooltip(c)' "$TASKLIST_FILE"
     assert_contains 'if not self._task_tooltip then' "$TASKLIST_FILE"
     assert_contains 'objects = { self },' "$TASKLIST_FILE"
@@ -476,9 +759,11 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'top = item_v_padding,' "$TASKLIST_FILE"
     assert_contains 'bottom = item_v_padding,' "$TASKLIST_FILE"
     assert_contains 'local function create_floating_wibar_content(ctpp, left_widgets, task_cluster, right_widgets)' "$WIBAR_FILE"
-    assert_contains 'local task_cluster = {' "$WIBAR_FILE"
-    assert_contains 's.mytaskoverflow = s.mytaskoverflow or tasklist.create_overflow_indicator(ctpp, s)' "$WIBAR_FILE"
-    assert_contains 's.mytaskoverflow:update(available_width)' "$WIBAR_FILE"
+    assert_contains 's.myhiddenwindows = s.myhiddenwindows or hidden_windows.create_indicator(ctpp, s)' "$WIBAR_FILE"
+    assert_contains 's.myhiddenwindows:update()' "$WIBAR_FILE"
+    assert_contains 'local task_cluster = materialize_widget {' "$WIBAR_FILE"
+    assert_contains 's.mytasklist,' "$WIBAR_FILE"
+    assert_contains 's.myhiddenwindows,' "$WIBAR_FILE"
     assert_contains 'gears.shape.rounded_rect(cr, w, h, dpi(12))' "$WIBAR_FILE"
     assert_contains 'local function setup_floating_wibar(s, ctpp, left_widgets, task_cluster, right_widgets)' "$WIBAR_FILE"
     assert_contains 'if not s.mywibox then' "$WIBAR_FILE"
@@ -520,10 +805,20 @@ test_wibar_refreshes_after_screen_topology_changes() {
     assert_not_contains 'local mytextclock = create_textclock(ctpp, config, s)' "$WIBAR_FILE"
 }
 
-test_wibar_exposes_hidden_probe_state_for_runtime_visibility_checks() {
+test_wibar_exposes_probe_state_for_runtime_visibility_checks() {
     assert_contains 'local function count_sequence_items(tbl)' "$WIBAR_FILE"
-    assert_contains 'local function widget_fit_size(widget, width, height)' "$WIBAR_FILE"
+    assert_contains 'local function materialize_widget(widget)' "$WIBAR_FILE"
+    assert_contains 'local function widget_fit_size(widget, width, height, target_screen)' "$WIBAR_FILE"
     assert_contains 'local function update_wibar_probe_state(s, left_widgets, tasklist_widget, right_widgets, config)' "$WIBAR_FILE"
+    assert_contains 'return wibox.widget(widget)' "$WIBAR_FILE"
+    assert_contains 'return fit_widget:fit({ screen = target_screen }, width, height)' "$WIBAR_FILE"
+    assert_contains 's.myhiddenwindows = s.myhiddenwindows or hidden_windows.create_indicator(ctpp, s)' "$WIBAR_FILE"
+    assert_contains 's.myhiddenwindows:update()' "$WIBAR_FILE"
+    assert_contains 'local task_cluster = materialize_widget {' "$WIBAR_FILE"
+    assert_contains 's.mytasklist,' "$WIBAR_FILE"
+    assert_contains 's.myhiddenwindows,' "$WIBAR_FILE"
+    assert_contains 'local right_widgets = materialize_widget(right_widget_data.right_widgets)' "$WIBAR_FILE"
+    assert_contains 'local left_widgets = materialize_widget(build_left_widgets(s))' "$WIBAR_FILE"
     assert_contains 's._omx_wibar_probe = {' "$WIBAR_FILE"
     assert_contains 'snapshot = snapshot,' "$WIBAR_FILE"
     assert_contains 'last = snapshot(),' "$WIBAR_FILE"
@@ -535,13 +830,116 @@ test_wibar_exposes_hidden_probe_state_for_runtime_visibility_checks() {
     assert_contains 'update_wibar_probe_state(s, left_widgets, task_cluster, right_widgets, config)' "$WIBAR_FILE"
 }
 
+test_wibar_widget_fit_size_materializes_specs() {
+    lua - "$WIBAR_FILE" <<'LUA' || fail "expected wibar probe to measure declarative widget specs"
+local wibar_file = arg[1]
+
+package.preload["awful"] = function()
+    return {}
+end
+
+package.preload["gears"] = function()
+    return {
+        shape = {},
+        timer = {},
+    }
+end
+
+package.preload["wibox"] = function()
+    local widget = setmetatable({
+        layout = {
+            align = {
+                horizontal = {},
+            },
+            fixed = {
+                horizontal = {},
+            },
+        },
+        container = {
+            margin = {},
+            background = {},
+        },
+    }, {
+        __call = function(_, spec)
+            return {
+                _spec = spec,
+                fit = function(self, context)
+                    assert(context.screen.index == 9)
+                    return self._spec.forced_width or 0, self._spec.forced_height or 0
+                end,
+            }
+        end,
+    })
+
+    return {
+        widget = widget,
+        layout = widget.layout,
+        container = widget.container,
+    }
+end
+
+package.preload["beautiful"] = function()
+    return {}
+end
+
+package.preload["beautiful.xresources"] = function()
+    return {
+        apply_dpi = function(value)
+            return value
+        end,
+    }
+end
+
+package.preload["ui.tasklist"] = function()
+    return {
+        task_title_max_width = function()
+            return 42
+        end,
+    }
+end
+
+package.preload["ui.hidden_windows"] = function()
+    return {
+        create_indicator = function()
+            return {
+                fit = function()
+                    return 24, 12
+                end,
+                update = function() end,
+            }
+        end,
+    }
+end
+
+package.preload["ui.status_area"] = function()
+    return {
+        is_compact_screen = function()
+            return false
+        end,
+    }
+end
+
+local wibar = assert(loadfile(wibar_file))()
+local widget_fit_size = assert(wibar._private and wibar._private.widget_fit_size)
+local width, height = widget_fit_size({
+    forced_width = 123,
+    forced_height = 17,
+}, 500, 40, {
+    index = 9,
+})
+
+assert(width == 123)
+assert(height == 17)
+LUA
+}
+
 test_wibar_keeps_status_widgets_on_primary_only() {
     assert_contains 'if target_screen == screen.primary then' "$STATUS_AREA_FILE"
     assert_contains 'local status_bundle = ensure_primary_status_widgets(config, ctpp, target_screen, compact)' "$STATUS_AREA_FILE"
     assert_contains 'dispose_status_widgets(target_screen)' "$STATUS_AREA_FILE"
     assert_contains 'table.insert(right_widgets, sysinfo_widget)' "$STATUS_AREA_FILE"
     assert_contains 'local right_widget_data = status_area.create_right_widgets(config, ctpp, s, clock_widget)' "$WIBAR_FILE"
-    assert_contains 'local right_widgets = right_widget_data.right_widgets' "$WIBAR_FILE"
+    assert_contains 'local right_widgets = materialize_widget(right_widget_data.right_widgets)' "$WIBAR_FILE"
     assert_not_contains 'local system_bundle = create_sysinfo_bundle(config, s)' "$WIBAR_FILE"
 
     python - "$STATUS_AREA_FILE" <<'PY' || fail "expected non-primary right side to only add the clock widget"
@@ -820,18 +1218,14 @@ test_actions_check_prerequisites_and_notify_failures
 test_volume_widget_uses_lower_idle_polling
 test_brightness_widget_uses_lower_idle_polling
 test_volume_widget_does_not_switch_to_event_subscription
-test_tasklist_switches_to_icon_only_mode_at_high_density
-test_tasklist_exposes_overflow_indicator_support
-test_tasklist_hidden_count_uses_layout_budget
-test_tasklist_slot_width_prefers_measured_fit
-test_tasklist_icon_only_threshold_uses_budget_pressure
-test_tasklist_live_available_width_reaches_update_path
-test_tasklist_overflow_indicator_uses_lighter_visual_weight
-test_wibar_uses_task_density_tiers
-test_wibar_task_title_width_depends_on_density
+test_tasklist_keeps_text_for_focused_window
+test_tasklist_sources_only_focused_current_tag_client
+test_tasklist_drops_overflow_and_density_budget_logic
+test_hidden_window_indicator_tracks_and_restores_hidden_clients
 test_wibar_owns_bar_widget_creation
 test_wibar_refreshes_after_screen_topology_changes
-test_wibar_exposes_hidden_probe_state_for_runtime_visibility_checks
+test_wibar_exposes_probe_state_for_runtime_visibility_checks
+test_wibar_widget_fit_size_materializes_specs
 test_wibar_keeps_status_widgets_on_primary_only
 test_wibar_hides_lock_button_on_secondary_screens
 test_status_area_owns_compact_screen_policy

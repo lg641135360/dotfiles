@@ -4,6 +4,7 @@ local wibox = require("wibox")
 local beautiful = require("beautiful")
 local dpi = require("beautiful.xresources").apply_dpi
 local tasklist = require("ui.tasklist")
+local hidden_windows = require("ui.hidden_windows")
 local status_area = require("ui.status_area")
 local is_compact_screen = assert(status_area.is_compact_screen)
 
@@ -181,13 +182,48 @@ local function count_sequence_items(tbl)
     return count
 end
 
-local function widget_fit_size(widget, width, height)
-    if not widget or not widget.fit then
+local function materialize_widget(widget)
+    if not widget then
+        return nil
+    end
+
+    if widget.fit then
+        return widget
+    end
+
+    local count = count_sequence_items(widget)
+    local ok, realized = pcall(function()
+        return wibox.widget(widget)
+    end)
+    if not ok or not realized then
+        return widget
+    end
+
+    pcall(function()
+        realized._omx_sequence_count = count
+    end)
+    return realized
+end
+
+local function sequence_item_count(widget)
+    local ok, count = pcall(function()
+        return widget and widget._omx_sequence_count
+    end)
+    if ok and count ~= nil then
+        return count
+    end
+
+    return count_sequence_items(widget)
+end
+
+local function widget_fit_size(widget, width, height, target_screen)
+    local fit_widget = materialize_widget(widget)
+    if not fit_widget or not fit_widget.fit then
         return 0, 0
     end
 
     local ok, fit_width, fit_height = pcall(function()
-        return widget:fit({}, width, height)
+        return fit_widget:fit({ screen = target_screen }, width, height)
     end)
 
     if not ok then
@@ -202,9 +238,9 @@ local function update_wibar_probe_state(s, left_widgets, tasklist_widget, right_
         local screen_width = s and s.geometry and s.geometry.width or 0
         local screen_height = s and s.geometry and s.geometry.height or 0
         local probe_height = s.mywibox and s.mywibox.height or dpi(40)
-        local left_width = select(1, widget_fit_size(left_widgets, screen_width, probe_height))
-        local right_width = select(1, widget_fit_size(right_widgets, screen_width, probe_height))
-        local tasklist_width = select(1, widget_fit_size(tasklist_widget, math.max(screen_width - left_width - right_width, 0), probe_height))
+        local left_width = select(1, widget_fit_size(left_widgets, screen_width, probe_height, s))
+        local right_width = select(1, widget_fit_size(right_widgets, screen_width, probe_height, s))
+        local tasklist_width = select(1, widget_fit_size(tasklist_widget, math.max(screen_width - left_width - right_width, 0), probe_height, s))
 
         return {
             screen_index = s.index,
@@ -216,8 +252,8 @@ local function update_wibar_probe_state(s, left_widgets, tasklist_widget, right_
             right_width = right_width,
             tasklist_width = tasklist_width,
             tasklist_title_max_width = s.mytasklist_width,
-            left_item_count = count_sequence_items(left_widgets),
-            right_item_count = count_sequence_items(right_widgets),
+            left_item_count = sequence_item_count(left_widgets),
+            right_item_count = sequence_item_count(right_widgets),
             has_tasklist = tasklist_widget ~= nil,
             has_promptbox = s == screen.primary,
             has_systray = s == screen.primary,
@@ -313,31 +349,21 @@ function M.setup(args)
             s.mytasklist = tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, is_compact_screen(s, config))
             s.mytasklist_width = desired_tasklist_width
         end
-        s.mytaskoverflow = s.mytaskoverflow or tasklist.create_overflow_indicator(ctpp, s)
-
-        local task_cluster = {
+        s.myhiddenwindows = s.myhiddenwindows or hidden_windows.create_indicator(ctpp, s)
+        if s.myhiddenwindows.update then
+            s.myhiddenwindows:update()
+        end
+        local task_cluster = materialize_widget {
             s.mytasklist,
-            s.mytaskoverflow,
+            s.myhiddenwindows,
             layout = wibox.layout.fixed.horizontal,
             spacing = dpi(4),
         }
 
         local clock_widget = s.mytextclock
         local right_widget_data = status_area.create_right_widgets(config, ctpp, s, clock_widget)
-        local right_widgets = right_widget_data.right_widgets
-        local left_widgets = build_left_widgets(s)
-        local screen_width = s and s.geometry and s.geometry.width or 0
-        local probe_height = s.mywibox and s.mywibox.height or dpi(40)
-        local left_width = select(1, widget_fit_size(left_widgets, screen_width, probe_height))
-        local right_width = select(1, widget_fit_size(right_widgets, screen_width, probe_height))
-
-        local available_width = math.max(screen_width - left_width - right_width, 0)
-        s._omx_task_available_width = available_width
-
-        if s.mytaskoverflow.update then
-            s.mytaskoverflow:update(available_width)
-        end
-
+        local right_widgets = materialize_widget(right_widget_data.right_widgets)
+        local left_widgets = materialize_widget(build_left_widgets(s))
         setup_floating_wibar(s, ctpp, left_widgets, task_cluster, right_widgets)
         update_wibar_probe_state(s, left_widgets, task_cluster, right_widgets, config)
     end
@@ -380,6 +406,7 @@ function M.setup(args)
         if s.mytextclock and s.mytextclock._dispose then
             s.mytextclock._dispose()
         end
+        s.myhiddenwindows = nil
         s._omx_wibar_probe = nil
         queue_wibar_refresh()
     end)
@@ -411,6 +438,7 @@ M._private = {
     task_title_max_width = function(s, config)
         return tasklist.task_title_max_width(s, config, is_compact_screen(s, config))
     end,
+    widget_fit_size = widget_fit_size,
 }
 
 return M

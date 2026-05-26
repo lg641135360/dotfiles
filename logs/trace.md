@@ -1417,3 +1417,52 @@
 - 目的：记录本轮 Claude Code statusline README/安装器改动已经按用户要求发布到远端 GitHub。
 - 已做：将 README、`.config/shared/cc/statusline.sh`、`.config/shared/cc/README.md`、`install.sh`、`tests/install_claude_statusline_test.sh` 与 trace 记录提交为 `601caf8`（`Make Claude statusline setup reproducible from the dotfiles installer`），随后推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`。本轮没有同步 live `~/.claude`，也没有运行真实 HOME 下的安装器。
 - 验证：推送返回 `bf4a7c9..601caf8  main -> main`，说明功能提交已发布到 GitHub；发布前 `origin/main` 已 fetch 且 `HEAD...origin/main` 为 `0 0`，功能提交后本地领先 1 个提交再推送成功。
+
+## 2026-05-26
+
+- 目的：按用户要求修复当前 Awesome 顶栏 tasklist 检查中发现的两个问题：高窗口数 tasklist callback 触发 `task_title_max_width` 前向引用错误，以及 wibar 宽度探针测不到左右/任务区真实宽度导致预算判断偏乐观。
+- 已做：在 `.config/linux/awesome/ui/tasklist.lua` 中把 `task_title_max_width()` 移到 `task_title_display_mode()` 之前，确保高密度窗口路径使用局部函数而不是未定义全局；顺手修正 tasklist callback 中 `current_available_width` 的缩进。在 `.config/linux/awesome/ui/wibar.lua` 中新增声明式 widget 实例化与测量 helper，让 left/task/right 三段先 materialize 后再用带 `screen` context 的 `fit()` 测宽，并保留 item count 供 probe 诊断；同时把该测量 helper 暴露到 `_private` 给回归测试使用。更新 `.config/linux/awesome/README.md`，说明 tasklist 在高密度且预算不足时可临时进入图标模式，并说明 wibar 探针会先实例化声明式 widget 再测量。新增 `tests/awesome_ui_architecture_test.sh` 回归，覆盖高窗口数 callback 不再报错，以及 wibar probe 能测量声明式 widget spec。本轮随后被聚焦窗口 tasklist 方案覆盖；未同步 live `~/.config/awesome`，没有重载 Awesome。
+- 验证：`./tests/awesome_ui_architecture_test.sh`、`./tests/awesome_docs_theme_test.sh`、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、`awesome -k -c "$PWD/.config/linux/awesome/rc.lua"`、`sh -n tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh` 与 `git diff --check -- .config/linux/awesome/ui/tasklist.lua .config/linux/awesome/ui/wibar.lua .config/linux/awesome/README.md tests/awesome_ui_architecture_test.sh logs/trace.md` 均通过。
+- 后续：若要让当前桌面立刻使用这次 tasklist/wibar 修复，需要另行同步 live Awesome 配置并重载；本轮按仓库修复收敛，未提交、未推送。
+
+## 2026-05-26
+
+- 目的：按用户追加偏好，把 Awesome 顶栏 tasklist 从多窗口/图标 overflow 方案改成只显示当前聚焦窗口信息，避免窗口数量到 6 个时挤压成纯图标。
+- 已做：在 `.config/linux/awesome/ui/tasklist.lua` 中删除窗口数量密度、预算、`icon_only` 与 `+N` overflow 逻辑，改用 `focused_task_source` / `focused_task_filter` 只向 Awesome tasklist 提供当前标签页上的 `client.focus`；在 `.config/linux/awesome/ui/wibar.lua` 中移除 overflow indicator 与 `_omx_task_available_width` 路径，task cluster 直接使用单个 tasklist widget；同步更新 `.config/linux/awesome/README.md`、`tests/awesome_ui_architecture_test.sh`、`tests/awesome_docs_theme_test.sh` 与 `memory/organizing_preferences.md`，说明并锁定 tasklist 只显示聚焦窗口且依赖 Awesome 原生 focus/unfocus 刷新。
+- 验证：`sh -n tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh`、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、`awesome -k -c "$PWD/.config/linux/awesome/rc.lua"` 与 `git diff --check -- .config/linux/awesome/ui/tasklist.lua .config/linux/awesome/ui/wibar.lua .config/linux/awesome/README.md tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh memory/organizing_preferences.md logs/trace.md` 均通过。本轮只修改仓库文件，没有同步 live `~/.config/awesome`，没有重载 Awesome。
+- 后续：若要当前桌面立即生效，需要另行同步 live Awesome 配置并重载；当前按仓库修改收敛。
+
+## 2026-05-26
+
+- 目的：在 focused-only tasklist 方案下补足隐藏/最小化窗口的可视化入口，避免用户隐藏某个窗口后不知道隐藏了什么并遗忘。
+- 已做：新增 `.config/linux/awesome/ui/hidden_windows.lua`，收集当前屏幕上 `minimized` 或 `hidden` 的普通任务窗口，排除 `skip_taskbar` 与 dock/desktop/splash 辅助窗口；隐藏提示仅有隐藏窗口时显示 `隐:<数量或标题>`，hover 列出标题、应用、标签与状态，左键恢复第一个，右键打开选择恢复菜单，urgent 隐藏窗口使用红色强调。`.config/linux/awesome/ui/wibar.lua` 接入该提示并放在聚焦 tasklist 旁，保留聚焦窗口主条目；同步更新 `.config/linux/awesome/README.md`、`tests/awesome_ui_architecture_test.sh`、`tests/awesome_docs_theme_test.sh` 与 `memory/organizing_preferences.md`。本轮只修改仓库文件，没有同步 live `~/.config/awesome`，没有重载 Awesome。
+- 验证：`sh -n tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh`、`lua -e 'assert(loadfile(".config/linux/awesome/ui/hidden_windows.lua")); assert(loadfile(".config/linux/awesome/ui/wibar.lua")); assert(loadfile(".config/linux/awesome/ui/tasklist.lua"))'`、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、`awesome -k -c "$PWD/.config/linux/awesome/rc.lua"` 与 `git diff --check -- .config/linux/awesome/ui/hidden_windows.lua .config/linux/awesome/ui/tasklist.lua .config/linux/awesome/ui/wibar.lua .config/linux/awesome/README.md tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh memory/organizing_preferences.md logs/trace.md` 均通过。
+- 后续：若要当前桌面立即生效，需要另行同步 live Awesome 配置并重载；当前按仓库修改收敛。
+
+## 2026-05-26
+
+- 目的：修复隐藏窗口提示的右键恢复菜单生命周期问题，避免用户用其它方式恢复窗口或切换焦点/标签后菜单仍残留。
+- 已做：在 `.config/linux/awesome/ui/hidden_windows.lua` 中增加 active menu 生命周期管理：打开新菜单前先关闭旧菜单，恢复窗口时关闭菜单，client/tag 信号触发的刷新会用 `indicator:update(true)` 关闭当前菜单；菜单不再在隐藏列表为空时弹出。同步扩展 `tests/awesome_ui_architecture_test.sh` 覆盖 focus 信号、隐藏状态变化和直接恢复都会关闭菜单，并更新 `.config/linux/awesome/README.md`、`tests/awesome_docs_theme_test.sh` 与 `memory/organizing_preferences.md` 记录该交互边界。本轮只修改仓库文件，没有同步 live `~/.config/awesome`，没有重载 Awesome。
+- 验证：`sh -n tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh`、`lua -e 'assert(loadfile(".config/linux/awesome/ui/hidden_windows.lua")); assert(loadfile(".config/linux/awesome/ui/wibar.lua")); assert(loadfile(".config/linux/awesome/ui/tasklist.lua"))'`、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、`awesome -k -c "$PWD/.config/linux/awesome/rc.lua"` 与 `git diff --check -- .config/linux/awesome/ui/hidden_windows.lua .config/linux/awesome/ui/tasklist.lua .config/linux/awesome/ui/wibar.lua .config/linux/awesome/README.md tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh memory/organizing_preferences.md logs/trace.md` 均通过。
+- 后续：若要当前桌面立即生效，需要另行同步 live Awesome 配置并重载；当前按仓库修改收敛。
+
+## 2026-05-26
+
+- 目的：按用户要求弱化 focused-only tasklist 的当前窗口背景层级，让任务项背景直接使用状态栏原底色，不再额外用背景色区分当前窗口。
+- 已做：在 `.config/linux/awesome/ui/tasklist.lua` 中把 `background_role` 更新路径固定为 `ctpp.base`，保留蓝色标题文字与左侧细条作为当前焦点提示；同步更新 `.config/linux/awesome/README.md`、`tests/awesome_ui_architecture_test.sh`、`tests/awesome_docs_theme_test.sh` 与 `memory/organizing_preferences.md`。本轮只修改仓库文件，没有同步 live `~/.config/awesome`，没有重载 Awesome。
+- 验证：`sh -n tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh`、`lua -e 'assert(loadfile(".config/linux/awesome/ui/hidden_windows.lua")); assert(loadfile(".config/linux/awesome/ui/wibar.lua")); assert(loadfile(".config/linux/awesome/ui/tasklist.lua"))'`、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、`awesome -k -c "$PWD/.config/linux/awesome/rc.lua"` 与 `git diff --check -- .config/linux/awesome/ui/hidden_windows.lua .config/linux/awesome/ui/tasklist.lua .config/linux/awesome/ui/wibar.lua .config/linux/awesome/README.md tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh memory/organizing_preferences.md logs/trace.md` 均通过。
+- 后续：若要当前桌面立即生效，需要另行同步 live Awesome 配置并重载；当前按仓库修改收敛。
+
+## 2026-05-26
+
+- 目的：继续修正用户反馈的 tasklist 灰色背景残留；上一轮只把任务项背景改成 `ctpp.base` 仍会绘制独立背景容器，视觉上仍像灰色胶囊。
+- 已做：在 `.config/linux/awesome/ui/tasklist.lua` 中把 `background_role` 的初始和更新背景都改为 `#00000000`，并移除该背景容器的圆角 shape，让任务项透明透出父级状态栏底色；保留蓝色标题文字和左侧细条作为焦点提示。同步更新 `.config/linux/awesome/README.md`、`tests/awesome_ui_architecture_test.sh`、`tests/awesome_docs_theme_test.sh` 与 `memory/organizing_preferences.md`。本轮只修改仓库文件，没有同步 live `~/.config/awesome`，没有重载 Awesome。
+- 验证：`sh -n tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh`、`lua -e 'assert(loadfile(".config/linux/awesome/ui/hidden_windows.lua")); assert(loadfile(".config/linux/awesome/ui/wibar.lua")); assert(loadfile(".config/linux/awesome/ui/tasklist.lua"))'`、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、`awesome -k -c "$PWD/.config/linux/awesome/rc.lua"` 与 `git diff --check -- .config/linux/awesome/ui/hidden_windows.lua .config/linux/awesome/ui/tasklist.lua .config/linux/awesome/ui/wibar.lua .config/linux/awesome/README.md tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh memory/organizing_preferences.md logs/trace.md` 均通过。
+- 后续：若要当前桌面立即生效，需要另行同步 live Awesome 配置并重载；当前按仓库修改收敛。
+
+## 2026-05-26
+
+- 目的：修复用户反馈的“同步后仍然没有变化”：确认 tasklist 背景在运行时仍被 Awesome 内置 `background_role` 自动刷成 `#313244`，导致透明设置被覆盖。
+- 已做：将 `.config/linux/awesome/ui/tasklist.lua` 的任务项背景容器从内置 `background_role` 改为自定义 `task_background_role`，继续保持 `#00000000` 透明背景，避开 Awesome tasklist 自动上色；同步更新 `.config/linux/awesome/README.md`、`tests/awesome_ui_architecture_test.sh`、`tests/awesome_docs_theme_test.sh` 与 `memory/organizing_preferences.md`。随后把 `README.md`、`ui/tasklist.lua`、`ui/wibar.lua`、`ui/hidden_windows.lua` 同步到 live `~/.config/awesome`，同步前备份到 `/tmp/awesome-tasklist-live-backup-20260526T110937`，并执行 `awesome.restart()` 重载当前 Awesome 会话。
+- 验证：重载前后 `awesome -k -c "$PWD/.config/linux/awesome/rc.lua"` 与 `awesome -k -c "$HOME/.config/awesome/rc.lua"` 均通过；完整 `for t in tests/awesome_*_test.sh; do "$t"; done` 全部通过；运行时 `awesome-client` 检查确认 `ui.tasklist` 已加载 focused-only 模块、`create_overflow_indicator` 不存在、内置 `background_role` 数量为 0，当前聚焦屏的 `task_background_role` 背景为 `rgba(0,0,0,0)`，说明灰色任务项背景不再来自 tasklist 自身。`awesome.restart()` 的 DBus 请求返回 `NoReply`，但后续 `awesome-client 'return awesome.version'` 返回 `v4.3`，说明 Awesome 已恢复响应。
+- 后续：当前 live Awesome 已同步并重载；若仍看到灰色区域，那应是父级悬浮状态栏底色或左/右侧 separator 胶囊，而不是 tasklist 条目背景，需要按截图或运行时 widget tree 继续定位具体区域。
