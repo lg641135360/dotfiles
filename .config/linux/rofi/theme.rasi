@@ -5,16 +5,16 @@
 * {
     font: "JetBrainsMono Nerd Font Mono 11.5";
     background-color: transparent;
-    text-color: #f1f1f1;
+    text-color: #cdd6f4;
     spacing: 0;
 }
 
 window {
-    background-color: rgba(34, 62, 79, 0.80);
+    background-color: rgba(30, 30, 46, 0.92);
     width: 680px;
     padding: 0;
     border: 2px solid;
-    border-color: #61afef;
+    border-color: #89b4fa;
     border-radius: 12px;
 }
 
@@ -31,14 +31,14 @@ inputbar {
     spacing: 10px;
     border: 0;
     border-radius: 8px;
-    background-color: #21252b;
+    background-color: #181825;
     children: [prompt, entry];
 }
 
 prompt {
     padding: 0;
     enabled: true;
-    text-color: #61afef;
+    text-color: #89b4fa;
     font: "JetBrainsMono Nerd Font Bold 12";
 }
 
@@ -46,9 +46,9 @@ entry {
     expand: true;
     padding: 0;
     placeholder: "搜索...";
-    placeholder-color: #565c64;
+    placeholder-color: #6c7086;
     cursor: text;
-    text-color: #d7dae0;
+    text-color: #cdd6f4;
     font: "Noto Sans CJK SC 11.5";
 }
 
@@ -68,7 +68,7 @@ element {
     border: 0;
     border-radius: 6px;
     background-color: transparent;
-    text-color: #abb2bf;
+    text-color: #bac2de;
 }
 
 element-text {
@@ -86,41 +86,41 @@ element-icon {
 }
 
 element selected {
-    background-color: #61afef;
-    text-color: #282c34;
+    background-color: #89b4fa;
+    text-color: #1e1e2e;
 }
 
 element selected normal {
-    background-color: #61afef;
-    text-color: #282c34;
+    background-color: #89b4fa;
+    text-color: #1e1e2e;
 }
 
 element selected active {
-    background-color: #61afef;
-    text-color: #282c34;
+    background-color: #89b4fa;
+    text-color: #1e1e2e;
 }
 
 element normal.active {
-    background-color: #21252b;
-    text-color: #61afef;
+    background-color: #313244;
+    text-color: #b4befe;
 }
 
 element alternate.active {
-    background-color: #21252b;
-    text-color: #61afef;
+    background-color: #313244;
+    text-color: #b4befe;
 }
 
 message {
     padding: 8px;
     border: 1px solid;
-    border-color: #3e4451;
+    border-color: #45475a;
     border-radius: 8px;
-    background-color: #21252b;
+    background-color: #181825;
 }
 
 textbox {
     padding: 6px 11px;
-    text-color: #abb2bf;
+    text-color: #bac2de;
     background-color: transparent;
     font: "Noto Sans CJK SC 11.5";
 }

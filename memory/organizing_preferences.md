@@ -24,6 +24,7 @@
 - 在当前 rofi 1.7.1 + `Xft.dpi` 环境里，如果用户明确要求“跟随系统缩放”，优先改成“launch script 运行时按 `Xft.dpi / 96` 生成缩放后的 px 主题”这条路线；不要再直接把仓库主题切回 `em/ch`。
 - 对 rofi 的系统缩放实现，当前偏好是：`config.rasi` 不再固定 `dpi: 1`，Awesome 通过 `~/.config/scripts/rofi-launch` 启动 rofi，并在脚本里注入 locale/fcitx 环境、生成 `~/.cache/rofi/theme.scaled.rasi` 后再 `-theme` 拉起。
 - 对 rofi 的运行时缩放，当前偏好是字体也必须和 px 距离一起按同一倍率缩放；只放大 `width/padding/spacing/icon size` 而不放大字体，会让界面观感失衡。
+- 对 Rofi 配色，优先使用 Catppuccin Mocha palette 与 Awesome/Tmux/Alacritty 主线保持一致；不要再混用 OneDark 风格的 `#61afef`、`#21252b`、`#282c34` 等旧色板。
 - 当用户要求把当前桌面配置改动提交到 GitHub 时，优先先复跑轻量回归测试，并确认仓库文件与 live `~/.config` 已同步，再执行提交和推送。
 - 对通过 `npm install -g` 安装到 `/usr/local/nodejs` 前缀的 CLI，优先在共享 zsh PATH 中追加 `/usr/local/nodejs/bin`，避免只暴露到部分命令（如 `codex` 来自 Homebrew、`omx` 却缺失）。
 - 对通过 `npm install -g` 安装到用户级 `/home/rikoo/.npm-global` 前缀的 CLI，优先在共享 zsh PATH 中追加 `$HOME/.npm-global/bin`，避免包已安装但 `omx`、`claude`、`opencode` 等命令不可解析。

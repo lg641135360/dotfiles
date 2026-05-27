@@ -4,6 +4,7 @@ set -eu
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 CONFIG_FILE=$REPO_ROOT/.config/linux/rofi/config.rasi
 THEME_FILE=$REPO_ROOT/.config/linux/rofi/theme.rasi
+README_FILE=$REPO_ROOT/.config/linux/rofi/README.md
 BINDINGS_FILE=$REPO_ROOT/.config/linux/awesome/bindings.lua
 ACTIONS_FILE=$REPO_ROOT/.config/linux/awesome/actions.lua
 SCRIPT_FILE=$REPO_ROOT/.config/scripts/rofi-launch
@@ -175,7 +176,7 @@ test_rofi_theme_keeps_entry_visible_and_cjk_friendly() {
         fail "expected rofi entry to expand so typed text stays visible"
     printf '%s\n' "$entry_section" | grep -F 'cursor: text;' >/dev/null 2>&1 ||
         fail "expected rofi entry to keep text cursor styling"
-    printf '%s\n' "$entry_section" | grep -F 'placeholder-color: #565c64;' >/dev/null 2>&1 ||
+    printf '%s\n' "$entry_section" | grep -F 'placeholder-color: #6c7086;' >/dev/null 2>&1 ||
         fail "expected rofi entry placeholder color to be explicit"
     printf '%s\n' "$entry_section" | grep -F 'font: "Noto Sans CJK SC 11.5";' >/dev/null 2>&1 ||
         fail "expected rofi entry to use a CJK-capable font"
@@ -189,6 +190,32 @@ test_rofi_theme_keeps_entry_visible_and_cjk_friendly() {
         fail "expected rofi textbox widgets to use a CJK-capable font"
 }
 
+test_rofi_theme_uses_catppuccin_mocha_palette() {
+    assert_contains 'background-color: rgba(30, 30, 46, 0.92);' "$THEME_FILE"
+    assert_contains 'border-color: #89b4fa;' "$THEME_FILE"
+    assert_contains 'background-color: #181825;' "$THEME_FILE"
+    assert_contains 'background-color: #313244;' "$THEME_FILE"
+    assert_contains 'text-color: #cdd6f4;' "$THEME_FILE"
+    assert_contains 'text-color: #bac2de;' "$THEME_FILE"
+    assert_contains 'text-color: #b4befe;' "$THEME_FILE"
+    assert_contains 'text-color: #1e1e2e;' "$THEME_FILE"
+    assert_contains 'border-color: #45475a;' "$THEME_FILE"
+    assert_contains 'placeholder-color: #6c7086;' "$THEME_FILE"
+    assert_not_contains '#61afef' "$THEME_FILE"
+    assert_not_contains '#21252b' "$THEME_FILE"
+    assert_not_contains '#282c34' "$THEME_FILE"
+    assert_not_contains '#abb2bf' "$THEME_FILE"
+    assert_not_contains 'rgba(34, 62, 79' "$THEME_FILE"
+}
+
+test_rofi_readme_documents_theme_contract() {
+    [ -f "$README_FILE" ] || fail "expected Rofi README to document the theme contract"
+    assert_contains 'Catppuccin Mocha' "$README_FILE"
+    assert_contains 'rofi-launch' "$README_FILE"
+    assert_contains 'Xft.dpi / 96' "$README_FILE"
+    assert_contains 'Noto Sans CJK SC' "$README_FILE"
+}
+
 test_rofi_config_defers_dpi_to_system_scaling
 test_rofi_config_uses_external_theme_file
 test_rofi_config_uses_compact_chinese_labels
@@ -198,5 +225,7 @@ test_rofi_launcher_runtime_theme_scales_fonts_and_pixels
 test_install_copies_rofi_launcher_script
 test_rofi_theme_uses_rofi_1_7_1_compatible_pixel_distances
 test_rofi_theme_keeps_entry_visible_and_cjk_friendly
+test_rofi_theme_uses_catppuccin_mocha_palette
+test_rofi_readme_documents_theme_contract
 
 printf 'PASS: rofi config tests\n'

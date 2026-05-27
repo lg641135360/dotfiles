@@ -1550,3 +1550,10 @@
 - 已做：发布前确认 `origin/main` 与本地 `HEAD` 同步、repo 与 live `~/.config/awesome` 的 `ui/status_area.lua` 和 `README.md` 一致；随后按 Lore 协议提交当前 Awesome 状态栏、README、测试、memory 与 trace 改动为 `363eb4c`（`Keep Awesome right status chrome visually quiet`），并推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`，远端从 `2fecfdf` 前进到 `363eb4c`。本条 trace 仅记录发布闭环，不再改变 live Awesome 配置。
 - 验证：发布前 `git fetch origin && git rev-list --left-right --count HEAD...origin/main` 返回 `0 0`；repo/live `diff -q` 无差异；`sh -n tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh`、`lua` loadfile、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、repo/live `awesome -k` 与相关 `git diff --check` 均通过；`git push origin main` 返回 `2fecfdf..363eb4c  main -> main`。
 - 后续：需要把这条发布记录本身再作为 trace-only 提交并推送；追加 trace 本身不递归追加第二条 trace。
+
+## 2026-05-28
+
+- 目的：按用户要求将 Rofi 主题从旧 OneDark/蓝灰色板收口到 Catppuccin Mocha，使启动器配色与 Awesome、Tmux、Alacritty 主线一致。
+- 已做：先扩展 `tests/rofi_config_test.sh`，锁定 Rofi 主题必须使用 Catppuccin Mocha 的 `base/mantle/surface0/surface1/blue/lavender/text` 关键色，并禁止继续出现旧 `#61afef`、`#21252b`、`#282c34` 等色值；随后把 `.config/linux/rofi/theme.rasi` 的窗口背景、边框、输入框、选中项、active 项、message 与文字颜色替换为 Mocha 色板，同时保留现有 px 尺寸、字体、中文输入和 `rofi-launch` 运行时缩放链路。新增 `.config/linux/rofi/README.md` 记录 Rofi 模块结构、Catppuccin Mocha 配色契约、`Xft.dpi / 96` 缩放和 CJK 字体策略，并在 `memory/organizing_preferences.md` 记录 Rofi 配色长期偏好。
+- 验证：新增测试先在旧主题上失败；改完后 `./tests/rofi_config_test.sh`、`sh -n .config/scripts/rofi-launch tests/rofi_config_test.sh`、`.config/linux/rofi/README.md` 尾随空白检查与相关 tracked 文件 `git diff --check` 均通过。
+- 后续：本轮只修改仓库文件，没有同步 live `~/.config/rofi`，没有重载 Awesome，也没有提交推送；若要当前桌面立即生效，需要另行同步 Rofi 配置到 live 并通过 `Mod+c` 实机观察。
