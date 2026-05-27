@@ -1557,3 +1557,10 @@
 - 已做：先扩展 `tests/rofi_config_test.sh`，锁定 Rofi 主题必须使用 Catppuccin Mocha 的 `base/mantle/surface0/surface1/blue/lavender/text` 关键色，并禁止继续出现旧 `#61afef`、`#21252b`、`#282c34` 等色值；随后把 `.config/linux/rofi/theme.rasi` 的窗口背景、边框、输入框、选中项、active 项、message 与文字颜色替换为 Mocha 色板，同时保留现有 px 尺寸、字体、中文输入和 `rofi-launch` 运行时缩放链路。新增 `.config/linux/rofi/README.md` 记录 Rofi 模块结构、Catppuccin Mocha 配色契约、`Xft.dpi / 96` 缩放和 CJK 字体策略，并在 `memory/organizing_preferences.md` 记录 Rofi 配色长期偏好。
 - 验证：新增测试先在旧主题上失败；改完后 `./tests/rofi_config_test.sh`、`sh -n .config/scripts/rofi-launch tests/rofi_config_test.sh`、`.config/linux/rofi/README.md` 尾随空白检查与相关 tracked 文件 `git diff --check` 均通过。
 - 后续：本轮只修改仓库文件，没有同步 live `~/.config/rofi`，没有重载 Awesome，也没有提交推送；若要当前桌面立即生效，需要另行同步 Rofi 配置到 live 并通过 `Mod+c` 实机观察。
+
+## 2026-05-28
+
+- 目的：按用户要求将 Rofi Catppuccin Mocha 配色改动发布到远程 GitHub。
+- 已做：发布前确认 `origin/main` 与本地 `HEAD` 同步，并确认 repo/live 的 `.config/linux/rofi/config.rasi`、`.config/linux/rofi/theme.rasi` 与 `.config/scripts/rofi-launch` 一致；随后按 Lore 协议提交 Rofi 主题、README、测试、memory 与 trace 改动为 `3a3473a`（`Align Rofi launcher colors with the desktop theme`），并推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`，远端从 `be3cbf8` 前进到 `3a3473a`。
+- 验证：发布前 `git fetch origin && git rev-list --left-right --count HEAD...origin/main` 返回 `0 0`；`./tests/rofi_config_test.sh`、`sh -n .config/scripts/rofi-launch tests/rofi_config_test.sh`、`.config/linux/rofi/README.md` 尾随空白检查、相关文件 `git diff --check` 与 repo/live Rofi 文件比较均通过；`git push origin main` 返回 `be3cbf8..3a3473a  main -> main`。
+- 后续：本条发布记录将作为 trace-only 提交再推送一次；追加 trace 本身不递归追加第二条 trace。当前 live Rofi 文件已与仓库一致，但本轮没有重载 Awesome，也没有额外执行 `Mod+c` 图形冒烟。
