@@ -46,8 +46,8 @@
 - 对 Awesome 的紧凑 sysinfo，当前顺序优先为 `NET -> CPU -> MEM -> BAT`；同时 CPU/BAT/VOL 的标签和值之间默认不再插入前导空格。
 - 对 Awesome 的紧凑 sysinfo，标签和值之间优先使用冒号分隔（如 `C:12%`、`B:87%`、`V:35%`），不要纯粘连也不要退回空格。
 - 对 Awesome 的主屏小屏右侧状态栏，compact/full 判定优先读取 `screen.outputs` 的物理尺寸；当屏幕物理对角线超过 15 英寸时必须切到 full 模式，保留完整日期与 MEM 等状态项；15 英寸及以下 compact 模式默认使用短时钟 ` %m/%d %H:%M `，并优先保留 `NET / CPU / BAT / VOL / clock`，其中 MEM 可先隐藏；只有检测不到物理尺寸时才回退到 `screen.geometry.width <= compact_wibar_max_width`；非主屏右侧不显示这些状态项，只保留时钟。
-- 对 Awesome 顶栏观感，当前优先增强聚焦窗口的可扫读性（圆角背景、蓝色文字、左侧细条），并让主屏 systray 使用更小图标、深色胶囊背景和细边框降低彩色托盘图标噪音。
-- 对 Awesome 右侧状态区观感，优先弱化竖线分隔符、给时钟独立胶囊背景作为右端视觉终点；full 模式使用 `CPU/MEM/BAT/VOL` 完整标签，compact 模式继续使用 `C/M/B/V` 短标签。
+- 对 Awesome 顶栏观感，当前优先增强聚焦窗口的可扫读性（圆角背景、蓝色文字、左侧细条），并让主屏 systray 使用更小图标且跟随顶栏表面，不再绘制独立胶囊背景或边框来降低彩色托盘图标噪音。
+- 对 Awesome 右侧状态区观感，优先弱化竖线分隔符；时钟与托盘保持扁平透明，不单独绘制背景、边框或夹在两侧的竖线分隔，并让时钟文字作为右端视觉终点；full 模式使用 `CPU/MEM/BAT/VOL` 完整标签，compact 模式继续使用 `C/M/B/V` 短标签。
 - 对 Awesome 多屏顶栏，只有主屏右侧显示 `NET/CPU/MEM/BAT/VOL` 与 systray；非主屏右侧只保留时钟，避免多屏重复状态信息。
 - 对 Awesome 顶栏实用细调，优先限制单个 tasklist 长标题最大宽度并用尾部省略保护状态区；NET 主栏保持短速率显示，详细接口名和 `/s` 单位优先放到 hover tooltip。
 - 对 Awesome 顶栏状态项交互，NET/CPU/MEM 优先保持不可点击，只在鼠标悬浮时显示内置 detail；VOL 保留左键静音和滚轮调音量，右键才打开 `pavucontrol`，并在 hover tooltip 里提示左键/右键/滚轮作用。

@@ -103,21 +103,12 @@ local function create_textclock(ctpp, config, screen)
     }
 
     local clock_widget = wibox.widget {
-        {
-            textclock,
-            left = clock_h_padding,
-            right = clock_h_padding,
-            top = clock_v_padding,
-            bottom = clock_v_padding,
-            widget = wibox.container.margin,
-        },
-        bg = ctpp.mantle,
-        border_width = dpi(1),
-        border_color = ctpp.surface1,
-        shape = function(cr, w, h)
-            gears.shape.rounded_rect(cr, w, h, dpi(8))
-        end,
-        widget = wibox.container.background,
+        textclock,
+        left = clock_h_padding,
+        right = clock_h_padding,
+        top = clock_v_padding,
+        bottom = clock_v_padding,
+        widget = wibox.container.margin,
     }
 
     awful.tooltip {
@@ -143,24 +134,15 @@ local function create_systray_widget(ctpp)
 
     return wibox.widget {
         {
-            {
-                systray,
-                valign = "center",
-                widget = wibox.container.place,
-            },
-            left = 4,
-            right = 4,
-            top = 2,
-            bottom = 2,
-            widget = wibox.container.margin,
+            systray,
+            valign = "center",
+            widget = wibox.container.place,
         },
-        bg = ctpp.mantle,
-        border_width = dpi(1),
-        border_color = ctpp.surface1,
-        shape = function(cr, w, h)
-            gears.shape.rounded_rect(cr, w, h, dpi(8))
-        end,
-        widget = wibox.container.background,
+        left = 4,
+        right = 4,
+        top = 2,
+        bottom = 2,
+        widget = wibox.container.margin,
     }
 end
 
@@ -266,14 +248,12 @@ local function create_right_widgets(config, ctpp, target_screen, clock_widget)
         local systray_widget = status_bundle.systray_widget
 
         table.insert(right_widgets, sysinfo_widget)
-        table.insert(right_widgets, create_separator(ctpp))
         table.insert(right_widgets, {
             systray_widget,
             left = 1,
             right = 1,
             widget = wibox.container.margin,
         })
-        table.insert(right_widgets, create_separator(ctpp))
     else
         dispose_status_widgets(target_screen)
     end
