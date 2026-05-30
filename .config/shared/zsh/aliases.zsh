@@ -74,6 +74,3 @@ if [[ -x "$(command -v curl)" ]]; then
 elif [[ -x "$(command -v wget)" ]]; then
     alias ipexternal="wget -qO- ifconfig.me && echo"
 fi
-
-# Homebrew mirror (China)
-export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"

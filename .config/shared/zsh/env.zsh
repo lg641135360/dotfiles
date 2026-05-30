@@ -8,6 +8,10 @@ export SUDO_EDITOR=nvim
 export FCEDIT=nvim
 export TERMINAL=alacritty
 
+# Homebrew mirror (China)
+export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
+export HOMEBREW_API_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles/api"
+
 if [[ "$OSTYPE" == linux* ]]; then
     export XDG_CURRENT_DESKTOP=awesome
     export XDG_SESSION_DESKTOP=awesome
