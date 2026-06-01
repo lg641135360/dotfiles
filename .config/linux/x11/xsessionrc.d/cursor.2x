@@ -1,0 +1,3 @@
+# Cursor size for 2x HiDPI displays (Xft.dpi=192)
+# Used on: arch_x64, ubuntu_aarch64
+export XCURSOR_SIZE=48

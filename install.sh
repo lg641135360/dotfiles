@@ -203,6 +203,7 @@ linux_configs=(
     "command -v rofi|.config/linux/rofi/theme.rasi|~/.config/rofi/theme.rasi|Rofi theme"
     "|.config/scripts/lock|~/.config/scripts/lock|Lock screen script"
     "command -v rofi|.config/scripts/rofi-launch|~/.config/scripts/rofi-launch|Rofi launch script"
+    "|.config/linux/x11/xsessionrc|~/.xsessionrc|X11 session config"
 )
 
 # Linux directory configurations
@@ -214,16 +215,19 @@ linux_dir_configs=(
 # Arch Linux x86_64
 arch_x86_64_configs=(
     "command -v picom|.config/linux/picom/picom-arch_x64.conf|~/.config/picom.conf|picom configuration"
+    "|.config/linux/x11/xsessionrc.d/cursor.2x|~/.xsessionrc.d/cursor|Cursor size (2x HiDPI)"
 )
 
 # Ubuntu aarch64 (ARM 64-bit)
 ubuntu_aarch64_configs=(
     "command -v picom|.config/linux/picom/picom-arch_aarch64.conf|~/.config/picom.conf|picom configuration"
+    "|.config/linux/x11/xsessionrc.d/cursor.2x|~/.xsessionrc.d/cursor|Cursor size (2x HiDPI)"
 )
 
 # Ubuntu amd64 (x86_64)
 ubuntu_amd64_configs=(
     "command -v picom|.config/linux/picom/picom-ubuntu_x64.conf|~/.config/picom.conf|picom configuration"
+    "|.config/linux/x11/xsessionrc.d/cursor.1x|~/.xsessionrc.d/cursor|Cursor size (standard DPI)"
 )
 
 

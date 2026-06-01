@@ -1,0 +1,25 @@
+#!/bin/sh
+# User X session setup script - sourced by Xsession
+
+# Export IME settings (fcitx is the primary input method)
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export SDL_IM_MODULE=fcitx
+export GLFW_IM_MODULE=fcitx
+export WEBKIT_DISABLE_DMABUF_RENDERER=1
+
+# Load platform-specific cursor settings
+# Electron/Chrome/VS Code rely on XCURSOR_SIZE environment variable
+# GTK apps also respect it to ensure consistency across applications
+[ -f "$HOME/.xsessionrc.d/cursor" ] && . "$HOME/.xsessionrc.d/cursor"
+
+# Merge X resources
+[ -f "$HOME/.Xresources" ] && xrdb -merge "$HOME/.Xresources"
+
+# Run Xsession.d scripts
+if [ -d /etc/X11/xinit/xinitrc.d ]; then
+  for i in /etc/X11/xinit/xinitrc.d/* ; do
+    [ -x "$i" ] && . "$i"
+  done
+fi
