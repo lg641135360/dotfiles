@@ -1564,3 +1564,38 @@
 - 已做：发布前确认 `origin/main` 与本地 `HEAD` 同步，并确认 repo/live 的 `.config/linux/rofi/config.rasi`、`.config/linux/rofi/theme.rasi` 与 `.config/scripts/rofi-launch` 一致；随后按 Lore 协议提交 Rofi 主题、README、测试、memory 与 trace 改动为 `3a3473a`（`Align Rofi launcher colors with the desktop theme`），并推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`，远端从 `be3cbf8` 前进到 `3a3473a`。
 - 验证：发布前 `git fetch origin && git rev-list --left-right --count HEAD...origin/main` 返回 `0 0`；`./tests/rofi_config_test.sh`、`sh -n .config/scripts/rofi-launch tests/rofi_config_test.sh`、`.config/linux/rofi/README.md` 尾随空白检查、相关文件 `git diff --check` 与 repo/live Rofi 文件比较均通过；`git push origin main` 返回 `be3cbf8..3a3473a  main -> main`。
 - 后续：本条发布记录将作为 trace-only 提交再推送一次；追加 trace 本身不递归追加第二条 trace。当前 live Rofi 文件已与仓库一致，但本轮没有重载 Awesome，也没有额外执行 `Mod+c` 图形冒烟。
+
+## 2026-05-29
+
+- 目的：继续只读分析后的第一段低风险 Awesome 优化，修正顶栏锁屏按钮、布局指示器与 sysinfo 胶囊把 `bg` / `shape` 配在 `wibox.container.margin` 上导致圆角背景语义不可靠的问题。
+- 已做：将 `.config/linux/awesome/ui/wibar.lua` 中的锁屏按钮和布局指示器改为“内层 margin + 外层 `wibox.container.background`”结构；将 `.config/linux/awesome/widgets/system.lua` 中的 sysinfo 容器改为同样结构，保留原有 padding、配色、圆角半径、tooltip 和按钮行为；在 `tests/awesome_ui_architecture_test.sh` 增加静态护栏，要求这些有圆角背景的控件必须把 margin 嵌入 background 容器。README 无需改动，因为现有文档已经描述浮动圆角顶栏、左侧控件和右侧 sysinfo 胶囊语义，本轮只是让实现与既有文档一致。
+- 验证：`sh -n tests/awesome_ui_architecture_test.sh && ./tests/awesome_ui_architecture_test.sh` 通过；`./tests/awesome_net_test.sh` 通过；完整 `for t in tests/awesome_*_test.sh; do "$t"; done` 全部通过；`awesome -k -c "$PWD/.config/linux/awesome/rc.lua"` 返回 `✔ Configuration file syntax OK.`；相关文件 `git diff --check -- .config/linux/awesome/ui/wibar.lua .config/linux/awesome/widgets/system.lua tests/awesome_ui_architecture_test.sh` 通过。
+- 后续：本轮只修改仓库文件，没有同步 live `~/.config/awesome`、没有重载 Awesome、没有提交推送；若要继续优化，下一段可优先处理 tag 定义单一来源，或抽取可复用的 rounded-control helper，避免类似容器层级错误重复出现。
+
+## 2026-05-29
+
+- 目的：按用户要求把本轮 Awesome 顶栏容器结构修复同步到 live 配置并验证是否有问题，但不重载当前 Awesome 运行态。
+- 已做：先把 live `~/.config/awesome/ui/wibar.lua` 与 `~/.config/awesome/widgets/system.lua` 备份到 `/tmp/awesome-rounded-container-live-backup-20260529T101503`，再用仓库中的 `.config/linux/awesome/ui/wibar.lua` 与 `.config/linux/awesome/widgets/system.lua` 覆盖 live 对应文件；同步后 repo/live 两个目标文件 `diff -q` 无差异。本轮没有修改 README，因为仍是内部容器结构修正，既有文档语义未变化。
+- 验证：完整 `for t in tests/awesome_*_test.sh; do "$t"; done` 全部通过；repo `awesome -k -c "$PWD/.config/linux/awesome/rc.lua"` 与 live `awesome -k -c "$HOME/.config/awesome/rc.lua"` 均返回 `✔ Configuration file syntax OK.`；相关文件 `git diff --check -- .config/linux/awesome/ui/wibar.lua .config/linux/awesome/widgets/system.lua tests/awesome_ui_architecture_test.sh logs/trace.md` 通过；`awesome-client 'return awesome.version'` 可连到当前 Awesome 会话并返回版本。
+- 后续：live 文件已同步，但当前运行态未重载，因此视觉效果要等下次 Awesome 启动/重载后才会应用；如需立即观察，可以单独执行 Awesome 重载验证。
+
+## 2026-05-29
+
+- 目的：按用户要求修正上一轮同步后的视觉方向，当前修改中不再给 Awesome 状态栏单个项目额外添加背景色或胶囊。
+- 已做：将 `.config/linux/awesome/ui/wibar.lua` 中的锁屏按钮和布局指示器恢复为只含文字与 padding 的 margin 容器；将 `.config/linux/awesome/widgets/system.lua` 中的 sysinfo 容器恢复为只含 system row 与 padding 的 margin 容器，移除单项 `bg`、`shape` 与 background 容器；同步更新 `.config/linux/awesome/README.md`、`tests/awesome_ui_architecture_test.sh`、`tests/awesome_docs_theme_test.sh` 与 `memory/organizing_preferences.md`，把“单个状态项扁平透明、不单独绘制背景色或胶囊”作为当前 Awesome 顶栏约束。随后把 live `~/.config/awesome/ui/wibar.lua`、`~/.config/awesome/widgets/system.lua` 与 live README 备份到 `/tmp/awesome-flat-status-items-live-backup-20260529T101918` 并同步到 live；同步后 repo/live 对应文件 `diff -q` 无差异。
+- 验证：`sh -n tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh`、`./tests/awesome_ui_architecture_test.sh`、`./tests/awesome_docs_theme_test.sh`、`./tests/awesome_net_test.sh`、完整 `for t in tests/awesome_*_test.sh; do "$t"; done` 均通过；repo `awesome -k -c "$PWD/.config/linux/awesome/rc.lua"` 与 live `awesome -k -c "$HOME/.config/awesome/rc.lua"` 均返回 `✔ Configuration file syntax OK.`；repo/live source guard 确认 lock、layout、sysinfo 均没有 `bg = ctpp.surface0`、`bg = ctpp.mantle`、单项 background 容器或 shape；相关文件 `git diff --check` 通过；`awesome-client 'return awesome.version'` 可连到当前 Awesome 会话并返回 `v4.3`。
+- 后续：live 文件已同步，但本轮没有重载 Awesome、没有提交推送；若要立即看见状态栏项目扁平透明效果，需要单独重载 Awesome。
+
+## 2026-05-29
+
+- 目的：修复 Picom + Awesome review 中发现的旧文档路径，避免 Awesome 主题 README 继续指向不存在的 `~/.config/picom/picom-catppuccin.conf`。
+- 已做：将 `.config/linux/awesome/theme/README.md` 的手动 Picom 命令改为 `picom --config ~/.config/picom.conf`，并说明 Picom 配置由 `.config/linux/picom/` 维护、由 `install.sh` 按平台部署到 `~/.config/picom.conf`；同步更新 `tests/awesome_docs_theme_test.sh`，要求主题 README 不再出现旧 `picom-catppuccin.conf` 路径和“取消注释 blur 部分”的过时说明。
+- 验证：`./tests/awesome_docs_theme_test.sh`、`./tests/picom_config_test.sh`、`./tests/awesome_ui_architecture_test.sh` 均通过；`bash -n tests/awesome_docs_theme_test.sh tests/picom_config_test.sh tests/awesome_ui_architecture_test.sh` 与相关文件 `git diff --check` 通过；`picom --config .config/linux/picom/picom-ubuntu_x64.conf --diagnostics` 可解析当前 Ubuntu x64 Picom 配置并返回 `v10` 诊断信息。
+- 后续：本轮只修改仓库文档、测试和 trace；没有同步 live `~/.config/awesome`，没有重载 Awesome，也没有重启 Picom。
+
+## 2026-05-29
+
+- 目的：继续收紧 Picom 与 Awesome 的视觉职责边界，避免主题 README 的“widget 圆角背景”表述和 Picom/Awesome 圆角值后续漂移。
+- 已做：将 `.config/linux/awesome/theme/README.md` 的“圆角面板”说明改为“圆角浮层”，明确整条 wibar、tooltip/menu、fallback titlebar 等浮层使用圆角，而状态栏单项保持扁平透明、不单独绘制 widget 背景胶囊；在 `tests/awesome_docs_theme_test.sh` 增加主题 README 表述护栏；在 `tests/picom_config_test.sh` 增加 Ubuntu x64 Picom `corner-radius = 12` 与 Awesome `theme.border_radius = dpi(12)` 的一致性护栏。
+- 验证：`./tests/awesome_docs_theme_test.sh`、`./tests/picom_config_test.sh`、`./tests/awesome_ui_architecture_test.sh` 均通过；`bash -n tests/awesome_docs_theme_test.sh tests/picom_config_test.sh tests/awesome_ui_architecture_test.sh` 与相关文件 `git diff --check` 通过；`picom --config .config/linux/picom/picom-ubuntu_x64.conf --diagnostics` 可解析当前 Ubuntu x64 Picom 配置并返回 `v10` 诊断信息。
+- 后续：本轮只修改仓库文档、测试和 trace；没有同步 live 配置，没有重载 Awesome，也没有重启 Picom。

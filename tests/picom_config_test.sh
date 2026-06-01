@@ -5,6 +5,7 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 PICOM_UBUNTU_FILE=$REPO_ROOT/.config/linux/picom/picom-ubuntu_x64.conf
 PICOM_ARCH_X64_FILE=$REPO_ROOT/.config/linux/picom/picom-arch_x64.conf
 PICOM_ARCH_AARCH64_FILE=$REPO_ROOT/.config/linux/picom/picom-arch_aarch64.conf
+AWESOME_THEME_FILE=$REPO_ROOT/.config/linux/awesome/theme/catppuccin.lua
 README_FILE=$REPO_ROOT/.config/linux/picom/README.md
 
 fail() {
@@ -88,10 +89,16 @@ test_readme_documents_current_visual_targets() {
     assert_contains 'Ubuntu x64 + picom v10 path it must stay removed' "$README_FILE"
 }
 
+test_ubuntu_x64_corner_radius_matches_awesome_theme() {
+    assert_contains 'corner-radius = 12' "$PICOM_UBUNTU_FILE"
+    assert_contains 'theme.border_radius = dpi(12)' "$AWESOME_THEME_FILE"
+}
+
 test_shared_visual_baseline
 test_ubuntu_x64_keeps_live_blur_route_and_x64_excludes
 test_terminal_opacity_is_left_to_terminal_configs
 test_non_current_platform_configs_remain_platform_specific
 test_readme_documents_current_visual_targets
+test_ubuntu_x64_corner_radius_matches_awesome_theme
 
 printf 'PASS: picom config tests\n'

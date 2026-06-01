@@ -79,10 +79,6 @@ local function create_lock_button(ctpp, actions)
             markup = "<span foreground='" .. ctpp.yellow .. "'> 󰷛 </span>",
             widget = wibox.widget.textbox,
         },
-        bg = ctpp.surface0,
-        shape = function(cr, w, h)
-            gears.shape.rounded_rect(cr, w, h, dpi(6))
-        end,
         left = 8,
         right = 8,
         top = 4,
@@ -117,10 +113,6 @@ local function create_layoutbox(ctpp, screen)
 
     local layoutbox = wibox.widget {
         mylayoutbox_widget,
-        bg = ctpp.surface0,
-        shape = function(cr, w, h)
-            gears.shape.rounded_rect(cr, w, h, dpi(6))
-        end,
         left = 4,
         right = 4,
         top = 2,

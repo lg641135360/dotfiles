@@ -48,6 +48,24 @@ test_readme_documents_current_awesome_modules() {
     assert_not_contains 'git clone https://github.com/lcpz/lain.git' "$README_FILE"
 }
 
+test_theme_readme_documents_current_picom_path() {
+    assert_contains 'picom --config ~/.config/picom.conf' "$THEME_README_FILE"
+    assert_contains 'Picom 配置由 `.config/linux/picom/` 维护' "$THEME_README_FILE"
+    assert_contains '由 `install.sh` 按平台部署到 `~/.config/picom.conf`' "$THEME_README_FILE"
+    assert_contains '当前 Ubuntu x64 配置已启用 `dual_kawase` blur' "$THEME_README_FILE"
+    assert_contains 'blur-method = "dual_kawase"' "$THEME_README_FILE"
+    assert_not_contains 'picom-catppuccin.conf' "$THEME_README_FILE"
+    assert_not_contains '取消注释 blur 部分' "$THEME_README_FILE"
+}
+
+test_theme_readme_documents_rounded_surface_boundary() {
+    assert_contains '圆角浮层' "$THEME_README_FILE"
+    assert_contains '整条 wibar、tooltip/menu、fallback titlebar 等浮层使用圆角' "$THEME_README_FILE"
+    assert_contains '状态栏单项默认保持扁平透明' "$THEME_README_FILE"
+    assert_contains '不单独绘制 widget 背景胶囊' "$THEME_README_FILE"
+    assert_not_contains 'wibar 和 widget 圆角背景' "$THEME_README_FILE"
+}
+
 test_readme_documents_wibar_visual_tuning() {
     assert_contains '聚焦窗口的任务项背景保持透明' "$README_FILE"
     assert_contains '不再绘制额外灰色胶囊背景' "$README_FILE"
@@ -65,9 +83,10 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains 'lock / layout / tasklist 的 tooltip 文案也统一成标题 + 字段行' "$README_FILE"
     assert_contains 'tooltip/menu 是更轻的浮层卡片层' "$README_FILE"
     assert_contains '它们通过更轻一点的表面色和更柔和的边线与普通胶囊区分，但不抢主界面焦点' "$README_FILE"
+    assert_contains '二者只保留文字和 padding，不单独绘制背景色或胶囊' "$README_FILE"
     assert_contains '主屏右侧状态区会继续统一收紧 spacing' "$README_FILE"
-    assert_contains 'sysinfo / clock / systray 的胶囊权重会一起再压一档' "$README_FILE"
-    assert_contains 'sysinfo / clock / systray 的胶囊权重会一起再压一档' "$README_FILE"
+    assert_contains 'sysinfo / clock / systray 都保持扁平透明' "$README_FILE"
+    assert_contains '不为单个状态项额外绘制背景色或胶囊' "$README_FILE"
     assert_contains '托盘只放在主屏，并使用更小图标' "$README_FILE"
     assert_contains '托盘与时钟跟随顶栏表面，不再绘制独立胶囊背景、边框或夹在两侧的竖线分隔' "$README_FILE"
     assert_contains '只在 Linux aarch64/arm64 的 Awesome 配置里尝试启用' "$README_FILE"
@@ -75,7 +94,7 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '全量模式使用 `CPU/MEM/BAT/VOL` 完整标签' "$README_FILE"
     assert_contains '外接屏热插拔、`xrandr` 改变几何或主屏切换后' "$README_FILE"
     assert_contains '重新判断主屏状态区和 full/compact 模式' "$README_FILE"
-    assert_contains '时钟与托盘保持扁平透明，不单独绘制背景或边框' "$README_FILE"
+    assert_contains 'sysinfo、时钟与托盘保持扁平透明，不单独绘制背景或边框' "$README_FILE"
     assert_contains '时钟文字作为右端视觉终点' "$README_FILE"
     assert_contains '整条顶栏使用悬浮圆角容器' "$README_FILE"
     assert_contains '顶部留出少量空隙' "$README_FILE"
@@ -155,6 +174,8 @@ test_readme_documents_plain_i3lock_theme_fallback() {
 }
 
 test_readme_documents_current_awesome_modules
+test_theme_readme_documents_current_picom_path
+test_theme_readme_documents_rounded_surface_boundary
 test_readme_documents_wibar_visual_tuning
 test_theme_exposes_fallback_titlebar_tokens
 test_readme_documents_snipaste_f1_conflict

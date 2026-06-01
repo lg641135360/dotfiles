@@ -752,10 +752,6 @@ local function create_system_widgets(config, options)
     -- System info container
     local sysinfo_widget = wibox.widget {
         system_row,
-        bg = ctpp.mantle,
-        shape = function(cr, w, h)
-            gears.shape.rounded_rect(cr, w, h, dpi(8))
-        end,
         left = 2,
         right = 2,
         top = 2,

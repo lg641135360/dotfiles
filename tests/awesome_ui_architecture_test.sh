@@ -818,6 +818,49 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains '当前：" .. (layout_label[layout_name] or layout_name)' "$WIBAR_FILE"
 }
 
+test_wibar_status_items_do_not_draw_individual_backgrounds() {
+    if ! python - "$WIBAR_FILE" "$SYSTEM_WIDGETS_FILE" <<'PY'
+from pathlib import Path
+import sys
+
+wibar = Path(sys.argv[1]).read_text()
+system = Path(sys.argv[2]).read_text()
+
+
+def chunk_between(text, start, end):
+    try:
+        start_index = text.index(start)
+        end_index = text.index(end, start_index)
+    except ValueError as exc:
+        raise AssertionError(f"missing marker: {exc}") from exc
+    return text[start_index:end_index]
+
+
+def assert_flat_status_item(chunk, forbidden_bg, label):
+    if "widget = wibox.container.margin" not in chunk:
+        raise AssertionError(f"{label}: expected padding to stay on a margin container")
+    if forbidden_bg in chunk:
+        raise AssertionError(f"{label}: expected no per-item background color")
+    if "widget = wibox.container.background" in chunk:
+        raise AssertionError(f"{label}: expected no per-item background container")
+    if "shape = function(cr, w, h)" in chunk:
+        raise AssertionError(f"{label}: expected no per-item rounded background shape")
+
+
+lock_chunk = chunk_between(wibar, "local lock_button = wibox.widget {", "\n    lock_button:buttons")
+assert_flat_status_item(lock_chunk, "bg = ctpp.surface0,", "lock button")
+
+layout_chunk = chunk_between(wibar, "local layoutbox = wibox.widget {", "\n    local function update_layoutbox()")
+assert_flat_status_item(layout_chunk, "bg = ctpp.surface0,", "layoutbox")
+
+sysinfo_chunk = chunk_between(system, "local sysinfo_widget = wibox.widget {", "\n    local function dispose()")
+assert_flat_status_item(sysinfo_chunk, "bg = ctpp.mantle,", "sysinfo widget")
+PY
+    then
+        fail "expected Awesome status items to stay flat without individual backgrounds"
+    fi
+}
+
 test_wibar_refreshes_after_screen_topology_changes() {
     assert_contains 'local function rebuild_screen_wibar(s)' "$WIBAR_FILE"
     assert_contains 'local function queue_wibar_refresh()' "$WIBAR_FILE"
@@ -1339,7 +1382,7 @@ test_system_widget_exposes_row_for_extension() {
     assert_contains 'stop_timer(details_timer)' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'stop_timer(metrics_timer)' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'stop_timer(net_timer)' "$SYSTEM_WIDGETS_FILE"
-    assert_contains 'gears.shape.rounded_rect(cr, w, h, dpi(8))' "$SYSTEM_WIDGETS_FILE"
+    assert_not_contains 'gears.shape.rounded_rect(cr, w, h, dpi(8))' "$SYSTEM_WIDGETS_FILE"
     assert_not_contains 'dpi(8, screen)' "$SYSTEM_WIDGETS_FILE"
 }
 
@@ -1414,6 +1457,7 @@ test_tasklist_sources_only_focused_current_tag_client
 test_tasklist_drops_overflow_and_density_budget_logic
 test_hidden_window_indicator_tracks_and_restores_hidden_clients
 test_wibar_owns_bar_widget_creation
+test_wibar_status_items_do_not_draw_individual_backgrounds
 test_wibar_refreshes_after_screen_topology_changes
 test_wibar_exposes_probe_state_for_runtime_visibility_checks
 test_wibar_widget_fit_size_materializes_specs
