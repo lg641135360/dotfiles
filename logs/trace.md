@@ -1,5 +1,7 @@
 # Trace
 
+> 本文件只记录实际发生过的修改、验证证据与后续线索，不定义长期规则；若某条经验已稳定复用，应提升到 `AGENTS.md` 或 `memory/`。
+
 ## 2026-04-29
 
 - 目的：按用户要求将本轮 tmux session 销毁行为、Awesome 壁纸随机化、trace 读取偏好和相关测试/文档记录提交并推送到 GitHub。
@@ -1599,3 +1601,10 @@
 - 已做：将 `.config/linux/awesome/theme/README.md` 的“圆角面板”说明改为“圆角浮层”，明确整条 wibar、tooltip/menu、fallback titlebar 等浮层使用圆角，而状态栏单项保持扁平透明、不单独绘制 widget 背景胶囊；在 `tests/awesome_docs_theme_test.sh` 增加主题 README 表述护栏；在 `tests/picom_config_test.sh` 增加 Ubuntu x64 Picom `corner-radius = 12` 与 Awesome `theme.border_radius = dpi(12)` 的一致性护栏。
 - 验证：`./tests/awesome_docs_theme_test.sh`、`./tests/picom_config_test.sh`、`./tests/awesome_ui_architecture_test.sh` 均通过；`bash -n tests/awesome_docs_theme_test.sh tests/picom_config_test.sh tests/awesome_ui_architecture_test.sh` 与相关文件 `git diff --check` 通过；`picom --config .config/linux/picom/picom-ubuntu_x64.conf --diagnostics` 可解析当前 Ubuntu x64 Picom 配置并返回 `v10` 诊断信息。
 - 后续：本轮只修改仓库文档、测试和 trace；没有同步 live 配置，没有重载 Awesome，也没有重启 Picom。
+
+## 2026-06-02
+
+- 目的：按用户要求将当前提示词分层整理改动发布到远程 GitHub。
+- 已做：将 `AGENTS.md` 中 trace 读取规则从“才全量读取”调整为“才扩大读取范围”；将 `memory/organizing_preferences.md` 定位为通用偏好与环境经验，弱化其中不应作为强制协议的表述，并保留通用强制规则以 `AGENTS.md` 为准；在 `logs/trace.md` 文件头增加 trace 只记录实际修改、验证证据与后续线索的说明。本轮只修改仓库文件，没有同步 live `~/.config`，没有重载桌面运行态。
+- 验证：发布前复核当前工作区只包含 `AGENTS.md`、`memory/organizing_preferences.md` 与 `logs/trace.md` 三个文件；确认本地 `HEAD` 与 `origin/main` 起点同步；后续提交前执行 `command git diff --check` 与远端快进检查。
+- 后续：提交并推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`；如果后续继续收紧提示词，可优先补齐测试可执行位、helper 脚本和 `.omx/` 等规则承接。
