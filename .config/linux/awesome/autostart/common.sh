@@ -158,17 +158,39 @@ detect_display_preferred_mode() {
                 exit
             }
             in_display && $1 ~ /^[0-9]+x[0-9]+$/ {
+                mode = $1
+                split(mode, dims, "x")
+                width = dims[1] + 0
+                height = dims[2] + 0
+
+                if (first == "") {
+                    first = mode
+                }
+
                 if ($0 ~ /\+/) {
-                    print $1
-                    found = 1
-                    exit
+                    if (preferred_progressive == "" && width <= 2560 && height <= 1440) {
+                        preferred_progressive = mode
+                    }
+                    if (preferred_any == "") {
+                        preferred_any = mode
+                    }
+                }
+
+                if (best_progressive == "" && width <= 2560 && height <= 1440) {
+                    best_progressive = mode
                 }
                 if (first == "") {
                     first = $1
                 }
             }
             END {
-                if (!found && first != "") {
+                if (preferred_progressive != "") {
+                    print preferred_progressive
+                } else if (best_progressive != "") {
+                    print best_progressive
+                } else if (preferred_any != "") {
+                    print preferred_any
+                } else if (first != "") {
                     print first
                 }
             }
@@ -380,6 +402,50 @@ configure_laptop_display_layout() {
             anchor_display=$external_display
         done
     fi
+
+    xrandr "$@"
+}
+
+configure_fixed_external_display_layout() {
+    laptop_mode=$1
+    laptop_rate=$2
+    external_position=$3
+    external_mode=$4
+    external_rate=$5
+
+    command_available xrandr || return 0
+
+    laptop_display=$(detect_laptop_display)
+    [ -n "$laptop_display" ] || return 0
+
+    external_displays=$(detect_external_displays "$laptop_display")
+
+    if [ -z "$external_displays" ]; then
+        set -- --output "$laptop_display" --primary --mode "$laptop_mode"
+        if [ -n "$laptop_rate" ]; then
+            set -- "$@" --rate "$laptop_rate"
+        fi
+        xrandr "$@"
+        return 0
+    fi
+
+    set -- --output "$laptop_display" --primary --mode "$laptop_mode"
+
+    if [ -n "$laptop_rate" ]; then
+        set -- "$@" --rate "$laptop_rate"
+    fi
+
+    previous_display=$laptop_display
+    position_arg=$(display_position_arg "$external_position")
+
+    for external_display in $external_displays; do
+        set -- "$@" --output "$external_display" --mode "$external_mode"
+        if [ -n "$external_rate" ]; then
+            set -- "$@" --rate "$external_rate"
+        fi
+        set -- "$@" "$position_arg" "$previous_display"
+        previous_display=$external_display
+    done
 
     xrandr "$@"
 }

@@ -53,7 +53,7 @@ Ubuntu x86_64      → ubuntu_x64.sh
 
 ### ubuntu_aarch64.sh
 
-- **显示器**：运行时检测内屏（`eDP`/`LVDS`/`DSI`）和所有已连接外接屏；内屏设置为 `2880x1800@120Hz` 主屏，外接屏读取各自首选物理模式后用 `1.5x1.5` XRandR scaling 按顺序放在笔记本屏幕左侧，并显式设置 framebuffer/position，避免缩放后与内屏重叠；`display-layout.sh` 会在热插拔后再次调用同一策略；全局 `Xft.dpi` 不在这里调整
+- **显示器**：运行时检测内屏（`eDP`/`LVDS`/`DSI`）和所有已连接外接屏；内屏设置为 `2880x1800@120Hz` 主屏，Ubuntu aarch64 默认把外接屏显式固定为 `1920x1080@60` 并按顺序放在笔记本屏幕右侧，避免误落到 `3840x2160@30` 或残留旧的缩放布局；`display-layout.sh` 会在热插拔后再次调用同一策略；全局 `Xft.dpi` 不在这里调整
 - **触摸板**：动态检测 Touchpad 设备 ID，配置自然滚动、轻触点击、clickfinger 模式、光标加速、打字时禁用
 - **壁纸**：`/usr/share/backgrounds/*`
 - **壁纸选择**：每次执行 autostart 时通过 `feh --no-fehbg --bg-fill --randomize` 从候选目录重新随机选择，不再优先恢复 `~/.fehbg`

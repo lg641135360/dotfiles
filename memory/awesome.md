@@ -79,7 +79,7 @@
 - lock 脚本：优先 `i3lock-color`/带 `--blur` 的 `i3lock`；普通 fallback 用 Python 生成 Catppuccin Mocha 静态 PNG；多屏按每个输出画居中卡片；生成失败时退纯色。自动锁屏由 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep` 启动，缺依赖时静默跳过。
 
 ## 多屏
-- Ubuntu aarch64 外接屏：内屏 `2880x1800@120Hz` 主屏，外接 Dell P2722H `1920x1080` 通过 `1.5x1.5` XRandR scaling 放笔记本左侧，显式设置 framebuffer/position。
+- Ubuntu aarch64 外接屏：内屏 `2880x1800@120Hz` 主屏，外接 Dell P2722H 默认显式固定为 `1920x1080@60` 放笔记本右侧，避免误选 `3840x2160@30`；若觉得内容过大，优先改单个应用/字体而不是重新长期启用 XRandR 放大。
 - `Xft.dpi: 192` 是内屏合适基线。
 - Ubuntu aarch64 autostart 运行时探测内屏名（`eDP`/`LVDS`/`DSI`）。
 - Snipaste 在候选路径里按版本号选择最新可执行 AppImage。

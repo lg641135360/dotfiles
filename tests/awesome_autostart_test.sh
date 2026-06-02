@@ -397,7 +397,7 @@ EOF
     rm -rf "$tmpdir"
 }
 
-test_laptop_display_layout_places_external_monitor_on_the_left() {
+test_laptop_display_layout_places_external_monitor_on_the_right() {
     tmpdir=$(mktemp -d)
     bin_dir=$tmpdir/bin
     query_file=$tmpdir/xrandr.query
@@ -430,16 +430,16 @@ EOF
         XRANDR_LOG=$log_file
         export XRANDR_QUERY XRANDR_LOG
         . "$COMMON_FILE"
-        configure_laptop_display_layout 2880x1800 120 left
+        configure_laptop_display_layout 2880x1800 120 right
     )
 
-    grep -Fx -- '--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --auto --left-of eDP-1' "$log_file" >/dev/null 2>&1 ||
-        fail "expected external monitor to use xrandr --auto on the left"
+    grep -Fx -- '--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --auto --right-of eDP-1' "$log_file" >/dev/null 2>&1 ||
+        fail "expected external monitor to use xrandr --auto on the right"
 
     rm -rf "$tmpdir"
 }
 
-test_laptop_display_layout_can_scale_external_monitor_on_the_left() {
+test_laptop_display_layout_can_scale_external_monitor_on_the_right() {
     tmpdir=$(mktemp -d)
     bin_dir=$tmpdir/bin
     query_file=$tmpdir/xrandr.query
@@ -454,6 +454,16 @@ eDP-1 connected primary 2880x1800+0+0 (normal left inverted right x axis y axis)
    2880x1800    120.00*+  60.00
 DP-2 connected (normal left inverted right x axis y axis)
    1920x1080     60.00 +  59.94
+EOF
+
+     cat >"$query_file" <<'EOF'
+Screen 0: minimum 320 x 200, current 2880 x 1800, maximum 32767 x 32767
+DP-1 disconnected (normal left inverted right x axis y axis)
+eDP-1 connected primary 2880x1800+0+0 (normal left inverted right x axis y axis) 300mm x 190mm
+    2880x1800    120.00*+  60.00
+DP-2 connected (normal left inverted right x axis y axis)
+    3840x2160     29.98*+
+    1920x1080     60.00 +  59.94
 EOF
 
     cat >"$bin_dir/xrandr" <<'EOF'
@@ -472,11 +482,54 @@ EOF
         XRANDR_LOG=$log_file
         export XRANDR_QUERY XRANDR_LOG
         . "$COMMON_FILE"
-        configure_laptop_display_layout 2880x1800 120 left 1.5x1.5
+        configure_laptop_display_layout 2880x1800 120 right 1.5x1.5
     )
 
-    grep -Fx -- '--fb 5760x1800 --output DP-2 --mode 1920x1080 --scale 1.5x1.5 --pos 0x0 --output eDP-1 --primary --mode 2880x1800 --rate 120 --scale 1x1 --pos 2880x0' "$log_file" >/dev/null 2>&1 ||
-        fail "expected external monitor to use detected 1920x1080 mode with 1.5x1.5 scaling on the left"
+    grep -Fx -- '--fb 5760x1800 --output DP-2 --mode 1920x1080 --scale 1.5x1.5 --pos 2880x0 --output eDP-1 --primary --mode 2880x1800 --rate 120 --scale 1x1 --pos 0x0' "$log_file" >/dev/null 2>&1 ||
+        fail "expected external monitor to use detected 1920x1080 mode with 1.5x1.5 scaling on the right"
+
+    rm -rf "$tmpdir"
+}
+
+test_display_mode_detection_prefers_progressive_mode_for_scaled_external_monitor() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    query_file=$tmpdir/xrandr.query
+
+    mkdir -p "$bin_dir"
+
+    cat >"$query_file" <<'EOF'
+Screen 0: minimum 320 x 200, current 2880 x 1800, maximum 32767 x 32767
+DP-1 disconnected (normal left inverted right x axis y axis)
+eDP-1 connected primary 2880x1800+0+0 (normal left inverted right x axis y axis) 300mm x 190mm
+   2880x1800    120.00*+  60.00
+DP-2 connected (normal left inverted right x axis y axis)
+   3840x2160     29.98*+
+   1920x2160     59.99
+   2560x1440     59.95
+   1920x1080     60.00 +  59.94
+EOF
+
+    cat >"$bin_dir/xrandr" <<'EOF'
+#!/bin/sh
+if [ "$1" = "--query" ]; then
+    cat "$XRANDR_QUERY"
+    exit 0
+fi
+exit 1
+EOF
+    chmod +x "$bin_dir/xrandr"
+
+    detected_mode=$(
+        PATH="$bin_dir:/usr/bin:/bin"
+        XRANDR_QUERY=$query_file
+        export XRANDR_QUERY
+        . "$COMMON_FILE"
+        detect_display_preferred_mode DP-2
+    )
+
+    [ "$detected_mode" = "1920x1080" ] ||
+        fail "expected scaled external display mode detection to prefer 1920x1080 over 3840x2160, got '$detected_mode'"
 
     rm -rf "$tmpdir"
 }
@@ -515,11 +568,11 @@ EOF
         XRANDR_LOG=$log_file
         export XRANDR_QUERY XRANDR_LOG
         . "$COMMON_FILE"
-        configure_laptop_display_layout 2880x1800 120 left
+        configure_laptop_display_layout 2880x1800 120 right
     )
 
-    grep -Fx -- '--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --auto --left-of eDP-1 --output HDMI-1 --auto --left-of DP-2' "$log_file" >/dev/null 2>&1 ||
-        fail "expected multiple external monitors to chain left-of from the laptop panel"
+    grep -Fx -- '--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --auto --right-of eDP-1 --output HDMI-1 --auto --right-of DP-2' "$log_file" >/dev/null 2>&1 ||
+        fail "expected multiple external monitors to chain right-of from the laptop panel"
 
     rm -rf "$tmpdir"
 }
@@ -558,11 +611,11 @@ EOF
         XRANDR_LOG=$log_file
         export XRANDR_QUERY XRANDR_LOG
         . "$COMMON_FILE"
-        configure_laptop_display_layout 2880x1800 120 left 1.5x1.5
+        configure_laptop_display_layout 2880x1800 120 right 1.5x1.5
     )
 
-    grep -Fx -- '--fb 8640x1800 --output DP-2 --mode 1920x1080 --scale 1.5x1.5 --pos 0x0 --output HDMI-1 --mode 1920x1080 --scale 1.5x1.5 --pos 2880x0 --output eDP-1 --primary --mode 2880x1800 --rate 120 --scale 1x1 --pos 5760x0' "$log_file" >/dev/null 2>&1 ||
-        fail "expected scaled layout to include every connected external monitor before the laptop panel"
+    grep -Fx -- '--fb 8640x1800 --output DP-2 --mode 1920x1080 --scale 1.5x1.5 --pos 2880x0 --output HDMI-1 --mode 1920x1080 --scale 1.5x1.5 --pos 5760x0 --output eDP-1 --primary --mode 2880x1800 --rate 120 --scale 1x1 --pos 0x0' "$log_file" >/dev/null 2>&1 ||
+        fail "expected scaled layout to include every connected external monitor after the laptop panel"
 
     rm -rf "$tmpdir"
 }
@@ -608,14 +661,58 @@ EOF
     rm -rf "$tmpdir"
 }
 
+test_fixed_external_display_layout_uses_explicit_1080p60_on_the_right() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    query_file=$tmpdir/xrandr.query
+    log_file=$tmpdir/xrandr.log
+
+    mkdir -p "$bin_dir"
+
+    cat >"$query_file" <<'EOF'
+Screen 0: minimum 320 x 200, current 2880 x 1800, maximum 32767 x 32767
+DP-1 disconnected (normal left inverted right x axis y axis)
+eDP-1 connected primary 2880x1800+0+0 (normal left inverted right x axis y axis) 300mm x 190mm
+   2880x1800    120.00*+  60.00
+DP-2 connected (normal left inverted right x axis y axis)
+   3840x2160     29.98*+
+   1920x1080     60.00 +  59.94
+EOF
+
+    cat >"$bin_dir/xrandr" <<'EOF'
+#!/bin/sh
+if [ "$1" = "--query" ]; then
+    cat "$XRANDR_QUERY"
+    exit 0
+fi
+printf '%s\n' "$*" >>"$XRANDR_LOG"
+EOF
+    chmod +x "$bin_dir/xrandr"
+
+    (
+        PATH="$bin_dir:/usr/bin:/bin"
+        XRANDR_QUERY=$query_file
+        XRANDR_LOG=$log_file
+        export XRANDR_QUERY XRANDR_LOG
+        . "$COMMON_FILE"
+        configure_fixed_external_display_layout 2880x1800 120 right 1920x1080 60
+    )
+
+    grep -Fx -- '--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --mode 1920x1080 --rate 60 --right-of eDP-1' "$log_file" >/dev/null 2>&1 ||
+        fail "expected fixed external layout to force DP-2 to 1920x1080@60 on the right"
+
+    rm -rf "$tmpdir"
+}
+
 test_platform_specific_behaviors_remain_declared() {
     assert_contains 'randomize_wallpaper "$HOME/Pictures"' "$ARCH_FILE"
     assert_contains 'run Snipaste' "$ARCH_FILE"
     assert_contains 'run greenclip daemon' "$ARCH_FILE"
     assert_contains 'apply_display_layout() {' "$UBUNTU_ARM_FILE"
-    assert_contains 'configure_laptop_display_layout 2880x1800 120 left 1.5x1.5' "$UBUNTU_ARM_FILE"
+    assert_contains 'configure_fixed_external_display_layout 2880x1800 120 right 1920x1080 60' "$UBUNTU_ARM_FILE"
     assert_contains 'if [ "${1:-}" = "--display-layout" ]; then' "$UBUNTU_ARM_FILE"
-    assert_not_contains 'configure_laptop_display_layout 2880x1800 120 left 2x2' "$UBUNTU_ARM_FILE"
+    assert_not_contains 'configure_laptop_display_layout 2880x1800 120 right 1.5x1.5' "$UBUNTU_ARM_FILE"
+    assert_not_contains 'configure_laptop_display_layout 2880x1800 120 right 2x2' "$UBUNTU_ARM_FILE"
     assert_contains 'touchpad_id=$(xinput list 2>/dev/null | grep -i '\''Touchpad'\'' | sed '\''s/.*id=\([0-9]*\).*/\1/'\'')' "$UBUNTU_ARM_FILE"
     assert_contains 'append_path_if_exists "/home/linuxbrew/.linuxbrew/bin"' "$UBUNTU_ARM_FILE"
     assert_not_contains 'PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"' "$UBUNTU_ARM_FILE"
@@ -688,11 +785,13 @@ test_xresources_and_wallpaper_helpers_skip_missing_optional_tools
 test_xresources_helper_only_merges_existing_file
 test_wallpaper_helper_uses_feh_when_available
 test_common_desktop_services_starts_idle_locker_when_available
-test_laptop_display_layout_places_external_monitor_on_the_left
-test_laptop_display_layout_can_scale_external_monitor_on_the_left
+test_laptop_display_layout_places_external_monitor_on_the_right
+test_laptop_display_layout_can_scale_external_monitor_on_the_right
+test_display_mode_detection_prefers_progressive_mode_for_scaled_external_monitor
 test_laptop_display_layout_chains_multiple_external_monitors
 test_laptop_display_layout_can_scale_multiple_external_monitors
 test_laptop_display_layout_handles_no_external_monitor
+test_fixed_external_display_layout_uses_explicit_1080p60_on_the_right
 test_platform_specific_behaviors_remain_declared
 test_readme_documents_random_wallpaper_behavior
 test_readme_documents_runtime_wrapper_chain

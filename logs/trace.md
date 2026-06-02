@@ -1608,3 +1608,17 @@
 - 已做：将 `AGENTS.md` 中 trace 读取规则从“才全量读取”调整为“才扩大读取范围”；将 `memory/organizing_preferences.md` 定位为通用偏好与环境经验，弱化其中不应作为强制协议的表述，并保留通用强制规则以 `AGENTS.md` 为准；在 `logs/trace.md` 文件头增加 trace 只记录实际修改、验证证据与后续线索的说明。本轮只修改仓库文件，没有同步 live `~/.config`，没有重载桌面运行态。
 - 验证：发布前复核当前工作区只包含 `AGENTS.md`、`memory/organizing_preferences.md` 与 `logs/trace.md` 三个文件；确认本地 `HEAD` 与 `origin/main` 起点同步；后续提交前执行 `command git diff --check` 与远端快进检查。
 - 后续：提交并推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`；如果后续继续收紧提示词，可优先补齐测试可执行位、helper 脚本和 `.omx/` 等规则承接。
+
+## 2026-06-02
+
+- 目的：按用户要求修正当前 Awesome autostart 工作区改动中的测试 runner 漏改，确保右侧外接屏与固定 `1920x1080@60` 断言真正执行。
+- 已做：将 `tests/awesome_autostart_test.sh` 底部调用列表中的旧 `*_on_the_left` 测试名改为新的 `*_on_the_right`，并接入新增的 progressive mode 选择测试与 Ubuntu aarch64 固定外接屏布局测试。本轮只修改仓库测试与 trace，没有同步 live `~/.config/awesome`，没有重载 Awesome。
+- 验证：`sh ./tests/awesome_autostart_test.sh` 通过并输出 `PASS: awesome autostart tests`；编辑器对 `tests/awesome_autostart_test.sh` 无诊断错误。
+- 后续：当前未提交工作区仍包含 Ubuntu aarch64 外接屏策略、共享 helper、README、memory 与本条 trace 改动；若要发布，建议先整体复跑相关 Awesome 测试并确认无需同步 live。
+
+## 2026-06-02
+
+- 目的：按用户要求将当前 Ubuntu aarch64 Awesome autostart 外接屏策略与测试修正发布到远程 GitHub。
+- 已做：发布前确认本地 `HEAD` 与 `origin/main` 无分叉，当前改动范围为 Awesome autostart README、共享 helper、Ubuntu aarch64 平台脚本、相关 memory、autostart 测试与 trace；repo/live Awesome 只读比较仅发现 live 额外存在 `collision` 目录，未发现本轮 autostart 目标文件的阻塞性差异。本轮没有同步 live `~/.config/awesome`，没有重载 Awesome。
+- 验证：`sh -n .config/linux/awesome/autostart/common.sh .config/linux/awesome/autostart/ubuntu_aarch64.sh tests/awesome_autostart_test.sh` 通过；`sh ./tests/awesome_autostart_test.sh` 通过；完整 `for t in tests/awesome_*_test.sh; do "$t"; done` 通过；`git diff --check` 通过；`git fetch origin && git rev-list --left-right --count HEAD...origin/main` 返回 `0 0`。
+- 后续：提交并推送当前仓库改动到 `origin/main`；追加 trace 本身不递归追加第二条发布记录。
