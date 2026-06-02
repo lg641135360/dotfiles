@@ -1,142 +1,33 @@
 # Organizing Preferences
 
-- On Ubuntu aarch64, X11-sensitive desktop tools should prefer system binaries over Linuxbrew when both exist, especially `redshift`.
-- When a Linuxbrew package shadows a working system binary and is not needed elsewhere, prefer removing the package over adding defensive logic to the autostart script.
-- For window-manager helper scripts invoked via `~/.config/scripts/*`, prefer always installing the script and preserving its executable bit even when the runtime backend is not yet installed.
-- For AwesomeWM network widgets on Ubuntu aarch64, prefer matching predictable interface names for both wired `enp*` and wireless `wlp*` devices.
-- For hardware-specific AwesomeWM widgets, prefer runtime detection and complete hiding when the underlying device is absent, rather than showing placeholder values.
-- When debugging AwesomeWM behavior, verify both the repo copy and the live `~/.config/awesome` copy, because repo fixes do not affect the running session until they are synced and Awesome is reloaded.
-- `memory/` 和 `logs/trace.md` 中的新增记录统一使用中文，除非我明确被要求保留英文。
-- 当用户要求统一记录语言时，优先把现有 `logs/trace.md` 历史记录一并回写成中文，而不是只约束后续新增内容。
-- 读取 `logs/trace.md` 或其它持久化文件时，默认根据当前问题用关键词/相近主题匹配最相关的约 10 条记录即可，不要每次全量加载；只有用户明确要求完整历史、任务确实依赖全局时间线，或局部检索证据不足时才扩大读取范围。
-- 每次调整会影响用户实际使用体验的地方（例如新增/修改快捷键、启动入口、UI 行为、终端按键传递等），都必须同步更新对应模块的 README 文档；例如 Neovim 新增 `Alt+上下` / `Shift+Alt+上下` 行移动复制时，应同步更新 `.config/shared/nvim/README.md`。
-- 对于这个 dotfiles 仓库中的 AwesomeWM 行为回归，保留 `tests/` 目录下的轻量 shell 测试比删除更合适。
-- 对 `install.sh` 里的 `redshift` 处理，保留缺失检查即可；缺失时只提示用户手动安装，不要在安装脚本里自动执行提权安装。
-- 对 rofi 配置，优先让 `config.rasi` 只保留行为配置并显式引用 `theme.rasi`；输入框相关布局保持显式 `children`，中文环境下为 `entry`/`element-text`/`textbox` 指定可显示 CJK 的字体，并在 Awesome 拉起 rofi 时显式传递 `LC_CTYPE` 与 fcitx 环境变量。
-- 对 rofi 的缩放，优先通过 `em` 这类相对单位让窗口宽度、间距、圆角、图标尺寸跟随字体度量；当前会话若已通过 `Xft.dpi` 控制字体缩放，就不要再额外为 rofi 单独硬编码一套 DPI 倍率。
-- 对 `tests/` 目录里预期直接以 `tests/foo.sh` 方式运行的 shell 回归脚本，保持可执行位，避免验证阶段再被权限问题打断。
-- 在当前 Ubuntu aarch64 + rofi 1.7.1 环境里，rofi theme 的实数 `em` 距离值不可靠；缩放优先回退到 `px` 距离，并在 `config.rasi` 中固定 `dpi: 1`。
-- 当 rofi 在 `LANG/LC_ALL/LC_CTYPE=zh_CN.UTF-8` 与 fcitx 环境下仍无法输入中文时，先视为当前 rofi 版本能力边界，不要继续只靠主题或 Awesome 启动参数盲改。
-- 在当前这套 rofi `px + dpi: 1` 配置上，字体默认应比 `12.5` 再小一档；优先使用基础/中文字体 `11.5`、提示粗体 `12`。
-- 对当前这套 rofi 1.7.1 配置继续做紧凑化时，优先先压列表图标和局部 spacing/padding，并顺手降低 window 模式文案噪音；不要先动窗口宽度。
-- 对 rofi 的 launcher 文案，当前偏好统一成中文短标签（如“应用 / 窗口 / 命令”）；对 window 模式，优先保留 `窗口名 + class` 的简版信息，先不要把 title 一起塞回去。
-- 对 rofi 紧凑化的下一层细调，当前优先继续从 `message` / `textbox` 这类辅助区域的 padding 下手，而不是减少可见行数或继续压窗口外框。
-- 在当前 rofi 1.7.1 + `Xft.dpi` 环境里，如果用户明确要求“跟随系统缩放”，优先改成“launch script 运行时按 `Xft.dpi / 96` 生成缩放后的 px 主题”这条路线；不要再直接把仓库主题切回 `em/ch`。
-- 对 rofi 的系统缩放实现，当前偏好是：`config.rasi` 不再固定 `dpi: 1`，Awesome 通过 `~/.config/scripts/rofi-launch` 启动 rofi，并在脚本里注入 locale/fcitx 环境、生成 `~/.cache/rofi/theme.scaled.rasi` 后再 `-theme` 拉起。
-- 对 rofi 的运行时缩放，当前偏好是字体也必须和 px 距离一起按同一倍率缩放；只放大 `width/padding/spacing/icon size` 而不放大字体，会让界面观感失衡。
-- 对 Rofi 配色，优先使用 Catppuccin Mocha palette 与 Awesome/Tmux/Alacritty 主线保持一致；不要再混用 OneDark 风格的 `#61afef`、`#21252b`、`#282c34` 等旧色板。
+> 通用/跨模块偏好。模块特定偏好请参见对应分类文件：
+> `awesome.md` / `nvim.md` / `tmux.md` / `rofi.md` / `alacritty.md` / `desktop.md` / `git.md`
+
+## 通用工作流
+- 每次调整会影响用户实际使用体验的地方（快捷键、启动入口、UI 行为、终端按键传递等），必须同步更新对应模块的 README 文档。
+- 修改子模块内容时，提交前都要考虑是否需要同步该子模块自己的 README/使用文档；即使无需修改，也应在验证或总结中说明原因。
+- 对于这个 dotfiles 仓库中的行为回归，保留 `tests/` 目录下的轻量 shell 测试比删除更合适。
+- `tests/` 目录里预期直接以 `tests/foo.sh` 方式运行的 shell 回归脚本，保持可执行位。
+- 优先补充或更新现有轻量回归测试，再改实现；不要为了小改动引入不必要的新依赖或大范围重构。
 - 当用户要求把当前桌面配置改动提交到 GitHub 时，优先先复跑轻量回归测试，并确认仓库文件与 live `~/.config` 已同步，再执行提交和推送。
-- 对通过 `npm install -g` 安装到 `/usr/local/nodejs` 前缀的 CLI，优先在共享 zsh PATH 中追加 `/usr/local/nodejs/bin`，避免只暴露到部分命令（如 `codex` 来自 Homebrew、`omx` 却缺失）。
-- 对通过 `npm install -g` 安装到用户级 `/home/rikoo/.npm-global` 前缀的 CLI，优先在共享 zsh PATH 中追加 `$HOME/.npm-global/bin`，避免包已安装但 `omx`、`claude`、`opencode` 等命令不可解析。
-- 对 Awesome 首轮结构重构，优先把可复用桌面动作收口到独立 `actions.lua`，并让 `bindings.lua` 通过显式注入消费 prompt runner，而不是直接读取 `screen.mypromptbox` 这类隐式字段。
-- 对 Awesome 顶栏结构，优先让 `ui/wibar.lua` 自己创建每屏 widget（如 lock button、clock、sysinfo）并只把 `actions`、`config`、能力标志从 `rc.lua` 注入进去，避免在 `rc.lua` 里长期保留共享实例。
-- 对 Awesome 的 NET 组件，优先直接用 Lua 解析 `/proc/net/dev` 并先初始化上一轮计数，再显示速率；不要继续在 2 秒轮询里依赖 `cat|grep|awk` 这类 shell pipeline。
-- 对 Awesome 的 volume widget，优先至少提供 2 秒级周期刷新与显式静音态展示，避免只有点击 widget 自己时才更新。
-- 对 Awesome 的 autostart 脚本，优先抽出共享 `common.sh` 收口 `run()`、Xresources 初始化和公共后台服务启动；平台脚本只保留壁纸、显示器/触摸板、Snipaste/greenclip/flameshot 等差异逻辑。
-- 对 Ubuntu aarch64 的 Awesome autostart，显示输出名优先运行时探测内部屏（如 `eDP`/`LVDS`/`DSI`），Linuxbrew 路径若必须保留也应追加到 PATH 末尾，避免再次把系统二进制遮蔽掉。
-- 对 Awesome 的 `config.lua`，优先把 `has_volume` 这类能力开关改成命令/能力探测（如 `pactl` 是否存在），而不是继续只按 Ubuntu/Arch 这类发行版标签判断。
-- 对 Awesome 的主菜单，优先在 `menu.lua` 里按运行时能力自动选择 `freedesktop -> debian.menu -> basic` fallback，不再按 Ubuntu 等发行版标签硬编码菜单样式。
-- 对 Awesome 的 volume widget，若 `pactl` 命令失败、默认 sink 缺失或输出异常，优先显式降级为 `N/A`，不要继续保留可能误导的旧音量百分比。
-- 对 Awesome 的 volume widget，点击滚轮或左键后的 `pactl set-sink-*` 写操作若失败，优先立即回退到 `N/A` 并再触发一次读刷新，而不是静默保留旧状态。
-- 对 Awesome 的壁纸，优先由 `autostart/*.sh` 里的 `feh` 管理；`theme/*.lua` 和 `ui/wibar.lua` 不要再回写 `theme.wallpaper` 或 `gears.wallpaper.maximized()` 覆盖外部壁纸。
-- 对 Awesome 的壁纸策略，优先让 autostart 每次执行 `feh --no-fehbg --bg-fill --randomize` 从候选目录重新随机选择；不要再优先恢复 `~/.fehbg` 中的旧选择。
-- 对 Awesome 的平铺布局，默认 client 规则优先设置 `size_hints_honor = false`，避免某些应用的最小宽度/尺寸提示把 `mod+h`、`mod+l` 的主区域宽度调整卡死。
-- 对 Awesome 的 NET widget，在空间紧张时优先去掉固定 `NET` 文本标签，保留彩色上下行箭头和速率值，减少横向占用而不引入屏幕/应用特判。
-- 对 Awesome 的 sysinfo 区块，压缩优先级先从内部 spacing 和左右 padding 下手；当前小屏优化基线为 `system_row.spacing = 4`、容器 `left/right = 6`。
-- 对 Awesome 的小屏 sysinfo，当前紧凑基线升级为：CPU/MEM/BAT 使用短标签 `C/M/B`，NET 用箭头速率，`system_row.spacing = 2`，sysinfo 容器 `left/right = 4`，右侧 wibar spacing = 6。
-- 对 Awesome 的紧凑 sysinfo，当前顺序优先为 `NET -> CPU -> MEM -> BAT`；同时 CPU/BAT/VOL 的标签和值之间默认不再插入前导空格。
-- 对 Awesome 的紧凑 sysinfo，标签和值之间优先使用冒号分隔（如 `C:12%`、`B:87%`、`V:35%`），不要纯粘连也不要退回空格。
-- 对 Awesome 的主屏小屏右侧状态栏，compact/full 判定优先读取 `screen.outputs` 的物理尺寸；当屏幕物理对角线超过 15 英寸时必须切到 full 模式，保留完整日期与 MEM 等状态项；15 英寸及以下 compact 模式默认使用短时钟 ` %m/%d %H:%M `，并优先保留 `NET / CPU / BAT / VOL / clock`，其中 MEM 可先隐藏；只有检测不到物理尺寸时才回退到 `screen.geometry.width <= compact_wibar_max_width`；非主屏右侧不显示这些状态项，只保留时钟。
-- 对 Awesome 顶栏观感，当前优先增强聚焦窗口的可扫读性（圆角背景、蓝色文字、左侧细条），并让主屏 systray 使用更小图标且跟随顶栏表面，不再绘制独立胶囊背景或边框来降低彩色托盘图标噪音。
-- 对 Awesome 右侧状态区观感，优先弱化竖线分隔符；时钟与托盘保持扁平透明，不单独绘制背景、边框或夹在两侧的竖线分隔，并让时钟文字作为右端视觉终点；full 模式使用 `CPU/MEM/BAT/VOL` 完整标签，compact 模式继续使用 `C/M/B/V` 短标签。
-- 对 Awesome 多屏顶栏，只有主屏右侧显示 `NET/CPU/MEM/BAT/VOL` 与 systray；非主屏右侧只保留时钟，避免多屏重复状态信息。
-- 对 Awesome 顶栏实用细调，优先限制单个 tasklist 长标题最大宽度并用尾部省略保护状态区；NET 主栏保持短速率显示，详细接口名和 `/s` 单位优先放到 hover tooltip。
-- 对 Awesome 顶栏状态项交互，NET/CPU/MEM 优先保持不可点击，只在鼠标悬浮时显示内置 detail；VOL 保留左键静音和滚轮调音量，右键才打开 `pavucontrol`，并在 hover tooltip 里提示左键/右键/滚轮作用。
-- 对 Awesome 顶栏 CPU/MEM 详情，优先使用 hover detail 展示使用率、load average 和 top 进程；不要通过左键或右键打开 `htop`/`btop`/`top` 终端监控入口。
-- 对 Awesome 顶栏 CPU/MEM hover detail，top 进程列表优先由 5 秒后台异步缓存刷新；hover 时只读缓存，不临时执行 `ps`；CPU 和 MEM tooltip 应各自只展示自己的精简摘要，避免重复显示 CPU/MEM 双指标和重复进程列。
-- 对 Awesome 顶栏 VOL 状态，左键静音后只显示 `MUTE`，不要继续显示音量百分比；取消静音后再恢复显示当前音量值。
-- 对 Awesome 顶栏 tooltip 文案，NET/CPU/MEM/VOL/BAT 优先使用统一中文格式；BAT 主栏保持短显示，hover detail 再展示充放电状态、电量、功率和可估算的剩余/充满时间。
-- 对 Awesome 顶栏 NET 状态，找不到匹配接口时应显示 `NET:N/A` / offline，并清掉旧速率计数，避免误读 stale 网络速度。
-- 对 Awesome 的时钟交互，优先不要绑定点击或滚轮动作；时钟只在 hover tooltip 中显示完整日期、星期和时间，避免误点或滚轮经过时弹出月历造成打扰。
-- 对 Awesome 的自启动入口，根目录 `autostart.sh` 应保持为平台分发 wrapper，再转发到 `autostart/*.sh`；不要再让安装脚本用平台脚本直接覆盖它，否则 `common.sh` 相对路径会失效。
-- 对 tmux 状态栏，左侧优先隐藏 session 名，避免 OMX / 自动生成的长 session 名挤占 tab 区域；右侧只保留 Prefix/Copy 状态和日期时间，不显示当前 shell/application 这类噪音；窗口列表标题以易用和扫读辨识度优先，本地只显示项目名或最短必要路径，不加 `L:` 前缀；远程 SSH 场景前面保留 `~/.ssh/config` 中的远程别名，若没有别名且是 IPv4，则显示最后两段（如 `192.168.1.1` 显示 `1.1`），并牺牲路径细节来避免 tab 过长；不要为了状态栏额外引入 CPU/RAM/Battery 插件依赖。
-- 对 tmux 日常交互增强，优先不增加插件：分屏/新窗口继承当前 pane 目录、保留 `C-a C-a` 发送 prefix、用 `H/J/K/L` 调整 pane 大小，并让复制模式尽量走终端剪贴板。
-- 对 tmux 窗口/会话导航增强，优先使用内置能力而不是插件：`C-a w` 打开 `choose-tree -Zw` 树状选择器，`C-a Tab` 快速回到上一个窗口。
-- 对 tmux session 持久化，优先只保留 `tmux-resurrect` 的手动保存/恢复；不要启用 `tmux-continuum` 这类自动保存 session 插件。
-- 对 tmux session 销毁行为，优先让当前客户端 detach，不要在退出当前 session 后自动切回最近使用的其它 session；对应 `detach-on-destroy` 保持 `on`。
-- 对 Awesome 的 autostart 可选服务，优先在共享 `run()` / `run_custom()` 层做命令可用性检查；缺失时静默跳过，避免在启动阶段输出 `not found` 噪音，平台脚本继续只声明各自想启动的服务。
-- 对 Awesome 的 titlebar，当前偏好是把它收口成显式 class 白名单中的少数配置类工具窗 fallback，而不是给所有 `utility` 泛开，也不要再靠通用 role 白名单兜底；普通窗口继续无 titlebar，普通 `utility` 也不因类型自动出现 titlebar，fallback titlebar 优先保持紧凑 Catppuccin 风格，并只保留 `floating / maximized / close` 三个按钮。
-- 对当前桌面的 picom 工具窗层次感，优先给 `utility/dialog` 恢复轻阴影，但继续在 `shadow-exclude` 里排除 `tblive` 这类辅助条窗口，避免会控条/状态条重新带回阴影噪音。
-- 对当前 Ubuntu x64 + picom v10 环境，`shadow-exclude` 里的 `_GTK_FRAME_EXTENTS@` 会触发 `c2_parse_target` 解析错误；不要在 Ubuntu x64 的 picom 配置里继续保留它，除非后面先实机验证 parser 已恢复兼容。
-- 对当前桌面的 picom 透明策略，优先不要再用 `opacity-rule` 把 Alacritty/kitty 强制拉回 100% opacity；终端应使用自身配置里的透明度，这样 blur 才能真正可见，浏览器/Thunderbird 这类窗口再按需保持 100%。
-- 对这个 dotfiles 仓库中的 picom，美观调优优先只改当前平台，不强求 `ubuntu_x64`、`arch_x64`、`arch_aarch64` 三份配置同步收口；除非用户明确要求跨平台统一，否则其它平台先保持原始策略。
-- 对 Ubuntu x86_64 Awesome autostart 的 Snipaste，优先在 `~/Applications/Snipaste-*.AppImage`、`~/Downloads/Snipaste-*.AppImage` 和旧 `~/Documents/Snipaste-*.AppImage` 这些候选里按版本号选择最新的可执行 AppImage；不要再把候选固定死在某个历史版本号或只取第一个匹配项。
-- 对 Awesome autostart 后台服务，优先通过共享 `start_background()` 用 `setsid -f` 分离进程；这对 Snipaste/AppImage 这类父 shell 结束后可能被回收的 GUI 服务尤其重要，缺少 `setsid` 时再回退到 `nohup` 或普通后台启动。
-- 对 Snipaste 裸 `F1` 截图，优先让 Snipaste 自己注册全局热键，Awesome 不绑定裸 `F1`；若 `F1` 无效，优先检查 KDE `kglobalaccel5` / `~/.config/kglobalshortcutsrc` 是否把 `[org.flameshot.Flameshot.desktop] Capture` 设成了 `F1`，应改为 `none,none,进行截图` 并重启 Snipaste 观察日志是否不再出现 `Unable to register global hotkey`。
-- 对 Ubuntu aarch64 的 Awesome autostart，当前外接屏持久方案是：先运行时检测内屏、首个外接屏和外接屏首选物理模式；内屏保持 `2880x1800@120Hz` 主屏；外接屏使用首选物理模式（当前 Dell P2722H 为 `1920x1080`）并通过 `1.5x1.5` XRandR scaling 放在笔记本左侧，同时显式设置 framebuffer/position 避免重叠；不要在这里改全局 `Xft.dpi`、Awesome per-screen DPI 或 rofi focused-screen `ROFI_SCALE`。
-- 对当前笔记本内屏，`Xft.dpi: 192` 是合适基线；不要为了外接 1080p 屏幕把全局 Xresources DPI 降到折中值，但当前显示策略下也不要在 Awesome/rofi 强行做 per-screen DPI 或 focused-screen 缩放覆盖，后续若重试需单独确认。
-- 对当前 dotfiles 仓库，`.omx/` 属于本地 OMX 运行状态目录，应放入 `.gitignore`，不要提交到远端仓库。
-- 对当前 Neovim 0.12 配置，注释快捷键优先使用内置 `gc/gcc` 能力；不要让 `Comment.nvim` 覆盖这组快捷键。TOML/YAML/JSONC 等本身可注释配置文件应支持 `gcc`，但不要为标准 `.json` 强制启用注释。
-- 对当前 Neovim 0.12 原生化迁移，第一阶段优先最大限度保留现有体验，只清重复/过时配置；即使核心插件数量减少很少，只要启动、补全、搜索、文件树、诊断和 LSP 快捷键体验不回退，也算成功。替换 `blink.cmp`、`snacks.nvim`、`neo-tree`、`bufferline`、`lualine`、`tiny-inline-diagnostic`、`inc-rename` 或从 `lazy.nvim` 迁移到 `vim.pack` 前必须单独确认。
-- 对当前 Neovim 的 Mason 工具安装，优先保持交互式 Neovim 启动后自动补齐 `mason-tool-installer` 工具；但 headless 测试、脚本和 smoke 验证中必须跳过自动安装，避免网络/写入副作用和隐藏 traceback。
-- 对当前 Neovim 0.12 LSP 键位迁移，用户没有裸 `gr` 肌肉记忆；优先移除裸 `gr` + `nowait` 风险，把 references 入口迁到默认语义的 `grr`，同时继续保留 `<leader>rn`、`<leader>ca`、`K` 等已有入口。
-- 对当前 Neovim rename 体验，优先使用 Neovim 原生 LSP rename（`grn` 与 LSP buffer-local `<leader>rn`），不再保留 `inc-rename.nvim` 插件；非 LSP buffer 不需要全局 `<leader>rn` rename 兜底。
-- 对当前 Neovim 诊断行内展示，优先使用 0.12 原生 `vim.diagnostic.config()` 的 inline `virtual_text`（`virt_text_pos = "inline"`），保持 signs 关闭、float rounded、source `if_many`；不再保留额外诊断显示插件，除非明确需要插件的 overlay/多行高级样式。
-- 对当前 Neovim 行移动/复制快捷键，普通模式优先只处理当前行，visual 选区优先处理整块多行；第一版不新增插件、不改无关快捷键、尽量不污染寄存器，也不额外处理终端模拟器不发送 `<S-A-Up>` 等组合键的兼容问题。
-- 当前仓库维护 Linux 与 macOS 的 Alacritty 配置；Neovim 的 `Alt+上下` 与 `Shift+Alt+上下` 行移动/复制快捷键应分别在 `.config/shared/alacritty/keys.linux.toml` 与 `.config/shared/alacritty/keys.macos.toml` 中显式发送 xterm modifier 方向键序列，macOS 物理按键按 `option_as_alt = "Both"` 使用 Option。
-- 对当前 Neovim 位置历史导航，优先提供 VSCode 风格 `Alt+Left` / `Alt+Right`，映射到 Vim jumplist 的后退 / 前进；对应 Alacritty Linux/macOS 配置也要显式发送 xterm Alt 左右方向键序列。
-- 对当前 Neovim 0.12 后续迁移规划，允许把核心体验插件或插件管理器替换纳入候选并在证据充分时执行；强边界是不能破坏现有肌肉记忆键位和主要体验。当前 `vim.pack` / 插件管理器迁移切片优先只产出 PRD 与测试规格，不直接把 `lazy.nvim` 替换掉。
-- 对当前 Neovim 配置清理重构计划，优先拆成“安全清理计划”和“战略候选 backlog”两部分；第一版安全清理不能改变现有快捷键体验，验收时必须包含测试/文档清单和优先级排序。
-- 对当前 Neovim 主题，优先使用 Catppuccin Mocha（`catppuccin/nvim`，`flavour = "mocha"`，非透明背景），不再保留 onedark 作为 active theme 或 lockfile 条目。
-- 对 macOS AeroSpace 与 Linux AwesomeWM 的桌面体验对齐，当前偏好是把 `Mod+q` 统一为“关闭当前聚焦窗口”；AeroSpace 中 `Mod` 使用 `alt`/Option，默认使用 `close` 而不是退出整个应用，若要最后一个窗口时退出应用再单独切到 `close --quit-if-last-window`。
-- 对当前 Neovim 命令行体验，`:` / `/` / `?` 的浮动命令行窗口属于保留肌肉记忆；优先用 `noice.nvim` 窄配置只提供 `cmdline_popup`，不要再把它当作可完全由原生 cmdline/messages 覆盖的冗余插件。Noice 不应接管 notify、普通 messages、LSP hover 或 signature；这些继续走 snacks/原生路径。
-- 对当前 Git 配置，默认编辑器优先固定为 `nvim`（`core.editor = nvim`），让 `git commit`、`git rebase -i` 等交互式 Git 命令与日常 Neovim 体验保持一致。
-- 对当前 Neovim Neo-tree 左侧 sidebar，宽度必须使用整数列数（当前 `width = 40`），不要用 `0.x` 小数比例；Neo-tree 的关闭/恢复窗口回调会把该值传给 `nvim_win_set_width()`，小数会触发 `Invalid 'width': Number is not integral`。
-- 对当前 Neovim 通知体验，Snacks notifier 警告弹窗应优先保持可读：默认保留 8 秒、使用更宽/可换行弹窗，并保留 `<leader>nh` 查看完整 notification history。
-- 对当前 Neovim 保存体验，保留 Vim 风格 `<leader>w`，同时增加现代编辑器常见的 `<C-s>` 在普通/插入/可视模式快速保存；终端若拦截 Ctrl-S 时再单独处理终端 flow control。
-- 对当前 Neovim 关闭文件体验，`<leader>q` 应表示“关闭当前文件 buffer”而不是 `:q` 关闭窗口；避免从 `nvim .` / Neo-tree 打开文件后误退出整个 Neovim。真正退出进程应使用显式退出命令。
-- 对当前 Neovim `<leader>q` 关闭文件体验，未保存修改时应主动用 Snacks/vim.notify 浮动警告提示保存与强制关闭方式，不要直接让 `:bdelete` 抛左下角 `No write since last change`。
-- 对当前 Neovim `<leader>q` 未保存提示，优先保留 Neovim/`:bdelete` 原生命令错误文本，只把该文本转给 Snacks 浮动通知；不要自定义解释性提示文案。
-- 对当前 Neovim 空目录/空 buffer 场景，若当前 buffer 是未命名、未修改的空 buffer，`<leader>q` 可以直接退出 Neovim，符合“没有文件需要关闭”的语义。
-- 对当前 Neovim 项目搜索体验，保留 Snacks picker/ripgrep 主线，并启用 `<leader>fg` 全项目 grep、`<leader>fD` 当前文件目录 grep、`<leader>fd` 指定目录 grep 这三层范围入口。
-- 对当前 Neovim 搜索快捷键，启用 `<leader>fG` 作为“引导式高级 grep”入口：先选择 regex / fixed string / whole word，再输入 include / exclude globs，最后可选补充额外 rg 参数；不要再退回成单行原始 ripgrep 参数输入。
-- 对当前 Neovim/CMake/clangd 体验，优先用轻量内置命令而不是 CMake 插件：`:CMakeUserPresetInit` 生成本地 `CMakeUserPresets.json`，`:CMakeConfigure [preset]` 生成/刷新 `build/compile_commands.json`，配合 clangd 的 `--compile-commands-dir=build`。
-- 对当前 Neovim 关闭文件体验，交互式 `:q` / `:quit` 也应优先走安全 buffer close 语义（复用 `:bdelete` 包装），避免从 `nvim .` 打开文件后直接退出整个 Neovim；真正退出已有文件会话继续使用 `:qa` / `:qall`。
-- 修改任何子模块内容时，提交前都要考虑是否需要同步调整该子模块自己的 README/使用文档；即使判断无需修改，也应在验证或总结中说明该判断，避免代码、配置与文档脱节。
-- 对当前 Neovim/CMake 辅助命令，`:CMakeConfigure` 在已有 `CMakeUserPresets.json` 时应优先使用实际存在的 configure preset：无参数时选 `nvim-debug` 或第一个 `configurePresets[].name`，传入 build preset 时自动解析到它的 `configurePreset`，避免硬编码默认名导致 `no such preset`。
-- 对当前 Neovim LSP 重启体验，优先使用 Neovim 0.12 原生 `:lsp restart ...`；不要额外新增 `:LspRestart` 这类兼容别名来包装已有原生命令。
-- 对 `wh_fabric_build` 上的 Neovim/C++ LSP，优先使用用户已下载的 `/home/fm/code/clangd/clangd_20.1.0/bin/clangd`，并通过 `~/.local/bin/clangd` 软链暴露给 Neovim；不要依赖 Mason 在该远端自动安装 clangd。
-- 对当前 Neovim Neo-tree 原生替换/POC，必须保留 `<leader>e` 文件树入口、左侧 tree 体验、follow current file、Git status、隐藏文件和 gitignored 文件可见性；第一轮优先只改仓库不动 live `~/.config/nvim`；若原生方案不能等价，则保留 Neo-tree，不为减少插件强行牺牲文件树体验。
-- 对当前 Neovim Neo-tree 原生替换/POC，已用隔离 netrw/native POC 证明当前 netrw 路线不能同时满足 follow current file 与 Git status parity；因此当前结论是保留 Neo-tree，继续以 `<leader>e` 左侧文件树、整数宽度 `40`、Git status、hidden/gitignored 可见性作为受保护体验，除非后续有新的等价方案再单独评估。
-- 对当前 Neovim 0.12 原生化后续迁移，允许核心体验插件进入 PRD/POC 甚至执行候选，只要测试、README 和回退/保留方案能证明无体验回退；不能为了减少插件数量牺牲主体验。当前下一候选优先评估 `nvim-autopairs` 的原生最小替代。
-- 对当前 Neovim `nvim-autopairs` 原生替代 POC，删除插件前必须验证基础括号/引号成对、空 pair 成对删除、右括号/引号跳过、pair 内回车展开、`blink.cmp` 补全/snippet 兼容；任一关键 parity 不满足就保留 `nvim-autopairs`。
-- 对当前 Neovim native pairs 替代结论，`nvim-autopairs` 可在基础 pairs、空 pair 删除、skip closing、括号 pair 内回车和 `blink.cmp` 可见菜单兼容全部有测试护栏时删除；后续保持 `lua/config/autopairs.lua` 为单文件最小 helper，不要在未重新 POC 前扩成 Treesitter/filetype-specific 小插件系统。
-- 对当前 Neovim headless 测试/脚本运行，应跳过 Mason tool installer 自动安装等 Mason 网络和写入副作用；`mason-lspconfig.nvim` 已不再作为 LSP 启用桥接。
-- 对当前 Neovim LSP 迁移，`vim.lsp.config()` / `vim.lsp.enable()` 是唯一 LSP server 启用权威；当 `mason-lspconfig.nvim` 不再负责 `ensure_installed` 或自动 enable 时，优先移除该桥接插件，保留 `mason.nvim` / `mason-tool-installer.nvim` 作为工具链入口。
-- 对新环境中的 Neovim/C++ LSP，优先把机器或厂商特定的 clangd 安装路径通过 `~/.local/bin/clangd` 软链暴露给 PATH；不要把 `/usr/local/musa/bin` 等机器路径写进共享 dotfiles 或 Neovim 配置。
-- 对当前 Neovim 文件查找体验，`<leader>ff` 应默认包含隐藏文件/目录（例如 dotfiles 仓库里的 `.config/...`），但不要默认包含 gitignore ignored 项；继续保留 `snacks.nvim` files picker 主线，不为该需求新增依赖或单独替换搜索插件。
-- 对当前 Git alias，优先把 oh-my-zsh git 插件未提供且跨 shell 有价值的命令放进 `.config/shared/git/config`；当前用 `git subs` 查看 `submodule status`，README 中的 OMZ alias 必须按实际插件名（如 `grs` / `grst`）记录，避免写入不存在的短别名。
-- 对 Codex CLI 配置，当前基线是模型使用 `gpt-5.5`，hook feature flag 使用 `[features].hooks = true`，不再使用 deprecated 的 `[features].codex_hooks`；若继续启用 `child_agents_md`，同时保留 `suppress_unstable_features_warning = true` 抑制已知 unstable 提示。
-- 对 Awesome 锁屏快捷键，当前偏好使用 `Mod+Shift+l`；`Mod+Ctrl+l` 保留给布局减少列数，减少主区域窗口数量改用 `Mod+Ctrl+Shift+l`，避免同一组合承担两个动作。
-- 对 Awesome 锁屏脚本，优先使用 `i3lock-color` 或支持 `--blur` 的 `i3lock` 提供模糊、时钟和主题配色，不再硬编码 `--screen 1`；普通 `i3lock` fallback 优先用 Python 生成缓存的 Catppuccin Mocha 静态 PNG 背景并执行 `i3lock -n -e -f -i <image> -c 11111b`，多屏时应按 `xrandr --current` 的每个已启用输出各画一份居中卡片/锁图标，避免只在整张 framebuffer 中心显示一次；生成失败时才退回纯色 `i3lock -n -e -f -c 11111b`，避免新增依赖。自动锁屏优先由 autostart 用 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep` 启动，缺依赖时静默跳过。
-- 对 Awesome autostart 中的 Xresources 与壁纸 helper，`xrdb`、`~/.Xresources`、`feh`、壁纸目录或候选图片缺失时应静默跳过并继续后续自启动服务，不要因可选桌面能力缺失中断 autostart。
-- 当前不用 Firefox / DownThemAll；Awesome 浮动规则不应保留默认示例里的 `DTA` instance 自动浮动规则，避免把历史 Firefox 扩展规则混入当前桌面行为判断。
-- 对钉钉会议的 `tblive` 窗口，优先只处理 `type=utility` 的辅助窗口：设为浮动并 `skip_taskbar=true`，避免会控条/状态条占据任务列表或平铺布局；真正的 `tblive` 普通会议窗口仍应保留为可见任务。
-- 对 Awesome 顶栏整体观感，优先使用悬浮圆角容器：外层 wibar 保持透明并继续预留工作区高度，内层状态栏顶部和左右留少量空隙，避免窗口覆盖状态栏同时让顶栏不贴屏幕边缘。
-- 对 Awesome managed 窗口圆角，优先在 `client.lua` 用 `c.shape` 消费 `beautiful.border_radius`；普通/对话框等窗口保持圆角，全屏或最大化时退回 `gears.shape.rectangle`，避免边角露出桌面背景。picom 继续负责阴影、透明和 compositor 层圆角。
-- 对 Codex CLI 0.130.0 的 GPT-5.5 配置，单独设置 `model_context_window = 1000000` / `model_auto_compact_token_limit = 800000` 不会改变 TUI/status 使用的模型目录窗口；优先用 `model_catalog_json` 指向本地 catalog override，并在该 JSON 里把 `gpt-5.5` 的 `context_window`、`max_context_window`、`auto_compact_token_limit` 固定为 `1000000`、`1000000`、`800000`。
-- 对 Awesome 顶栏 CPU/MEM 状态，优先用原生 `/proc/stat` 与 `/proc/meminfo` 读取，不再要求 `lain`；`collision` 仅作为可选浮动窗口辅助依赖保留，缺失时 Awesome 仍应启动。
-- 对 Awesome 桌面动作入口（Rofi、Dolphin、截图 OCR、锁屏等），优先在执行前检查关键命令/脚本能力，缺依赖或执行失败时用 Awesome 通知提示，避免快捷键静默无效；用户主动取消截图/启动器选择不应弹失败提示。
-- 对 Awesome 顶栏多屏状态，优先在屏幕几何、主屏或 RandR 拓扑变化后延迟重建 wibar 内容，重新判断主屏状态区与 full/compact 模式；重建时复用已有 tag/tasklist/prompt，避免破坏标签状态。
-- 对 Awesome 顶栏 tasklist，当前偏好只显示当前聚焦窗口的信息；同一标签页里的其它窗口不在顶栏列出，也不使用图标模式或 `+N` overflow，切换焦点后再刷新这一个聚焦窗口条目。
-- 对 Awesome 顶栏 focused-only tasklist，隐藏或最小化窗口应通过独立的“隐藏窗口”提示保留可视入口；提示只统计普通任务窗口，排除 `skip_taskbar` 与 dock/desktop/splash 辅助窗口，并提供 hover 列表、左键恢复第一个、右键选择恢复。
-- 对 Awesome 隐藏窗口提示的右键恢复菜单，打开后若隐藏列表变化、焦点切换或标签切换，应自动关闭，避免外部恢复窗口后留下 stale 菜单。
-- 对 Awesome focused-only tasklist，当前窗口任务项背景应保持与状态栏同色，不再用额外背景色区分；焦点识别优先依靠蓝色标题文字与左侧细条。
-- 对 Awesome focused-only tasklist，任务项背景应透明透出状态栏底色，不再绘制单独灰色/圆角胶囊背景；焦点识别继续依靠蓝色标题文字与左侧细条。
-- 对 Awesome tasklist 自定义透明背景时，不要把自定义容器命名为内置 `background_role`；该 role 会被 Awesome tasklist 自动重新上色，优先使用非内置 id（如 `task_background_role`）承载透明容器。
-- 对 Awesome focused-only tasklist，若当前标签页只有一个可见普通窗口，标题应优先使用顶栏中间区可用空间尽量完整显示；只有存在多个可见窗口时才回到保守宽度与尾部省略，避免挤压右侧状态区。
-- 对 Awesome 工作区顺序，当前偏好保持开发在第 1、浏览器在第 2，后续文档/沟通/杂项依次排列；状态栏图标、tooltip 语义和窗口自动分配规则应同步遵循这个顺序。
-- 对 Awesome 工作区占用/通知提示，当前偏好是：当前工作区始终保持蓝色图标作为主焦点；非当前且有窗口的工作区在图标右上角 overlay 克制的淡紫小点；urgent/通知在右上角显示红色小圆点；提示点不占用标签文字宽度，不再使用醒目的红色背景或默认方块提示。
-- 对 Awesome 4.3 的 overlay 小圆点，优先使用 `wibox.widget.separator` 这类自身可绘制的 widget；不要用没有 child 的 `wibox.container.background` 当纯色点，因为 background 容器在无子 widget 时不会绘制背景。
-- 对 Awesome client rules 中依赖目标屏幕的标签分配，优先写成接收 client 的回调并从 `c.screen` 解析 tag；不要在配置 setup 阶段无参调用 `awful.screen.preferred()`，避免启动期 `screen.lua` 因 nil client 报错。
-- 对当前 Awesome 顶栏项目，优先保持单个状态项扁平透明：锁屏、布局、sysinfo、时钟、托盘等只保留文字、图标、分隔符和必要 padding，不再为每个项目单独加背景色或胶囊；视觉层级主要由整条悬浮顶栏背景承载。
+- 对 `install.sh` 里的 `redshift` 处理，保留缺失检查即可；缺失时只提示用户手动安装，不要在安装脚本里自动执行提权安装。
+
+## 记录语言
+- `memory/` 和 `logs/trace.md` 中的新增记录统一使用中文，除非明确被要求保留英文。
+- 当用户要求统一记录语言时，优先把现有 `logs/trace.md` 历史记录一并回写成中文，而不是只约束后续新增内容。
+
+## 持久化文件读取
+- 读取 `logs/trace.md` 或其它持久化文件时，默认根据当前问题用关键词/相近主题匹配最相关的约 10 条记录即可，不要每次全量加载。
+- 只有用户明确要求完整历史、任务确实依赖全局时间线，或局部检索证据不足时才扩大读取范围。
+
+## 系统环境
+- Ubuntu aarch64 上 X11-sensitive 桌面工具应优先使用系统二进制（尤其是 `redshift`）。
+- 当 Linuxbrew 包遮蔽工作系统二进制且不需要时，优先删除包而不是加防御逻辑。
+- Window manager helper 脚本（`~/.config/scripts/*`）优先始终安装并保留可执行位，即使 runtime backend 未安装。
+- 对通过 `npm install -g` 安装到 `/usr/local/nodejs` 前缀的 CLI，在共享 zsh PATH 中追加 `/usr/local/nodejs/bin`。
+- 对通过 `npm install -g` 安装到用户级 `/home/rikoo/.npm-global` 前缀的 CLI，在共享 zsh PATH 中追加 `$HOME/.npm-global/bin`。
+
+## 仓库管理
+- `.omx/` 属于本地 OMX 运行状态目录，应放入 `.gitignore`，不提交到远端仓库。
+- Codex CLI 配置基线：模型 `gpt-5.5`，hook feature `[features].hooks = true`；若启用 `child_agents_md`，保留 `suppress_unstable_features_warning = true`。
+- Codex CLI 0.130.0 GPT-5.5：用 `model_catalog_json` 指向本地 catalog override，固定 `context_window`/`max_context_window`/`auto_compact_token_limit`。

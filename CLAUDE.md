@@ -1,1 +1,1 @@
-- 遵从AGENTS.md的约束
+- 遵从 AGENTS.md 的约束
