@@ -2,6 +2,23 @@
 
 > 本文件只记录实际发生过的修改、验证证据与后续线索，不定义长期规则；若某条经验已稳定复用，应提升到 `AGENTS.md` 或 `memory/`。
 
+## 2026-06-03
+
+- 目的：按用户要求把当前副屏切换到 2K 60Hz。
+- 已做：通过 `xrandr --query` 确认内屏 `eDP-1` 为主屏，副屏为 `DP-2`，原模式是 `1920x1080@60`；执行 `xrandr --output DP-2 --mode 2560x1440 --rate 59.95 --right-of eDP-1`，把副屏放在内屏右侧并切到可用的 2K 约 60Hz 档位。没有修改仓库或 live 配置文件。
+- 验证：复查 `xrandr --query` 显示 `DP-2 connected 2560x1440+2880+0`，且 `2560x1440 59.95*` 为当前模式。
+- 后续：该调整是当前 X11 会话的运行态变更；若重启、重新登录或 autostart 重新设置显示器，可能需要再持久化到对应桌面启动配置。
+
+- 目的：按用户要求把副屏 2K 60Hz 选择固化到当前项目的 Awesome autostart 配置。
+- 已做：将 Ubuntu aarch64 平台 `apply_display_layout()` 从固定外接屏 `1920x1080@60` 改为 `2560x1440@59.95Hz`，仍保持内屏 `2880x1800@120Hz` 主屏且外接屏位于右侧；同步更新 autostart 回归测试、autostart README、`memory/awesome.md` 与 `memory/desktop.md`，并清理当前配置/测试/memory 中旧 `1920x1080@60` 固定基线表述。本轮只修改仓库项目文件，没有同步 live `~/.config/awesome`，没有重载 Awesome。
+- 验证：`sh ./tests/awesome_autostart_test.sh` 通过；`sh -n .config/linux/awesome/autostart/common.sh .config/linux/awesome/autostart/ubuntu_aarch64.sh tests/awesome_autostart_test.sh` 通过；`git diff --check` 通过；`rg` 复核当前配置、测试和 memory 中不再残留旧 `1920x1080@60` 固定基线。
+- 后续：当前 X11 会话已经由上一条 live 调整处于 `DP-2 2560x1440@59.95Hz`；若希望项目配置立刻覆盖 live autostart 文件，需要再单独同步到 `~/.config/awesome/autostart/`。
+
+- 目的：按用户要求将当前副屏 2K 60Hz 项目配置改动推送到远程 GitHub。
+- 已做：发布前确认当前分支为 `main`、远端为 `git@github.com:lg641135360/dotfiles.git`，且 `HEAD...origin/main` 为 `0 0` 无分叉；待发布范围为 Awesome autostart 平台脚本、autostart README、相关测试、memory 与 trace。本轮没有同步 live `~/.config/awesome`，没有重载 Awesome。
+- 验证：完整 `for t in tests/awesome_*_test.sh; do "$t"; done` 通过；`sh -n .config/linux/awesome/autostart/common.sh .config/linux/awesome/autostart/ubuntu_aarch64.sh tests/awesome_autostart_test.sh` 通过；`git diff --check` 通过；`rg` 复核当前配置、测试和 memory 中不再残留旧 `1920x1080@60` 固定基线。
+- 后续：提交当前仓库改动并推送到 `origin/main`；追加 trace 本身不递归追加第二条发布记录。
+
 ## 2026-04-29
 
 - 目的：按用户要求将本轮 tmux session 销毁行为、Awesome 壁纸随机化、trace 读取偏好和相关测试/文档记录提交并推送到 GitHub。

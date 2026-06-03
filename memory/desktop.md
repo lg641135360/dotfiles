@@ -17,8 +17,8 @@
 - KDE `kglobalaccel5`/`~/.config/kglobalshortcutsrc` 中 `[org.flameshot.Flameshot.desktop] Capture` 为 `F1` 时应改为 `none,none,进行截图`。
 
 ## Ubuntu aarch64 外接屏
-- 内屏 `2880x1800@120Hz` 主屏；外接 Dell P2722H 在 Ubuntu aarch64 上默认显式固定为 `1920x1080@60` 放笔记本右侧，避免误落到 `3840x2160@30`。
-- `Xft.dpi: 192` 是合适基线；不为了外接 1080p 降低全局 DPI。
+- 内屏 `2880x1800@120Hz` 主屏；外接屏在 Ubuntu aarch64 上默认显式固定为 `2560x1440@59.95Hz` 放笔记本右侧，避免误落到 `3840x2160@30` 或 `1920x2160` 这类特殊模式。
+- `Xft.dpi: 192` 是合适基线；不为了外接屏降低全局 DPI。
 - 外接屏方案不要改 Awesome per-screen DPI 或 rofi focused-screen `ROFI_SCALE`。
 
 ## 其它

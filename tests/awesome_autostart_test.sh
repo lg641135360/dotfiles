@@ -661,7 +661,7 @@ EOF
     rm -rf "$tmpdir"
 }
 
-test_fixed_external_display_layout_uses_explicit_1080p60_on_the_right() {
+test_fixed_external_display_layout_uses_explicit_2k60_on_the_right() {
     tmpdir=$(mktemp -d)
     bin_dir=$tmpdir/bin
     query_file=$tmpdir/xrandr.query
@@ -676,6 +676,7 @@ eDP-1 connected primary 2880x1800+0+0 (normal left inverted right x axis y axis)
    2880x1800    120.00*+  60.00
 DP-2 connected (normal left inverted right x axis y axis)
    3840x2160     29.98*+
+    2560x1440     59.95
    1920x1080     60.00 +  59.94
 EOF
 
@@ -695,11 +696,11 @@ EOF
         XRANDR_LOG=$log_file
         export XRANDR_QUERY XRANDR_LOG
         . "$COMMON_FILE"
-        configure_fixed_external_display_layout 2880x1800 120 right 1920x1080 60
+        configure_fixed_external_display_layout 2880x1800 120 right 2560x1440 59.95
     )
 
-    grep -Fx -- '--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --mode 1920x1080 --rate 60 --right-of eDP-1' "$log_file" >/dev/null 2>&1 ||
-        fail "expected fixed external layout to force DP-2 to 1920x1080@60 on the right"
+    grep -Fx -- '--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --mode 2560x1440 --rate 59.95 --right-of eDP-1' "$log_file" >/dev/null 2>&1 ||
+        fail "expected fixed external layout to force DP-2 to 2560x1440@59.95 on the right"
 
     rm -rf "$tmpdir"
 }
@@ -709,7 +710,7 @@ test_platform_specific_behaviors_remain_declared() {
     assert_contains 'run Snipaste' "$ARCH_FILE"
     assert_contains 'run greenclip daemon' "$ARCH_FILE"
     assert_contains 'apply_display_layout() {' "$UBUNTU_ARM_FILE"
-    assert_contains 'configure_fixed_external_display_layout 2880x1800 120 right 1920x1080 60' "$UBUNTU_ARM_FILE"
+    assert_contains 'configure_fixed_external_display_layout 2880x1800 120 right 2560x1440 59.95' "$UBUNTU_ARM_FILE"
     assert_contains 'if [ "${1:-}" = "--display-layout" ]; then' "$UBUNTU_ARM_FILE"
     assert_not_contains 'configure_laptop_display_layout 2880x1800 120 right 1.5x1.5' "$UBUNTU_ARM_FILE"
     assert_not_contains 'configure_laptop_display_layout 2880x1800 120 right 2x2' "$UBUNTU_ARM_FILE"
@@ -791,7 +792,7 @@ test_display_mode_detection_prefers_progressive_mode_for_scaled_external_monitor
 test_laptop_display_layout_chains_multiple_external_monitors
 test_laptop_display_layout_can_scale_multiple_external_monitors
 test_laptop_display_layout_handles_no_external_monitor
-test_fixed_external_display_layout_uses_explicit_1080p60_on_the_right
+test_fixed_external_display_layout_uses_explicit_2k60_on_the_right
 test_platform_specific_behaviors_remain_declared
 test_readme_documents_random_wallpaper_behavior
 test_readme_documents_runtime_wrapper_chain
