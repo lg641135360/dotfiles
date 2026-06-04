@@ -1,28 +1,33 @@
 # dotfiles
-my config files
 
-# tools
+个人跨平台配置仓库。安装脚本采用复制部署，不使用 symlink；已有目标会先备份。
+
+## tools
+
 - shared
+  - alacritty
   - tmux
-  - kitty
   - git
-  - nvim
-  - zsh(on ~/.config/zsh)
-  - zed settings
+  - nvim（submodule）
+  - zsh（部署到 `~/.config/zsh`）
+  - ssh
   - Claude Code statusline
-- macintosh
-  - aerospace[window manager]
-  - rift[window manager]
+- macOS
+  - aerospace（window manager）
+  - rift（window manager）
+  - ssh
+  - Homebrew Brewfile / defaults
 - linux
-  - xmonad[window manager]
-  - xmobar[status bar]
-  - dunst[message notify]
-  - picom[animation composer]
-  - rofi[like macos's alfred]
-  - awesome[window manager]
-  - Xresources[x11 font&color user config]
+  - awesome（window manager）
+  - rofi（launcher）
+  - picom（compositor）
+  - X11 / Xresources
+  - dunst（notification）
+  - xmonad / xmobar
+  - lock / rofi helper scripts
 
-# how to use
+## how to use
+
 ```shell
 chmod +x install.sh
 ./install.sh

@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG="$ROOT/.config/shared/git/config"
 README="$ROOT/.config/shared/git/README.md"
+MEMORY="$ROOT/memory/git.md"
+
+source "$ROOT/tests/lib/assert.sh"
 
 require_config() {
   local key="$1"
@@ -13,26 +16,6 @@ require_config() {
   actual="$(git config --file "$CONFIG" --get "$key")"
   if [[ "$actual" != "$expected" ]]; then
     echo "git $key should be $expected, got: $actual"
-    exit 1
-  fi
-}
-
-require_readme() {
-  local pattern="$1"
-  local message="$2"
-
-  grep -qE "$pattern" "$README" || {
-    echo "$message"
-    exit 1
-  }
-}
-
-reject_readme() {
-  local pattern="$1"
-  local message="$2"
-
-  if grep -qE "$pattern" "$README"; then
-    echo "$message"
     exit 1
   fi
 }
@@ -49,18 +32,17 @@ if [[ "$template" != "~/.config/git/template" ]]; then
   exit 1
 fi
 
-grep -q 'core.editor.*vim\|默认编辑器.*Vim\|Git 默认编辑器' "$README" || {
-  echo "Git README should document vim as the default editor"
-  exit 1
-}
+assert_matches 'core.editor.*vim|默认编辑器.*Vim|Git 默认编辑器' "$README"
+assert_contains 'core.editor = vim' "$MEMORY"
+assert_not_contains 'core.editor = nvim' "$MEMORY"
 
 require_config alias.subinit "submodule update --init --recursive"
 require_config alias.subs "submodule status"
 require_config alias.cs "commit --signoff"
 
-require_readme '\| `subs` \| `submodule status` \| `git subs` \|' "Git README should document git subs as a custom alias"
-require_readme '\| `grs` \| `git restore` \|' "Git README should document the current OMZ git restore alias as grs"
-require_readme '\| `grst` \| `git restore --staged` \|' "Git README should document the current OMZ unstaging alias as grst"
-reject_readme '\| `gres` \|' "Git README should not document stale OMZ alias gres"
-reject_readme '\| `grest` \|' "Git README should not document stale OMZ alias grest"
-reject_readme '\| `subs` \| `git submodule status` \|' "Git README should not claim OMZ provides a direct subs alias"
+assert_matches '\| `subs` \| `submodule status` \| `git subs` \|' "$README"
+assert_matches '\| `grs` \| `git restore` \|' "$README"
+assert_matches '\| `grst` \| `git restore --staged` \|' "$README"
+assert_not_matches '\| `gres` \|' "$README"
+assert_not_matches '\| `grest` \|' "$README"
+assert_not_matches '\| `subs` \| `git submodule status` \|' "$README"

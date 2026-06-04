@@ -2,6 +2,7 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 CONFIG_FILE=$REPO_ROOT/.config/linux/rofi/config.rasi
 THEME_FILE=$REPO_ROOT/.config/linux/rofi/theme.rasi
 README_FILE=$REPO_ROOT/.config/linux/rofi/README.md
@@ -9,29 +10,6 @@ BINDINGS_FILE=$REPO_ROOT/.config/linux/awesome/bindings.lua
 ACTIONS_FILE=$REPO_ROOT/.config/linux/awesome/actions.lua
 SCRIPT_FILE=$REPO_ROOT/.config/scripts/rofi-launch
 INSTALL_FILE=$REPO_ROOT/install.sh
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
-
-assert_contains() {
-    needle=$1
-    file=$2
-
-    if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "expected '$needle' in $file"
-    fi
-}
-
-assert_not_contains() {
-    needle=$1
-    file=$2
-
-    if grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "did not expect '$needle' in $file"
-    fi
-}
 
 section_body() {
     section_name=$1

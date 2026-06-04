@@ -1639,3 +1639,10 @@
 - 已做：发布前确认本地 `HEAD` 与 `origin/main` 无分叉，当前改动范围为 Awesome autostart README、共享 helper、Ubuntu aarch64 平台脚本、相关 memory、autostart 测试与 trace；repo/live Awesome 只读比较仅发现 live 额外存在 `collision` 目录，未发现本轮 autostart 目标文件的阻塞性差异。本轮没有同步 live `~/.config/awesome`，没有重载 Awesome。
 - 验证：`sh -n .config/linux/awesome/autostart/common.sh .config/linux/awesome/autostart/ubuntu_aarch64.sh tests/awesome_autostart_test.sh` 通过；`sh ./tests/awesome_autostart_test.sh` 通过；完整 `for t in tests/awesome_*_test.sh; do "$t"; done` 通过；`git diff --check` 通过；`git fetch origin && git rev-list --left-right --count HEAD...origin/main` 返回 `0 0`。
 - 后续：提交并推送当前仓库改动到 `origin/main`；追加 trace 本身不递归追加第二条发布记录。
+
+## 2026-06-04
+
+- 目的：按用户要求继续优化当前 dotfiles 仓库，先处理低风险的文档漂移与测试维护成本问题，不触碰 live `~/.config`、不重载桌面运行态。
+- 已做：新增 `tests/lib/assert.sh` 共享 shell 断言 helper，并将 `awesome_autostart`、`rofi`、`tmux`、`install_redshift` 与 `git_config` 等代表性测试切换到共享 helper；新增 `tests/repo_docs_test.sh` 锁定根 README 模块清单、X11 README 文件名和 Git editor memory 一致性；新增 `tests/run.sh` 统一测试入口，支持 `docs`、`awesome`、`nvim`、`fast`、`full` 分组。同步修正根 `README.md` 中已无 tracked 配置的 `kitty` / `zed settings` 条目，补齐当前 tracked 的 Alacritty、SSH、X11 等模块；将 `.config/linux/x11/REAME.md` 更名为 `README.md`；将 `memory/git.md` 的 Git 默认编辑器记录从 `nvim` 对齐到当前实际配置与 README 的 `vim`。
+- 验证：新增 `tests/repo_docs_test.sh` 在旧 README 上先失败，修正后通过；`tests/repo_docs_test.sh`、`tests/git_config_test.sh`、`tests/install_redshift_test.sh`、`tests/awesome_autostart_test.sh`、`tests/rofi_config_test.sh`、`tests/tmux_status_test.sh` 均通过；按 shebang 分流执行 shell 语法检查通过；`tests/run.sh docs` 通过；`tests/run.sh full` 全量测试通过；后续收尾再执行 `git diff --check` 与工作区状态检查。
+- 后续：若继续清理，可逐步把其它测试脚本迁移到 `tests/lib/assert.sh`，并考虑给 `install.sh` 增加 `--dry-run` / `--only` / live drift 只读检查入口。

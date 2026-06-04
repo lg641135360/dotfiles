@@ -2,64 +2,11 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 TMUX_FILE=$REPO_ROOT/.config/shared/tmux/.tmux.conf
 README_FILE=$REPO_ROOT/.config/shared/tmux/README.md
 HELPER_FILE=$REPO_ROOT/.config/shared/tmux/tmux-tab-title
 INSTALL_FILE=$REPO_ROOT/install.sh
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
-
-assert_contains() {
-    needle=$1
-    file=$2
-
-    if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "expected '$needle' in $file"
-    fi
-}
-
-assert_not_contains() {
-    needle=$1
-    file=$2
-
-    if grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "did not expect '$needle' in $file"
-    fi
-}
-
-assert_output_contains() {
-    needle=$1
-    value=$2
-
-    printf '%s\n' "$value" | grep -F -- "$needle" >/dev/null 2>&1 ||
-        fail "expected output '$value' to contain '$needle'"
-}
-
-assert_output_not_contains() {
-    needle=$1
-    value=$2
-
-    if printf '%s\n' "$value" | grep -F -- "$needle" >/dev/null 2>&1; then
-        fail "did not expect output '$value' to contain '$needle'"
-    fi
-}
-
-assert_equals() {
-    expected=$1
-    actual=$2
-
-    [ "$expected" = "$actual" ] ||
-        fail "expected '$expected' but got '$actual'"
-}
-
-assert_executable() {
-    file=$1
-
-    [ -x "$file" ] || fail "expected executable file: $file"
-}
 
 TMP_DIRS=
 LAST_SSH_HOME=

@@ -2,6 +2,7 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 WRAPPER_FILE=$REPO_ROOT/.config/linux/awesome/autostart.sh
 DISPLAY_LAYOUT_WRAPPER_FILE=$REPO_ROOT/.config/linux/awesome/display-layout.sh
 COMMON_FILE=$REPO_ROOT/.config/linux/awesome/autostart/common.sh
@@ -10,29 +11,6 @@ UBUNTU_ARM_FILE=$REPO_ROOT/.config/linux/awesome/autostart/ubuntu_aarch64.sh
 UBUNTU_X64_FILE=$REPO_ROOT/.config/linux/awesome/autostart/ubuntu_x64.sh
 README_FILE=$REPO_ROOT/.config/linux/awesome/autostart/README.md
 INSTALL_FILE=$REPO_ROOT/install.sh
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
-
-assert_contains() {
-    needle=$1
-    file=$2
-
-    if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "expected '$needle' in $file"
-    fi
-}
-
-assert_not_contains() {
-    needle=$1
-    file=$2
-
-    if grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "did not expect '$needle' in $file"
-    fi
-}
 
 wait_for_file_contains() {
     needle=$1

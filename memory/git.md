@@ -1,7 +1,7 @@
 # Git 偏好
 
 ## 编辑器
-- 默认编辑器固定为 `nvim`（`core.editor = nvim`）。
+- 默认编辑器固定为 `vim`（`core.editor = vim`），与当前 `.config/shared/git/config` 和 Git README 保持一致。
 
 ## Alias
 - 优先把 oh-my-zsh git 插件未提供且跨 shell 有价值的命令放进 `.config/shared/git/config`。
