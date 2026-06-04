@@ -67,10 +67,10 @@ test_theme_readme_documents_rounded_surface_boundary() {
 }
 
 test_readme_documents_wibar_visual_tuning() {
-    assert_contains '聚焦窗口的任务项背景保持透明' "$README_FILE"
+    assert_contains '任务项背景保持透明' "$README_FILE"
     assert_contains '不再绘制额外灰色胶囊背景' "$README_FILE"
     assert_contains '避开 Awesome tasklist 内置的 `background_role` 自动上色' "$README_FILE"
-    assert_contains '当前输入目标主要通过蓝色文字和左侧细条高亮确认' "$README_FILE"
+    assert_contains '当前输入目标仍通过蓝色文字和左侧细条高亮确认' "$README_FILE"
     assert_contains '只有主屏显示 NET / CPU / MEM / BAT / VOL 与系统托盘' "$README_FILE"
     assert_contains '其他屏幕右侧只保留时钟' "$README_FILE"
     assert_contains '次屏左侧只保留标签与布局' "$README_FILE"
@@ -98,10 +98,10 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '时钟文字作为右端视觉终点' "$README_FILE"
     assert_contains '整条顶栏使用悬浮圆角容器' "$README_FILE"
     assert_contains '顶部留出少量空隙' "$README_FILE"
-    assert_contains '当当前标签页只有一个可见普通窗口时，标题宽度会按顶栏中间区剩余空间扩展' "$README_FILE"
+    assert_contains '当该屏当前标签页只有一个可见普通窗口时，标题宽度会按顶栏中间区剩余空间扩展' "$README_FILE"
     assert_contains '存在多个可见窗口时，标题最大宽度仍按当前屏幕宽度与 compact/full 规格保守自适应' "$README_FILE"
-    assert_contains '并在单个聚焦任务项内尾部省略' "$README_FILE"
-    assert_contains 'tasklist 只渲染当前聚焦窗口' "$README_FILE"
+    assert_contains '并在单个任务项内尾部省略' "$README_FILE"
+    assert_contains 'tasklist 每屏只渲染一个当前标签窗口' "$README_FILE"
     assert_contains '隐藏窗口提示只在存在 `minimized` / `hidden` 的普通任务窗口时出现' "$README_FILE"
     assert_contains '左键恢复第一个，右键打开恢复菜单' "$README_FILE"
     assert_contains '恢复菜单会在隐藏列表变化、焦点切换或标签切换后自动关闭' "$README_FILE"

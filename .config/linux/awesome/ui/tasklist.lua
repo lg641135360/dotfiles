@@ -57,22 +57,6 @@ local function clamp(value, min_value, max_value)
     return value
 end
 
-local function focused_task_filter(c)
-    return client and c == client.focus
-end
-
-local function focused_task_source(target_screen)
-    if not client or not client.focus then
-        return {}
-    end
-
-    if not awful.widget.tasklist.filter.currenttags(client.focus, target_screen) then
-        return {}
-    end
-
-    return { client.focus }
-end
-
 local function is_regular_task_client(c)
     return c
         and c.valid ~= false
@@ -86,6 +70,65 @@ local function is_current_tag_task_client(c, target_screen)
     end)
 
     return ok and matched == true
+end
+
+local function screen_task_filter(c, target_screen)
+    return is_regular_task_client(c)
+        and not c.minimized
+        and not c.hidden
+        and is_current_tag_task_client(c, target_screen)
+end
+
+local function focus_history_task_client(target_screen)
+    if not awful.client
+        or not awful.client.focus
+        or not awful.client.focus.history
+        or not awful.client.focus.history.get then
+        return nil
+    end
+
+    local ok, candidate = pcall(function()
+        return awful.client.focus.history.get(target_screen, 0, function(c)
+            return screen_task_filter(c, target_screen)
+        end)
+    end)
+
+    if ok then
+        return candidate
+    end
+
+    return nil
+end
+
+local function first_current_tag_task_client(target_screen)
+    if not client or not client.get then
+        return nil
+    end
+
+    for _, c in ipairs(client.get()) do
+        if screen_task_filter(c, target_screen) then
+            return c
+        end
+    end
+
+    return nil
+end
+
+local function screen_task_source(target_screen)
+    if not client then
+        return {}
+    end
+
+    if client.focus and screen_task_filter(client.focus, target_screen) then
+        return { client.focus }
+    end
+
+    local candidate = focus_history_task_client(target_screen) or first_current_tag_task_client(target_screen)
+    if candidate then
+        return { candidate }
+    end
+
+    return {}
 end
 
 local function visible_current_tag_task_count(target_screen)
@@ -179,8 +222,8 @@ local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact, 
 
     return awful.widget.tasklist {
         screen = screen,
-        source = focused_task_source,
-        filter = focused_task_filter,
+        source = screen_task_source,
+        filter = screen_task_filter,
         buttons = tasklist_buttons,
         layout = {
             spacing = dpi(3),
@@ -249,8 +292,10 @@ return {
     create_tasklist = create_tasklist,
     task_title_max_width = task_title_max_width,
     _private = {
-        focused_task_filter = focused_task_filter,
-        focused_task_source = focused_task_source,
+        screen_task_filter = screen_task_filter,
+        screen_task_source = screen_task_source,
+        focus_history_task_client = focus_history_task_client,
+        first_current_tag_task_client = first_current_tag_task_client,
         visible_current_tag_task_count = visible_current_tag_task_count,
         default_task_title_max_width = default_task_title_max_width,
         expanded_single_task_title_max_width = expanded_single_task_title_max_width,

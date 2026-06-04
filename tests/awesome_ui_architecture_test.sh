@@ -330,16 +330,17 @@ test_tasklist_keeps_text_for_focused_window() {
     assert_contains 'local function update_task_item(self, c, ctpp, screen, config, compact, available_width)' "$TASKLIST_FILE"
 }
 
-test_tasklist_sources_only_focused_current_tag_client() {
-    assert_contains 'local function focused_task_filter(c)' "$TASKLIST_FILE"
-    assert_contains 'local function focused_task_source(target_screen)' "$TASKLIST_FILE"
-    assert_contains 'return { client.focus }' "$TASKLIST_FILE"
-    assert_contains 'source = focused_task_source,' "$TASKLIST_FILE"
-    assert_contains 'filter = focused_task_filter,' "$TASKLIST_FILE"
+test_tasklist_sources_screen_local_current_tag_client() {
+    assert_contains 'local function screen_task_filter(c, target_screen)' "$TASKLIST_FILE"
+    assert_contains 'local function screen_task_source(target_screen)' "$TASKLIST_FILE"
+    assert_contains 'awful.client.focus.history.get' "$TASKLIST_FILE"
+    assert_contains 'source = screen_task_source,' "$TASKLIST_FILE"
+    assert_contains 'filter = screen_task_filter,' "$TASKLIST_FILE"
     assert_not_contains 'filter = awful.widget.tasklist.filter.currenttags' "$TASKLIST_FILE"
 
-    lua - "$TASKLIST_FILE" <<'LUA' || fail "expected tasklist source/filter to expose only the focused current-tag client"
+    lua - "$TASKLIST_FILE" <<'LUA' || fail "expected tasklist source/filter to expose one screen-local current-tag client"
 local tasklist_file = arg[1]
+local history_candidate
 
 package.preload["awful"] = function()
     local tasklist_widget = setmetatable({
@@ -357,6 +358,19 @@ package.preload["awful"] = function()
     return {
         widget = {
             tasklist = tasklist_widget,
+        },
+        client = {
+            focus = {
+                history = {
+                    get = function(target_screen, idx, filter)
+                        assert(idx == 0)
+                        if history_candidate and (not filter or filter(history_candidate)) then
+                            return history_candidate
+                        end
+                        return nil
+                    end,
+                },
+            },
         },
         tooltip = function()
             return {}
@@ -406,20 +420,35 @@ package.preload["beautiful.xresources"] = function()
 end
 
 local tasklist = assert(loadfile(tasklist_file))()
-local fake_screen = {
+local screen_one = {
+    geometry = { width = 1366 },
+}
+local screen_two = {
     geometry = { width = 1366 },
 }
 local focused = {
     name = "focused",
-    screen = fake_screen,
+    screen = screen_one,
+}
+local recent = {
+    name = "recent",
+    screen = screen_one,
 }
 local other = {
     name = "other",
-    screen = fake_screen,
+    screen = screen_two,
+}
+local minimized = {
+    name = "minimized",
+    screen = screen_one,
+    minimized = true,
 }
 
 client = {
     focus = focused,
+    get = function()
+        return { focused, recent, other, minimized }
+    end,
 }
 
 local opts = tasklist.create_tasklist({
@@ -429,21 +458,29 @@ local opts = tasklist.create_tasklist({
     red = "#f38ba8",
     text = "#cdd6f4",
     overlay2 = "#9399b2",
-}, fake_screen, {}, {}, true)
+}, screen_one, {}, {}, true)
 
-assert(opts.source == tasklist._private.focused_task_source)
-assert(opts.filter == tasklist._private.focused_task_filter)
-assert(opts.filter(focused) == true)
-assert(opts.filter(other) == false)
+assert(opts.source == tasklist._private.screen_task_source)
+assert(opts.filter == tasklist._private.screen_task_filter)
+assert(opts.filter(focused, screen_one) == true)
+assert(opts.filter(other, screen_one) == false)
+assert(opts.filter(minimized, screen_one) == false)
 
-local clients = opts.source(fake_screen)
+local clients = opts.source(screen_one)
+assert(#clients == 1 and clients[1] == focused)
+
+client.focus = other
+history_candidate = recent
+clients = opts.source(screen_one)
+assert(#clients == 1 and clients[1] == recent)
+
+history_candidate = nil
+clients = opts.source(screen_one)
 assert(#clients == 1 and clients[1] == focused)
 
 focused.on_current_tag = false
-assert(#opts.source(fake_screen) == 0)
-
-client.focus = nil
-assert(#opts.source(fake_screen) == 0)
+recent.on_current_tag = false
+assert(#opts.source(screen_one) == 0)
 LUA
 }
 
@@ -707,8 +744,8 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'local tasklist = require("ui.tasklist")' "$WIBAR_FILE"
     assert_contains 'local hidden_windows = require("ui.hidden_windows")' "$WIBAR_FILE"
     assert_contains 'tasklist.create_tasklist(ctpp, s, tasklist_buttons, config, compact, available_tasklist_width)' "$WIBAR_FILE"
-    assert_contains 'local function focused_task_source(target_screen)' "$TASKLIST_FILE"
-    assert_contains 'local function focused_task_filter(c)' "$TASKLIST_FILE"
+    assert_contains 'local function screen_task_source(target_screen)' "$TASKLIST_FILE"
+    assert_contains 'local function screen_task_filter(c, target_screen)' "$TASKLIST_FILE"
     assert_contains 'tasklist.task_title_max_width(s, config, compact, available_tasklist_width)' "$WIBAR_FILE"
     assert_not_contains 'local function render_task_text(c, ctpp)' "$WIBAR_FILE"
     assert_not_contains 'local function render_task_tooltip(c)' "$WIBAR_FILE"
@@ -1453,7 +1490,7 @@ test_volume_widget_uses_lower_idle_polling
 test_brightness_widget_uses_lower_idle_polling
 test_volume_widget_does_not_switch_to_event_subscription
 test_tasklist_keeps_text_for_focused_window
-test_tasklist_sources_only_focused_current_tag_client
+test_tasklist_sources_screen_local_current_tag_client
 test_tasklist_drops_overflow_and_density_budget_logic
 test_hidden_window_indicator_tracks_and_restores_hidden_clients
 test_wibar_owns_bar_widget_creation
