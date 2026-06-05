@@ -88,6 +88,21 @@ window-rule {
 }
 
 window-rule {
+    match app-id=r#"^CherryStudio$"#
+    default-column-width { proportion 0.66667; }
+}
+
+window-rule {
+    match app-id=r#"^google-chrome$"#
+    default-column-width { proportion 0.66667; }
+}
+
+window-rule {
+    match app-id=r#"^code$"#
+    default-column-width { proportion 1.0; }
+}
+
+window-rule {
     match app-id=r#"firefox$"# title="^Picture-in-Picture$"
     open-floating true
 }

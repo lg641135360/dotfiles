@@ -2,6 +2,12 @@
 
 > 本文件只记录实际发生过的修改、验证证据与后续线索，不定义长期规则；若某条经验已稳定复用，应提升到 `AGENTS.md` 或 `memory/`。
 
+## 2026-06-05
+
+- 目的：按用户要求调整 niri 应用窗口规则，让钉钉窗口默认浮动、Cherry Studio 使用更宽默认列宽，并让 VS Code 默认占满当前列宽预设。
+- 已做：在 `.config/linux/niri/config.kdl` 新增 `com.alibabainc.dingtalk` / `tblive` 的 `open-floating true` 规则，新增 `CherryStudio` 与 `google-chrome` 默认 `proportion 0.66667` 规则，新增 `code` 默认 `proportion 1.0` 规则；Chrome 规则只影响新 Chrome 窗口进入 tiling 布局时的初始列宽，不迁移 workspace 或改变浮动状态。同步更新 `.config/linux/niri/README.md` 的窗口规则说明，并扩展 `tests/niri_wayland_config_test.sh` 断言配置与 README 契约。
+- 验证：`niri validate -c .config/linux/niri/config.kdl` 通过；`./tests/niri_wayland_config_test.sh` 通过；`command git diff --check` 通过。未同步 live `~/.config/niri`，未重载 niri，未提交推送。
+
 ## 2026-06-04
 
 - 目的：排查并修复 niri/Wayland 会话下钉钉会议共享屏幕只能看到鼠标、其它画面全黑的问题。

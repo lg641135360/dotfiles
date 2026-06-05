@@ -117,6 +117,13 @@ session include common-session
 
 `Mod+Return` 调用 `~/.config/scripts/terminal-wayland`，优先使用 `~/.nix-profile/bin/alacritty`。当前机器的 `/usr/bin/alacritty` 来自非 noble 官方稳定源，在 niri/Wayland 下会报 `provided display handle is not supported`；Nix 的 Alacritty 与 kitty 均可正常创建窗口，因此 niri 入口不直接调用裸 `alacritty`。
 
+## 窗口规则
+
+- 钉钉主窗口与会议窗口（`com.alibabainc.dingtalk` / `tblive`）默认浮动，避免会议界面占据整列并打乱当前 workspace 布局。
+- Cherry Studio 默认列宽为 2/3 屏，保留较宽的对话阅读区域，同时还能露出相邻列。
+- Chrome 默认列宽为 2/3 屏，适合网页阅读和文档页面，不改变 workspace 或浮动状态。
+- VS Code 默认列宽为 1.0，适合代码、终端和侧边栏同时展开。
+
 ## Portal
 
 `niri-portals.conf` 使用 GNOME/GTK portal 组合：

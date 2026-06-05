@@ -63,6 +63,20 @@ test_niri_config_uses_wayland_replacements_not_x11_autostart() {
     assert_not_contains 'feh' "$NIRI_CONFIG"
 }
 
+test_niri_config_has_app_window_rules() {
+    assert_contains 'match app-id=r#"^(com\.alibabainc\.dingtalk|tblive)$"#' "$NIRI_CONFIG"
+    assert_contains 'open-floating true' "$NIRI_CONFIG"
+    assert_contains 'match app-id=r#"^CherryStudio$"#' "$NIRI_CONFIG"
+    assert_contains 'default-column-width { proportion 0.66667; }' "$NIRI_CONFIG"
+    assert_contains 'match app-id=r#"^google-chrome$"#' "$NIRI_CONFIG"
+    assert_contains 'match app-id=r#"^code$"#' "$NIRI_CONFIG"
+    assert_contains 'default-column-width { proportion 1.0; }' "$NIRI_CONFIG"
+    assert_contains '钉钉主窗口与会议窗口' "$NIRI_README"
+    assert_contains 'Cherry Studio 默认列宽为 2/3 屏' "$NIRI_README"
+    assert_contains 'Chrome 默认列宽为 2/3 屏' "$NIRI_README"
+    assert_contains 'VS Code 默认列宽为 1.0' "$NIRI_README"
+}
+
 test_wayland_autostart_runs_only_wayland_safe_services() {
     assert_executable "$AUTOSTART_SCRIPT"
     assert_contains 'run_once' "$AUTOSTART_SCRIPT"
