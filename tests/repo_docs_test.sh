@@ -10,7 +10,9 @@ GIT_MEMORY=$REPO_ROOT/memory/git.md
 
 assert_contains '- alacritty' "$ROOT_README"
 assert_contains '- Claude Code statusline' "$ROOT_README"
+assert_contains '- niri（Wayland compositor，parallel trial）' "$ROOT_README"
 assert_contains '- X11 / Xresources' "$ROOT_README"
+assert_contains '- Waybar / Mako / Fuzzel（niri status bar / notification / launcher）' "$ROOT_README"
 assert_not_contains '- kitty' "$ROOT_README"
 assert_not_contains '- zed settings' "$ROOT_README"
 

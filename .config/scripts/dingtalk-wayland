@@ -1,0 +1,82 @@
+#!/bin/sh
+# DingTalk Wayland entrypoint with the PipeWire/X11 screenshot hook preloaded.
+
+hook_lib=${DINGTALK_WAYLAND_HOOK:-}
+log_file=${DINGTALK_WAYLAND_LOG:-/tmp/dingtalk-wayland.log}
+
+if [ -z "$hook_lib" ]; then
+    for candidate in \
+        "$HOME/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so" \
+        "$HOME/.local/lib/dingtalk-wayland-screenshare/libdingtalkhook.so" \
+        "/opt/dingtalk/release/libdingtalkhook.so"; do
+        if [ -r "$candidate" ]; then
+            hook_lib=$candidate
+            break
+        fi
+    done
+fi
+
+notify_problem() {
+    title=$1
+    body=$2
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "$title" "$body" || true
+    fi
+    printf '%s: %s\n' "$title" "$body" >&2
+}
+
+if [ -z "$hook_lib" ] || [ ! -r "$hook_lib" ]; then
+    notify_problem \
+        "DingTalk Wayland hook unavailable" \
+        "Build dingtalk-wayland-screenshare and set DINGTALK_WAYLAND_HOOK or install libdingtalkhook.so under ~/.local/lib/dingtalk-wayland-screenshare/."
+    exit 127
+fi
+
+if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] && [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    if [ ! -S "$XDG_RUNTIME_DIR/pipewire-0" ] && ! pgrep -u "$(id -u)" -x pipewire >/dev/null 2>&1; then
+        notify_problem \
+            "PipeWire is not running" \
+            "Screen sharing through the DingTalk Wayland hook needs PipeWire, WirePlumber, and xdg-desktop-portal."
+    fi
+fi
+
+dingtalk_base=${DINGTALK_BASE:-/opt/apps/com.alibabainc.dingtalk/files}
+dingtalk_dir=${DINGTALK_DIR:-}
+
+if [ -z "$dingtalk_dir" ]; then
+    dingtalk_dir=$(find "$dingtalk_base" -maxdepth 1 -type d -name "*Release*" 2>/dev/null | sort -V | tail -1)
+fi
+
+if [ -z "$dingtalk_dir" ] || [ ! -x "$dingtalk_dir/com.alibabainc.dingtalk" ]; then
+    notify_problem "DingTalk unavailable" "Could not find com.alibabainc.dingtalk under $dingtalk_base."
+    exit 127
+fi
+
+export QT_QPA_PLATFORM=xcb
+export QT_PLUGIN_PATH="$dingtalk_dir"
+export QT_XCB_GL_INTEGRATION=xcb_egl
+export QT_QUICK_BACKEND=opengl
+export LD_LIBRARY_PATH="$dingtalk_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+libc_minor=$(ldd --version 2>/dev/null | awk 'NR == 1 { split($NF, version, "."); print version[2] }')
+preload_libs="./libgbm.so"
+if [ -n "$libc_minor" ] && [ "$libc_minor" -lt 28 ] 2>/dev/null; then
+    preload_libs="./envlib.so ./libharfbuzz.so.0.20301.0 ./libgbm.so ./libidn2.so.0 ./libunistring.so.2 ./libz.so.1"
+fi
+preload_libs="$hook_lib $preload_libs ./plugins/dtwebview/libcef.so"
+
+export LD_PRELOAD="$preload_libs${LD_PRELOAD:+ $LD_PRELOAD}"
+
+cd "$dingtalk_dir" || exit 1
+
+nohup ./com.alibabainc.dingtalk \
+    --enable-gpu-rasterization \
+    --enable-zero-copy \
+    --ignore-gpu-blocklist \
+    --enable-accelerated-video-decode \
+    --enable-features=VaapiVideoDecoder,OverrideSoftwareRenderingList,GpuRasterization,ZeroCopy \
+    --disable-features=UseChromeOSDirectVideoDecoder \
+    --use-gl=auto \
+    "$@" >>"$log_file" 2>&1 </dev/null &
+
+exit 0

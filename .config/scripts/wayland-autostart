@@ -1,0 +1,110 @@
+#!/bin/sh
+# Shared Wayland autostart entry for niri. Missing optional services are skipped.
+
+log_dir=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles
+mkdir -p "$log_dir"
+log_file=$log_dir/wayland-autostart.log
+
+run_once() {
+    pattern=$1
+    shift
+    command -v "$1" >/dev/null 2>&1 || return 0
+    if command -v pgrep >/dev/null 2>&1 && pgrep -u "$(id -u)" -f "$pattern" >/dev/null 2>&1; then
+        return 0
+    fi
+    "$@" >/dev/null 2>&1 &
+}
+
+run_once_logged() {
+    pattern=$1
+    shift
+    command -v "$1" >/dev/null 2>&1 || return 1
+    if command -v pgrep >/dev/null 2>&1 && pgrep -u "$(id -u)" -f "$pattern" >/dev/null 2>&1; then
+        return 0
+    fi
+    {
+        printf '[%s] start:' "$(date '+%Y-%m-%d %H:%M:%S')"
+        printf ' %s' "$@"
+        printf '\n'
+        "$@"
+        printf '[%s] exit %s:' "$(date '+%Y-%m-%d %H:%M:%S')" "$?"
+        printf ' %s' "$@"
+        printf '\n'
+    } >>"$log_file" 2>&1 &
+}
+
+start_gammastep() {
+    managed_pattern='(^|/)gammastep -m wayland -l 30\.6[: ]114\.3 -t 6500[: ]4000( |$)'
+    if command -v pgrep >/dev/null 2>&1 && pgrep -u "$(id -u)" -f "$managed_pattern" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if command -v pkill >/dev/null 2>&1; then
+        pkill -u "$(id -u)" -x gammastep >/dev/null 2>&1 || true
+        pkill -u "$(id -u)" -f '(^|/)gammastep( |$)' >/dev/null 2>&1 || true
+    fi
+
+    run_once_logged "$managed_pattern" gammastep -m wayland -l 30.6:114.3 -t 6500:4000
+}
+
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export SDL_IM_MODULE=fcitx
+export GLFW_IM_MODULE=ibus
+export INPUT_METHOD=fcitx
+export LC_CTYPE=${LC_CTYPE:-zh_CN.UTF-8}
+export XCURSOR_SIZE=32
+
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --systemd \
+        WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE \
+        GTK_IM_MODULE QT_IM_MODULE XMODIFIERS SDL_IM_MODULE GLFW_IM_MODULE INPUT_METHOD LC_CTYPE \
+        >/dev/null 2>&1 || true
+fi
+
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user import-environment \
+        WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE \
+        GTK_IM_MODULE QT_IM_MODULE XMODIFIERS SDL_IM_MODULE GLFW_IM_MODULE INPUT_METHOD LC_CTYPE \
+        >/dev/null 2>&1 || true
+fi
+
+run_once '(^|/)waybar( |$)' waybar
+run_once '(^|/)mako( |$)' mako
+run_once '(^|/)nm-applet( |$)' nm-applet
+run_once '(^|/)pasystray( |$)' pasystray
+run_once '(^|/)blueman-applet( |$)' blueman-applet
+run_once '(^|/)pot( |$)' pot
+run_once '(^|/)udiskie( |$)' udiskie -t
+
+if command -v fcitx5 >/dev/null 2>&1; then
+    if ! fcitx5-remote --check >/dev/null 2>&1; then
+        run_once '(^|/)fcitx5( |$)' fcitx5 -d --replace
+    fi
+fi
+
+if [ -x "$HOME/.config/scripts/wallpaper-wayland" ] && command -v swaybg >/dev/null 2>&1; then
+    if ! pgrep -u "$(id -u)" -f '(^|/)swaybg( |$)' >/dev/null 2>&1; then
+        "$HOME/.config/scripts/wallpaper-wayland" >/dev/null 2>&1 &
+    fi
+fi
+
+if command -v gammastep >/dev/null 2>&1; then
+    start_gammastep
+fi
+
+if [ -x "$HOME/.config/scripts/lock-wayland" ] && command -v swayidle >/dev/null 2>&1; then
+    run_once 'swayidle.*lock-wayland' \
+        swayidle -w timeout 600 "$HOME/.config/scripts/lock-wayland" before-sleep "$HOME/.config/scripts/lock-wayland"
+fi
+
+for agent in \
+    /usr/lib/polkit-kde-authentication-agent-1 \
+    /usr/libexec/polkit-kde-authentication-agent-1 \
+    /usr/libexec/polkit-gnome-authentication-agent-1 \
+    /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1; do
+    [ -x "$agent" ] || continue
+    run_once "$(basename "$agent")" "$agent"
+    break
+done

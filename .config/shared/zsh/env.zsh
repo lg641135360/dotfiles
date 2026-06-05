@@ -12,9 +12,11 @@ export TERMINAL=alacritty
 export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
 export HOMEBREW_API_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles/api"
 
-if [[ "$OSTYPE" == linux* ]]; then
+if [[ "$OSTYPE" == linux* && "${XDG_SESSION_TYPE:-}" != "wayland" ]]; then
     export XDG_CURRENT_DESKTOP=awesome
     export XDG_SESSION_DESKTOP=awesome
+    export GTK_USE_PORTAL=1
+elif [[ "$OSTYPE" == linux* ]]; then
     export GTK_USE_PORTAL=1
 fi
 

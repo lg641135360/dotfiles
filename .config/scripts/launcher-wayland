@@ -1,0 +1,33 @@
+#!/bin/sh
+# Wayland launcher with a conservative fallback for the current Awesome/Rofi setup.
+
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export SDL_IM_MODULE=fcitx
+export GLFW_IM_MODULE=ibus
+export INPUT_METHOD=fcitx
+export LC_CTYPE=${LC_CTYPE:-zh_CN.UTF-8}
+
+if command -v fcitx5 >/dev/null 2>&1 && ! fcitx5-remote --check >/dev/null 2>&1; then
+    fcitx5 -d --replace >/dev/null 2>&1 || true
+fi
+
+if command -v fuzzel >/dev/null 2>&1; then
+    exec fuzzel "$@"
+fi
+
+if [ -x "$HOME/.config/scripts/rofi-launch" ]; then
+    exec "$HOME/.config/scripts/rofi-launch" "$@"
+fi
+
+if command -v rofi >/dev/null 2>&1; then
+    exec rofi -show drun "$@"
+fi
+
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send "Launcher unavailable" "Install fuzzel or rofi to enable Mod+c in niri." || true
+fi
+
+printf '%s\n' 'Launcher unavailable: install fuzzel or rofi.' >&2
+exit 127

@@ -26,3 +26,12 @@
 - Ubuntu aarch64 上 X11-sensitive 桌面工具优先用系统二进制（尤其是 `redshift`）。
 - Linuxbrew 包遮蔽工作系统二进制且不需要时，优先删除包而不是加防御逻辑。
 - scripts/ 目录下的 helper 优先始终安装并保留可执行位，即使 runtime backend 未安装。
+
+## niri / Wayland 试用
+- niri 迁移先作为与 AwesomeWM 并行的 Wayland 试用桌面纳入 dotfiles；Awesome/X11 保持可回退，不直接删除或替换。
+- niri 配置不复用 `picom`、`xrandr`、`xinput`、`feh`、`xautolock`；分别由 niri output/input、Wayland 合成、`swaybg`、`swayidle`/`swaylock` 等替代。
+- Wayland 启动入口保持脚本化：`wayland-autostart` 只静默启动存在的 Waybar、Mako、fcitx5、壁纸、idle lock 和 polkit agent；`launcher-wayland` 优先 fuzzel，rofi 仅作 fallback。
+- Wayland 色温优先使用更接近 Redshift 继承者、发行版覆盖更广的 `gammastep`，缺失时回退轻量 wlroots 专用的 `wlsunset`；不要在 niri autostart 里继续沿用 X11 主线的 `redshift`。
+- niri 会话下 launcher 主线为 Fuzzel + Catppuccin Mocha + CJK 字体；Rofi 保留为 fallback，不作为 Wayland 主力入口。
+- niri portal 偏好使用用户级 `~/.local/share/xdg-desktop-portal/niri-portals.conf`，默认 `gnome;gtk`，但 `FileChooser` 显式指定 `gtk`，避免缺少 Nautilus 时文件选择器失效；polkit agent 候选需覆盖 Ubuntu 的 `/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1`。
+- niri autostart 可启动与 Awesome 对齐的可选托盘/辅助服务：`nm-applet`、`pasystray`、`blueman-applet`、`pot`、`udiskie -t`；缺命令时由 `run_once` 静默跳过。

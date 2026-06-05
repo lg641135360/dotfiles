@@ -1,0 +1,24 @@
+#!/bin/sh
+# Wayland screen lock helper for niri.
+
+swaylock_args='-f -c 11111b --show-failed-attempts --show-keyboard-layout'
+
+if [ -x /usr/bin/swaylock ]; then
+    # Prefer the distro build so swaylock uses the system PAM stack.
+    exec /usr/bin/swaylock $swaylock_args
+fi
+
+if command -v swaylock >/dev/null 2>&1; then
+    exec swaylock $swaylock_args
+fi
+
+if command -v loginctl >/dev/null 2>&1 && [ -n "${XDG_SESSION_ID:-}" ]; then
+    loginctl lock-session "$XDG_SESSION_ID" && exit 0
+fi
+
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send "Lock screen unavailable" "Install swaylock to enable Wayland locking." || true
+fi
+
+printf '%s\n' 'Lock screen unavailable: install swaylock.' >&2
+exit 127

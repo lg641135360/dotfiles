@@ -1,0 +1,54 @@
+#!/bin/sh
+# Region screenshot for Wayland/niri with annotation support.
+
+set -eu
+
+notify() {
+    command -v notify-send >/dev/null 2>&1 || return 0
+    notify-send "截图" "$1" >/dev/null 2>&1 || true
+}
+
+require() {
+    command -v "$1" >/dev/null 2>&1 && return 0
+    notify "缺少依赖：$1"
+    exit 127
+}
+
+require grim
+require slurp
+
+if command -v swappy >/dev/null 2>&1; then
+    annotator=swappy
+elif command -v ksnip >/dev/null 2>&1; then
+    annotator=ksnip
+else
+    notify "缺少依赖：swappy 或 ksnip"
+    exit 127
+fi
+
+screenshot_dir=${XDG_SCREENSHOTS_DIR:-$HOME/Pictures/Screenshots}
+mkdir -p "$screenshot_dir"
+
+timestamp=$(date '+%Y-%m-%d %H-%M-%S')
+output_file=$screenshot_dir/Screenshot\ from\ $timestamp.png
+tmp_file=${TMPDIR:-/tmp}/dotfiles-screenshot-wayland-$$.png
+
+cleanup() {
+    rm -f "$tmp_file"
+}
+trap cleanup EXIT INT TERM
+
+geometry=$(slurp) || exit 0
+[ -n "$geometry" ] || exit 0
+
+grim -g "$geometry" "$tmp_file"
+
+case $annotator in
+    swappy)
+        swappy -f "$tmp_file" -o "$output_file"
+        ;;
+    ksnip)
+        mv "$tmp_file" "$output_file"
+        ksnip -e "$output_file"
+        ;;
+esac

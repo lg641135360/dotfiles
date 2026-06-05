@@ -8,5 +8,8 @@
 
 docs/superpowers/
 
+# Local build outputs
+tools/dingtalk-wayland-screenshare/build/
+
 # OMX runtime state
 .omx/

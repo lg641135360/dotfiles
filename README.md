@@ -19,12 +19,14 @@
   - Homebrew Brewfile / defaults
 - linux
   - awesome（window manager）
+  - niri（Wayland compositor，parallel trial）
+  - Waybar / Mako / Fuzzel（niri status bar / notification / launcher）
   - rofi（launcher）
   - picom（compositor）
   - X11 / Xresources
   - dunst（notification）
   - xmonad / xmobar
-  - lock / rofi helper scripts
+  - lock / rofi / Wayland helper scripts
 
 ## how to use
 

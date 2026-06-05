@@ -1,0 +1,183 @@
+# niri / Wayland 试用配置
+
+目标：在 Ubuntu 24.04 上并行试用 niri，不删除 AwesomeWM；优先保留当前 Awesome 的常用肌肉记忆，同时接受 niri 的 scrollable columns 模型。
+
+## 当前定位
+
+- 当前本机已通过上游 flake 重新构建并切到 `niri 26.04 (3819182)`。
+- AwesomeWM 仍是可回退桌面；本目录只提供 niri 试用配置。
+- Waybar / Mako 第一版沿用 Catppuccin Mocha 色系，便于和现有 Awesome 外观保持接近。
+- Fuzzel 是 niri 会话下的首选 launcher，使用 CJK 字体、fuzzy match 与更清晰的深色主题；Rofi 仅作为 fallback。
+- `picom`、`xrandr`、`xinput`、`feh`、`xautolock` 不进入 niri 配置：Wayland 下分别由 niri/output/input、`swaybg`、`swayidle`/`swaylock` 等替代。
+- 当前 Ubuntu x86_64 双 2K 外接屏按旧 X11 `Xft.dpi=124` 的观感近似设置为 niri `scale 1.25`，并沿用 `cursor.1x` 的 `XCURSOR_SIZE=32`。
+- niri 的多屏 workspace 不是 i3/Sway 式全局编号列表；每个显示器都有自己的一条垂直 workspace 轨道。需要跨屏时，用 monitor 级快捷键移动焦点、列或整个 workspace。
+- `xwayland-satellite` 已放入 Nix profile；niri 26.04 会在需要运行 X11 应用时按需自动拉起它，因此本仓库不手动 autostart 该进程。
+- Portal 偏好由 `.config/linux/xdg-desktop-portal/niri-portals.conf` 维护，安装到 `~/.local/share/xdg-desktop-portal/niri-portals.conf`；其中 `FileChooser=gtk` 用来避免 GNOME portal 在缺少 Nautilus 时影响文件选择器。
+
+## 建议依赖
+
+Ubuntu 24.04 的 apt 仓库没有 niri；当前机器通过 Nix 安装了 niri。为了和最新 niri 搭配，Waybar 也建议优先用 Nix 或源码安装较新的版本，因为 Ubuntu 24.04 apt 的 Waybar `0.9.24` 没有 niri 专用模块。
+
+基础组件：
+
+```bash
+# Ubuntu 仓库里可直接补齐的组件
+sudo apt install waybar fuzzel mako swaybg swayidle swaylock wl-clipboard grim slurp ksnip brightnessctl playerctl pavucontrol
+sudo apt install fcitx5 fcitx5-chinese-addons
+sudo apt install xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-gnome gnome-keyring policykit-1-gnome
+sudo apt install pipewire wireplumber libportal-dev libpipewire-0.3-dev libopencv-dev libx11-dev libxrandr-dev libxext-dev libxdamage-dev cmake ninja-build
+
+# 自动色温
+sudo apt install gammastep
+
+# 当前机器已通过 Nix profile 补齐：
+# waybar/fuzzel/mako/swayidle/swaylock/wl-clipboard/grim/slurp/ksnip/brightnessctl/playerctl/xwayland-satellite。
+```
+
+> 注：本仓库的 Waybar 配置使用 `niri/workspaces` 与 `niri/window`。这些模块来自较新的 Waybar；如果只安装 Ubuntu 24.04 apt 里的 Waybar，可能需要先升级 Waybar 或临时移除这两个模块。
+
+## 启动方式
+
+从显示管理器里选择 `niri`/`niri-session`。如果显示管理器没有条目，先确认：
+
+```bash
+command -v niri
+command -v niri-session
+niri --version
+niri validate -c ~/.config/niri/config.kdl
+```
+
+TTY 临时测试可运行：
+
+```bash
+niri-session
+```
+
+## 快捷键映射
+
+| Awesome 习惯 | niri 动作 |
+| --- | --- |
+| `Mod+Return` | 打开终端：优先 Nix profile 里的 Alacritty，缺失时回退 kitty / 系统 Alacritty |
+| `Mod+e` | 打开 Dolphin |
+| `Mod+c` | 启动 launcher：优先 `fuzzel`，缺失时回退 `rofi-launch` |
+| `Mod+q` | 关闭当前窗口 |
+| `Mod+Shift+l` | 锁屏：优先 `swaylock` |
+| `Mod+h/l` | 缩小/放大当前列宽 |
+| `Mod+Alt+h/l` | 左/右聚焦列 |
+| `Mod+Alt+Shift+h/l` | 左/右聚焦显示器 |
+| `Mod+j/k` | 当前列内上下聚焦窗口 |
+| `Mod+Shift+j/k` | 当前列内上下移动窗口 |
+| `Mod+Ctrl+Shift+h/l` | 移动当前列到左/右显示器 |
+| `Mod+a/d` | 上/下 workspace |
+| `Mod+1..9` | 聚焦指定 workspace |
+| `Mod+Shift+1..9` | 移动当前窗口到指定 workspace |
+| `Mod+Ctrl+Shift+a/d` | 移动当前 workspace 到左/右显示器 |
+| `Mod+Ctrl+Space` | 切换浮动 |
+| `Mod+f` | 全屏当前窗口 |
+| `Mod+m` | 最大化到屏幕边缘 |
+| `Mod+Shift+q` | 退出 niri，会有确认 |
+
+## 自启动
+
+niri 只调用一个入口：
+
+```kdl
+spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
+```
+
+该脚本会按命令是否存在静默启动：
+
+- `waybar`
+- `mako`
+- `fcitx5`
+- `swaybg` 随机壁纸
+- `gammastep` 自动色温（日志写到 `~/.local/state/dotfiles/wayland-autostart.log`）
+- `swayidle` + `lock-wayland`
+- KDE 或 GNOME polkit agent（若存在）
+- `nm-applet`、`pasystray`、`blueman-applet`、`pot`、`udiskie -t` 等托盘/辅助服务（若存在）
+
+缺依赖不会中断 niri 启动。
+
+如果 `gammastep` 进程存在但屏幕色温没有变化，先看日志：
+
+```bash
+tail -n 80 ~/.local/state/dotfiles/wayland-autostart.log
+gammastep -m drm -p -l 30.6:114.3 -t 6500:4000
+```
+
+`lock-wayland` 使用 `swaylock`，解锁密码来自系统 PAM 账户认证；它不是 GNOME Keyring/KWallet/浏览器保存密码。脚本会优先调用 `/usr/bin/swaylock`，避免 Nix profile 里的 `swaylock` 与系统 PAM 配置格式不兼容。若手动补 `/etc/pam.d/swaylock`，使用 PAM 的 `include` 控制语法：
+
+```pam
+auth include common-auth
+account include common-account
+session include common-session
+```
+
+## 终端入口
+
+`Mod+Return` 调用 `~/.config/scripts/terminal-wayland`，优先使用 `~/.nix-profile/bin/alacritty`。当前机器的 `/usr/bin/alacritty` 来自非 noble 官方稳定源，在 niri/Wayland 下会报 `provided display handle is not supported`；Nix 的 Alacritty 与 kitty 均可正常创建窗口，因此 niri 入口不直接调用裸 `alacritty`。
+
+## Portal
+
+`niri-portals.conf` 使用 GNOME/GTK portal 组合：
+
+```ini
+[preferred]
+default=gnome;gtk;
+org.freedesktop.impl.portal.Access=gtk;
+org.freedesktop.impl.portal.Notification=gtk;
+org.freedesktop.impl.portal.Secret=gnome-keyring;
+org.freedesktop.impl.portal.FileChooser=gtk;
+```
+
+这样可以继续使用 GNOME portal 的截图/屏幕共享等能力，同时把文件选择器固定到 GTK backend，避免当前机器缺少 Nautilus 时出现文件选择器不可用。
+
+## 钉钉屏幕共享
+
+Wayland 下钉钉会议共享只显示鼠标、画面全黑时，优先确认 PipeWire / WirePlumber / xdg-desktop-portal 正常运行。钉钉本身仍通过 XWayland 的 X11 抓屏接口取画面，因此需要用 `dingtalk-wayland-screenshare` 的 `libdingtalkhook.so` 把 X11 抓屏结果替换为 portal/PipeWire 捕获的画面。
+
+本仓库在 `tools/dingtalk-wayland-screenshare` 保留了一份最小化、已修好的 hook 源码。它不随 `install.sh` 复制到 niri 配置目录，也不在仓库里保留 build 目录；需要更新 hook 时，从 dotfiles 根目录一次性编译并安装到 `~/.local/lib`：
+
+```bash
+cmake -S tools/dingtalk-wayland-screenshare -B /tmp/dingtalk-wayland-screenshare-build -GNinja -DCMAKE_BUILD_TYPE=Release
+cmake --build /tmp/dingtalk-wayland-screenshare-build
+install -Dm755 /tmp/dingtalk-wayland-screenshare-build/libdingtalkhook.so ~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so
+```
+
+当前 niri/PipeWire 截屏流需要两个兼容点：第一，format negotiation 必须把 `SPA_FORMAT_VIDEO_modifier` 声明为 mandatory `DRM_FORMAT_MOD_LINEAR`，否则 niri 日志会出现 `no more input formats`；第二，niri 提供的是 linear `DmaBuf`，PipeWire 不会把它映射成普通 `data` 指针，hook 必须对 `spa_data.fd` 做 `mmap` 后再复制到 framebuffer。仅强行请求 `SPA_PARAM_Buffers` 的 `MemFd` 会触发 `error alloc buffers: 无效的参数`，不要走这条路。
+
+构建完成后默认 hook 路径是：
+
+```bash
+~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so
+```
+
+启动钉钉时使用：
+
+```bash
+~/.config/scripts/dingtalk-wayland
+```
+
+脚本会优先使用 `~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so`，把它放在 `LD_PRELOAD` 最前面，同时保留钉钉原本依赖的 `libgbm.so` 和 `plugins/dtwebview/libcef.so` preload；如果 hook 库放在其它位置，可用 `DINGTALK_WAYLAND_HOOK=/path/to/libdingtalkhook.so ~/.config/scripts/dingtalk-wayland` 指定。排障时可查看 `/tmp/dingtalk-wayland-debug.log`，正常路径会看到 `stream state changed from paused to streaming` 以及前几帧的 `process frame type=3` / `mmap frame` 记录。
+
+## 截图标注
+
+`Print` 调用 `~/.config/scripts/screenshot-wayland`：先用 `slurp` 选取区域，再用 `grim` 截图，随后打开标注工具做涂鸦、箭头、文字等标注，并默认保存到 `~/Pictures/Screenshots`。脚本会优先使用 `swappy`；Ubuntu 24.04 默认 apt 源没有 `swappy` 时，使用仓库中可直接安装的 `ksnip`。`Ctrl+Print` 和 `Alt+Print` 继续保留 niri 原生的整屏/当前窗口截图。
+
+## 验证
+
+```bash
+niri validate -c .config/linux/niri/config.kdl
+./tests/niri_wayland_config_test.sh
+```
+
+进入 niri 后：
+
+```bash
+niri msg outputs
+niri msg workspaces
+```
+
+## 回退
+
+在登录界面重新选择 AwesomeWM 即可。这个试用配置不删除 Awesome、picom 或 X11 配置。

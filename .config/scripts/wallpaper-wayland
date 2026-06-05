@@ -1,0 +1,22 @@
+#!/bin/sh
+# Random Wayland wallpaper helper using swaybg.
+
+command -v swaybg >/dev/null 2>&1 || exit 0
+command -v shuf >/dev/null 2>&1 || exit 0
+
+for dir in \
+    "$HOME/Pictures/Wallpapers" \
+    "$HOME/Pictures/wallpapers" \
+    "$HOME/Pictures/wall" \
+    "$HOME/.config/wallpapers" \
+    "$HOME/Pictures" \
+    /usr/share/backgrounds; do
+    [ -d "$dir" ] || continue
+    image=$(find "$dir" -maxdepth 2 -type f \( \
+        -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \
+    \) 2>/dev/null | shuf -n 1)
+    [ -n "$image" ] || continue
+    exec swaybg -i "$image" -m fill
+done
+
+exit 0

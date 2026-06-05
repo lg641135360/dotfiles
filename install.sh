@@ -152,6 +152,10 @@ process_config() {
     copy_config "$source" "$target" "$name"
 }
 
+is_wayland_session() {
+    [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]
+}
+
 # Configuration arrays
 # app name | source path | target path | display name
 shared_configs=(
@@ -206,9 +210,27 @@ linux_configs=(
     "|.config/linux/x11/xsessionrc|~/.xsessionrc|X11 session config"
 )
 
+linux_wayland_configs=(
+    "|.config/scripts/wayland-autostart|~/.config/scripts/wayland-autostart|Wayland autostart script"
+    "|.config/scripts/dingtalk-wayland|~/.config/scripts/dingtalk-wayland|DingTalk Wayland script"
+    "|.config/scripts/terminal-wayland|~/.config/scripts/terminal-wayland|Wayland terminal script"
+    "|.config/scripts/launcher-wayland|~/.config/scripts/launcher-wayland|Wayland launcher script"
+    "|.config/scripts/lock-wayland|~/.config/scripts/lock-wayland|Wayland lock script"
+    "|.config/scripts/screenshot-wayland|~/.config/scripts/screenshot-wayland|Wayland screenshot script"
+    "|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script"
+    "|.config/linux/xdg-desktop-portal/niri-portals.conf|~/.local/share/xdg-desktop-portal/niri-portals.conf|niri desktop portal preferences"
+)
+
 # Linux directory configurations
 linux_dir_configs=(
     "command -v awesome|.config/linux/awesome|~/.config/awesome|AwesomeWM"
+)
+
+linux_wayland_dir_configs=(
+    "command -v niri|.config/linux/niri|~/.config/niri|niri"
+    "command -v waybar|.config/linux/waybar|~/.config/waybar|Waybar"
+    "command -v mako|.config/linux/mako|~/.config/mako|Mako"
+    "command -v fuzzel|.config/linux/fuzzel|~/.config/fuzzel|Fuzzel"
 )
 
 # Architecture and distro-specific configurations (awesome autostart only)
@@ -381,6 +403,16 @@ main() {
             process_config "$check_cmd" "$source" "$target" "$name"
         done
 
+        if is_wayland_session; then
+            log_info "Detected Wayland session, processing Wayland configurations..."
+            for config in "${linux_wayland_configs[@]}"; do
+                IFS='|' read -r check_cmd source target name <<< "$config"
+                process_config "$check_cmd" "$source" "$target" "$name"
+            done
+        else
+            log_info "Wayland session not detected, skipping Wayland configurations"
+        fi
+
         # Save AwesomeWM external dependencies before copying
         # (copy_config backs up the entire dir, which would overwrite freshly cloned deps)
         awesome_deps=()
@@ -405,6 +437,14 @@ main() {
             IFS='|' read -r check_cmd source target name <<< "$config"
             process_config "$check_cmd" "$source" "$target" "$name"
         done
+
+        if is_wayland_session; then
+            log_info "Processing Wayland directory configurations..."
+            for config in "${linux_wayland_dir_configs[@]}"; do
+                IFS='|' read -r check_cmd source target name <<< "$config"
+                process_config "$check_cmd" "$source" "$target" "$name"
+            done
+        fi
 
         # Restore AwesomeWM external dependencies after copying
         if [ ${#awesome_deps[@]} -gt 0 ] && [ -d "$awesome_deps_save_dir" ]; then

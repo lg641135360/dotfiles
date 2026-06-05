@@ -1,0 +1,21 @@
+#!/bin/sh
+# Wayland terminal entrypoint for niri. Prefer the Nix Alacritty build on this host.
+
+if [ -x "$HOME/.nix-profile/bin/alacritty" ]; then
+    exec "$HOME/.nix-profile/bin/alacritty" "$@"
+fi
+
+if command -v kitty >/dev/null 2>&1; then
+    exec kitty "$@"
+fi
+
+if command -v alacritty >/dev/null 2>&1; then
+    exec alacritty "$@"
+fi
+
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send "Terminal unavailable" "Install Nix Alacritty or kitty to enable Mod+Return in niri." || true
+fi
+
+printf '%s\n' 'Terminal unavailable: install Nix Alacritty or kitty.' >&2
+exit 127

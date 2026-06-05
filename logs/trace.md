@@ -2,6 +2,13 @@
 
 > 本文件只记录实际发生过的修改、验证证据与后续线索，不定义长期规则；若某条经验已稳定复用，应提升到 `AGENTS.md` 或 `memory/`。
 
+## 2026-06-04
+
+- 目的：排查并修复 niri/Wayland 会话下钉钉会议共享屏幕只能看到鼠标、其它画面全黑的问题。
+- 已做：检查 `lzl200110/dingtalk-wayland-screenshare`，确认其通过 `LD_PRELOAD` hook 钉钉/XWayland 的 `XGetImage`/`XShmGetImage`，把 xdg-desktop-portal/PipeWire 捕获的画面回填给钉钉；临时 clone 并在 `/tmp/dingtalk-wayland-screenshare` 成功构建 `libdingtalkhook.so`。新增 `.config/scripts/dingtalk-wayland`，在保留钉钉原 `libgbm.so` 与 `plugins/dtwebview/libcef.so` preload 的同时把 hook 库放到 `LD_PRELOAD` 最前面；同步更新 `install.sh`、`tests/niri_wayland_config_test.sh` 与 `.config/linux/niri/README.md`。经用户确认后，将 hook 库安装到 live `~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so`，将脚本安装到 live `~/.config/scripts/dingtalk-wayland`，并 unmask/enable/start 用户级 `pipewire.socket`、`pipewire-pulse.socket` 与 `wireplumber.service`，重启 xdg-desktop-portal/gnome/gtk portal 服务。连续复测发现：只声明 modifier 会先遇到 `no more input formats`，必须把 `SPA_FORMAT_VIDEO_modifier` 作为 mandatory `DRM_FORMAT_MOD_LINEAR`；恢复 streaming 后 niri 提供的是 linear `SPA_DATA_DmaBuf`，`data=0 maxsize=1`，需要对 `spa_data.fd` 做 `mmap` 并复制到 framebuffer；尝试请求 `SPA_PARAM_Buffers` / `MemFd` 会触发 `error alloc buffers: 无效的参数`。最终把已验证可用的临时源码最小化复制到 `tools/dingtalk-wayland-screenshare/`，删除旧 patch 路线，不让 `install.sh` 每次复制源码或编译 hook。
+- 验证：`cmake -S tools/dingtalk-wayland-screenshare -B /tmp/dingtalk-wayland-screenshare-build -GNinja -DCMAKE_BUILD_TYPE=Release && cmake --build /tmp/dingtalk-wayland-screenshare-build` 通过；`install -Dm755 /tmp/dingtalk-wayland-screenshare-build/libdingtalkhook.so ~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so` 已刷新 live hook；`~/.config/niri/dingtalk-wayland-screenshare` 已删除，仓库内没有 hook build 目录；`/bin/sh -n .config/scripts/dingtalk-wayland` 通过。用户复测确认“这下可以共享了”。
+- 后续：使用 `~/.config/scripts/dingtalk-wayland` 启动钉钉后，在共享屏幕时需要接受 portal 选择窗口/屏幕的对话框，不能取消；若后续需要重建 hook，应在 dotfiles 根目录从 `tools/dingtalk-wayland-screenshare` 构建到 `/tmp`，再一次性安装到 `~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so`。排障优先看 `/tmp/dingtalk-wayland-debug.log`，成功路径应包含 `stream state changed from paused to streaming`、`process frame type=3` 与 `mmap frame`。
+
 ## 2026-06-03
 
 - 目的：按用户要求把当前副屏切换到 2K 60Hz。
@@ -1667,3 +1674,33 @@
 - 已做：发布前确认本地 `HEAD` 与 `origin/main` 同步，当前改动范围为 Awesome tasklist、Awesome README、相关测试、memory 与 trace；repo/live Awesome 目标文件 `.config/linux/awesome/README.md` 与 `.config/linux/awesome/ui/tasklist.lua` 和 live `~/.config/awesome` 对应文件一致。随后按 Lore 协议提交当前改动为 `619565e`（`Keep per-screen task context visible`），并推送到 `git@github.com:lg641135360/dotfiles.git` 的 `main`，远端从 `3c319b0` 前进到 `619565e`。本轮没有重载 Awesome，没有额外提交其它模块改动。
 - 验证：发布前 `git fetch origin && git rev-list --left-right --count HEAD...origin/main` 返回 `0 0`；`sh -n tests/awesome_ui_architecture_test.sh tests/awesome_docs_theme_test.sh tests/awesome_layout_test.sh`、`lua -e 'assert(loadfile(".config/linux/awesome/ui/tasklist.lua")); assert(loadfile(".config/linux/awesome/ui/wibar.lua"))'`、完整 `for t in tests/awesome_*_test.sh; do "$t"; done`、`awesome -k -c "$PWD/.config/linux/awesome/rc.lua"` 与 `git diff --check` 均通过；`git push origin main` 返回 `3c319b0..619565e  main -> main`。
 - 后续：本条发布记录将作为 trace-only 提交再推送一次；追加 trace 本身不递归追加第二条发布记录。
+
+## 2026-06-04 niri / Wayland 试用配置收口进仓库
+- 目的：按用户要求开始把当前 live niri 试用环境迁移进 dotfiles，让 niri 作为与 AwesomeWM 并行的 Wayland 试用桌面可复制、可测试、可回退。
+- 已做：从 live `~/.config/niri`、`~/.config/waybar`、`~/.config/mako` 与 `~/.config/scripts/{wayland-autostart,launcher-wayland,lock-wayland}` 导入仓库，新增 `.config/linux/niri/{config.kdl,README.md}`、`.config/linux/waybar/{config,style.css}`、`.config/linux/mako/config` 和三个 Wayland helper 脚本；更新 `install.sh`，让 Wayland helper 始终复制，niri/Waybar/Mako 目录在对应命令存在时部署；更新根 `README.md` 与 `tests/repo_docs_test.sh`，把 niri、Waybar/Mako 和 Wayland helper 纳入模块清单；新增 `tests/niri_wayland_config_test.sh`，锁定 niri 配置可验证、Awesome 肌肉记忆键位、Wayland 替代项、Waybar/Mako 主题契约和安装清单；在 `memory/desktop.md` 记录 niri 先并行试用、Awesome/X11 保持回退的稳定边界。本轮没有同步 live `~/.config`，没有切换桌面，没有重载运行态，没有提交或推送。
+- 验证：`./tests/niri_wayland_config_test.sh` 通过，其中本机已安装 `niri` 时执行了 `niri validate -c .config/linux/niri/config.kdl`；`sh -n .config/scripts/wayland-autostart .config/scripts/launcher-wayland .config/scripts/lock-wayland tests/niri_wayland_config_test.sh install.sh` 通过；`./tests/repo_docs_test.sh` 通过；`./tests/run.sh fast` 全部通过；`git diff --check -- README.md install.sh .config/linux/niri .config/linux/waybar .config/linux/mako .config/scripts/wayland-autostart .config/scripts/launcher-wayland .config/scripts/lock-wayland tests/niri_wayland_config_test.sh tests/repo_docs_test.sh memory/desktop.md` 通过。
+- 后续：下一步可继续补 Wayland 色温替代（`wlsunset`/`gammastep`）、portal/文件选择器实机会话验证，以及把 niri 从试用配置逐步提升为主力候选；正式切换仍应从登录器选择 niri 会话验证，不在当前 Awesome/X11 会话里直接替换。
+
+## 2026-06-04 niri Wayland 壁纸与色温 helper 补齐
+- 目的：继续推进 niri 迁移，把 live autostart 已依赖但仓库缺失的 Wayland 壁纸 helper 纳入 dotfiles，并为 Wayland 会话补齐不依赖 X11/redshift 的色温替代入口。
+- 已做：从 live `~/.config/scripts/wallpaper-wayland` 导入 `.config/scripts/wallpaper-wayland`，并扩展候选目录覆盖当前实际存在的 `~/Pictures/wall` 与 `/usr/share/backgrounds`，同时把查找深度放宽到 `-maxdepth 2`；更新 `.config/scripts/wayland-autostart`，在存在 `wlsunset` 时启动 `wlsunset -l 30.6 -L 114.3 -t 4000 -T 6500`，否则存在 `gammastep` 时启动 `gammastep -l 30.6:114.3 -t 6500:4000`，明确不沿用 X11 主线的 `redshift`；更新 `install.sh` 部署 `wallpaper-wayland`；同步更新 `.config/linux/niri/README.md`、`tests/niri_wayland_config_test.sh` 与 `memory/desktop.md`。本轮没有同步 live `~/.config`，没有切换桌面，没有重载运行态，没有提交或推送。
+- 验证：`sh -n .config/scripts/wayland-autostart .config/scripts/launcher-wayland .config/scripts/lock-wayland .config/scripts/wallpaper-wayland tests/niri_wayland_config_test.sh install.sh` 通过；`./tests/niri_wayland_config_test.sh` 通过；`./tests/run.sh fast` 全部通过；相关文件 `git diff --check` 通过。
+- 后续：当前仓库已覆盖 niri 基础会话、Waybar/Mako、launcher/lock/wallpaper/autostart helper 和可选色温入口；下一步更适合做真实 niri 登录会话验证（portal、文件选择器、截图/屏幕共享、中文输入、Xwayland 应用），再决定是否继续提升为主力候选。
+
+## 2026-06-04 niri Fuzzel launcher 配置纳入仓库
+- 目的：继续推进 niri 迁移，补齐当前 `launcher-wayland` 优先调用 Fuzzel 但仓库没有 Fuzzel 配置的缺口，让 Wayland launcher 与 Awesome/Rofi 主线一样有主题和字体契约。
+- 已做：新增 `.config/linux/fuzzel/fuzzel.ini`，使用 Catppuccin Mocha 配色、`Noto Sans CJK SC` 字体、Alacritty terminal 和中文 prompt；更新 `install.sh`，在 `fuzzel` 可用时部署到 `~/.config/fuzzel`；同步更新 `.config/linux/niri/README.md`、根 `README.md`、`tests/repo_docs_test.sh`、`tests/niri_wayland_config_test.sh` 与 `memory/desktop.md`，明确 niri 会话下 Fuzzel 是主 launcher，Rofi 只作为 fallback。本轮没有同步 live `~/.config`，没有切换桌面，没有重载运行态，没有提交或推送。
+- 验证：`sh -n .config/scripts/wayland-autostart .config/scripts/launcher-wayland .config/scripts/lock-wayland .config/scripts/wallpaper-wayland tests/niri_wayland_config_test.sh install.sh` 通过；`./tests/niri_wayland_config_test.sh` 通过；`./tests/run.sh fast` 全部通过；随后 `./tests/run.sh full` 全量测试也通过；相关文件 `git diff --check` 通过。
+- 后续：仓库侧 niri 试用配置已覆盖 compositor、bar、notification、launcher、lock、wallpaper、autostart 和可选色温。下一步若继续迁移，应进入真实 niri 登录会话做实机验证；这会改变运行态，需作为单独副作用层级处理。
+
+## 2026-06-04 niri SDDM 启动依赖缺口修复
+- 目的：根据当前 SDDM/niri desktop entry 与官方 Important Software 核对结果，修复 niri 会话通过 SDDM 启动后可能缺少 polkit agent 与文件选择器 portal backend 的风险。
+- 已做：在 `.config/scripts/wayland-autostart` 的 polkit agent 候选中加入当前 Ubuntu 实际存在的 `/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1`；新增 `.config/linux/xdg-desktop-portal/niri-portals.conf`，保持 `default=gnome;gtk;`、`Access=gtk`、`Notification=gtk`、`Secret=gnome-keyring`，并显式设置 `org.freedesktop.impl.portal.FileChooser=gtk;`，避免缺少 Nautilus 时 GNOME portal 文件选择器不可用；更新 `install.sh` 将该 portal preferences 部署到用户级 `~/.local/share/xdg-desktop-portal/niri-portals.conf`；同步更新 `.config/linux/niri/README.md`、`tests/niri_wayland_config_test.sh` 与 `memory/desktop.md`。本轮没有同步 live `~/.config` 或 `~/.local/share`，没有停止当前 niri.service，没有切换 SDDM 会话，没有提交或推送。
+- 验证：`sh -n .config/scripts/wayland-autostart .config/scripts/launcher-wayland .config/scripts/lock-wayland .config/scripts/wallpaper-wayland tests/niri_wayland_config_test.sh install.sh` 通过；`./tests/niri_wayland_config_test.sh` 通过；`./tests/run.sh fast` 通过；`./tests/run.sh full` 全量测试通过；相关文件 `git diff --check` 通过。
+- 后续：若要通过 SDDM 实机登录 Niri，需要先处理当前已 active 的 `niri.service`，否则 `/home/rikoo/.nix-profile/bin/niri-session` 会因已有会话退出；随后在 SDDM 选择 Niri 会话验证 portal、文件选择器、polkit、中文输入、Xwayland 与截图/屏幕共享。
+
+## 2026-06-04 niri autostart 辅助服务与色温优先级调整
+- 目的：按用户要求把前面确认适合 niri 的 Awesome autostart 对应服务都加入 Wayland 自动启动，并在 `wlsunset` 与 `gammastep` 中选择更通用的色温主线。
+- 已做：在 `.config/scripts/wayland-autostart` 中新增 `nm-applet`、`pasystray`、`blueman-applet`、`pot` 与 `udiskie -t` 的可选 `run_once` 启动，命令不存在时继续静默跳过；将 Wayland 色温优先级改为先 `gammastep -l 30.6:114.3 -t 6500:4000`，缺失时再回退 `wlsunset -l 30.6 -L 114.3 -t 4000 -T 6500`，不沿用 X11 `redshift`。同步更新 `.config/linux/niri/README.md`、`tests/niri_wayland_config_test.sh` 与 `memory/desktop.md`，记录 niri 会话下 `gammastep` 优先、`wlsunset` 轻量 fallback，以及新增托盘/辅助服务。本轮没有同步 live `~/.config`，没有安装 `gammastep` 或 `wlsunset`，没有切换 SDDM 会话，没有提交或推送。
+- 验证：首次新增优先级断言时测试失败，原因是测试里的 awk 正则转义错误；修正为 `grep -nF` 行号比较后，`sh -n .config/scripts/wayland-autostart tests/niri_wayland_config_test.sh`、`./tests/niri_wayland_config_test.sh`、`./tests/run.sh fast`、`./tests/run.sh full` 与相关文件 `git diff --check` 均通过。
+- 后续：若要启用色温，需要安装 `gammastep`（推荐）或 `wlsunset`；随后可运行 `./install.sh` 同步 live，再从 SDDM 选择 Niri 实机会话验证。
