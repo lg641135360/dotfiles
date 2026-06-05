@@ -124,8 +124,8 @@ binds {
     Mod+Right { focus-column-right; }
     Mod+J { focus-window-down; }
     Mod+K { focus-window-up; }
-    Mod+Down { focus-window-down; }
-    Mod+Up { focus-window-up; }
+    Mod+Up { focus-workspace-up; }
+    Mod+Down { focus-workspace-down; }
 
     Mod+Shift+J { move-window-down; }
     Mod+Shift+K { move-window-up; }
