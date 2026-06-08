@@ -62,13 +62,15 @@ niri-session
 | `Mod+c` | 启动 launcher：优先 `fuzzel`，缺失时回退 `rofi-launch` |
 | `Mod+q` | 关闭当前窗口 |
 | `Mod+Shift+l` | 锁屏：优先 `swaylock` |
-| `Mod+h/l` | 缩小/放大当前列宽 |
-| `Mod+Alt+h/l` | 左/右聚焦列 |
-| `Mod+Alt+Shift+h/l` | 左/右聚焦显示器 |
-| `Mod+j/k` | 当前列内上下聚焦窗口 |
+| `Mod+o` | 显示/关闭 niri overview 总览 |
+| `Mod+h/l` | 左/右聚焦窗口列 |
+| `Mod+j/k` | 下/上聚焦 workspace |
+| `Mod+Minus/Equal` | 缩小/放大当前列宽 |
 | `Mod+Shift+j/k` | 当前列内上下移动窗口 |
-| `Mod+Ctrl+Shift+h/l` | 移动当前列到左/右显示器 |
-| `Mod+a/d` | 上/下 workspace |
+| `Mod+Ctrl+h/l` | 移动当前列到左/右 |
+| `Mod+Shift+a/d` | 移动当前列到左/右显示器 |
+| `Mod+a/d` | 左/右聚焦显示器 |
+| `Mod+Page_Up/Page_Down` | 上/下聚焦 workspace |
 | `Mod+1..9` | 聚焦指定 workspace |
 | `Mod+Shift+1..9` | 移动当前窗口到指定 workspace |
 | `Mod+Ctrl+Shift+a/d` | 移动当前 workspace 到左/右显示器 |
@@ -119,7 +121,7 @@ session include common-session
 
 ## 窗口规则
 
-- 钉钉主窗口与会议窗口（`com.alibabainc.dingtalk` / `tblive`）默认浮动，避免会议界面占据整列并打乱当前 workspace 布局。
+- 钉钉不再由 niri window-rule 管理；会议窗口、浮动状态和位置交给应用自身或手动切换，避免仓库配置强行干预钉钉行为。
 - Cherry Studio 默认列宽为 2/3 屏，保留较宽的对话阅读区域，同时还能露出相邻列。
 - Chrome 默认列宽为 2/3 屏，适合网页阅读和文档页面，不改变 workspace 或浮动状态。
 - VS Code 默认列宽为 1.0，适合代码、终端和侧边栏同时展开。

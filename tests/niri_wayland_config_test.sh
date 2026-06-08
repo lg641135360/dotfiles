@@ -36,8 +36,17 @@ test_niri_config_keeps_awesome_muscle_memory() {
     assert_contains 'Mod+C hotkey-overlay-title="启动应用" { spawn "~/.config/scripts/launcher-wayland"; }' "$NIRI_CONFIG"
     assert_contains 'Mod+Q repeat=false hotkey-overlay-title="关闭当前窗口" { close-window; }' "$NIRI_CONFIG"
     assert_contains 'Mod+Shift+L repeat=false hotkey-overlay-title="锁屏" { spawn "~/.config/scripts/lock-wayland"; }' "$NIRI_CONFIG"
+    assert_contains 'Mod+O hotkey-overlay-title="显示总览" { toggle-overview; }' "$NIRI_CONFIG"
+    assert_contains 'Mod+H { focus-column-left; }' "$NIRI_CONFIG"
+    assert_contains 'Mod+L { focus-column-right; }' "$NIRI_CONFIG"
+    assert_contains 'Mod+J { focus-workspace-down; }' "$NIRI_CONFIG"
+    assert_contains 'Mod+K { focus-workspace-up; }' "$NIRI_CONFIG"
     assert_contains 'Mod+Minus { set-column-width "-10%"; }' "$NIRI_CONFIG"
     assert_contains 'Mod+Equal { set-column-width "+10%"; }' "$NIRI_CONFIG"
+    assert_not_contains 'Mod+Left' "$NIRI_CONFIG"
+    assert_not_contains 'Mod+Right' "$NIRI_CONFIG"
+    assert_not_contains 'Mod+Up' "$NIRI_CONFIG"
+    assert_not_contains 'Mod+Down' "$NIRI_CONFIG"
 }
 
 test_niri_config_exposes_multi_monitor_navigation() {
@@ -63,15 +72,15 @@ test_niri_config_uses_wayland_replacements_not_x11_autostart() {
     assert_not_contains 'feh' "$NIRI_CONFIG"
 }
 
-test_niri_config_has_app_window_rules() {
-    assert_contains 'match app-id=r#"^(com\.alibabainc\.dingtalk|tblive)$"#' "$NIRI_CONFIG"
-    assert_contains 'open-floating true' "$NIRI_CONFIG"
+test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
+    assert_not_contains 'com\.alibabainc\.dingtalk' "$NIRI_CONFIG"
+    assert_not_contains 'tblive' "$NIRI_CONFIG"
+    assert_contains '钉钉不再由 niri window-rule 管理' "$NIRI_README"
     assert_contains 'match app-id=r#"^CherryStudio$"#' "$NIRI_CONFIG"
     assert_contains 'default-column-width { proportion 0.66667; }' "$NIRI_CONFIG"
     assert_contains 'match app-id=r#"^google-chrome$"#' "$NIRI_CONFIG"
     assert_contains 'match app-id=r#"^code$"#' "$NIRI_CONFIG"
     assert_contains 'default-column-width { proportion 1.0; }' "$NIRI_CONFIG"
-    assert_contains '钉钉主窗口与会议窗口' "$NIRI_README"
     assert_contains 'Cherry Studio 默认列宽为 2/3 屏' "$NIRI_README"
     assert_contains 'Chrome 默认列宽为 2/3 屏' "$NIRI_README"
     assert_contains 'VS Code 默认列宽为 1.0' "$NIRI_README"
@@ -345,6 +354,7 @@ test_niri_config_exists_and_validates_when_available
 test_niri_config_keeps_awesome_muscle_memory
 test_niri_config_exposes_multi_monitor_navigation
 test_niri_config_uses_wayland_replacements_not_x11_autostart
+test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules
 test_wayland_autostart_runs_only_wayland_safe_services
 test_wayland_wallpaper_helper_covers_current_wallpaper_locations
 test_portal_preferences_avoid_nautilus_filechooser_requirement

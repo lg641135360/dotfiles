@@ -1710,3 +1710,15 @@
 - 已做：在 `.config/scripts/wayland-autostart` 中新增 `nm-applet`、`pasystray`、`blueman-applet`、`pot` 与 `udiskie -t` 的可选 `run_once` 启动，命令不存在时继续静默跳过；将 Wayland 色温优先级改为先 `gammastep -l 30.6:114.3 -t 6500:4000`，缺失时再回退 `wlsunset -l 30.6 -L 114.3 -t 4000 -T 6500`，不沿用 X11 `redshift`。同步更新 `.config/linux/niri/README.md`、`tests/niri_wayland_config_test.sh` 与 `memory/desktop.md`，记录 niri 会话下 `gammastep` 优先、`wlsunset` 轻量 fallback，以及新增托盘/辅助服务。本轮没有同步 live `~/.config`，没有安装 `gammastep` 或 `wlsunset`，没有切换 SDDM 会话，没有提交或推送。
 - 验证：首次新增优先级断言时测试失败，原因是测试里的 awk 正则转义错误；修正为 `grep -nF` 行号比较后，`sh -n .config/scripts/wayland-autostart tests/niri_wayland_config_test.sh`、`./tests/niri_wayland_config_test.sh`、`./tests/run.sh fast`、`./tests/run.sh full` 与相关文件 `git diff --check` 均通过。
 - 后续：若要启用色温，需要安装 `gammastep`（推荐）或 `wlsunset`；随后可运行 `./install.sh` 同步 live，再从 SDDM 选择 Niri 实机会话验证。
+
+## 2026-06-08 niri 钉钉不管理与 hjkl 导航调整
+- 目的：按用户要求让 niri 不再通过 window-rule 管理钉钉窗口，并把主导航改成 `Mod+h/l` 左右聚焦窗口列、`Mod+j/k` 下/上聚焦 workspace，同时取消原来的 `Mod+Left/Right/Up/Down` 方向键绑定。
+- 已做：更新 `.config/linux/niri/config.kdl`，新增 `Mod+H/L` 与 `Mod+J/K` 新语义并移除方向键绑定；更新 `.config/linux/niri/README.md`，同步快捷键表和钉钉不管理说明；更新 `tests/niri_wayland_config_test.sh`，补充新 keybind、方向键删除和钉钉不匹配断言，并把窗口规则测试纳入实际调用；更新 `memory/desktop.md` 记录该稳定偏好。另对 live `~/.config/niri/config.kdl` 做同一处 targeted 修改，保留 live-only Alacritty 透明/blur 规则；本轮没有执行 niri reload、没有切换会话、没有提交或推送。
+- 验证：先运行更新后的 `./tests/niri_wayland_config_test.sh` 在旧配置上失败；修正后 `sh -n tests/niri_wayland_config_test.sh`、`./tests/niri_wayland_config_test.sh`、`niri validate -c .config/linux/niri/config.kdl`、`niri validate -c ~/.config/niri/config.kdl`、`git diff --check -- .config/linux/niri/config.kdl .config/linux/niri/README.md tests/niri_wayland_config_test.sh` 均通过；`./tests/run.sh fast` 通过。
+- 后续：若要让当前正在运行的 niri 会话立即采用新快捷键，需要单独执行 niri 配置 reload 或重登；这会改变运行态，未在本轮自动执行。
+
+## 2026-06-08 niri overview 快捷键补充
+- 目的：按用户确认，为 niri 增加 `Mod+o` 打开/关闭 overview 的快捷键，同时保持 `Mod+Tab` 原有“回到上一窗口”功能不重复绑定。
+- 已做：在 `.config/linux/niri/config.kdl` 添加 `Mod+O hotkey-overlay-title="显示总览" { toggle-overview; }`；同步 `.config/linux/niri/README.md` 快捷键表；更新 `tests/niri_wayland_config_test.sh` 锁定该绑定；同步 live `~/.config/niri/config.kdl` 同一绑定，保留 live-only Alacritty 透明/blur 规则。本轮没有执行 niri reload、没有切换会话、没有提交或推送。
+- 验证：更新测试后先在旧配置上失败；修正后 `sh -n tests/niri_wayland_config_test.sh`、`./tests/niri_wayland_config_test.sh`、`niri validate -c .config/linux/niri/config.kdl`、`niri validate -c ~/.config/niri/config.kdl`、相关文件 `git diff --check` 与 `./tests/run.sh fast` 均通过。
+- 后续：当前运行中的 niri 是否立即生效取决于配置 watcher；若未生效，可单独执行 `niri msg action load-config-file` 或重登。
