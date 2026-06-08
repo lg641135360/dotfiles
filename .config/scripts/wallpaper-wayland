@@ -4,18 +4,31 @@
 command -v swaybg >/dev/null 2>&1 || exit 0
 command -v shuf >/dev/null 2>&1 || exit 0
 
+record_current_wallpaper() {
+    state_dir=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles
+    state_file=$state_dir/current-wayland-wallpaper
+
+    mkdir -p "$state_dir" || return 0
+    tmp_file=$state_file.$$
+    printf '%s\n' "$1" >"$tmp_file" 2>/dev/null && mv "$tmp_file" "$state_file" 2>/dev/null || {
+        rm -f "$tmp_file"
+        return 0
+    }
+}
+
 for dir in \
+    "$HOME/Pictures" \
     "$HOME/Pictures/Wallpapers" \
     "$HOME/Pictures/wallpapers" \
     "$HOME/Pictures/wall" \
     "$HOME/.config/wallpapers" \
-    "$HOME/Pictures" \
     /usr/share/backgrounds; do
     [ -d "$dir" ] || continue
     image=$(find "$dir" -maxdepth 2 -type f \( \
         -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \
     \) 2>/dev/null | shuf -n 1)
     [ -n "$image" ] || continue
+    record_current_wallpaper "$image"
     exec swaybg -i "$image" -m fill
 done
 

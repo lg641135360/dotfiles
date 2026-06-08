@@ -1,15 +1,74 @@
 #!/bin/sh
 # Wayland screen lock helper for niri.
 
-swaylock_args='-f -c 11111b --show-failed-attempts --show-keyboard-layout'
+current_wallpaper_from_state() {
+    state_file=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/current-wayland-wallpaper
+    [ -r "$state_file" ] || return 1
 
-if [ -x /usr/bin/swaylock ]; then
-    # Prefer the distro build so swaylock uses the system PAM stack.
-    exec /usr/bin/swaylock $swaylock_args
-fi
+    IFS= read -r image <"$state_file" || return 1
+    [ -n "$image" ] && [ -f "$image" ] || return 1
+    printf '%s\n' "$image"
+}
 
-if command -v swaylock >/dev/null 2>&1; then
-    exec swaylock $swaylock_args
+current_wallpaper_from_swaybg() {
+    command -v pgrep >/dev/null 2>&1 || return 1
+
+    for pid in $(pgrep -u "$(id -u)" -x swaybg 2>/dev/null); do
+        [ -r "/proc/$pid/cmdline" ] || continue
+        image=$(tr '\0' '\n' <"/proc/$pid/cmdline" | awk '
+            previous_is_image {
+                print
+                exit
+            }
+            $0 == "-i" || $0 == "--image" {
+                previous_is_image = 1
+                next
+            }
+            index($0, "--image=") == 1 {
+                print substr($0, 9)
+                exit
+            }
+        ')
+        [ -n "$image" ] && [ -f "$image" ] || continue
+        printf '%s\n' "$image"
+        return 0
+    done
+
+    return 1
+}
+
+current_wallpaper_image() {
+    current_wallpaper_from_state || current_wallpaper_from_swaybg
+}
+
+find_swaylock() {
+    if [ -n "${LOCK_WAYLAND_SWAYLOCK:-}" ]; then
+        command -v "$LOCK_WAYLAND_SWAYLOCK" >/dev/null 2>&1 || return 1
+        printf '%s\n' "$LOCK_WAYLAND_SWAYLOCK"
+        return 0
+    fi
+
+    if [ -x /usr/bin/swaylock ]; then
+        # Prefer the distro build so swaylock uses the system PAM stack.
+        printf '%s\n' /usr/bin/swaylock
+        return 0
+    fi
+
+    command -v swaylock 2>/dev/null
+}
+
+lock_with_swaylock() {
+    locker=$1
+
+    if image=$(current_wallpaper_image); then
+        exec "$locker" -f --show-failed-attempts --show-keyboard-layout -i "$image" -s fill -c 11111b
+    fi
+
+    exec "$locker" -f --show-failed-attempts --show-keyboard-layout -c 11111b
+}
+
+if locker=$(find_swaylock); then
+    lock_with_swaylock "$locker"
 fi
 
 if command -v loginctl >/dev/null 2>&1 && [ -n "${XDG_SESSION_ID:-}" ]; then

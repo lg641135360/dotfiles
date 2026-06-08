@@ -2,8 +2,8 @@
 set -e  # Exit on error
 
 # Script configuration
-os=$(uname -s)
-arch=$(uname -m)
+os=${DOTFILES_OS:-$(uname -s)}
+arch=${DOTFILES_ARCH:-$(uname -m)}
 cur_path=$(pwd)
 backup_limit=3
 timestamp=$(date +%Y%m%d_%H%M%S)
@@ -12,11 +12,11 @@ timestamp=$(date +%Y%m%d_%H%M%S)
 if [[ "$os" == "Linux" ]]; then
     if [ -f /etc/os-release ]; then
         . /etc/os-release
-        distro=$ID
+        distro=${DOTFILES_DISTRO:-$ID}
     elif [ -f /etc/arch-release ]; then
-        distro="arch"
+        distro=${DOTFILES_DISTRO:-arch}
     else
-        distro="unknown"
+        distro=${DOTFILES_DISTRO:-unknown}
     fi
 fi
 
@@ -156,6 +156,44 @@ is_wayland_session() {
     [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]
 }
 
+niri_platform_key() {
+    case "${distro:-}_${arch:-}" in
+        ubuntu_x86_64|ubuntu_amd64)
+            printf 'ubuntu_x64'
+            ;;
+        ubuntu_aarch64|ubuntu_arm64)
+            printf 'ubuntu_aarch64'
+            ;;
+        arch_x86_64|arch_amd64)
+            printf 'arch_x64'
+            ;;
+        arch_aarch64|arch_arm64)
+            printf 'arch_aarch64'
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+install_niri_config_for_platform() {
+    command -v niri >/dev/null 2>&1 || return 0
+
+    local platform source
+    if ! platform=$(niri_platform_key); then
+        log_warn "No niri platform mapping for distro=${distro:-unknown}, arch=${arch:-unknown}; skipping niri config"
+        return 0
+    fi
+
+    source="$cur_path/.config/linux/niri/$platform/config.kdl"
+    if [ ! -f "$source" ]; then
+        log_warn "No niri config for platform $platform; skipping niri config"
+        return 0
+    fi
+
+    copy_config "$source" "$HOME/.config/niri/config.kdl" "niri config ($platform)"
+}
+
 # Configuration arrays
 # app name | source path | target path | display name
 shared_configs=(
@@ -227,7 +265,6 @@ linux_dir_configs=(
 )
 
 linux_wayland_dir_configs=(
-    "command -v niri|.config/linux/niri|~/.config/niri|niri"
     "command -v waybar|.config/linux/waybar|~/.config/waybar|Waybar"
     "command -v mako|.config/linux/mako|~/.config/mako|Mako"
     "command -v fuzzel|.config/linux/fuzzel|~/.config/fuzzel|Fuzzel"
@@ -440,6 +477,7 @@ main() {
 
         if is_wayland_session; then
             log_info "Processing Wayland directory configurations..."
+            install_niri_config_for_platform
             for config in "${linux_wayland_dir_configs[@]}"; do
                 IFS='|' read -r check_cmd source target name <<< "$config"
                 process_config "$check_cmd" "$source" "$target" "$name"

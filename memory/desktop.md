@@ -38,3 +38,6 @@
 - niri 钉钉窗口保持不由 `window-rule` 管理；会议窗口、浮动状态和位置交给应用自身或手动切换，不在仓库配置里强制匹配 `com.alibabainc.dingtalk` / `tblive`。
 - niri 主导航偏好使用 `Mod+h/l` 左右聚焦窗口列、`Mod+j/k` 下/上聚焦 workspace；不要保留 `Mod+Left/Right/Up/Down` 方向键替代绑定。
 - niri overview 使用 `Mod+o` 打开/关闭，作为查看全局窗口/workspace 的主入口。
+- niri 配置按系统类型放在 `.config/linux/niri/<platform>/config.kdl`；当前已落地 `ubuntu_x64` 与 `arch_x64`，安装器只把匹配平台的单个文件复制到 `~/.config/niri/config.kdl`，不要再整目录复制 niri 配置。
+- Wayland 壁纸来源优先 `~/Pictures`，再回退 `~/Pictures/Wallpapers`、`~/Pictures/wallpapers`、`~/Pictures/wall`、`~/.config/wallpapers` 和 `/usr/share/backgrounds`。
+- Wayland 锁屏使用 `swaylock` 时优先复用当前 `wallpaper-wayland` 记录或正在运行的 `swaybg -i` 壁纸，并用 `-s fill` 填充；找不到当前壁纸时才回退纯色 `11111b`。

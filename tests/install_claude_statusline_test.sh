@@ -32,6 +32,12 @@ link_cmd() {
 }
 
 test_statusline_script_renders_claude_payload() {
+    if ! command -v jq >/dev/null 2>&1; then
+        printf 'SKIP: Claude statusline render test requires jq
+'
+        return 0
+    fi
+
     tmpdir=$(mktemp -d)
     repo=$tmpdir/repo
 
@@ -61,6 +67,12 @@ test_statusline_script_renders_claude_payload() {
 }
 
 test_statusline_script_prefers_claude_env_for_context_limits() {
+    if ! command -v jq >/dev/null 2>&1; then
+        printf 'SKIP: Claude statusline env context test requires jq
+'
+        return 0
+    fi
+
     tmpdir=$(mktemp -d)
     repo=$tmpdir/repo
 

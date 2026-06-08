@@ -1722,3 +1722,27 @@
 - 已做：在 `.config/linux/niri/config.kdl` 添加 `Mod+O hotkey-overlay-title="显示总览" { toggle-overview; }`；同步 `.config/linux/niri/README.md` 快捷键表；更新 `tests/niri_wayland_config_test.sh` 锁定该绑定；同步 live `~/.config/niri/config.kdl` 同一绑定，保留 live-only Alacritty 透明/blur 规则。本轮没有执行 niri reload、没有切换会话、没有提交或推送。
 - 验证：更新测试后先在旧配置上失败；修正后 `sh -n tests/niri_wayland_config_test.sh`、`./tests/niri_wayland_config_test.sh`、`niri validate -c .config/linux/niri/config.kdl`、`niri validate -c ~/.config/niri/config.kdl`、相关文件 `git diff --check` 与 `./tests/run.sh fast` 均通过。
 - 后续：当前运行中的 niri 是否立即生效取决于配置 watcher；若未生效，可单独执行 `niri msg action load-config-file` 或重登。
+
+## 2026-06-08 niri 平台配置分流与壁纸目录优先级
+- 目的：按用户指出，修正当前 niri 配置实际只适用于 Ubuntu x64 的边界，并让 Wayland 壁纸 helper 明确优先使用用户实际存放壁纸的 `~/Pictures`。
+- 已做：将仓库 niri 主配置从 `.config/linux/niri/config.kdl` 移到 `.config/linux/niri/ubuntu_x64/config.kdl` 并标记 `// Platform: ubuntu_x64`，同时新增当前 Arch x64 机器使用的 `.config/linux/niri/arch_x64/config.kdl` 并标记 `// Platform: arch_x64`；更新 `install.sh`，在 Wayland 会话中按 `distro+arch` 映射选择单个平台 `config.kdl` 复制到 `~/.config/niri/config.kdl`，不再整目录复制 `.config/linux/niri`，暂未落地的平台会安全跳过；调整 `.config/scripts/wallpaper-wayland` 候选顺序为 `~/Pictures` 优先，再回退 `~/Pictures/Wallpapers`、`~/Pictures/wallpapers`、`~/Pictures/wall`、`~/.config/wallpapers` 和 `/usr/share/backgrounds`；同步更新 `.config/linux/niri/README.md`、`tests/niri_wayland_config_test.sh` 与 `memory/desktop.md`。另外修复两个与当前 Arch 测试环境相关的测试隔离问题：`tests/awesome_brightness_test.sh` 在 Lua 单测中 stub `lib.common`，避免真实包管理器影响 Ubuntu 安装提示断言；`tests/install_claude_statusline_test.sh` 在缺少 `jq` 时跳过渲染相关用例。本轮没有同步 live `~/.config`，没有执行 niri reload，未提交或推送。
+- 验证：先更新 niri 测试契约并确认旧安装器失败；修正后 `sh -n .config/scripts/wayland-autostart .config/scripts/launcher-wayland .config/scripts/lock-wayland .config/scripts/wallpaper-wayland tests/niri_wayland_config_test.sh tests/awesome_brightness_test.sh tests/install_claude_statusline_test.sh` 与 `bash -n install.sh` 通过；`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 通过；`./tests/niri_wayland_config_test.sh`、`./tests/awesome_brightness_test.sh`、`./tests/install_claude_statusline_test.sh`、`./tests/run.sh fast` 与 `./tests/run.sh full` 均通过；相关文件 `git diff --check` 通过。
+- 后续：若要让当前 niri 会话立即使用新平台路径和 `~/Pictures` 优先壁纸，需要单独同步 live `~/.config/niri/config.kdl` 与 `~/.config/scripts/wallpaper-wayland`，并重启/替换当前 `swaybg` 或重登 niri；这会改变运行态，本轮未自动执行。
+
+## 2026-06-08 Waybar 当前会话重启生效
+- 目的：按用户要求让已同步到 live 的 Waybar 配置立即在当前 niri 会话中生效。
+- 已做：确认仓库 `.config/linux/waybar/config` 与 live `~/.config/waybar/config` 一致，`style.css` 也一致；停止旧的 `waybar -c ~/.config/waybar/config.jsonc -s ~/.config/waybar/style.css` 进程，并用默认 `waybar` 命令重新启动当前会话 Waybar。
+- 验证：新进程为 `196360 waybar`；启动日志确认 `Using configuration file /home/rikoo/.config/waybar/config`、`Using CSS file /home/rikoo/.config/waybar/style.css`，并成功 `Bar configured (width: 1904, height: 40) for output: DP-3`。日志中仍有托盘项重复注册 warning，但 Waybar 已正常运行。
+- 后续：如后续继续调整 Waybar 配置，复制 live 文件后仍需要重启 Waybar 或重登 niri 会话才能让运行态立即采用新配置。
+
+## 2026-06-08 Wayland 壁纸当前会话补启
+- 目的：排查并修复当前 niri 会话中壁纸没有按 Wayland helper 生效的问题。
+- 已做：确认仓库 `.config/scripts/wallpaper-wayland` 与 live `~/.config/scripts/wallpaper-wayland` 一致且均有可执行位，`swaybg`、`shuf` 和候选图片目录可用；发现当前没有 `swaybg` 进程，因此按 live helper 补启当前会话壁纸。本轮没有修改仓库脚本，也没有重登 niri。
+- 验证：新进程为 `198605 swaybg -i /home/rikoo/Pictures/Solar Sytem Planets Cute Space Background 4k Wallpaper iPhone HD.jpg -m fill`；启动日志显示 `Found config * for output DP-3`。该图片经 `file` 检查为 `3840x2159` 横向图片，不是竖屏手机比例图。
+- 后续：当前会话已有壁纸；如果后续仍觉得随机图源不符合预期，再收紧 `wallpaper-wayland` 的候选目录或筛选规则，而不是先改 niri 配置。
+
+## 2026-06-08 Wayland 锁屏复用当前壁纸
+- 目的：按用户要求让 `swaylock` 使用当前 Wayland 壁纸，并重启锁屏守护进程使当前会话立即采用新逻辑，同时避免直接触发真实锁屏。
+- 已做：先在 `tests/niri_wayland_config_test.sh` 中补充回归断言，锁定 `wallpaper-wayland` 会记录当前壁纸、`lock-wayland` 优先读取记录或当前 `swaybg -i` 图片并传给 `swaylock -i <图片> -s fill`，无图片时回退纯色 `11111b`；随后更新 `.config/scripts/wallpaper-wayland` 写入 `${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/current-wayland-wallpaper`，更新 `.config/scripts/lock-wayland` 复用当前壁纸；同步 `.config/linux/niri/README.md` 与 `memory/desktop.md`。live 层先备份旧脚本到 `~/.local/state/dotfiles/backups/lock-wallpaper-20260609-000112/`，再同步 `~/.config/scripts/lock-wayland` 与 `~/.config/scripts/wallpaper-wayland`，把当前 `swaybg` 图片写入 state 文件，并将旧的直接 `swaylock -f` 版 `swayidle` 重启为 `swayidle -w timeout 600 ~/.config/scripts/lock-wayland before-sleep ~/.config/scripts/lock-wayland`。本轮没有执行真实锁屏，没有提交或推送。
+- 验证：`sh -n .config/scripts/lock-wayland .config/scripts/wallpaper-wayland tests/niri_wayland_config_test.sh` 通过；`./tests/niri_wayland_config_test.sh` 通过；`./tests/run.sh fast` 通过；`git diff --check` 通过；`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 与 `niri validate -c .config/linux/niri/arch_x64/config.kdl` 通过；live 脚本与仓库脚本 `cmp` 一致；用 `LOCK_WAYLAND_SWAYLOCK=/bin/echo` 演练确认参数为 `-f --show-failed-attempts --show-keyboard-layout -i /home/rikoo/Pictures/Solar Sytem Planets Cute Space Background 4k Wallpaper iPhone HD.jpg -s fill -c 11111b`；当前 `swayidle` 进程为 `210388 swayidle -w timeout 600 /home/rikoo/.config/scripts/lock-wayland before-sleep /home/rikoo/.config/scripts/lock-wayland`。
+- 后续：当前会话的锁屏守护已改为调用 `lock-wayland`，下一次空闲或睡眠前锁屏会使用当前壁纸；若后续更换壁纸，`wallpaper-wayland` 会更新记录，手动启动其它 `swaybg` 时 `lock-wayland` 也会尝试从进程参数回退识别。

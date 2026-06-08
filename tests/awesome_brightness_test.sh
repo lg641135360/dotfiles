@@ -49,6 +49,19 @@ end
 package.preload["beautiful"] = function()
     return { ctpp = {} }
 end
+package.preload["lib.common"] = function()
+    return {
+        read_command_output = function() end,
+        command_exists = function(command)
+            return command == "apt"
+        end,
+        stop_timer = function() end,
+        truncate_message = function(text) return text end,
+        shell_quote = function(value)
+            return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
+        end,
+    }
+end
 
 local brightness = assert(loadfile(brightness_file))()
 local private = assert(brightness._private)

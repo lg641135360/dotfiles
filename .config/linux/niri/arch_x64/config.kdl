@@ -1,4 +1,5 @@
-// Rikoo niri trial config for Ubuntu 24.04 / Wayland.
+// Rikoo niri trial config for Arch Linux x86_64 / Wayland.
+// Platform: arch_x64
 // Keep AwesomeWM available; this file only defines the niri session behavior.
 // Validate with: niri validate -c ~/.config/niri/config.kdl
 
@@ -57,16 +58,10 @@ layout {
     }
 }
 
-output "DP-4" {
-    mode "2560x1440@59.951"
-    scale 1.25
+output "DP-3" {
+    mode "3840x2160@59.997"
+    scale 2
     position x=0 y=0
-}
-
-output "HDMI-A-3" {
-    mode "2560x1440@59.951"
-    scale 1.25
-    position x=2048 y=0
 }
 
 spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
@@ -129,7 +124,7 @@ binds {
     Mod+O hotkey-overlay-title="显示总览" { toggle-overview; }
     Mod+Shift+Q hotkey-overlay-title="退出 niri" { quit; }
 
-    // Keep Mod+h/l as width adjustment, matching the Awesome master-width habit.
+    // Keep width adjustment on punctuation keys, away from hjkl navigation.
     Mod+Minus { set-column-width "-10%"; }
     Mod+Equal { set-column-width "+10%"; }
 

@@ -1,11 +1,12 @@
 # niri / Wayland 试用配置
 
-目标：在 Ubuntu 24.04 上并行试用 niri，不删除 AwesomeWM；优先保留当前 Awesome 的常用肌肉记忆，同时接受 niri 的 scrollable columns 模型。
+目标：在 Linux 上按平台并行试用 niri，不删除 AwesomeWM；优先保留当前 Awesome 的常用肌肉记忆，同时接受 niri 的 scrollable columns 模型。
 
 ## 当前定位
 
 - 当前本机已通过上游 flake 重新构建并切到 `niri 26.04 (3819182)`。
 - AwesomeWM 仍是可回退桌面；本目录只提供 niri 试用配置。
+- 平台配置按子目录维护；当前已落地 `.config/linux/niri/ubuntu_x64/config.kdl` 与 `.config/linux/niri/arch_x64/config.kdl`。`install.sh` 会把匹配平台的文件复制成 `~/.config/niri/config.kdl`，不会把 README 或整个平台目录复制到 live。
 - Waybar / Mako 第一版沿用 Catppuccin Mocha 色系，便于和现有 Awesome 外观保持接近。
 - Fuzzel 是 niri 会话下的首选 launcher，使用 CJK 字体、fuzzy match 与更清晰的深色主题；Rofi 仅作为 fallback。
 - `picom`、`xrandr`、`xinput`、`feh`、`xautolock` 不进入 niri 配置：Wayland 下分别由 niri/output/input、`swaybg`、`swayidle`/`swaylock` 等替代。
@@ -35,6 +36,19 @@ sudo apt install gammastep
 ```
 
 > 注：本仓库的 Waybar 配置使用 `niri/workspaces` 与 `niri/window`。这些模块来自较新的 Waybar；如果只安装 Ubuntu 24.04 apt 里的 Waybar，可能需要先升级 Waybar 或临时移除这两个模块。
+
+## 平台配置
+
+当前仓库不再把 `.config/linux/niri` 整个目录复制到 live，而是按系统类型选择单个 `config.kdl`：
+
+| 平台 key | 仓库路径 | 状态 |
+| --- | --- | --- |
+| `ubuntu_x64` | `.config/linux/niri/ubuntu_x64/config.kdl` | 已落地；Ubuntu x86_64 双 2K 外接屏 |
+| `ubuntu_aarch64` | `.config/linux/niri/ubuntu_aarch64/config.kdl` | 预留，未落地时安装器跳过 |
+| `arch_x64` | `.config/linux/niri/arch_x64/config.kdl` | 已落地；Arch x86_64 单 4K 外接屏 |
+| `arch_aarch64` | `.config/linux/niri/arch_aarch64/config.kdl` | 预留，未落地时安装器跳过 |
+
+新增平台时先复制最接近的平台配置，再调整 output/input/scale 等机器相关段落，并用 `niri validate -c <path>` 验证。
 
 ## 启动方式
 
@@ -92,7 +106,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `waybar`
 - `mako`
 - `fcitx5`
-- `swaybg` 随机壁纸
+- `swaybg` 随机壁纸（`~/Pictures` 优先，然后才回退其它候选目录和系统背景）
 - `gammastep` 自动色温（日志写到 `~/.local/state/dotfiles/wayland-autostart.log`）
 - `swayidle` + `lock-wayland`
 - KDE 或 GNOME polkit agent（若存在）
@@ -107,7 +121,7 @@ tail -n 80 ~/.local/state/dotfiles/wayland-autostart.log
 gammastep -m drm -p -l 30.6:114.3 -t 6500:4000
 ```
 
-`lock-wayland` 使用 `swaylock`，解锁密码来自系统 PAM 账户认证；它不是 GNOME Keyring/KWallet/浏览器保存密码。脚本会优先调用 `/usr/bin/swaylock`，避免 Nix profile 里的 `swaylock` 与系统 PAM 配置格式不兼容。若手动补 `/etc/pam.d/swaylock`，使用 PAM 的 `include` 控制语法：
+`lock-wayland` 使用 `swaylock`，解锁密码来自系统 PAM 账户认证；它不是 GNOME Keyring/KWallet/浏览器保存密码。脚本会优先调用 `/usr/bin/swaylock`，避免 Nix profile 里的 `swaylock` 与系统 PAM 配置格式不兼容。锁屏背景优先复用 `wallpaper-wayland` 记录的当前壁纸；若记录缺失，会尝试从当前 `swaybg -i <图片>` 进程解析图片路径；两者都不可用时才退回 Catppuccin Mocha 的纯色背景 `11111b`。若手动补 `/etc/pam.d/swaylock`，使用 PAM 的 `include` 控制语法：
 
 ```pam
 auth include common-auth
@@ -176,7 +190,7 @@ install -Dm755 /tmp/dingtalk-wayland-screenshare-build/libdingtalkhook.so ~/.loc
 ## 验证
 
 ```bash
-niri validate -c .config/linux/niri/config.kdl
+niri validate -c .config/linux/niri/ubuntu_x64/config.kdl
 ./tests/niri_wayland_config_test.sh
 ```
 
