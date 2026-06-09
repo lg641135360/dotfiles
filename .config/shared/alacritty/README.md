@@ -30,9 +30,9 @@
 | 样式 | 字重 |
 |------|------|
 | 常规 | Regular |
-| 粗体 | Heavy |
-| 斜体 | Medium Italic |
-| 粗斜体 | Heavy Italic |
+| 粗体 | Bold |
+| 斜体 | Italic |
+| 粗斜体 | Bold Italic |
 
 字号 12px，光标为闪烁竖线（Beam）。
 

@@ -2,6 +2,18 @@
 
 > 本文件只记录实际发生过的修改、验证证据与后续线索，不定义长期规则；若某条经验已稳定复用，应提升到 `AGENTS.md` 或 `memory/`。
 
+## 2026-06-09
+
+- 目的：排查 `GTK_IM_MODULE=fcitx` 在 niri (Wayland) 下的所有设置来源，移除 Wayland 会话中的设置以避免 fcitx "建议取消设置 GTK_IM_MODULE" 警告。
+- 已做：
+  - 查明完整注入链：`~/.xprofile` → 登录管理器 → `niri-session` 中 `systemctl --user import-environment` → systemd 用户环境；同时 `~/.config/environment.d/90-niri-wayland.conf` 和备份文件 `90-niri-wayland.conf.backup.20260511_220111`（`.conf` 后缀被 `30-systemd-environment-d-generator` 误解析）也持续注入。
+  - 修改 `~/.config/environment.d/90-niri-wayland.conf`：移除 `GTK_IM_MODULE=fcitx` 行。
+  - 重命名备份文件：`90-niri-wayland.conf.backup.20260511_220111` → `.bak` 后缀，避免被 systemd generator 解析。
+  - 修改 `~/.xprofile`：添加 `XDG_SESSION_TYPE != "wayland"` 条件判断，Wayland 下不设置 `GTK_IM_MODULE`。
+  - 当前会话中通过 `dbus-update-activation-environment --systemd GTK_IM_MODULE=` 将 systemd 环境设空（下次登录后 systemd generator 会自然读取到已清理的配置文件）。
+- 验证：`systemctl --user show-environment` 显示 `GTK_IM_MODULE=`（空值）；所有 `.conf` 文件已清理；未同步到 dotfiles 仓库（因这些文件为 live-only 配置），未提交推送。
+- 后续：下次登录 niri 后 `GTK_IM_MODULE` 应完全从 systemd 环境中消失；若仍出现 fcitx 警告，需检查 `niri-session` 的 `import-environment` 是否从别处（如 PAM 环境）导入了值。
+
 ## 2026-06-05
 
 - 目的：按用户要求调整 niri 应用窗口规则，让钉钉窗口默认浮动、Cherry Studio 使用更宽默认列宽，并让 VS Code 默认占满当前列宽预设。
@@ -1752,3 +1764,15 @@
 - 已做：提交当前工作区为 `02ef761`（`Split niri configs by platform`），内容包括 niri 配置按 `ubuntu_x64` / `arch_x64` 分流、`install.sh` 按平台复制单个 niri `config.kdl`、`wallpaper-wayland` 记录当前壁纸、`lock-wayland` 复用当前壁纸、相关 README/memory/test 更新，以及 Arch 环境下的亮度测试和 Claude statusline 测试隔离修复。由于 GitHub SSH 22 端口连接超时，改用 GitHub SSH-over-443；追加 `[ssh.github.com]:443` host key 前已用 `ssh-keyscan` 比对官方 ED25519 指纹 `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`。主提交已推送到 `origin/main`，远端从 `b8363ce` 前进到 `02ef761`。
 - 验证：提交前 `./tests/run.sh full` 全量通过；`sh -n .config/scripts/lock-wayland .config/scripts/wallpaper-wayland tests/niri_wayland_config_test.sh tests/awesome_brightness_test.sh tests/install_claude_statusline_test.sh` 与 `bash -n install.sh` 通过；`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 和 `niri validate -c .config/linux/niri/arch_x64/config.kdl` 通过；`git diff --check` 通过；`git fetch origin` 后 `git rev-list --left-right --count HEAD...origin/main` 返回 `0 0`；`git push origin main` 返回 `b8363ce..02ef761  main -> main`。
 - 后续：本条为发布记录，将作为 trace-only 提交继续推送；用户已要求推送完成后直接执行 `poweroff`，所以最终 trace 推送成功后将立即关机。
+
+## 2026-06-09 Alacritty MesloLGS 字体样式修复
+- 目的：修复 Alacritty 继续使用 `MesloLGS Nerd Font Mono` 时粗体/斜体显示异常的问题，避免配置请求当前系统没有的字重后回退到 Regular。
+- 已做：先扩展 `tests/alacritty_config_test.sh`，用 `tomllib` 锁定 Alacritty 主配置必须使用 `Regular`、`Bold`、`Italic`、`Bold Italic` 四个 MesloLGS 实际安装样式，并要求 README 同步记录这些样式；红测确认旧配置失败在 `font.bold` 仍为 `Heavy`。随后将 `.config/shared/alacritty/alacritty.toml` 的 `bold`、`italic`、`bold_italic` 从 `Heavy` / `Medium Italic` / `Heavy Italic` 改为 `Bold` / `Italic` / `Bold Italic`，同步更新 `.config/shared/alacritty/README.md` 与 `memory/alacritty.md`。live 层已备份旧 `~/.config/alacritty/alacritty.toml` 到 `/home/rikoo/.config/alacritty/alacritty.toml.backup.20260609_085930`，并同步新的主配置到 live；本轮没有重载桌面、没有提交或推送。
+- 验证：`tests/alacritty_config_test.sh`、`bash -n tests/alacritty_config_test.sh`、`git diff --check -- .config/shared/alacritty/alacritty.toml .config/shared/alacritty/README.md tests/alacritty_config_test.sh` 均通过；`fc-match` 确认 `Regular`、`Bold`、`Italic`、`Bold Italic` 分别命中对应的 `MesloLGSNerdFontMono-*.ttf`；`cmp -s .config/shared/alacritty/alacritty.toml ~/.config/alacritty/alacritty.toml` 返回一致。
+- 后续：`alacritty migrate --config-file ~/.config/alacritty/alacritty.toml --dry-run --silent` 仍提示既有主题路径 `/home/rikoo/.config/alacritty/themes/themes/catppuccin-mocha.toml` 不存在，而实际主题文件为 `catppuccin_mocha.toml`；这与本轮字体样式修复无关，可作为下一次小修处理。若中文仍看起来怪，再单独处理 CJK fallback 顺序。
+
+## 2026-06-09 niri 终端入口改回 Alacritty 优先
+- 目的：回应用户反馈“没有变化”，修复当前 niri `Mod+Return` 实际可能回退到 kitty，导致 shared Alacritty 字体配置改动不可见的问题。
+- 已做：排查当前运行态发现没有 `alacritty` / `kitty` 进程，`niri msg windows` 只显示 VS Code 和 Chrome；进一步确认 `.config/scripts/terminal-wayland` 在没有 `~/.nix-profile/bin/alacritty` 时会先 `exec kitty`，而本机 `timeout 5s alacritty -e true` 已能在当前 niri/Wayland 会话下正常返回 0。随后按 TDD 在 `tests/lib/assert.sh` 新增 `assert_order`，更新 `tests/niri_wayland_config_test.sh` 要求系统 `alacritty` 排在 `kitty` 前面，并先确认旧脚本失败；再修改 `.config/scripts/terminal-wayland` 为 Nix Alacritty -> 系统 Alacritty -> kitty 的顺序，更新 `.config/linux/niri/README.md` 与 `memory/alacritty.md`。live 层已备份旧 `~/.config/scripts/terminal-wayland` 到 `/home/rikoo/.local/state/dotfiles/backups/terminal-wayland-20260609-090716/terminal-wayland`，并同步新脚本；本轮没有执行 niri reload、没有提交或推送。
+- 验证：`tests/niri_wayland_config_test.sh`、`tests/alacritty_config_test.sh`、`sh -n .config/scripts/terminal-wayland tests/niri_wayland_config_test.sh tests/alacritty_config_test.sh tests/lib/assert.sh`、相关文件 `git diff --check` 均通过；`timeout 5s ~/.config/scripts/terminal-wayland -e true` 返回 0；`cmp -s .config/scripts/terminal-wayland ~/.config/scripts/terminal-wayland` 返回一致；`niri msg windows` 确认 smoke test 没留下终端窗口。
+- 后续：新打开的 `Mod+Return` 终端会走 Alacritty 并读取当前 `~/.config/alacritty/alacritty.toml`；已经打开的终端窗口不会 retroactively 改变。若新开的 Alacritty 中文仍异常，再处理 CJK fallback 顺序。

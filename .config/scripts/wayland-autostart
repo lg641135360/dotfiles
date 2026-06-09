@@ -47,7 +47,8 @@ start_gammastep() {
     run_once_logged "$managed_pattern" gammastep -m wayland -l 30.6:114.3 -t 6500:4000
 }
 
-export GTK_IM_MODULE=fcitx
+# export GTK_IM_MODULE=fcitx
+unset GTK_IM_MODULE
 export QT_IM_MODULE=fcitx
 export XMODIFIERS=@im=fcitx
 export SDL_IM_MODULE=fcitx
@@ -59,14 +60,14 @@ export XCURSOR_SIZE=32
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     dbus-update-activation-environment --systemd \
         WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE \
-        GTK_IM_MODULE QT_IM_MODULE XMODIFIERS SDL_IM_MODULE GLFW_IM_MODULE INPUT_METHOD LC_CTYPE \
+        QT_IM_MODULE XMODIFIERS SDL_IM_MODULE GLFW_IM_MODULE INPUT_METHOD LC_CTYPE \
         >/dev/null 2>&1 || true
 fi
 
 if command -v systemctl >/dev/null 2>&1; then
     systemctl --user import-environment \
         WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE \
-        GTK_IM_MODULE QT_IM_MODULE XMODIFIERS SDL_IM_MODULE GLFW_IM_MODULE INPUT_METHOD LC_CTYPE \
+        QT_IM_MODULE XMODIFIERS SDL_IM_MODULE GLFW_IM_MODULE INPUT_METHOD LC_CTYPE \
         >/dev/null 2>&1 || true
 fi
 

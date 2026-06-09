@@ -1,21 +1,22 @@
 #!/bin/sh
-# Wayland terminal entrypoint for niri. Prefer the Nix Alacritty build on this host.
+# Wayland terminal entrypoint for niri. Prefer Alacritty so shared terminal
+# styling stays consistent across X11 and Wayland sessions.
 
 if [ -x "$HOME/.nix-profile/bin/alacritty" ]; then
     exec "$HOME/.nix-profile/bin/alacritty" "$@"
-fi
-
-if command -v kitty >/dev/null 2>&1; then
-    exec kitty "$@"
 fi
 
 if command -v alacritty >/dev/null 2>&1; then
     exec alacritty "$@"
 fi
 
-if command -v notify-send >/dev/null 2>&1; then
-    notify-send "Terminal unavailable" "Install Nix Alacritty or kitty to enable Mod+Return in niri." || true
+if command -v kitty >/dev/null 2>&1; then
+    exec kitty "$@"
 fi
 
-printf '%s\n' 'Terminal unavailable: install Nix Alacritty or kitty.' >&2
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send "Terminal unavailable" "Install Alacritty or kitty to enable Mod+Return in niri." || true
+fi
+
+printf '%s\n' 'Terminal unavailable: install Alacritty or kitty.' >&2
 exit 127

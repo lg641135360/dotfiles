@@ -4,7 +4,33 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KEYS_LINUX="$ROOT/.config/shared/alacritty/keys.linux.toml"
 KEYS_MACOS="$ROOT/.config/shared/alacritty/keys.macos.toml"
+ALACRITTY="$ROOT/.config/shared/alacritty/alacritty.toml"
 README="$ROOT/.config/shared/alacritty/README.md"
+
+python3 - "$ALACRITTY" <<'PY'
+import sys
+import tomllib
+
+with open(sys.argv[1], "rb") as handle:
+    config = tomllib.load(handle)
+
+font = config["font"]
+expected_styles = {
+    "normal": "Regular",
+    "bold": "Bold",
+    "italic": "Italic",
+    "bold_italic": "Bold Italic",
+}
+
+for section, style in expected_styles.items():
+    actual_family = font[section]["family"]
+    actual_style = font[section]["style"]
+    if actual_family != "MesloLGS Nerd Font Mono" or actual_style != style:
+        raise SystemExit(
+            f"Alacritty font.{section} should use MesloLGS Nerd Font Mono {style}, "
+            f"got {actual_family} {actual_style}"
+        )
+PY
 
 python3 - "$KEYS_LINUX" "$KEYS_MACOS" <<'PY'
 import sys
@@ -96,5 +122,20 @@ grep -q 'Option+Right' "$README" || {
 
 grep -q 'Option+Up' "$README" || {
   echo "README should document macOS Option-Up for Neovim line movement"
+  exit 1
+}
+
+grep -q '| 粗体 | Bold |' "$README" || {
+  echo "README should document the installed MesloLGS Bold style"
+  exit 1
+}
+
+grep -q '| 斜体 | Italic |' "$README" || {
+  echo "README should document the installed MesloLGS Italic style"
+  exit 1
+}
+
+grep -q '| 粗斜体 | Bold Italic |' "$README" || {
+  echo "README should document the installed MesloLGS Bold Italic style"
   exit 1
 }

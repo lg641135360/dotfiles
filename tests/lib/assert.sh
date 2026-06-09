@@ -42,6 +42,20 @@ assert_not_contains() {
     fi
 }
 
+assert_order() {
+    first=$1
+    second=$2
+    file=$3
+
+    first_line=$(grep -nF -- "$first" "$file" | head -n 1 | cut -d: -f1)
+    second_line=$(grep -nF -- "$second" "$file" | head -n 1 | cut -d: -f1)
+
+    [ -n "$first_line" ] || fail "expected '$first' in $file"
+    [ -n "$second_line" ] || fail "expected '$second' in $file"
+    [ "$first_line" -lt "$second_line" ] ||
+        fail "expected '$first' to appear before '$second' in $file"
+}
+
 assert_matches() {
     pattern=$1
     file=$2

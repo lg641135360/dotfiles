@@ -71,7 +71,7 @@ niri-session
 
 | Awesome 习惯 | niri 动作 |
 | --- | --- |
-| `Mod+Return` | 打开终端：优先 Nix profile 里的 Alacritty，缺失时回退 kitty / 系统 Alacritty |
+| `Mod+Return` | 打开终端：优先 Alacritty，缺失时回退 kitty |
 | `Mod+e` | 打开 Dolphin |
 | `Mod+c` | 启动 launcher：优先 `fuzzel`，缺失时回退 `rofi-launch` |
 | `Mod+q` | 关闭当前窗口 |
@@ -131,7 +131,7 @@ session include common-session
 
 ## 终端入口
 
-`Mod+Return` 调用 `~/.config/scripts/terminal-wayland`，优先使用 `~/.nix-profile/bin/alacritty`。当前机器的 `/usr/bin/alacritty` 来自非 noble 官方稳定源，在 niri/Wayland 下会报 `provided display handle is not supported`；Nix 的 Alacritty 与 kitty 均可正常创建窗口，因此 niri 入口不直接调用裸 `alacritty`。
+`Mod+Return` 调用 `~/.config/scripts/terminal-wayland`，优先使用 `~/.nix-profile/bin/alacritty`，其次使用系统 `alacritty`，最后回退 kitty。当前系统 `alacritty 0.17.0` 已可在 niri/Wayland 会话下启动；保持 Alacritty 优先可以复用 shared Alacritty 字体、透明度、快捷键和主题配置。
 
 ## 窗口规则
 
