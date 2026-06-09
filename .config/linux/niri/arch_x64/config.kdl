@@ -203,7 +203,7 @@ binds {
     Mod+WheelScrollRight { focus-column-right; }
     Mod+WheelScrollLeft { focus-column-left; }
 
-    Print { spawn "~/.config/scripts/screenshot-wayland"; }
+    F1 { spawn "~/.config/scripts/screenshot-wayland"; }
     Ctrl+Print { screenshot-screen; }
     Alt+Print { screenshot-window; }
 

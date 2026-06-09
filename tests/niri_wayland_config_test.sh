@@ -283,15 +283,101 @@ test_wayland_screenshot_uses_selection_and_annotation() {
     assert_executable "$SCREENSHOT_SCRIPT"
     assert_contains 'require grim' "$SCREENSHOT_SCRIPT"
     assert_contains 'require slurp' "$SCREENSHOT_SCRIPT"
-    assert_contains 'annotator=swappy' "$SCREENSHOT_SCRIPT"
-    assert_contains 'annotator=ksnip' "$SCREENSHOT_SCRIPT"
+    assert_contains 'require satty' "$SCREENSHOT_SCRIPT"
+    assert_contains 'require wl-copy' "$SCREENSHOT_SCRIPT"
+    assert_contains 'unset GTK_IM_MODULE' "$SCREENSHOT_SCRIPT"
+    assert_contains 'export INPUT_METHOD=fcitx' "$SCREENSHOT_SCRIPT"
+    assert_contains 'export XMODIFIERS=@im=fcitx' "$SCREENSHOT_SCRIPT"
+    assert_contains 'export LC_CTYPE=${LC_CTYPE:-zh_CN.UTF-8}' "$SCREENSHOT_SCRIPT"
+    assert_not_contains 'swappy' "$SCREENSHOT_SCRIPT"
+    assert_not_contains 'ksnip' "$SCREENSHOT_SCRIPT"
     assert_contains 'geometry=$(slurp)' "$SCREENSHOT_SCRIPT"
-    assert_contains 'grim -g "$geometry" "$tmp_file"' "$SCREENSHOT_SCRIPT"
-    assert_contains 'swappy -f "$tmp_file" -o "$output_file"' "$SCREENSHOT_SCRIPT"
-    assert_contains 'ksnip -e "$output_file"' "$SCREENSHOT_SCRIPT"
-    assert_contains 'Print { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_CONFIG"
+    assert_contains 'grim -g "$geometry" -t ppm "$tmp_file"' "$SCREENSHOT_SCRIPT"
+    assert_contains 'satty --filename "$tmp_file" --fullscreen --output-filename "$output_file"' "$SCREENSHOT_SCRIPT"
+    assert_contains '--copy-command wl-copy' "$SCREENSHOT_SCRIPT"
+    assert_contains '--font-family "Noto Sans CJK SC"' "$SCREENSHOT_SCRIPT"
+    assert_contains '--actions-on-enter save-to-file' "$SCREENSHOT_SCRIPT"
+    assert_contains '--actions-on-escape exit' "$SCREENSHOT_SCRIPT"
+    assert_contains 'F1 { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_CONFIG"
+    assert_contains 'F1 { spawn "~/.config/scripts/screenshot-wayland"; }' "$ARCH_NIRI_CONFIG"
+    assert_not_contains 'Print { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_CONFIG"
+    assert_not_contains 'Print { spawn "~/.config/scripts/screenshot-wayland"; }' "$ARCH_NIRI_CONFIG"
     assert_contains 'Ctrl+Print { screenshot-screen; }' "$NIRI_CONFIG"
     assert_contains 'Alt+Print { screenshot-window; }' "$NIRI_CONFIG"
+}
+
+test_wayland_screenshot_uses_satty() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    screenshot_dir=$tmpdir/screenshots
+    bin_dir=$tmpdir/bin
+    grim_args=$tmpdir/grim.args
+    satty_args=$tmpdir/satty.args
+    satty_env=$tmpdir/satty.env
+
+    mkdir -p "$home_dir" "$screenshot_dir" "$bin_dir"
+
+    cat >"$bin_dir/slurp" <<'EOF'
+#!/bin/sh
+printf '%s\n' '100,200 300x400'
+EOF
+    chmod +x "$bin_dir/slurp"
+
+    cat >"$bin_dir/grim" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" >"$GRIM_ARGS_LOG"
+for arg do
+    output_file=$arg
+done
+printf 'fake ppm\n' >"$output_file"
+EOF
+    chmod +x "$bin_dir/grim"
+
+    cat >"$bin_dir/satty" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" >"$SATTY_ARGS_LOG"
+{
+    printf 'GTK_IM_MODULE=%s\n' "${GTK_IM_MODULE-unset}"
+    printf 'INPUT_METHOD=%s\n' "${INPUT_METHOD-unset}"
+    printf 'XMODIFIERS=%s\n' "${XMODIFIERS-unset}"
+    printf 'LC_CTYPE=%s\n' "${LC_CTYPE-unset}"
+} >"$SATTY_ENV_LOG"
+EOF
+    chmod +x "$bin_dir/satty"
+
+    cat >"$bin_dir/wl-copy" <<'EOF'
+#!/bin/sh
+cat >/dev/null
+EOF
+    chmod +x "$bin_dir/wl-copy"
+
+    PATH=$bin_dir:/usr/bin HOME=$home_dir XDG_SCREENSHOTS_DIR=$screenshot_dir \
+        GRIM_ARGS_LOG=$grim_args SATTY_ARGS_LOG=$satty_args SATTY_ENV_LOG=$satty_env GTK_IM_MODULE=fcitx LC_CTYPE= \
+        /bin/sh "$SCREENSHOT_SCRIPT" >/dev/null 2>&1 ||
+        fail "screenshot-wayland should use Satty for Wayland screenshot annotation"
+
+    assert_contains '-g' "$grim_args"
+    assert_contains '100,200 300x400' "$grim_args"
+    assert_contains '-t' "$grim_args"
+    assert_contains 'ppm' "$grim_args"
+    assert_contains '--filename' "$satty_args"
+    assert_contains '--fullscreen' "$satty_args"
+    assert_contains '--output-filename' "$satty_args"
+    assert_contains "$screenshot_dir/Screenshot from" "$satty_args"
+    assert_contains '--copy-command' "$satty_args"
+    assert_contains 'wl-copy' "$satty_args"
+    assert_contains '--font-family' "$satty_args"
+    assert_contains 'Noto Sans CJK SC' "$satty_args"
+    assert_contains '--actions-on-enter' "$satty_args"
+    assert_contains 'save-to-file' "$satty_args"
+    assert_contains '--actions-on-escape' "$satty_args"
+    assert_contains 'exit' "$satty_args"
+    assert_contains 'GTK_IM_MODULE=unset' "$satty_env"
+    assert_contains 'INPUT_METHOD=fcitx' "$satty_env"
+    assert_contains 'XMODIFIERS=@im=fcitx' "$satty_env"
+    assert_contains 'LC_CTYPE=zh_CN.UTF-8' "$satty_env"
+
+    rm -rf "$tmpdir"
 }
 
 test_dingtalk_wayland_entrypoint_preserves_preload_contract() {
@@ -537,6 +623,7 @@ test_launcher_and_lock_have_wayland_first_fallbacks
 test_lock_wayland_uses_recorded_wallpaper_when_available
 test_lock_wayland_falls_back_to_color_without_wallpaper
 test_wayland_screenshot_uses_selection_and_annotation
+test_wayland_screenshot_uses_satty
 test_dingtalk_wayland_entrypoint_preserves_preload_contract
 test_fuzzel_config_matches_wayland_launcher_contract
 test_waybar_and_mako_match_niri_trial_contract

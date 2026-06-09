@@ -17,6 +17,9 @@ record_current_wallpaper() {
 }
 
 for dir in \
+    "$HOME/Pictures" \
+    "$HOME/Pictures/Wallpapers" \
+    "$HOME/Pictures/wallpapers" \
     "$HOME/Pictures/wall" \
     "$HOME/.config/wallpapers" \
     /usr/share/backgrounds; do
