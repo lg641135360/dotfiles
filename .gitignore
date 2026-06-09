@@ -3,9 +3,17 @@
 
 .vscode
 .claude
-
 .codex
 
+# IDE / editor
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Documentation build artifacts
 docs/superpowers/
 
 # Local build outputs
@@ -13,3 +21,6 @@ tools/dingtalk-wayland-screenshare/build/
 
 # OMX runtime state
 .omx/
+
+# OS file metadata
+Thumbs.db

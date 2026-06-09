@@ -19,4 +19,3 @@ run Snipaste
 run_common_desktop_services picom
 run greenclip daemon
 run_common_tray_services
-# run dunst  # notification daemon use naughty instead

@@ -4,6 +4,7 @@
   font-family: "Maple Mono NF CN", "JetBrainsMono Nerd Font", "Noto Sans CJK SC", sans-serif;
   font-size: 12px;
   min-height: 0;
+  transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
 
 window#waybar {
@@ -23,22 +24,49 @@ window#waybar {
   padding: 0 8px;
   color: #a6adc8;
   background: transparent;
+  border-radius: 8px;
+  min-width: 20px;
+}
+
+#workspaces button:hover {
+  color: #cdd6f4;
+  background: rgba(69, 71, 90, 0.4);
 }
 
 #workspaces button.empty {
   color: #6c7086;
 }
 
+#workspaces button.empty:hover {
+  color: #a6adc8;
+  background: rgba(69, 71, 90, 0.25);
+}
+
 #workspaces button.active {
   color: #b4befe;
+}
+
+#workspaces button.active:hover {
+  color: #c6d0ff;
+  background: rgba(69, 71, 90, 0.4);
 }
 
 #workspaces button.focused {
   color: #89b4fa;
 }
 
+#workspaces button.focused:hover {
+  color: #a6c8ff;
+  background: rgba(69, 71, 90, 0.4);
+}
+
 #workspaces button.urgent {
   color: #f38ba8;
+}
+
+#workspaces button.urgent:hover {
+  color: #ff9eb5;
+  background: rgba(243, 139, 168, 0.15);
 }
 
 #custom-separator {
@@ -61,6 +89,15 @@ window#waybar {
   padding: 0 5px;
   margin: 0 1px;
   background: transparent;
+  border-radius: 6px;
+}
+
+#clock:hover,
+#network:hover,
+#pulseaudio:hover,
+#cpu:hover,
+#memory:hover {
+  background: rgba(69, 71, 90, 0.3);
 }
 
 #clock {
@@ -86,6 +123,14 @@ window#waybar {
 
 #tray {
   padding-left: 6px;
+}
+
+#tray > .passive {
+  -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+  -gtk-icon-effect: highlight;
 }
 
 #battery.warning {

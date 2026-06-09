@@ -40,4 +40,3 @@ run gestures start
 run_common_tray_services
 run_common_desktop_services picom --experimental-backends
 run flameshot
-# run dunst

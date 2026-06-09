@@ -41,7 +41,7 @@
     "format-wifi": "↓{bandwidthDownBytes} ↑{bandwidthUpBytes}",
     "format-ethernet": "↓{bandwidthDownBytes} ↑{bandwidthUpBytes}",
     "format-disconnected": "NET:N/A",
-    "tooltip-format": "网络\n接口：{ifname}\n地址：{ipaddr}/{cidr}\n下载：{bandwidthDownBytes}/s\n上传：{bandwidthUpBytes}/s",
+    "tooltip-format": "网络\nSSID：{essid}\n接口：{ifname}\n地址：{ipaddr}/{cidr}\n下载：{bandwidthDownBytes}/s\n上传：{bandwidthUpBytes}/s",
     "on-click": "nm-connection-editor"
   },
   "pulseaudio": {

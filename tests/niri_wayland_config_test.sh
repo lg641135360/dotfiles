@@ -447,6 +447,7 @@ test_waybar_and_mako_match_niri_trial_contract() {
     assert_contains '"format-ethernet": "↓{bandwidthDownBytes} ↑{bandwidthUpBytes}"' "$WAYBAR_CONFIG"
     assert_contains '下载：{bandwidthDownBytes}/s' "$WAYBAR_CONFIG"
     assert_contains '上传：{bandwidthUpBytes}/s' "$WAYBAR_CONFIG"
+    assert_contains 'SSID：{essid}' "$WAYBAR_CONFIG"
     assert_contains '"format": "CPU:{usage}%"' "$WAYBAR_CONFIG"
     assert_contains '"format": "MEM:{percentage}%"' "$WAYBAR_CONFIG"
     assert_contains '"format": "VOL:{volume}%"' "$WAYBAR_CONFIG"
@@ -456,11 +457,20 @@ test_waybar_and_mako_match_niri_trial_contract() {
     assert_contains 'border-radius: 12px;' "$WAYBAR_STYLE"
     assert_contains '#workspaces button.empty' "$WAYBAR_STYLE"
     assert_contains '#workspaces button.focused' "$WAYBAR_STYLE"
+    assert_contains 'transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease;' "$WAYBAR_STYLE"
+    assert_contains '#workspaces button:hover' "$WAYBAR_STYLE"
+    assert_contains '#clock:hover,' "$WAYBAR_STYLE"
+    assert_contains '#tray > .needs-attention' "$WAYBAR_STYLE"
     assert_contains 'background-color=#1e1e2ef2' "$MAKO_CONFIG"
     assert_contains 'border-color=#89b4fa' "$MAKO_CONFIG"
     assert_contains 'font=Maple Mono NF CN 11' "$MAKO_CONFIG"
     assert_contains 'border-radius=10' "$MAKO_CONFIG"
     assert_contains '[urgency=critical]' "$MAKO_CONFIG"
+
+    assert_contains '"$HOME/Pictures"' "$WALLPAPER_SCRIPT"
+    assert_contains '"$HOME/Pictures/Wallpapers"' "$WALLPAPER_SCRIPT"
+    assert_contains '"$HOME/Pictures/wallpapers"' "$WALLPAPER_SCRIPT"
+    assert_contains '"$HOME/Pictures/wall"' "$WALLPAPER_SCRIPT"
 }
 
 test_install_deploys_wayland_trial_files() {

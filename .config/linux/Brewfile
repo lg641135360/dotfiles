@@ -1,8 +1,8 @@
 # Linux Homebrew Bundle
 # Usage: brew bundle --file ~/.config/linux/Brewfile
 #
-# GUI / X11 工具（rofi, feh, picom, dunst, xautolock 等）请用系统包管理器安装：
-#   apt-get install rofi feh picom dunst xautolock i3lock-color pavucontrol \
+# GUI / X11 工具（rofi, feh, picom, xautolock 等）请用系统包管理器安装：
+#   apt-get install rofi feh picom xautolock i3lock-color pavucontrol \
 #       flameshot xclip greenclip fcitx5 redshift nm-applet blueman pasystray xorg-xrdb
 
 # CLI tools

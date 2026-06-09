@@ -22,4 +22,3 @@ run_latest_custom "Snipaste" \
 run_common_tray_services
 run_common_desktop_services picom
 run greenclip daemon
-# run dunst  # use naughty instead

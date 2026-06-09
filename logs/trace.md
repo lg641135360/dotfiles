@@ -14,6 +14,44 @@
 - 验证：`systemctl --user show-environment` 显示 `GTK_IM_MODULE=`（空值）；所有 `.conf` 文件已清理；未同步到 dotfiles 仓库（因这些文件为 live-only 配置），未提交推送。
 - 后续：下次登录 niri 后 `GTK_IM_MODULE` 应完全从 systemd 环境中消失；若仍出现 fcitx 警告，需检查 `niri-session` 的 `import-environment` 是否从别处（如 PAM 环境）导入了值。
 
+- 目的：整理仓库结构，补充缺失的 README 文档，更新 .gitignore，清理空目录。
+- 已做：
+  - 重写根 `README.md`：将旧版工具列表改为目录树结构，新增 `tests/run.sh` 测试运行说明。
+  - 移除 AwesomeWM 中空的 `scripts/` 目录（git 不追踪空目录）。
+  - 更新 `.gitignore`：新增 `*.swp`/`*.swo`/`*~`（vim 交换文件）、`.DS_Store`（macOS）、`Thumbs.db`。
+  - 为 6 个缺失 README 的目录补充说明文档：`.config/scripts/`、`.config/shared/ssh/`、`.config/linux/mako/`、`fuzzel/`、`waybar/`、`xdg-desktop-portal/`。
+  - 更新 `tests/repo_docs_test.sh`：适配新版 README 断言，新增新增 README 文件的完整性检查。
+- 验证：`tests/repo_docs_test.sh` 通过；`tests/git_config_test.sh`、`tests/alacritty_config_test.sh`、`tests/tmux_status_test.sh`、`tests/picom_config_test.sh`、`tests/rofi_config_test.sh` 均通过。后续继续整理时已修复 `niri_wayland_config_test.sh` 的壁纸候选目录断言。
+- 后续：未同步 live 配置，未提交推送。如果后续要在 niri 平台补齐 ubuntu_aarch64 / arch_aarch64 配置，或统一文件命名风格，需单独评估。
+
+- 目的：按用户要求删除废弃的 xmobar 和 xmonad 配置目录。
+- 已做：
+  - 删除 `.config/linux/xmobar/` 和 `.config/linux/xmonad/` 目录（含上轮刚创建的 README）。
+  - 发现 `dunst/` 目录已被用户删除，同步清理测试断言和 trace 中的相关引用。
+  - 更新 `README.md` 目录树，移除 xmobar/xmonad 条目。
+  - 更新 `tests/repo_docs_test.sh`：将 xmobar/xmonad/dunst README 断言从 `assert_file_exists` 改为 `assert_file_not_exists`。
+  - 更新 `logs/trace.md` 上轮记录中有关 README 数量（9→7→6）的计数。
+- 验证：`tests/repo_docs_test.sh` 通过；`git diff --check` 通过；`bash -n` 语法检查通过。
+- 后续：未同步 live 配置，未提交推送。
+
+- 目的：继续收口当前仓库整理，修复 Wayland 壁纸测试失败并清理 dunst 残留提示，同时给 Waybar 微调补测试护栏。
+- 已做：
+  - 将 `.config/scripts/wallpaper-wayland` 的候选目录恢复为 `~/Pictures` 优先，再回退 `~/Pictures/Wallpapers`、`~/Pictures/wallpapers`、`~/Pictures/wall`、`~/.config/wallpapers` 和 `/usr/share/backgrounds`，与 `memory/desktop.md` 和既有测试契约保持一致。
+  - 为 Waybar 调整补充 `tests/niri_wayland_config_test.sh` 断言：network tooltip 包含 `SSID：{essid}`，CSS 包含 hover 过渡、workspace hover、模块 hover 和 tray attention 样式。
+  - 清理 `.config/linux/Brewfile` 中 dunst 安装提示，以及 Awesome autostart 平台脚本中已注释的 dunst 启动残留。
+  - 扩展 `tests/repo_docs_test.sh`，确认 `dunst`、`xmobar`、`xmonad` 目录不存在，且 Linux Brewfile 不再提示安装 dunst。
+- 验证：`sh -n .config/scripts/wallpaper-wayland tests/niri_wayland_config_test.sh` 通过；Waybar `config` 通过 Python JSON 解析；`./tests/niri_wayland_config_test.sh`、`./tests/repo_docs_test.sh`、`./tests/run.sh fast` 均通过；`git diff --check` 退出码为 0。
+- 后续：未同步 live 配置，未重启 Waybar/niri，未提交推送。
+
+- 目的：收口仓库整理，修复 README 目录树层级、补测试护栏、将新 README 纳入 Git 跟踪。
+- 已做：
+  - 修正根 `README.md` 目录树结构：从 `├── .config/` 改为以 `.` 为根的完整层级，`tests/`/`tools/`/`memory/`/`logs/` 正确显示为仓库根目录而非 `.config/` 子项。
+  - 修正 `tests/repo_docs_test.sh` 中 `nvim/`/`awesome/`/`niri/` 的目录路径断言，增加 `.config/` 虚拟目录和层级缩进护栏。
+  - 新增 `tests/niri_wayland_config_test.sh` 中壁纸候选目录断言（`~/Pictures`、`~/Pictures/Wallpapers`、`~/Pictures/wallpapers`），锁定 `wallpaper-wayland` 搜索顺序。
+  - 将 6 个新 README 加入 Git 暂存区（fuzzel、mako、waybar、xdg-desktop-portal、scripts、ssh）。
+- 验证：`./tests/run.sh fast` 全部通过（21/21，含 4 skip）；`bash -n` 语法检查通过；`git diff --check` 退出码 0；工作树无额外未跟踪文件或空目录泄漏。
+- 后续：未同步 live 配置，未提交推送。当前工作树共 27 个变更文件（9 删除、12 修改、6 新增），均为仓库文件级整理，不涉及 live 同步或运行态重载。
+
 ## 2026-06-05
 
 - 目的：按用户要求调整 niri 应用窗口规则，让钉钉窗口默认浮动、Cherry Studio 使用更宽默认列宽，并让 VS Code 默认占满当前列宽预设。
