@@ -2,6 +2,13 @@
 
 > 本文件只记录实际发生过的修改、验证证据与后续线索，不定义长期规则；若某条经验已稳定复用，应提升到 `AGENTS.md` 或 `memory/`。
 
+## 2026-06-11
+
+- 目的：按提示词系统评估结果收紧仓库 agent 行为协议，减少 memory/trace 读取摩擦，并把本地 OMX 工作流层与公共提示词入口文档化。
+- 已做：更新 `AGENTS.md`，将 memory 读取改为先读 `memory/organizing_preferences.md`、再按任务路径或关键词读取对应模块，默认不全量读取所有模块，并明确只读评估不更新 `logs/trace.md`；更新根 `README.md`，新增“提示词系统”说明，记录 `AGENTS.md` 是权威协议、`.github/copilot-instructions.md` 与 `CLAUDE.md` 只是薄入口，`.omx/` 是已忽略的本地工作流状态/计划产物目录且默认不提交；扩展 `tests/repo_docs_test.sh`，用回归断言保护上述入口与文档说明。本轮只修改仓库文件，没有同步 live 配置、没有重载运行态，准备提交但不推送。
+- 验证：`./tests/repo_docs_test.sh && sh -n tests/repo_docs_test.sh && git diff --check` 通过；`./tests/run.sh docs` 通过；`git status --short` 仅显示 `AGENTS.md`、`README.md`、`tests/repo_docs_test.sh` 和本 trace 变更。
+- 后续：若后续继续优化提示词系统，可考虑单独检查是否需要把更多稳定的 trace 经验提升到 `memory/`，但不要把 `.omx/` 纳入版本控制。
+
 ## 2026-06-09
 
 - 目的：排查 `GTK_IM_MODULE=fcitx` 在 niri (Wayland) 下的所有设置来源，移除 Wayland 会话中的设置以避免 fcitx "建议取消设置 GTK_IM_MODULE" 警告。

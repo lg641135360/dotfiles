@@ -8,6 +8,9 @@ ROOT_README=$REPO_ROOT/README.md
 X11_README=$REPO_ROOT/.config/linux/x11/README.md
 LINUX_BREWFILE=$REPO_ROOT/.config/linux/Brewfile
 GIT_MEMORY=$REPO_ROOT/memory/git.md
+AGENTS_DOC=$REPO_ROOT/AGENTS.md
+COPILOT_INSTRUCTIONS=$REPO_ROOT/.github/copilot-instructions.md
+CLAUDE_INSTRUCTIONS=$REPO_ROOT/CLAUDE.md
 
 # Root README — new structure format
 assert_contains 'shared/' "$ROOT_README"
@@ -28,6 +31,20 @@ assert_not_contains '- zed settings' "$ROOT_README"
 assert_contains './tests/run.sh' "$ROOT_README"
 assert_contains 'tests/run.sh docs' "$ROOT_README"
 assert_contains 'tests/run.sh awesome' "$ROOT_README"
+
+# Prompt / agent instruction system docs
+assert_contains '完整行为协议定义在 `AGENTS.md`' "$COPILOT_INSTRUCTIONS"
+assert_contains '遵从 AGENTS.md 的约束' "$CLAUDE_INSTRUCTIONS"
+assert_contains '权威行为协议' "$ROOT_README"
+assert_contains '.github/copilot-instructions.md' "$ROOT_README"
+assert_contains 'CLAUDE.md' "$ROOT_README"
+assert_contains '.omx/' "$ROOT_README"
+assert_contains '本地工作流状态' "$ROOT_README"
+assert_contains '不提交' "$ROOT_README"
+assert_contains '先读 `memory/organizing_preferences.md`' "$AGENTS_DOC"
+assert_contains '再按任务路径或关键词读取对应模块' "$AGENTS_DOC"
+assert_contains '默认不要全量读取所有模块 memory' "$AGENTS_DOC"
+assert_contains '只读评估不更新 `logs/trace.md`' "$AGENTS_DOC"
 
 # X11 README
 assert_file_exists "$X11_README"
