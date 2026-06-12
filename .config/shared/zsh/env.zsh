@@ -10,6 +10,7 @@ export TERMINAL=alacritty
 
 # Homebrew mirror (China)
 export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
+export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles"
 export HOMEBREW_API_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles/api"
 
 if [[ "$OSTYPE" == linux* && "${XDG_SESSION_TYPE:-}" != "wayland" ]]; then
