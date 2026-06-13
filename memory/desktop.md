@@ -27,6 +27,20 @@
 - Linuxbrew 包遮蔽工作系统二进制且不需要时，优先删除包而不是加防御逻辑。
 - scripts/ 目录下的 helper 优先始终安装并保留可执行位，即使 runtime backend 未安装。
 
+## fcitx / GTK_IM_MODULE 排查
+- fcitx "建议取消设置 GTK_IM_MODULE" 警告的原因是 Wayland 下 GTK 自带 text-input 协议，不需要 `GTK_IM_MODULE=fcitx`
+- 注入链排查步骤：
+  1. `systemctl --user show-environment` 查看 systemd 用户环境
+  2. `~/.config/environment.d/*.conf` — systemd generator 自动加载
+  3. `~/.xprofile` — 登录管理器导入
+  4. `niri-session` 中的 `systemctl --user import-environment` — 将 shell 环境导入 systemd
+- 修复方法：
+  - `environment.d/` 文件中移除或注释 GTK_IM_MODULE 行
+  - `.conf` 后缀的备份文件必须重命名为 `.bak`，否则被 systemd generator 误解析
+  - 当前会话通过 `dbus-update-activation-environment --systemd GTK_IM_MODULE=` 将值设空
+- niri/Wayland 下 Satty 启动前应 `unset GTK_IM_MODULE`，让 GTK4 走 Wayland text-input/fcitx 路径
+- Wayland autostart 中统一 `unset GTK_IM_MODULE`，`export QT_IM_MODULE=fcitx` 等 Qt 应用仍需
+
 ## niri / Wayland 试用
 - niri 迁移先作为与 AwesomeWM 并行的 Wayland 试用桌面纳入 dotfiles；Awesome/X11 保持可回退，不直接删除或替换。
 - niri 配置不复用 `picom`、`xrandr`、`xinput`、`feh`、`xautolock`；分别由 niri output/input、Wayland 合成、`swaybg`、`swayidle`/`swaylock` 等替代。

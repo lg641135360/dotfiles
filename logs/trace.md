@@ -2,75 +2,45 @@
 
 > 本文件只记录实际发生过的修改、验证证据与后续线索，不定义长期规则；若某条经验已稳定复用，应提升到 `AGENTS.md` 或 `memory/`。
 
-## 2026-06-11
+## 2026-06-13 — Brew 大清理 + patchelf 避雷
+
+- 清理 neofetch/rofi/mesa/xinput + unar/meson，brew autoremove 清理 66+15 个孤儿
+- Brewfile 删除 git/rsync/zsh/lazygit/alacritty（系统已提供或不必要）
+- env.zsh 添加 `HOMEBREW_BOTTLE_DOMAIN` USTC 镜像
+- 修复 ARM64 bottle 损坏：`patchelf --force-rpath` 展开 `@@HOMEBREW_PREFIX@@` 占位符
+- 根因：brew 自带的 Ruby gem `patchelf` v1.5.2 在 ARM64 上有 bug
+- brew 的 patchelf 0.18.0 写操作 segfault，已卸载，改用系统 `/usr/bin/patchelf` 0.14.3
+- 效果：150→62 formula，5.6G→4.7G，leaves 仅 8 个
+- 稳定知识已归档到 `memory/repo/brew-setup.md`、`memory/dingtalk.md`、`memory/desktop.md`
+- 验证：lsd/tmux/nvim 正常运行；`tests/repo_docs_test.sh` 通过
+- 提交：`046089d`（chore: cleanup brew packages and update mirror config）
+
+## 2026-06-11 — 提示词系统基线化
 
 - 目的：按提示词系统评估结果收紧仓库 agent 行为协议，减少 memory/trace 读取摩擦，并把本地 OMX 工作流层与公共提示词入口文档化。
 - 已做：更新 `AGENTS.md`，将 memory 读取改为先读 `memory/organizing_preferences.md`、再按任务路径或关键词读取对应模块，默认不全量读取所有模块，并明确只读评估不更新 `logs/trace.md`；更新根 `README.md`，新增“提示词系统”说明，记录 `AGENTS.md` 是权威协议、`.github/copilot-instructions.md` 与 `CLAUDE.md` 只是薄入口，`.omx/` 是已忽略的本地工作流状态/计划产物目录且默认不提交；扩展 `tests/repo_docs_test.sh`，用回归断言保护上述入口与文档说明。本轮只修改仓库文件，没有同步 live 配置、没有重载运行态，准备提交但不推送。
 - 验证：`./tests/repo_docs_test.sh && sh -n tests/repo_docs_test.sh && git diff --check` 通过；`./tests/run.sh docs` 通过；`git status --short` 仅显示 `AGENTS.md`、`README.md`、`tests/repo_docs_test.sh` 和本 trace 变更。
 - 后续：若后续继续优化提示词系统，可考虑单独检查是否需要把更多稳定的 trace 经验提升到 `memory/`，但不要把 `.omx/` 纳入版本控制。
 
-## 2026-06-09
+## 2026-06-09 — 仓库整理收口
 
-- 目的：排查 `GTK_IM_MODULE=fcitx` 在 niri (Wayland) 下的所有设置来源，移除 Wayland 会话中的设置以避免 fcitx "建议取消设置 GTK_IM_MODULE" 警告。
-- 已做：
-  - 查明完整注入链：`~/.xprofile` → 登录管理器 → `niri-session` 中 `systemctl --user import-environment` → systemd 用户环境；同时 `~/.config/environment.d/90-niri-wayland.conf` 和备份文件 `90-niri-wayland.conf.backup.20260511_220111`（`.conf` 后缀被 `30-systemd-environment-d-generator` 误解析）也持续注入。
-  - 修改 `~/.config/environment.d/90-niri-wayland.conf`：移除 `GTK_IM_MODULE=fcitx` 行。
-  - 重命名备份文件：`90-niri-wayland.conf.backup.20260511_220111` → `.bak` 后缀，避免被 systemd generator 解析。
-  - 修改 `~/.xprofile`：添加 `XDG_SESSION_TYPE != "wayland"` 条件判断，Wayland 下不设置 `GTK_IM_MODULE`。
-  - 当前会话中通过 `dbus-update-activation-environment --systemd GTK_IM_MODULE=` 将 systemd 环境设空（下次登录后 systemd generator 会自然读取到已清理的配置文件）。
-- 验证：`systemctl --user show-environment` 显示 `GTK_IM_MODULE=`（空值）；所有 `.conf` 文件已清理；未同步到 dotfiles 仓库（因这些文件为 live-only 配置），未提交推送。
-- 后续：下次登录 niri 后 `GTK_IM_MODULE` 应完全从 systemd 环境中消失；若仍出现 fcitx 警告，需检查 `niri-session` 的 `import-environment` 是否从别处（如 PAM 环境）导入了值。
+- fcitx/Wayland GTK_IM_MODULE 排查（知识 → `memory/desktop.md`）
+- 重写 README 目录树、补 6 个 README、删除 xmobar/xmonad/dunst 残留
+- 修复 wallpaper-wayland 候选目录、Waybar 测试护栏
+- 修正 README 目录树层级、补测试护栏、6 个新 README 纳入 Git 跟踪
+- 未提交推送（当时为中间状态）
 
-- 目的：整理仓库结构，补充缺失的 README 文档，更新 .gitignore，清理空目录。
-- 已做：
-  - 重写根 `README.md`：将旧版工具列表改为目录树结构，新增 `tests/run.sh` 测试运行说明。
-  - 移除 AwesomeWM 中空的 `scripts/` 目录（git 不追踪空目录）。
-  - 更新 `.gitignore`：新增 `*.swp`/`*.swo`/`*~`（vim 交换文件）、`.DS_Store`（macOS）、`Thumbs.db`。
-  - 为 6 个缺失 README 的目录补充说明文档：`.config/scripts/`、`.config/shared/ssh/`、`.config/linux/mako/`、`fuzzel/`、`waybar/`、`xdg-desktop-portal/`。
-  - 更新 `tests/repo_docs_test.sh`：适配新版 README 断言，新增新增 README 文件的完整性检查。
-- 验证：`tests/repo_docs_test.sh` 通过；`tests/git_config_test.sh`、`tests/alacritty_config_test.sh`、`tests/tmux_status_test.sh`、`tests/picom_config_test.sh`、`tests/rofi_config_test.sh` 均通过。后续继续整理时已修复 `niri_wayland_config_test.sh` 的壁纸候选目录断言。
-- 后续：未同步 live 配置，未提交推送。如果后续要在 niri 平台补齐 ubuntu_aarch64 / arch_aarch64 配置，或统一文件命名风格，需单独评估。
+## 2026-06-05 — niri 窗口规则调整
 
-- 目的：按用户要求删除废弃的 xmobar 和 xmonad 配置目录。
-- 已做：
-  - 删除 `.config/linux/xmobar/` 和 `.config/linux/xmonad/` 目录（含上轮刚创建的 README）。
-  - 发现 `dunst/` 目录已被用户删除，同步清理测试断言和 trace 中的相关引用。
-  - 更新 `README.md` 目录树，移除 xmobar/xmonad 条目。
-  - 更新 `tests/repo_docs_test.sh`：将 xmobar/xmonad/dunst README 断言从 `assert_file_exists` 改为 `assert_file_not_exists`。
-  - 更新 `logs/trace.md` 上轮记录中有关 README 数量（9→7→6）的计数。
-- 验证：`tests/repo_docs_test.sh` 通过；`git diff --check` 通过；`bash -n` 语法检查通过。
-- 后续：未同步 live 配置，未提交推送。
+- niri: 钉钉浮动、Cherry Studio/Chrome 默认 0.66667 列宽、VS Code 默认 1.0
 
-- 目的：继续收口当前仓库整理，修复 Wayland 壁纸测试失败并清理 dunst 残留提示，同时给 Waybar 微调补测试护栏。
-- 已做：
-  - 将 `.config/scripts/wallpaper-wayland` 的候选目录恢复为 `~/Pictures` 优先，再回退 `~/Pictures/Wallpapers`、`~/Pictures/wallpapers`、`~/Pictures/wall`、`~/.config/wallpapers` 和 `/usr/share/backgrounds`，与 `memory/desktop.md` 和既有测试契约保持一致。
-  - 为 Waybar 调整补充 `tests/niri_wayland_config_test.sh` 断言：network tooltip 包含 `SSID：{essid}`，CSS 包含 hover 过渡、workspace hover、模块 hover 和 tray attention 样式。
-  - 清理 `.config/linux/Brewfile` 中 dunst 安装提示，以及 Awesome autostart 平台脚本中已注释的 dunst 启动残留。
-  - 扩展 `tests/repo_docs_test.sh`，确认 `dunst`、`xmobar`、`xmonad` 目录不存在，且 Linux Brewfile 不再提示安装 dunst。
-- 验证：`sh -n .config/scripts/wallpaper-wayland tests/niri_wayland_config_test.sh` 通过；Waybar `config` 通过 Python JSON 解析；`./tests/niri_wayland_config_test.sh`、`./tests/repo_docs_test.sh`、`./tests/run.sh fast` 均通过；`git diff --check` 退出码为 0。
-- 后续：未同步 live 配置，未重启 Waybar/niri，未提交推送。
+## 2026-06-04 — 钉钉 Wayland 屏幕共享
 
-- 目的：收口仓库整理，修复 README 目录树层级、补测试护栏、将新 README 纳入 Git 跟踪。
-- 已做：
-  - 修正根 `README.md` 目录树结构：从 `├── .config/` 改为以 `.` 为根的完整层级，`tests/`/`tools/`/`memory/`/`logs/` 正确显示为仓库根目录而非 `.config/` 子项。
-  - 修正 `tests/repo_docs_test.sh` 中 `nvim/`/`awesome/`/`niri/` 的目录路径断言，增加 `.config/` 虚拟目录和层级缩进护栏。
-  - 新增 `tests/niri_wayland_config_test.sh` 中壁纸候选目录断言（`~/Pictures`、`~/Pictures/Wallpapers`、`~/Pictures/wallpapers`），锁定 `wallpaper-wayland` 搜索顺序。
-  - 将 6 个新 README 加入 Git 暂存区（fuzzel、mako、waybar、xdg-desktop-portal、scripts、ssh）。
-- 验证：`./tests/run.sh fast` 全部通过（21/21，含 4 skip）；`bash -n` 语法检查通过；`git diff --check` 退出码 0；工作树无额外未跟踪文件或空目录泄漏。
-- 后续：未同步 live 配置，未提交推送。当前工作树共 27 个变更文件（9 删除、12 修改、6 新增），均为仓库文件级整理，不涉及 live 同步或运行态重载。
-
-## 2026-06-05
-
-- 目的：按用户要求调整 niri 应用窗口规则，让钉钉窗口默认浮动、Cherry Studio 使用更宽默认列宽，并让 VS Code 默认占满当前列宽预设。
-- 已做：在 `.config/linux/niri/config.kdl` 新增 `com.alibabainc.dingtalk` / `tblive` 的 `open-floating true` 规则，新增 `CherryStudio` 与 `google-chrome` 默认 `proportion 0.66667` 规则，新增 `code` 默认 `proportion 1.0` 规则；Chrome 规则只影响新 Chrome 窗口进入 tiling 布局时的初始列宽，不迁移 workspace 或改变浮动状态。同步更新 `.config/linux/niri/README.md` 的窗口规则说明，并扩展 `tests/niri_wayland_config_test.sh` 断言配置与 README 契约。
-- 验证：`niri validate -c .config/linux/niri/config.kdl` 通过；`./tests/niri_wayland_config_test.sh` 通过；`command git diff --check` 通过。未同步 live `~/.config/niri`，未重载 niri，未提交推送。
-
-## 2026-06-04
-
-- 目的：排查并修复 niri/Wayland 会话下钉钉会议共享屏幕只能看到鼠标、其它画面全黑的问题。
-- 已做：检查 `lzl200110/dingtalk-wayland-screenshare`，确认其通过 `LD_PRELOAD` hook 钉钉/XWayland 的 `XGetImage`/`XShmGetImage`，把 xdg-desktop-portal/PipeWire 捕获的画面回填给钉钉；临时 clone 并在 `/tmp/dingtalk-wayland-screenshare` 成功构建 `libdingtalkhook.so`。新增 `.config/scripts/dingtalk-wayland`，在保留钉钉原 `libgbm.so` 与 `plugins/dtwebview/libcef.so` preload 的同时把 hook 库放到 `LD_PRELOAD` 最前面；同步更新 `install.sh`、`tests/niri_wayland_config_test.sh` 与 `.config/linux/niri/README.md`。经用户确认后，将 hook 库安装到 live `~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so`，将脚本安装到 live `~/.config/scripts/dingtalk-wayland`，并 unmask/enable/start 用户级 `pipewire.socket`、`pipewire-pulse.socket` 与 `wireplumber.service`，重启 xdg-desktop-portal/gnome/gtk portal 服务。连续复测发现：只声明 modifier 会先遇到 `no more input formats`，必须把 `SPA_FORMAT_VIDEO_modifier` 作为 mandatory `DRM_FORMAT_MOD_LINEAR`；恢复 streaming 后 niri 提供的是 linear `SPA_DATA_DmaBuf`，`data=0 maxsize=1`，需要对 `spa_data.fd` 做 `mmap` 并复制到 framebuffer；尝试请求 `SPA_PARAM_Buffers` / `MemFd` 会触发 `error alloc buffers: 无效的参数`。最终把已验证可用的临时源码最小化复制到 `tools/dingtalk-wayland-screenshare/`，删除旧 patch 路线，不让 `install.sh` 每次复制源码或编译 hook。
-- 验证：`cmake -S tools/dingtalk-wayland-screenshare -B /tmp/dingtalk-wayland-screenshare-build -GNinja -DCMAKE_BUILD_TYPE=Release && cmake --build /tmp/dingtalk-wayland-screenshare-build` 通过；`install -Dm755 /tmp/dingtalk-wayland-screenshare-build/libdingtalkhook.so ~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so` 已刷新 live hook；`~/.config/niri/dingtalk-wayland-screenshare` 已删除，仓库内没有 hook build 目录；`/bin/sh -n .config/scripts/dingtalk-wayland` 通过。用户复测确认“这下可以共享了”。
-- 后续：使用 `~/.config/scripts/dingtalk-wayland` 启动钉钉后，在共享屏幕时需要接受 portal 选择窗口/屏幕的对话框，不能取消；若后续需要重建 hook，应在 dotfiles 根目录从 `tools/dingtalk-wayland-screenshare` 构建到 `/tmp`，再一次性安装到 `~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so`。排障优先看 `/tmp/dingtalk-wayland-debug.log`，成功路径应包含 `stream state changed from paused to streaming`、`process frame type=3` 与 `mmap frame`。
+- 排查修复钉钉 Wayland 屏幕共享（只看到鼠标、画面全黑）
+- 引入 `lzl200110/dingtalk-wayland-screenshare` hook，通过 LD_PRELOAD 截获 XGetImage/XShmGetImage
+- 源码归档到 `tools/dingtalk-wayland-screenshare/`
+- 知识已归档到 `memory/dingtalk.md`
+- 验证：用户确认“这下可以共享了”
 
 ## 2026-06-03
 
