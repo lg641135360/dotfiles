@@ -24,7 +24,7 @@
   - 将`记录语言`和`持久化文件读取`从 organizing_preferences.md 合并到 USER.md。
   - 扩展 `.githooks/pre-commit`：空白字符检查（`git diff --cached --check`）+ 改动脚本语法检查（`bash -n`/`luajit`）+ trace 归档。
   - 新建 `.githooks/pre-push`：按改动文件自动匹配模块，跑对应测试分组；跨模块时跑 `fast` 分组。
-  - 在 `install.sh` 中添加 `setup_git_hooks()`，自动执行 `git config core.hooksPath .githooks`。
+  - 在 `AGENTS.md` 中添加执行规则：提交/推送前检查并激活 `core.hooksPath .githooks`。
   - 更新 `logs/trace.md` 维护规则说明归档已自动化。
   - 扩展 `tests/repo_docs_test.sh` 断言覆盖全部新 hook 内容。
 - 验证：`./tests/repo_docs_test.sh` 通过；`bash -n .githooks/pre-commit` 通过；`bash -n .githooks/pre-push` 通过。

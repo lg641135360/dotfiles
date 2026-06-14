@@ -64,8 +64,9 @@ assert_contains 'bash -n' "$REPO_ROOT/.githooks/pre-commit"
 assert_contains 'luajit' "$REPO_ROOT/.githooks/pre-commit"
 assert_contains 'run_test_group' "$REPO_ROOT/.githooks/pre-push"
 assert_contains 'tests/run.sh' "$REPO_ROOT/.githooks/pre-push"
-assert_contains 'setup_git_hooks' "$REPO_ROOT/install.sh"
-assert_contains 'core.hooksPath .githooks' "$REPO_ROOT/install.sh"
+# hook 激活规则在 AGENTS.md 而非 install.sh 中
+assert_contains 'core.hooksPath' "$REPO_ROOT/AGENTS.md"
+assert_contains '.githooks' "$REPO_ROOT/AGENTS.md"
 
 # X11 README
 assert_file_exists "$X11_README"
