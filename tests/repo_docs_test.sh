@@ -46,6 +46,27 @@ assert_contains '再按任务路径或关键词读取对应模块' "$AGENTS_DOC"
 assert_contains '默认不要全量读取所有模块 memory' "$AGENTS_DOC"
 assert_contains '只读评估不更新 `logs/trace.md`' "$AGENTS_DOC"
 
+# User profile — merged language & reading preferences
+assert_contains '统一记录语言' "$REPO_ROOT/USER.md"
+assert_contains '关键词/主题局部检索' "$REPO_ROOT/USER.md"
+
+# organizing_preferences — removed duplicate sections
+assert_not_contains '## 记录语言' "$REPO_ROOT/memory/organizing_preferences.md"
+assert_not_contains '## 持久化文件读取' "$REPO_ROOT/memory/organizing_preferences.md"
+
+# Git hooks
+assert_file_exists "$REPO_ROOT/.githooks/pre-commit"
+assert_executable "$REPO_ROOT/.githooks/pre-commit"
+assert_file_exists "$REPO_ROOT/.githooks/pre-push"
+assert_executable "$REPO_ROOT/.githooks/pre-push"
+assert_contains 'git diff --cached --check' "$REPO_ROOT/.githooks/pre-commit"
+assert_contains 'bash -n' "$REPO_ROOT/.githooks/pre-commit"
+assert_contains 'luajit' "$REPO_ROOT/.githooks/pre-commit"
+assert_contains 'run_test_group' "$REPO_ROOT/.githooks/pre-push"
+assert_contains 'tests/run.sh' "$REPO_ROOT/.githooks/pre-push"
+assert_contains 'setup_git_hooks' "$REPO_ROOT/install.sh"
+assert_contains 'core.hooksPath .githooks' "$REPO_ROOT/install.sh"
+
 # X11 README
 assert_file_exists "$X11_README"
 assert_file_not_exists "$REPO_ROOT/.config/linux/x11/REAME.md"

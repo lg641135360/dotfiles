@@ -560,9 +560,40 @@ main() {
 
     configure_claude_code_statusline
 
+    setup_git_hooks
+
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
     log_info "Installation completed in $duration seconds"
+}
+
+# Configure git hooks path to enable pre-commit hooks
+setup_git_hooks() {
+    local repo_dir="$cur_path"
+    local hooks_dir="$repo_dir/.githooks"
+
+    if [ ! -d "$hooks_dir" ]; then
+        return 0
+    fi
+
+    if ! command -v git >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if ! git -C "$repo_dir" rev-parse --git-dir >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local current_hooks_path
+    current_hooks_path=$(git -C "$repo_dir" config core.hooksPath || true)
+
+    if [ "$current_hooks_path" = ".githooks" ]; then
+        log_info "Git hooks already configured"
+        return 0
+    fi
+
+    git -C "$repo_dir" config core.hooksPath .githooks
+    log_info "Configured git hooks path: .githooks"
 }
 
 # Run main function

@@ -1,0 +1,96 @@
+#!/bin/sh
+# pre-push — 推送前按改动范围运行对应回归测试
+#
+# 通过 core.hooksPath 启用：
+#   git config core.hooksPath .githooks
+
+set -eu
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+TEST_RUNNER="$REPO_ROOT/tests/run.sh"
+HAS_ERROR=0
+
+# 读取 pre-push 标准输入获取远程 ref
+REMOTE_SHA1=""
+while read -r _ _ _ remote_sha; do
+    REMOTE_SHA1="$remote_sha"
+done
+
+if [ -z "$REMOTE_SHA1" ]; then
+    exit 0
+fi
+
+# 确定改动范围
+CHANGED_FILES=""
+if echo "$REMOTE_SHA1" | grep -q '^0\{40\}$'; then
+    # 新分支，对比 staged
+    CHANGED_FILES=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
+else
+    CHANGED_FILES=$(git diff --name-only --diff-filter=ACM "$REMOTE_SHA1"..HEAD 2>/dev/null || true)
+fi
+
+if [ -z "$CHANGED_FILES" ]; then
+    exit 0
+fi
+
+# 检测涉及哪些模块
+HAS_DOCS=false
+HAS_AWESOME=false
+HAS_NVIM=false
+HAS_TMUX=false
+HAS_ALACRITTY=false
+HAS_ROFI=false
+HAS_ZSH=false
+HAS_PICOM=false
+HAS_NIRI=false
+HAS_AEROSPACE=false
+
+for f in $CHANGED_FILES; do
+    case "$f" in
+        AGENTS.md|CLAUDE.md|.github/*|USER.md|SOUL.md|README.md|logs/trace.md|memory/*|tests/repo_docs*|tests/git_config*) HAS_DOCS=true ;;
+        .config/linux/awesome/*|tests/awesome_*) HAS_AWESOME=true ;;
+        .config/shared/nvim/*|tests/nvim_*) HAS_NVIM=true ;;
+        .config/shared/tmux/*|tests/tmux_*) HAS_TMUX=true ;;
+        .config/shared/alacritty/*|tests/alacritty_*) HAS_ALACRITTY=true ;;
+        .config/linux/rofi/*|tests/rofi_*) HAS_ROFI=true ;;
+        .config/shared/zsh/*|tests/zsh_*) HAS_ZSH=true ;;
+        .config/linux/picom/*|tests/picom_*) HAS_PICOM=true ;;
+        .config/linux/niri/*|tests/niri_*) HAS_NIRI=true ;;
+        .config/macos/aerospace/*|tests/aerospace_*) HAS_AEROSPACE=true ;;
+        install.sh) HAS_DOCS=true ;;
+    esac
+done
+
+# 计算涉及的模块数
+MODULE_COUNT=0
+for flag in "$HAS_DOCS" "$HAS_AWESOME" "$HAS_NVIM" "$HAS_TMUX" "$HAS_ALACRITTY" "$HAS_ROFI" "$HAS_ZSH" "$HAS_PICOM" "$HAS_NIRI" "$HAS_AEROSPACE"; do
+    $flag && MODULE_COUNT=$((MODULE_COUNT + 1))
+done
+
+run_test_group() {
+    group=$1
+    if [ -x "$TEST_RUNNER" ]; then
+        printf '\033[36m[pre-push] 运行测试: %s\033[0m\n' "$group"
+        if ! "$TEST_RUNNER" "$group"; then
+            printf '\033[31m[pre-push] 测试失败: %s，请修复后重试\033[0m\n' "$group" >&2
+            HAS_ERROR=1
+        fi
+    fi
+}
+
+# 按模块跑测试
+if [ "$MODULE_COUNT" -gt 1 ]; then
+    run_test_group fast
+elif $HAS_DOCS; then
+    run_test_group docs
+elif $HAS_AWESOME; then
+    run_test_group awesome
+elif $HAS_NVIM; then
+    run_test_group nvim
+elif $HAS_TMUX; then
+    run_test_group fast
+elif $HAS_ALACRITTY || $HAS_ROFI || $HAS_ZSH || $HAS_PICOM || $HAS_NIRI || $HAS_AEROSPACE; then
+    run_test_group fast
+fi
+
+exit "$HAS_ERROR"

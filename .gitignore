@@ -22,9 +22,12 @@ tools/dingtalk-wayland-screenshare/build/
 # OMX runtime state
 .omx/
 
+# Script dependencies (TypeScript tooling)
+scripts/node_modules/
+scripts/package-lock.json
+
+# Root-level lockfile (scripts/ has its own)
+/package-lock.json
+
 # OS file metadata
 Thumbs.db
-
-# cherry studio
-SOUL.md
-USER.md
