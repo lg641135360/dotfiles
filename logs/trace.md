@@ -6,8 +6,7 @@
 
 - 本文件总长度建议不超过 150 行。
 - 最近变更摘要（按 `## YYYY-MM-DD` 标题计）最多保留 5 条。
-- 归档已通过 `.githooks/pre-commit` 自动化：每次 `git commit` 时自动运行归档脚本，无需手动执行。
-- 也可以手动触发：
+- 归档通过 `scripts/archive_trace.ts` 手动触发，或由 agent 按 `AGENTS.md` 验证策略在提交前执行：
   ```bash
   npm --prefix scripts run archive-trace -- --dry-run   # 预览
   npm --prefix scripts run archive-trace --              # 执行
@@ -17,17 +16,16 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
-## 2026-06-14 — 提示词系统优化：githook 体系 + USER/SOUL 激活
+## 2026-06-14 — 提示词系统优化：移除 githook，全由 prompt 规则接管
 
-- 目的：消除 USER.md 与 organizing_preferences.md 的重复内容，搭建两阶段 githook 体系，激活 USER.md / SOUL.md。
+- 目的：消除 USER.md 与 organizing_preferences.md 的重复内容，激活 USER.md / SOUL.md；随后删除 githook 体系，交给 AGENTS.md prompt 规则统一接管验证。
 - 已做：
   - 将`记录语言`和`持久化文件读取`从 organizing_preferences.md 合并到 USER.md。
-  - 扩展 `.githooks/pre-commit`：空白字符检查 + 语法检查 + trace 归档。
-  - 新建 `.githooks/pre-push`：按改动范围自动匹配测试分组。
-  - 在 `AGENTS.md` 添加：提交/推送前激活 `core.hooksPath .githooks`；操作前读取 `USER.md` / `SOUL.md`。
-  - 更新 `logs/trace.md` 维护规则说明归档已自动化。
-  - 扩展 `tests/repo_docs_test.sh` 断言覆盖全部新内容。
-- 验证：`./tests/repo_docs_test.sh` 通过；`bash -n .githooks/pre-commit` 通过；`bash -n .githooks/pre-push` 通过。
+  - 创建后删除 `.githooks/`（pre-commit + pre-push），验证策略由 AGENTS.md 统一管理。
+  - AGENTS.md 操作前约束中增加读取 `USER.md` / `SOUL.md` 规则。
+  - 更新 `logs/trace.md` 维护规则，归档改由 agent 按 AGENTS.md 执行。
+  - 扩展 `tests/repo_docs_test.sh` 断言覆盖全部变更。
+- 验证：`./tests/repo_docs_test.sh` 通过。
 
 ## 2026-06-13 — Brew 大清理 + patchelf 避雷
 

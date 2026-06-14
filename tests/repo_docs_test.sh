@@ -54,23 +54,13 @@ assert_contains '关键词/主题局部检索' "$REPO_ROOT/USER.md"
 assert_not_contains '## 记录语言' "$REPO_ROOT/memory/organizing_preferences.md"
 assert_not_contains '## 持久化文件读取' "$REPO_ROOT/memory/organizing_preferences.md"
 
-# Git hooks
-assert_file_exists "$REPO_ROOT/.githooks/pre-commit"
-assert_executable "$REPO_ROOT/.githooks/pre-commit"
-assert_file_exists "$REPO_ROOT/.githooks/pre-push"
-assert_executable "$REPO_ROOT/.githooks/pre-push"
-assert_contains 'git diff --cached --check' "$REPO_ROOT/.githooks/pre-commit"
-assert_contains 'bash -n' "$REPO_ROOT/.githooks/pre-commit"
-assert_contains 'luajit' "$REPO_ROOT/.githooks/pre-commit"
-assert_contains 'run_test_group' "$REPO_ROOT/.githooks/pre-push"
-assert_contains 'tests/run.sh' "$REPO_ROOT/.githooks/pre-push"
-# hook 激活规则在 AGENTS.md 而非 install.sh 中
-assert_contains 'core.hooksPath' "$REPO_ROOT/AGENTS.md"
-assert_contains '.githooks' "$REPO_ROOT/AGENTS.md"
-
 # USER.md / SOUL.md 引用
 assert_contains 'USER.md' "$REPO_ROOT/AGENTS.md"
 assert_contains 'SOUL.md' "$REPO_ROOT/AGENTS.md"
+
+# githook 已删除，验证由 prompt 规则接管
+assert_file_not_exists "$REPO_ROOT/.githooks/pre-commit"
+assert_file_not_exists "$REPO_ROOT/.githooks/pre-push"
 
 # X11 README
 assert_file_exists "$X11_README"
