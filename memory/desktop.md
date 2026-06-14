@@ -50,6 +50,7 @@
 - niri portal 偏好使用用户级 `~/.local/share/xdg-desktop-portal/niri-portals.conf`，默认 `gnome;gtk`，但 `FileChooser` 显式指定 `gtk`，避免缺少 Nautilus 时文件选择器失效；polkit agent 候选需覆盖 Ubuntu 的 `/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1`。
 - niri autostart 可启动与 Awesome 对齐的可选托盘/辅助服务：`nm-applet`、`pasystray`、`blueman-applet`、`pot`、`udiskie -t`；缺命令时由 `run_once` 静默跳过。
 - niri 钉钉窗口保持不由 `window-rule` 管理；会议窗口、浮动状态和位置交给应用自身或手动切换，不在仓库配置里强制匹配 `com.alibabainc.dingtalk` / `tblive`。
+- niri 全局窗口效果使用 `opacity 0.88` + `background-effect { blur true }`，并配合 `draw-border-with-background false` 避免半透明窗口聚焦时透出蓝色 focus ring 背景；Chrome 可单独用更低 opacity 补偿网页内容不透明。
 - niri 主导航偏好使用 `Mod+h/l` 左右聚焦窗口列、`Mod+j/k` 下/上聚焦 workspace；不要保留 `Mod+Left/Right/Up/Down` 方向键替代绑定。
 - niri overview 使用 `Mod+o` 打开/关闭，作为查看全局窗口/workspace 的主入口。
 - niri 配置按系统类型放在 `.config/linux/niri/<platform>/config.kdl`；当前已落地 `ubuntu_x64` 与 `arch_x64`，安装器只把匹配平台的单个文件复制到 `~/.config/niri/config.kdl`，不要再整目录复制 niri 配置。

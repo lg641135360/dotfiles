@@ -138,9 +138,10 @@ session include common-session
 
 ## 窗口规则
 
+- 全局窗口默认启用 0.88 透明度和 niri 背景模糊，并设置 `draw-border-with-background false`，避免半透明窗口聚焦时把蓝色 focus ring 背景透出来。
 - 钉钉不再由 niri window-rule 管理；会议窗口、浮动状态和位置交给应用自身或手动切换，避免仓库配置强行干预钉钉行为。
 - Cherry Studio 默认列宽为 2/3 屏，保留较宽的对话阅读区域，同时还能露出相邻列。
-- Chrome 默认列宽为 2/3 屏，适合网页阅读和文档页面，不改变 workspace 或浮动状态。
+- Chrome 默认列宽为 2/3 屏，适合网页阅读和文档页面，不改变 workspace 或浮动状态；Chrome 额外覆盖为 0.72 透明度，用于补偿网页内容大面积不透明导致的效果不明显。
 - VS Code 默认列宽为 1.0，适合代码、终端和侧边栏同时展开。
 
 ## Portal

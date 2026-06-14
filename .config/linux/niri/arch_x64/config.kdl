@@ -77,6 +77,22 @@ animations {
     // Keep animations enabled for the first Wayland trial.
 }
 
+blur {
+    passes 3
+    offset 3.0
+    noise 0.02
+    saturation 1.5
+}
+
+window-rule {
+    draw-border-with-background false
+    opacity 0.88
+
+    background-effect {
+        blur true
+    }
+}
+
 window-rule {
     match app-id=r#"^org\.wezfurlong\.wezterm$"#
     default-column-width {}
@@ -90,6 +106,12 @@ window-rule {
 window-rule {
     match app-id=r#"^google-chrome$"#
     default-column-width { proportion 0.66667; }
+    draw-border-with-background false
+    opacity 0.72
+
+    background-effect {
+        blur true
+    }
 }
 
 window-rule {
