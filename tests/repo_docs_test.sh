@@ -46,16 +46,24 @@ assert_contains '再按任务路径或关键词读取对应模块' "$AGENTS_DOC"
 assert_contains '默认不要全量读取所有模块 memory' "$AGENTS_DOC"
 assert_contains '只读评估不更新 `logs/trace.md`' "$AGENTS_DOC"
 
-# User profile — merged language preference
-assert_contains '统一记录语言' "$REPO_ROOT/USER.md"
+# User profile — key facts
+assert_contains 'TypeScript 优先' "$REPO_ROOT/USER.md"
 
 # organizing_preferences — removed duplicate sections
 assert_not_contains '## 记录语言' "$REPO_ROOT/memory/organizing_preferences.md"
 assert_not_contains '## 持久化文件读取' "$REPO_ROOT/memory/organizing_preferences.md"
 
-# USER.md / SOUL.md 引用
+# USER.md / SOUL.md 引用与内容
 assert_contains 'USER.md' "$REPO_ROOT/AGENTS.md"
 assert_contains 'SOUL.md' "$REPO_ROOT/AGENTS.md"
+assert_contains 'Tone' "$REPO_ROOT/SOUL.md"
+assert_not_contains 'Personality' "$REPO_ROOT/SOUL.md"
+assert_not_contains 'Identity' "$REPO_ROOT/SOUL.md"
+assert_contains 'Key Facts' "$REPO_ROOT/USER.md"
+assert_not_contains 'Name' "$REPO_ROOT/USER.md"
+assert_not_contains 'Timezone' "$REPO_ROOT/USER.md"
+assert_not_contains 'Preferences' "$REPO_ROOT/USER.md"
+assert_not_contains 'Context' "$REPO_ROOT/USER.md"
 
 # githook 已删除，验证由 prompt 规则接管
 assert_file_not_exists "$REPO_ROOT/.githooks/pre-commit"
