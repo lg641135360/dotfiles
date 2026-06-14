@@ -68,6 +68,10 @@ assert_contains 'tests/run.sh' "$REPO_ROOT/.githooks/pre-push"
 assert_contains 'core.hooksPath' "$REPO_ROOT/AGENTS.md"
 assert_contains '.githooks' "$REPO_ROOT/AGENTS.md"
 
+# USER.md / SOUL.md 引用
+assert_contains 'USER.md' "$REPO_ROOT/AGENTS.md"
+assert_contains 'SOUL.md' "$REPO_ROOT/AGENTS.md"
+
 # X11 README
 assert_file_exists "$X11_README"
 assert_file_not_exists "$REPO_ROOT/.config/linux/x11/REAME.md"

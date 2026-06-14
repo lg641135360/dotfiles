@@ -17,16 +17,16 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
-## 2026-06-14 — 提示词系统优化 + githook 体系搭建
+## 2026-06-14 — 提示词系统优化：githook 体系 + USER/SOUL 激活
 
-- 目的：消除 USER.md 与 organizing_preferences.md 的重复内容，搭建两阶段 githook 体系（pre-commit 快速检查 + pre-push 回归测试）。
+- 目的：消除 USER.md 与 organizing_preferences.md 的重复内容，搭建两阶段 githook 体系，激活 USER.md / SOUL.md。
 - 已做：
   - 将`记录语言`和`持久化文件读取`从 organizing_preferences.md 合并到 USER.md。
-  - 扩展 `.githooks/pre-commit`：空白字符检查（`git diff --cached --check`）+ 改动脚本语法检查（`bash -n`/`luajit`）+ trace 归档。
-  - 新建 `.githooks/pre-push`：按改动文件自动匹配模块，跑对应测试分组；跨模块时跑 `fast` 分组。
-  - 在 `AGENTS.md` 中添加执行规则：提交/推送前检查并激活 `core.hooksPath .githooks`。
+  - 扩展 `.githooks/pre-commit`：空白字符检查 + 语法检查 + trace 归档。
+  - 新建 `.githooks/pre-push`：按改动范围自动匹配测试分组。
+  - 在 `AGENTS.md` 添加：提交/推送前激活 `core.hooksPath .githooks`；操作前读取 `USER.md` / `SOUL.md`。
   - 更新 `logs/trace.md` 维护规则说明归档已自动化。
-  - 扩展 `tests/repo_docs_test.sh` 断言覆盖全部新 hook 内容。
+  - 扩展 `tests/repo_docs_test.sh` 断言覆盖全部新内容。
 - 验证：`./tests/repo_docs_test.sh` 通过；`bash -n .githooks/pre-commit` 通过；`bash -n .githooks/pre-push` 通过。
 
 ## 2026-06-13 — Brew 大清理 + patchelf 避雷
