@@ -46,9 +46,8 @@ assert_contains '再按任务路径或关键词读取对应模块' "$AGENTS_DOC"
 assert_contains '默认不要全量读取所有模块 memory' "$AGENTS_DOC"
 assert_contains '只读评估不更新 `logs/trace.md`' "$AGENTS_DOC"
 
-# User profile — merged language & reading preferences
+# User profile — merged language preference
 assert_contains '统一记录语言' "$REPO_ROOT/USER.md"
-assert_contains '关键词/主题局部检索' "$REPO_ROOT/USER.md"
 
 # organizing_preferences — removed duplicate sections
 assert_not_contains '## 记录语言' "$REPO_ROOT/memory/organizing_preferences.md"
