@@ -9,7 +9,7 @@
 append_path_if_exists "/home/linuxbrew/.linuxbrew/bin"
 
 apply_display_layout() {
-    configure_fixed_external_display_layout 2880x1800 120 right 2560x1440 59.95
+    configure_fixed_external_display_layout 2880x1800 120 right 3840x2160 60
 }
 
 if [ "${1:-}" = "--display-layout" ]; then
