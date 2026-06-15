@@ -256,6 +256,7 @@ linux_wayland_configs=(
     "|.config/scripts/lock-wayland|~/.config/scripts/lock-wayland|Wayland lock script"
     "|.config/scripts/screenshot-wayland|~/.config/scripts/screenshot-wayland|Wayland screenshot script"
     "|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script"
+    "|.config/scripts/wallpaper-wayland-next|~/.config/scripts/wallpaper-wayland-next|Wayland wallpaper switcher"
     "|.config/linux/xdg-desktop-portal/niri-portals.conf|~/.local/share/xdg-desktop-portal/niri-portals.conf|niri desktop portal preferences"
 )
 

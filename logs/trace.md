@@ -27,6 +27,16 @@
   - 扩展 `tests/repo_docs_test.sh` 断言覆盖全部变更。
 - 验证：`./tests/repo_docs_test.sh` 通过。
 
+## 2026-06-15 — niri 快速切换壁纸快捷键
+
+- 已做：新增 `wallpaper-wayland-next`，先结束当前 `swaybg` 再复用 `wallpaper-wayland` 随机选图；在 Ubuntu/Arch 两份 niri 配置中绑定 `Mod+Shift+w`；更新 niri README、安装清单与回归测试。
+- 验证：`./tests/niri_wayland_config_test.sh && sh -n .config/scripts/wallpaper-wayland-next tests/niri_wayland_config_test.sh && git diff --check -- .config/scripts/wallpaper-wayland-next install.sh .config/linux/niri/arch_x64/config.kdl .config/linux/niri/ubuntu_x64/config.kdl .config/linux/niri/README.md tests/niri_wayland_config_test.sh logs/trace.md` 通过。
+
+## 2026-06-15 — niri Chrome 视觉效果回归全局
+
+- 已做：移除 Chrome 专属 `opacity 0.72` 与重复背景模糊规则，保留 2/3 默认列宽；README、测试与桌面记忆同步说明 Chrome 透明度/背景模糊跟随全局窗口效果。
+- 验证：`./tests/niri_wayland_config_test.sh && sh -n .config/scripts/wallpaper-wayland-next tests/niri_wayland_config_test.sh && git diff --check -- .config/scripts/wallpaper-wayland-next install.sh .config/linux/niri/arch_x64/config.kdl .config/linux/niri/ubuntu_x64/config.kdl .config/linux/niri/README.md tests/niri_wayland_config_test.sh memory/desktop.md logs/trace.md` 通过。
+
 ## 2026-06-13 — Brew 大清理 + patchelf 避雷
 
 - 清理 neofetch/rofi/mesa/xinput + unar/meson，brew autoremove 清理 66+15 个孤儿

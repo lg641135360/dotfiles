@@ -1,0 +1,8 @@
+#!/bin/sh
+# Switch to another random Wayland wallpaper.
+
+if command -v pkill >/dev/null 2>&1; then
+    pkill -x swaybg >/dev/null 2>&1 || true
+fi
+
+exec "$HOME/.config/scripts/wallpaper-wayland"

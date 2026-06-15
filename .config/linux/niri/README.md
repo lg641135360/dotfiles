@@ -79,6 +79,7 @@ niri-session
 | `Mod+c` | 启动 launcher：优先 `fuzzel`，缺失时回退 `rofi-launch` |
 | `Mod+q` | 关闭当前窗口 |
 | `Mod+Shift+l` | 锁屏：优先 `swaylock` |
+| `Mod+Shift+w` | 随机切换 Wayland 壁纸 |
 | `Mod+o` | 显示/关闭 niri overview 总览 |
 | `Mod+h/l` | 左/右聚焦窗口列 |
 | `Mod+j/k` | 下/上聚焦 workspace |
@@ -117,6 +118,8 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 
 缺依赖不会中断 niri 启动。
 
+`Mod+Shift+w` 调用 `wallpaper-wayland-next`，先结束当前 `swaybg`，再复用 `wallpaper-wayland` 重新随机选择壁纸；新壁纸路径仍会写入 `~/.local/state/dotfiles/current-wayland-wallpaper`，供锁屏背景复用。
+
 如果 `gammastep` 进程存在但屏幕色温没有变化，先看日志：
 
 ```bash
@@ -141,7 +144,7 @@ session include common-session
 - 全局窗口默认启用 0.88 透明度和 niri 背景模糊，并设置 `draw-border-with-background false`，避免半透明窗口聚焦时把蓝色 focus ring 背景透出来。
 - 钉钉不再由 niri window-rule 管理；会议窗口、浮动状态和位置交给应用自身或手动切换，避免仓库配置强行干预钉钉行为。
 - Cherry Studio 默认列宽为 2/3 屏，保留较宽的对话阅读区域，同时还能露出相邻列。
-- Chrome 默认列宽为 2/3 屏，适合网页阅读和文档页面，不改变 workspace 或浮动状态；Chrome 额外覆盖为 0.72 透明度，用于补偿网页内容大面积不透明导致的效果不明显。
+- Chrome 默认列宽为 2/3 屏，适合网页阅读和文档页面；透明度和背景模糊不做 Chrome 特例，统一使用全局窗口效果。
 - VS Code 默认列宽为 1.0，适合代码、终端和侧边栏同时展开。
 
 ## Portal

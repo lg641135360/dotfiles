@@ -21,6 +21,7 @@ LAUNCHER_SCRIPT=$REPO_ROOT/.config/scripts/launcher-wayland
 LOCK_SCRIPT=$REPO_ROOT/.config/scripts/lock-wayland
 SCREENSHOT_SCRIPT=$REPO_ROOT/.config/scripts/screenshot-wayland
 WALLPAPER_SCRIPT=$REPO_ROOT/.config/scripts/wallpaper-wayland
+WALLPAPER_NEXT_SCRIPT=$REPO_ROOT/.config/scripts/wallpaper-wayland-next
 INSTALL_FILE=$REPO_ROOT/install.sh
 
 test_niri_config_exists_and_validates_when_available() {
@@ -42,6 +43,8 @@ test_niri_config_keeps_awesome_muscle_memory() {
     assert_contains 'Mod+C hotkey-overlay-title="启动应用" { spawn "~/.config/scripts/launcher-wayland"; }' "$NIRI_CONFIG"
     assert_contains 'Mod+Q repeat=false hotkey-overlay-title="关闭当前窗口" { close-window; }' "$NIRI_CONFIG"
     assert_contains 'Mod+Shift+L repeat=false hotkey-overlay-title="锁屏" { spawn "~/.config/scripts/lock-wayland"; }' "$NIRI_CONFIG"
+    assert_contains 'Mod+Shift+W hotkey-overlay-title="切换壁纸" { spawn "~/.config/scripts/wallpaper-wayland-next"; }' "$NIRI_CONFIG"
+    assert_contains 'Mod+Shift+W hotkey-overlay-title="切换壁纸" { spawn "~/.config/scripts/wallpaper-wayland-next"; }' "$ARCH_NIRI_CONFIG"
     assert_contains 'Mod+O hotkey-overlay-title="显示总览" { toggle-overview; }' "$NIRI_CONFIG"
     assert_contains 'Mod+H { focus-column-left; }' "$NIRI_CONFIG"
     assert_contains 'Mod+L { focus-column-right; }' "$NIRI_CONFIG"
@@ -112,12 +115,14 @@ test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
     assert_contains 'match app-id=r#"^CherryStudio$"#' "$NIRI_CONFIG"
     assert_contains 'default-column-width { proportion 0.66667; }' "$NIRI_CONFIG"
     assert_contains 'match app-id=r#"^google-chrome$"#' "$NIRI_CONFIG"
-    assert_contains 'opacity 0.72' "$NIRI_CONFIG"
+    assert_not_contains 'opacity 0.72' "$NIRI_CONFIG"
+    assert_not_contains 'opacity 0.72' "$ARCH_NIRI_CONFIG"
     assert_contains 'match app-id=r#"^code$"#' "$NIRI_CONFIG"
     assert_contains 'default-column-width { proportion 1.0; }' "$NIRI_CONFIG"
     assert_contains 'Cherry Studio 默认列宽为 2/3 屏' "$NIRI_README"
     assert_contains 'Chrome 默认列宽为 2/3 屏' "$NIRI_README"
-    assert_contains 'Chrome 额外覆盖为 0.72 透明度' "$NIRI_README"
+    assert_contains '透明度和背景模糊不做 Chrome 特例' "$NIRI_README"
+    assert_not_contains 'Chrome 额外覆盖为 0.72 透明度' "$NIRI_README"
     assert_contains 'VS Code 默认列宽为 1.0' "$NIRI_README"
 }
 
@@ -137,6 +142,7 @@ test_wayland_autostart_runs_only_wayland_safe_services() {
     assert_contains 'fcitx5 -d --replace' "$AUTOSTART_SCRIPT"
     assert_contains 'export XCURSOR_SIZE=32' "$AUTOSTART_SCRIPT"
     assert_contains 'swaybg' "$AUTOSTART_SCRIPT"
+    assert_contains 'wallpaper-wayland-next' "$NIRI_README"
     assert_contains 'gammastep -m wayland -l 30.6:114.3 -t 6500:4000' "$AUTOSTART_SCRIPT"
     assert_contains 'start_gammastep' "$AUTOSTART_SCRIPT"
     assert_contains 'wayland-autostart.log' "$AUTOSTART_SCRIPT"
@@ -155,7 +161,10 @@ test_wayland_autostart_runs_only_wayland_safe_services() {
 
 test_wayland_wallpaper_helper_covers_current_wallpaper_locations() {
     assert_executable "$WALLPAPER_SCRIPT"
+    assert_executable "$WALLPAPER_NEXT_SCRIPT"
     assert_contains 'exec swaybg -i "$image" -m fill' "$WALLPAPER_SCRIPT"
+    assert_contains 'pkill -x swaybg' "$WALLPAPER_NEXT_SCRIPT"
+    assert_contains 'exec "$HOME/.config/scripts/wallpaper-wayland"' "$WALLPAPER_NEXT_SCRIPT"
     assert_contains 'current-wayland-wallpaper' "$WALLPAPER_SCRIPT"
     assert_contains '"$HOME/Pictures"' "$WALLPAPER_SCRIPT"
     assert_contains '"$HOME/Pictures/wall"' "$WALLPAPER_SCRIPT"
@@ -200,6 +209,37 @@ EOF
     assert_contains "$image" "$args_log"
     assert_contains '-m' "$args_log"
     assert_contains 'fill' "$args_log"
+
+    rm -rf "$tmpdir"
+}
+
+test_wayland_wallpaper_switcher_restarts_swaybg_and_reuses_helper() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    call_log=$tmpdir/calls.log
+
+    mkdir -p "$home_dir/.config/scripts" "$bin_dir"
+
+    cat >"$bin_dir/pkill" <<'EOF'
+#!/bin/sh
+printf 'pkill %s\n' "$*" >>"$WALLPAPER_NEXT_CALL_LOG"
+EOF
+    chmod +x "$bin_dir/pkill"
+
+    cat >"$home_dir/.config/scripts/wallpaper-wayland" <<'EOF'
+#!/bin/sh
+printf 'wallpaper-wayland\n' >>"$WALLPAPER_NEXT_CALL_LOG"
+EOF
+    chmod +x "$home_dir/.config/scripts/wallpaper-wayland"
+
+    PATH=$bin_dir:/usr/bin HOME=$home_dir WALLPAPER_NEXT_CALL_LOG=$call_log \
+        /bin/sh "$WALLPAPER_NEXT_SCRIPT" >/dev/null 2>&1 ||
+        fail "wallpaper-wayland-next should restart swaybg and call wallpaper-wayland"
+
+    assert_contains 'pkill -x swaybg' "$call_log"
+    assert_contains 'wallpaper-wayland' "$call_log"
+    assert_order 'pkill -x swaybg' 'wallpaper-wayland' "$call_log"
 
     rm -rf "$tmpdir"
 }

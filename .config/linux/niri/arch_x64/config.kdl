@@ -106,12 +106,6 @@ window-rule {
 window-rule {
     match app-id=r#"^google-chrome$"#
     default-column-width { proportion 0.66667; }
-    draw-border-with-background false
-    opacity 0.72
-
-    background-effect {
-        blur true
-    }
 }
 
 window-rule {
@@ -143,6 +137,7 @@ binds {
     Mod+C hotkey-overlay-title="启动应用" { spawn "~/.config/scripts/launcher-wayland"; }
     Mod+Q repeat=false hotkey-overlay-title="关闭当前窗口" { close-window; }
     Mod+Shift+L repeat=false hotkey-overlay-title="锁屏" { spawn "~/.config/scripts/lock-wayland"; }
+    Mod+Shift+W hotkey-overlay-title="切换壁纸" { spawn "~/.config/scripts/wallpaper-wayland-next"; }
     Mod+O hotkey-overlay-title="显示总览" { toggle-overview; }
     Mod+Shift+Q hotkey-overlay-title="退出 niri" { quit; }
 
