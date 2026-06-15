@@ -110,7 +110,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `waybar`
 - `mako`
 - `fcitx5`
-- `swaybg` 随机壁纸（`~/Pictures` 优先，然后才回退其它候选目录和系统背景）
+- `swaybg` 随机壁纸（只从 `~/Pictures/wall` 选择）
 - `gammastep` 自动色温（日志写到 `~/.local/state/dotfiles/wayland-autostart.log`）
 - `swayidle` + `lock-wayland`
 - KDE 或 GNOME polkit agent（若存在）

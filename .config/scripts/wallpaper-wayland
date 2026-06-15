@@ -17,12 +17,7 @@ record_current_wallpaper() {
 }
 
 for dir in \
-    "$HOME/Pictures" \
-    "$HOME/Pictures/Wallpapers" \
-    "$HOME/Pictures/wallpapers" \
-    "$HOME/Pictures/wall" \
-    "$HOME/.config/wallpapers" \
-    /usr/share/backgrounds; do
+    "$HOME/Pictures/wall"; do
     [ -d "$dir" ] || continue
     image=$(find "$dir" -maxdepth 2 -type f \( \
         -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \

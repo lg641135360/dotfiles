@@ -166,13 +166,13 @@ test_wayland_wallpaper_helper_covers_current_wallpaper_locations() {
     assert_contains 'pkill -x swaybg' "$WALLPAPER_NEXT_SCRIPT"
     assert_contains 'exec "$HOME/.config/scripts/wallpaper-wayland"' "$WALLPAPER_NEXT_SCRIPT"
     assert_contains 'current-wayland-wallpaper' "$WALLPAPER_SCRIPT"
-    assert_contains '"$HOME/Pictures"' "$WALLPAPER_SCRIPT"
     assert_contains '"$HOME/Pictures/wall"' "$WALLPAPER_SCRIPT"
-    assert_contains '/usr/share/backgrounds' "$WALLPAPER_SCRIPT"
+    assert_not_contains '"$HOME/Pictures"' "$WALLPAPER_SCRIPT"
+    assert_not_contains '"$HOME/Pictures/Wallpapers"' "$WALLPAPER_SCRIPT"
+    assert_not_contains '"$HOME/Pictures/wallpapers"' "$WALLPAPER_SCRIPT"
+    assert_not_contains '"$HOME/.config/wallpapers"' "$WALLPAPER_SCRIPT"
+    assert_not_contains '/usr/share/backgrounds' "$WALLPAPER_SCRIPT"
     assert_contains '-maxdepth 2' "$WALLPAPER_SCRIPT"
-    pictures_line=$(grep -nF '"$HOME/Pictures"' "$WALLPAPER_SCRIPT" | head -n 1 | cut -d: -f1)
-    system_line=$(grep -nF '/usr/share/backgrounds' "$WALLPAPER_SCRIPT" | head -n 1 | cut -d: -f1)
-    [ "$pictures_line" -lt "$system_line" ] || fail "expected ~/Pictures to be preferred before system backgrounds"
 }
 
 test_wayland_wallpaper_helper_records_current_wallpaper() {
@@ -181,9 +181,9 @@ test_wayland_wallpaper_helper_records_current_wallpaper() {
     state_dir=$tmpdir/state
     bin_dir=$tmpdir/bin
     args_log=$tmpdir/swaybg.args
-    image=$home_dir/Pictures/current-wallpaper.jpg
+    image=$home_dir/Pictures/wall/current-wallpaper.jpg
 
-    mkdir -p "$home_dir/Pictures" "$state_dir" "$bin_dir"
+    mkdir -p "$home_dir/Pictures/wall" "$state_dir" "$bin_dir"
     printf 'fake image\n' >"$image"
 
     cat >"$bin_dir/shuf" <<'EOF'
@@ -519,10 +519,10 @@ test_waybar_and_mako_match_niri_trial_contract() {
     assert_contains 'border-radius=10' "$MAKO_CONFIG"
     assert_contains '[urgency=critical]' "$MAKO_CONFIG"
 
-    assert_contains '"$HOME/Pictures"' "$WALLPAPER_SCRIPT"
-    assert_contains '"$HOME/Pictures/Wallpapers"' "$WALLPAPER_SCRIPT"
-    assert_contains '"$HOME/Pictures/wallpapers"' "$WALLPAPER_SCRIPT"
     assert_contains '"$HOME/Pictures/wall"' "$WALLPAPER_SCRIPT"
+    assert_not_contains '"$HOME/Pictures"' "$WALLPAPER_SCRIPT"
+    assert_not_contains '"$HOME/Pictures/Wallpapers"' "$WALLPAPER_SCRIPT"
+    assert_not_contains '"$HOME/Pictures/wallpapers"' "$WALLPAPER_SCRIPT"
 }
 
 test_install_deploys_wayland_trial_files() {
@@ -537,6 +537,7 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/scripts/lock-wayland|~/.config/scripts/lock-wayland|Wayland lock script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/screenshot-wayland|~/.config/scripts/screenshot-wayland|Wayland screenshot script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script' "$INSTALL_FILE"
+    assert_contains '|.config/scripts/wallpaper-wayland-next|~/.config/scripts/wallpaper-wayland-next|Wayland wallpaper switcher' "$INSTALL_FILE"
     assert_contains '|.config/linux/xdg-desktop-portal/niri-portals.conf|~/.local/share/xdg-desktop-portal/niri-portals.conf|niri desktop portal preferences' "$INSTALL_FILE"
     assert_contains 'install_niri_config_for_platform()' "$INSTALL_FILE"
     assert_contains "printf 'ubuntu_x64'" "$INSTALL_FILE"
@@ -668,7 +669,8 @@ test_readme_documents_parallel_trial_and_fallback() {
     assert_contains 'niri validate -c .config/linux/niri/ubuntu_x64/config.kdl' "$NIRI_README"
     assert_contains '平台配置' "$NIRI_README"
     assert_contains '`arch_x64` | `.config/linux/niri/arch_x64/config.kdl` | 已落地' "$NIRI_README"
-    assert_contains '`~/Pictures` 优先' "$NIRI_README"
+    assert_contains '`~/Pictures/wall`' "$NIRI_README"
+    assert_not_contains '`~/Pictures` 优先' "$NIRI_README"
 }
 
 test_niri_config_exists_and_validates_when_available
