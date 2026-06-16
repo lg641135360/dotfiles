@@ -16,6 +16,24 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-06-16 — 提示词系统全面优化：12 项改进
+
+- 目的：提升提示词系统的执行保障、规则精确性、职责分离和鲁棒性。
+- 已做：
+  - AGENTS.md：操作前约束长段落拆成 7 个子标题（用户画像/沟通风格/Memory 门控/Memory 读取策略/Trace 读取策略/USER.md SOUL.md/副作用层级确认）。
+  - AGENTS.md：新增 Memory 门控——进入 repo-change 前必须确认已读取相关 memory 并引用证据。
+  - AGENTS.md：Intent Gate 增加显式声明要求，agent 须在回复开头声明意图层级。
+  - AGENTS.md：告警条件精确化，补充排除项（运行时动态值/已知平台差异/有 memory 记录的临时调试）和路径排除（/tmp /var /run）。
+  - AGENTS.md：新增"执行中断与回退"小节，覆盖部分完成、同步失败、memory 冲突三种场景。
+  - AGENTS.md：验证策略新增降级验证表和按风险等级追加验证表。
+  - AGENTS.md：操作前约束内联 USER.md/SOUL.md 核心信息，SOUL.md 改为可选详细参考。
+  - SOUL.md：从纯 Tone 扩展为 Communication Protocol，新增"输出格式"和"记录语言"两个小节。
+  - organizing_preferences.md：删除与 desktop.md 重复的桌面环境细节（redshift/Linuxbrew/scripts helper），改为引用 desktop.md。
+  - CLAUDE.md / copilot-instructions.md：从 1 行薄入口扩展为含最小上下文的入口（仓库性质/权威文件路径/memory 位置）。
+  - README.md：提示词系统说明补充 SOUL.md 和 USER.md 的角色描述。
+  - repo_docs_test.sh：新增 15 条语义断言覆盖上述全部变更。
+- 验证：`./tests/repo_docs_test.sh`、`sh -n tests/repo_docs_test.sh`、`git diff --check` 通过。
+
 ## 2026-06-14 — 提示词系统优化：移除 githook，全由 prompt 规则接管
 
 - 目的：消除 USER.md 与 organizing_preferences.md 的重复内容，激活 USER.md / SOUL.md；随后删除 githook 体系，交给 AGENTS.md prompt 规则统一接管验证。
@@ -54,22 +72,3 @@
 - 稳定知识已归档到 `memory/repo/brew-setup.md`、`memory/dingtalk.md`、`memory/desktop.md`
 - 验证：lsd/tmux/nvim 正常运行；`tests/repo_docs_test.sh` 通过
 - 提交：`046089d`（chore: cleanup brew packages and update mirror config）
-
-## 2026-06-11 — 提示词系统基线化
-
-- 目的：按提示词系统评估结果收紧仓库 agent 行为协议，减少 memory/trace 读取摩擦，并把本地 OMX 工作流层与公共提示词入口文档化。
-- 已做：更新 `AGENTS.md`，将 memory 读取改为先读 `memory/organizing_preferences.md`、再按任务路径或关键词读取对应模块，默认不全量读取所有模块，并明确只读评估不更新 `logs/trace.md`；更新根 `README.md`，新增“提示词系统”说明，记录 `AGENTS.md` 是权威协议、`.github/copilot-instructions.md` 与 `CLAUDE.md` 只是薄入口，`.omx/` 是已忽略的本地工作流状态/计划产物目录且默认不提交；扩展 `tests/repo_docs_test.sh`，用回归断言保护上述入口与文档说明。本轮只修改仓库文件，没有同步 live 配置、没有重载运行态，准备提交但不推送。
-- 验证：`./tests/repo_docs_test.sh && sh -n tests/repo_docs_test.sh && git diff --check` 通过；`./tests/run.sh docs` 通过；`git status --short` 仅显示 `AGENTS.md`、`README.md`、`tests/repo_docs_test.sh` 和本 trace 变更。
-- 后续：若后续继续优化提示词系统，可考虑单独检查是否需要把更多稳定的 trace 经验提升到 `memory/`，但不要把 `.omx/` 纳入版本控制。
-
-## 2026-06-09 — 仓库整理收口
-
-- fcitx/Wayland GTK_IM_MODULE 排查（知识 → `memory/desktop.md`）
-- 重写 README 目录树、补 6 个 README、删除 xmobar/xmonad/dunst 残留
-- 修复 wallpaper-wayland 候选目录、Waybar 测试护栏
-- 修正 README 目录树层级、补测试护栏、6 个新 README 纳入 Git 跟踪
-- 未提交推送（当时为中间状态）
-
-## 2026-06-05 — niri 窗口规则调整
-
-- niri: 钉钉浮动、Cherry Studio/Chrome 默认 0.66667 列宽、VS Code 默认 1.0
