@@ -46,6 +46,47 @@ assert_contains '再按任务路径或关键词读取对应模块' "$AGENTS_DOC"
 assert_contains '默认不要全量读取所有模块 memory' "$AGENTS_DOC"
 assert_contains '只读评估不更新 `logs/trace.md`' "$AGENTS_DOC"
 
+# AGENTS.md — Memory gate
+assert_contains 'Memory 门控' "$AGENTS_DOC"
+assert_contains '已读取' "$AGENTS_DOC"
+
+# AGENTS.md — Intent Gate explicit declaration
+assert_contains '意图层级' "$AGENTS_DOC"
+
+# AGENTS.md — Alert condition precision
+assert_contains '排除项' "$AGENTS_DOC"
+assert_contains '运行时动态值' "$AGENTS_DOC"
+
+# AGENTS.md — Execution interruption
+assert_contains '执行中断与回退' "$AGENTS_DOC"
+assert_contains '部分完成' "$AGENTS_DOC"
+
+# AGENTS.md — Verification degradation
+assert_contains '降级验证' "$AGENTS_DOC"
+
+# AGENTS.md — Risk-level verification
+assert_contains '风险等级' "$AGENTS_DOC"
+
+# AGENTS.md — Inline USER/SOUL summary
+assert_contains '用户画像' "$AGENTS_DOC"
+assert_contains '沟通风格' "$AGENTS_DOC"
+
+# Entry files — minimal context
+assert_contains 'dotfiles' "$CLAUDE_INSTRUCTIONS"
+assert_contains 'dotfiles' "$COPILOT_INSTRUCTIONS"
+
+# README — SOUL.md / USER.md role
+assert_contains 'SOUL.md' "$ROOT_README"
+assert_contains 'USER.md' "$ROOT_README"
+
+# SOUL.md — Communication Protocol
+assert_contains '输出格式' "$REPO_ROOT/SOUL.md"
+assert_contains '记录语言' "$REPO_ROOT/SOUL.md"
+
+# organizing_preferences — desktop details delegated to desktop.md
+assert_not_contains 'redshift' "$REPO_ROOT/memory/organizing_preferences.md"
+assert_not_contains 'Linuxbrew 包遮蔽' "$REPO_ROOT/memory/organizing_preferences.md"
+
 # User profile — key facts
 assert_contains 'TypeScript 优先' "$REPO_ROOT/USER.md"
 

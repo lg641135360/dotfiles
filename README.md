@@ -49,8 +49,7 @@
 
 ## 提示词系统
 
-本仓库的权威行为协议是 `AGENTS.md`；`.github/copilot-instructions.md` 与
-`CLAUDE.md` 只作为薄入口，要求不同 agent 先读取并遵循同一份协议，避免多份规则漂移。
+本仓库的权威行为协议是 `AGENTS.md`；`SOUL.md` 定义语气风格与输出规范；`USER.md` 记录用户画像。`.github/copilot-instructions.md` 与 `CLAUDE.md` 作为薄入口，要求不同 agent 先读取并遵循同一份协议，避免多份规则漂移。
 
 `memory/` 记录长期偏好和模块特化经验，`logs/trace.md` 只记录实际修改、验证证据与后续线索；稳定规则应提升到 `AGENTS.md` 或 `memory/`，不要长期只留在 trace 里。
 
