@@ -6,7 +6,7 @@
 
 - 当前本机已通过上游 flake 重新构建并切到 `niri 26.04 (3819182)`。
 - AwesomeWM 仍是可回退桌面；本目录只提供 niri 试用配置。
-- 平台配置按子目录维护；当前已落地 `.config/linux/niri/ubuntu_x64/config.kdl` 与 `.config/linux/niri/arch_x64/config.kdl`。`install.sh` 会把匹配平台的文件复制成 `~/.config/niri/config.kdl`，不会把 README 或整个平台目录复制到 live。
+- 平台配置按子目录维护；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，各平台文件只保留 output 段和 `include "../common.kdl"`。当前已落地 `.config/linux/niri/ubuntu_x64/config.kdl` 与 `.config/linux/niri/arch_x64/config.kdl`。`install.sh` 会把匹配平台的 `config.kdl` 复制成 `~/.config/niri/config.kdl`，同时把 `common.kdl` 复制成 `~/.config/niri/common.kdl`，并把 include 路径从仓库里的 `../common.kdl` 改写成 live 扁平布局下的 `common.kdl`；不会把 README 或整个平台目录复制到 live。
 - Waybar / Mako 第一版沿用 Catppuccin Mocha 色系，便于和现有 Awesome 外观保持接近。
 - Fuzzel 是 niri 会话下的首选 launcher，使用 CJK 字体、fuzzy match 与更清晰的深色主题；Rofi 仅作为 fallback。
 - `picom`、`xrandr`、`xinput`、`feh`、`xautolock` 不进入 niri 配置：Wayland 下分别由 niri/output/input、`swaybg`、`swayidle`/`swaylock` 等替代。
@@ -42,7 +42,7 @@ sudo apt install gammastep
 
 ## 平台配置
 
-当前仓库不再把 `.config/linux/niri` 整个目录复制到 live，而是按系统类型选择单个 `config.kdl`：
+公共配置（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，各平台文件只保留 output 段和 `include "../common.kdl"`，避免两份平台配置重复维护。安装时 `install.sh` 会把匹配平台的 `config.kdl` 复制成 `~/.config/niri/config.kdl`，把 `common.kdl` 复制成 `~/.config/niri/common.kdl`，并把 include 路径改写成 live 扁平布局下的 `common.kdl`。
 
 | 平台 key | 仓库路径 | 状态 |
 | --- | --- | --- |
@@ -51,7 +51,7 @@ sudo apt install gammastep
 | `arch_x64` | `.config/linux/niri/arch_x64/config.kdl` | 已落地；Arch x86_64 单 4K 外接屏 |
 | `arch_aarch64` | `.config/linux/niri/arch_aarch64/config.kdl` | 预留，未落地时安装器跳过 |
 
-新增平台时先复制最接近的平台配置，再调整 output/input/scale 等机器相关段落，并用 `niri validate -c <path>` 验证。
+新增平台时先复制最接近的平台配置，只调整 output 段（接口名/分辨率/scale/位置），公共行为改动统一在 `common.kdl` 里完成，并用 `niri validate -c <path>` 验证。
 
 ## 启动方式
 

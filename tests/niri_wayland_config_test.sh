@@ -6,6 +6,7 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 NIRI_CONFIG=$REPO_ROOT/.config/linux/niri/ubuntu_x64/config.kdl
 ARCH_NIRI_CONFIG=$REPO_ROOT/.config/linux/niri/arch_x64/config.kdl
+NIRI_COMMON_CONFIG=$REPO_ROOT/.config/linux/niri/common.kdl
 NIRI_LEGACY_CONFIG=$REPO_ROOT/.config/linux/niri/config.kdl
 NIRI_README=$REPO_ROOT/.config/linux/niri/README.md
 WAYBAR_CONFIG=$REPO_ROOT/.config/linux/waybar/config
@@ -27,7 +28,12 @@ INSTALL_FILE=$REPO_ROOT/install.sh
 test_niri_config_exists_and_validates_when_available() {
     assert_file_exists "$NIRI_CONFIG"
     assert_file_exists "$ARCH_NIRI_CONFIG"
+    assert_file_exists "$NIRI_COMMON_CONFIG"
     assert_file_not_exists "$NIRI_LEGACY_CONFIG"
+
+    # Platform configs must include the shared common.kdl.
+    assert_contains 'include "../common.kdl"' "$NIRI_CONFIG"
+    assert_contains 'include "../common.kdl"' "$ARCH_NIRI_CONFIG"
 
     if command -v niri >/dev/null 2>&1; then
         niri validate -c "$NIRI_CONFIG" >/dev/null 2>&1 ||
@@ -38,48 +44,51 @@ test_niri_config_exists_and_validates_when_available() {
 }
 
 test_niri_config_keeps_awesome_muscle_memory() {
-    assert_contains 'spawn-sh-at-startup "~/.config/scripts/wayland-autostart"' "$NIRI_CONFIG"
-    assert_contains 'Mod+Return hotkey-overlay-title="打开终端" { spawn "~/.config/scripts/terminal-wayland"; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+C hotkey-overlay-title="启动应用" { spawn "~/.config/scripts/launcher-wayland"; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+Q repeat=false hotkey-overlay-title="关闭当前窗口" { close-window; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+Shift+L repeat=false hotkey-overlay-title="锁屏" { spawn "~/.config/scripts/lock-wayland"; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+Shift+W hotkey-overlay-title="切换壁纸" { spawn "~/.config/scripts/wallpaper-wayland-next"; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+Shift+W hotkey-overlay-title="切换壁纸" { spawn "~/.config/scripts/wallpaper-wayland-next"; }' "$ARCH_NIRI_CONFIG"
-    assert_contains 'Mod+O hotkey-overlay-title="显示总览" { toggle-overview; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+H { focus-column-left; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+L { focus-column-right; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+J { focus-workspace-down; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+K { focus-workspace-up; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+Minus { set-column-width "-10%"; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+Equal { set-column-width "+10%"; }' "$NIRI_CONFIG"
-    assert_not_contains 'Mod+Left' "$NIRI_CONFIG"
-    assert_not_contains 'Mod+Right' "$NIRI_CONFIG"
-    assert_not_contains 'Mod+Up' "$NIRI_CONFIG"
-    assert_not_contains 'Mod+Down' "$NIRI_CONFIG"
+    # Shared behavior lives in common.kdl, included by every platform config.
+    assert_contains 'spawn-sh-at-startup "~/.config/scripts/wayland-autostart"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Return hotkey-overlay-title="打开终端" { spawn "~/.config/scripts/terminal-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+C hotkey-overlay-title="启动应用" { spawn "~/.config/scripts/launcher-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Q repeat=false hotkey-overlay-title="关闭当前窗口" { close-window; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Shift+L repeat=false hotkey-overlay-title="锁屏" { spawn "~/.config/scripts/lock-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Shift+W hotkey-overlay-title="切换壁纸" { spawn "~/.config/scripts/wallpaper-wayland-next"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+O hotkey-overlay-title="显示总览" { toggle-overview; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+H { focus-column-left; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+L { focus-column-right; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+J { focus-workspace-down; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+K { focus-workspace-up; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Minus { set-column-width "-10%"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Equal { set-column-width "+10%"; }' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Left' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Right' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Up' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Down' "$NIRI_COMMON_CONFIG"
 }
 
 test_niri_config_exposes_multi_monitor_navigation() {
-    assert_contains 'Mod+A { focus-monitor-left; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+D { focus-monitor-right; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+Shift+A { move-column-to-monitor-left; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+Shift+D { move-column-to-monitor-right; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+Ctrl+Shift+A { move-workspace-to-monitor-left; }' "$NIRI_CONFIG"
-    assert_contains 'Mod+Ctrl+Shift+D { move-workspace-to-monitor-right; }' "$NIRI_CONFIG"
+    assert_contains 'Mod+A { focus-monitor-left; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+D { focus-monitor-right; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Shift+A { move-column-to-monitor-left; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Shift+D { move-column-to-monitor-right; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Ctrl+Shift+A { move-workspace-to-monitor-left; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Ctrl+Shift+D { move-workspace-to-monitor-right; }' "$NIRI_COMMON_CONFIG"
 }
 
 test_niri_config_uses_wayland_replacements_not_x11_autostart() {
-    assert_contains 'prefer-no-csd' "$NIRI_CONFIG"
-    assert_contains 'screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"' "$NIRI_CONFIG"
+    # Shared Wayland-native directives live in common.kdl.
+    assert_contains 'prefer-no-csd' "$NIRI_COMMON_CONFIG"
+    assert_contains 'screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'picom' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'xrandr' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'xinput' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'xautolock' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'feh' "$NIRI_COMMON_CONFIG"
+
+    # Platform-specific output section stays in the platform config.
     assert_contains '// Platform: ubuntu_x64' "$NIRI_CONFIG"
     assert_contains 'output "DP-4" {' "$NIRI_CONFIG"
     assert_contains 'output "HDMI-A-3" {' "$NIRI_CONFIG"
     assert_contains 'scale 1.25' "$NIRI_CONFIG"
     assert_contains 'position x=2048 y=0' "$NIRI_CONFIG"
-    assert_not_contains 'picom' "$NIRI_CONFIG"
-    assert_not_contains 'xrandr' "$NIRI_CONFIG"
-    assert_not_contains 'xinput' "$NIRI_CONFIG"
-    assert_not_contains 'xautolock' "$NIRI_CONFIG"
-    assert_not_contains 'feh' "$NIRI_CONFIG"
 }
 
 test_arch_niri_config_uses_current_arch_x64_output() {
@@ -91,34 +100,32 @@ test_arch_niri_config_uses_current_arch_x64_output() {
     assert_not_contains 'scale 1.25' "$ARCH_NIRI_CONFIG"
     assert_not_contains 'output "DP-4" {' "$ARCH_NIRI_CONFIG"
     assert_not_contains 'output "HDMI-A-3" {' "$ARCH_NIRI_CONFIG"
-    assert_contains 'Mod+O hotkey-overlay-title="显示总览" { toggle-overview; }' "$ARCH_NIRI_CONFIG"
-    assert_contains 'Mod+H { focus-column-left; }' "$ARCH_NIRI_CONFIG"
-    assert_contains 'Mod+J { focus-workspace-down; }' "$ARCH_NIRI_CONFIG"
-    assert_not_contains 'Mod+Left' "$ARCH_NIRI_CONFIG"
     assert_not_contains 'com\.alibabainc\.dingtalk' "$ARCH_NIRI_CONFIG"
 }
 
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
     assert_not_contains 'com\.alibabainc\.dingtalk' "$NIRI_CONFIG"
     assert_not_contains 'tblive' "$NIRI_CONFIG"
+    assert_not_contains 'com\.alibabainc\.dingtalk' "$ARCH_NIRI_CONFIG"
+    assert_not_contains 'tblive' "$ARCH_NIRI_CONFIG"
     assert_contains '钉钉不再由 niri window-rule 管理' "$NIRI_README"
-    assert_contains 'blur {' "$NIRI_CONFIG"
-    assert_contains 'passes 3' "$NIRI_CONFIG"
-    assert_contains 'offset 3.0' "$NIRI_CONFIG"
-    assert_contains 'noise 0.02' "$NIRI_CONFIG"
-    assert_contains 'saturation 1.5' "$NIRI_CONFIG"
-    assert_contains 'draw-border-with-background false' "$NIRI_CONFIG"
-    assert_contains 'opacity 0.88' "$NIRI_CONFIG"
-    assert_contains 'background-effect {' "$NIRI_CONFIG"
-    assert_contains 'blur true' "$NIRI_CONFIG"
+    # Window rules and blur live in the shared common.kdl.
+    assert_contains 'blur {' "$NIRI_COMMON_CONFIG"
+    assert_contains 'passes 3' "$NIRI_COMMON_CONFIG"
+    assert_contains 'offset 3.0' "$NIRI_COMMON_CONFIG"
+    assert_contains 'noise 0.02' "$NIRI_COMMON_CONFIG"
+    assert_contains 'saturation 1.5' "$NIRI_COMMON_CONFIG"
+    assert_contains 'draw-border-with-background false' "$NIRI_COMMON_CONFIG"
+    assert_contains 'opacity 0.88' "$NIRI_COMMON_CONFIG"
+    assert_contains 'background-effect {' "$NIRI_COMMON_CONFIG"
+    assert_contains 'blur true' "$NIRI_COMMON_CONFIG"
     assert_contains '全局窗口默认启用 0.88 透明度和 niri 背景模糊' "$NIRI_README"
-    assert_contains 'match app-id=r#"^CherryStudio$"#' "$NIRI_CONFIG"
-    assert_contains 'default-column-width { proportion 0.66667; }' "$NIRI_CONFIG"
-    assert_contains 'match app-id=r#"^google-chrome$"#' "$NIRI_CONFIG"
-    assert_not_contains 'opacity 0.72' "$NIRI_CONFIG"
-    assert_not_contains 'opacity 0.72' "$ARCH_NIRI_CONFIG"
-    assert_contains 'match app-id=r#"^code$"#' "$NIRI_CONFIG"
-    assert_contains 'default-column-width { proportion 1.0; }' "$NIRI_CONFIG"
+    assert_contains 'match app-id=r#"^CherryStudio$"#' "$NIRI_COMMON_CONFIG"
+    assert_contains 'default-column-width { proportion 0.66667; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'match app-id=r#"^google-chrome$"#' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'opacity 0.72' "$NIRI_COMMON_CONFIG"
+    assert_contains 'match app-id=r#"^code$"#' "$NIRI_COMMON_CONFIG"
+    assert_contains 'default-column-width { proportion 1.0; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Cherry Studio 默认列宽为 2/3 屏' "$NIRI_README"
     assert_contains 'Chrome 默认列宽为 2/3 屏' "$NIRI_README"
     assert_contains '透明度和背景模糊不做 Chrome 特例' "$NIRI_README"
@@ -350,12 +357,10 @@ test_wayland_screenshot_uses_selection_and_annotation() {
     assert_contains '--font-family "Noto Sans CJK SC"' "$SCREENSHOT_SCRIPT"
     assert_contains '--actions-on-enter save-to-file' "$SCREENSHOT_SCRIPT"
     assert_contains '--actions-on-escape exit' "$SCREENSHOT_SCRIPT"
-    assert_contains 'F1 { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_CONFIG"
-    assert_contains 'F1 { spawn "~/.config/scripts/screenshot-wayland"; }' "$ARCH_NIRI_CONFIG"
-    assert_not_contains 'Print { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_CONFIG"
-    assert_not_contains 'Print { spawn "~/.config/scripts/screenshot-wayland"; }' "$ARCH_NIRI_CONFIG"
-    assert_contains 'Ctrl+Print { screenshot-screen; }' "$NIRI_CONFIG"
-    assert_contains 'Alt+Print { screenshot-window; }' "$NIRI_CONFIG"
+    assert_contains 'F1 { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Print { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Ctrl+Print { screenshot-screen; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Alt+Print { screenshot-window; }' "$NIRI_COMMON_CONFIG"
 }
 
 test_wayland_screenshot_uses_satty() {
@@ -543,7 +548,12 @@ test_install_deploys_wayland_trial_files() {
     assert_contains "printf 'ubuntu_x64'" "$INSTALL_FILE"
     assert_contains "printf 'arch_x64'" "$INSTALL_FILE"
     assert_contains 'source="$cur_path/.config/linux/niri/$platform/config.kdl"' "$INSTALL_FILE"
-    assert_contains 'copy_config "$source" "$HOME/.config/niri/config.kdl" "niri config ($platform)"' "$INSTALL_FILE"
+    assert_contains 'common_source="$cur_path/.config/linux/niri/common.kdl"' "$INSTALL_FILE"
+    # common.kdl is deployed next to config.kdl in the live layout.
+    assert_contains 'copy_config "$common_source" "$target_dir/common.kdl" "niri common config"' "$INSTALL_FILE"
+    # Repo include path "../common.kdl" is rewritten to flat "common.kdl" for live.
+    assert_contains 'sed ' "$INSTALL_FILE"
+    assert_contains 'include "common.kdl"' "$INSTALL_FILE"
     assert_not_contains 'command -v niri|.config/linux/niri|~/.config/niri|niri' "$INSTALL_FILE"
     assert_contains 'command -v waybar|.config/linux/waybar|~/.config/waybar|Waybar' "$INSTALL_FILE"
     assert_contains 'command -v mako|.config/linux/mako|~/.config/mako|Mako' "$INSTALL_FILE"
@@ -602,8 +612,12 @@ test_install_copies_wayland_files_in_wayland_session() {
 
     assert_file_exists "$home_dir/.config/scripts/wayland-autostart"
     assert_file_exists "$home_dir/.config/niri/config.kdl"
+    assert_file_exists "$home_dir/.config/niri/common.kdl"
     assert_file_not_exists "$home_dir/.config/niri/README.md"
     assert_contains '// Platform: ubuntu_x64' "$home_dir/.config/niri/config.kdl"
+    # Live config rewrites the repo include path to the flat layout.
+    assert_contains 'include "common.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_not_contains 'include "../common.kdl"' "$home_dir/.config/niri/config.kdl"
 
     rm -rf "$tmpdir"
 }
@@ -621,8 +635,10 @@ test_install_copies_arch_x64_niri_config_in_wayland_session() {
 
     assert_file_exists "$home_dir/.config/scripts/wayland-autostart"
     assert_file_exists "$home_dir/.config/niri/config.kdl"
+    assert_file_exists "$home_dir/.config/niri/common.kdl"
     assert_contains '// Platform: arch_x64' "$home_dir/.config/niri/config.kdl"
     assert_contains 'scale 2' "$home_dir/.config/niri/config.kdl"
+    assert_contains 'include "common.kdl"' "$home_dir/.config/niri/config.kdl"
 
     rm -rf "$tmpdir"
 }

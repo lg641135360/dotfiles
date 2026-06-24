@@ -179,19 +179,42 @@ niri_platform_key() {
 install_niri_config_for_platform() {
     command -v niri >/dev/null 2>&1 || return 0
 
-    local platform source
+    local platform source common_source target_dir
     if ! platform=$(niri_platform_key); then
         log_warn "No niri platform mapping for distro=${distro:-unknown}, arch=${arch:-unknown}; skipping niri config"
         return 0
     fi
 
     source="$cur_path/.config/linux/niri/$platform/config.kdl"
+    common_source="$cur_path/.config/linux/niri/common.kdl"
     if [ ! -f "$source" ]; then
         log_warn "No niri config for platform $platform; skipping niri config"
         return 0
     fi
+    if [ ! -f "$common_source" ]; then
+        log_warn "No niri common.kdl; skipping niri config"
+        return 0
+    fi
 
-    copy_config "$source" "$HOME/.config/niri/config.kdl" "niri config ($platform)"
+    target_dir="$HOME/.config/niri"
+    ensure_dir "$target_dir" || return 1
+
+    # common.kdl lives next to config.kdl in the live layout so that
+    # `include "common.kdl"` resolves correctly. The repo keeps common.kdl
+    # one level above the platform config and uses `include "../common.kdl"`,
+    # so rewrite the include path when deploying to the live target.
+    copy_config "$common_source" "$target_dir/common.kdl" "niri common config"
+
+    # Deploy platform config with include path rewritten for the flat live layout.
+    # Avoid mktemp to stay compatible with minimal PATH environments; use a
+    # deterministic temp name inside the target directory and clean it up.
+    local tmp_config="$target_dir/.config.kdl.tmp"
+    sed 's#include "\.\./common\.kdl"#include "common.kdl"#' "$source" >"$tmp_config" || {
+        rm -f "$tmp_config"
+        return 1
+    }
+    copy_config "$tmp_config" "$target_dir/config.kdl" "niri config ($platform)"
+    rm -f "$tmp_config"
 }
 
 # Configuration arrays

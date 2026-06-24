@@ -16,6 +16,18 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-06-24 — niri 配置 include 化结构性重构
+
+- 目的：消除 ubuntu_x64 与 arch_x64 两份 niri 配置的高度重复，公共段统一维护。
+- 已做：
+  - 新增 `.config/linux/niri/common.kdl`，承载 input/layout/blur/window-rule/binds 等全部公共段。
+  - 改写 `ubuntu_x64/config.kdl` 与 `arch_x64/config.kdl`，只保留头部注释 + output 段 + `include "../common.kdl"`。
+  - 调整 `install.sh` 的 `install_niri_config_for_platform`：把 `common.kdl` 复制到 `~/.config/niri/common.kdl`，把平台 `config.kdl` 复制到 `~/.config/niri/config.kdl` 并用 sed 把 include 路径从仓库的 `../common.kdl` 改写成 live 扁平布局的 `common.kdl`；用目标目录内确定性临时文件替代 mktemp，兼容最小 PATH 测试环境。
+  - 更新 `tests/niri_wayland_config_test.sh`：公共内容断言指向 `common.kdl`，平台文件只断言 output + include；新增 install.sh 复制 common.kdl 与 include 改写的断言。
+  - 同步 `README.md`、`memory/desktop.md` 说明新的 include 结构与安装行为。
+- 验证：`bash -n install.sh`、`niri validate` 两份平台配置、`./tests/niri_wayland_config_test.sh` 全部通过；`./install.sh` 部署 live 后 `niri validate -c ~/.config/niri/config.kdl` 通过，旧 config.kdl 自动备份。
+- 后续：本次仅结构性重构，行为完全等价；之前分析里的高优先级优化项（关键应用透明度豁免、raise-on-focus 等）未落地，可后续单独进行。
+
 ## 2026-06-14 — 提示词系统优化：移除 githook，全由 prompt 规则接管
 
 - 目的：消除 USER.md 与 organizing_preferences.md 的重复内容，激活 USER.md / SOUL.md；随后删除 githook 体系，交给 AGENTS.md prompt 规则统一接管验证。
