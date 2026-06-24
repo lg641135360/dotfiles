@@ -79,6 +79,10 @@ chmod +x install.sh
 | Normal | 闪烁方块（block） |
 | Operator pending | 闪烁下划线 |
 
+## PATH 管理
+
+`path.zsh` 会在目录存在且未重复时再写入 PATH。Linux 环境会追加 `/home/linuxbrew/.linuxbrew/bin`、`$HOME/.local/opt/node-current/bin`、`$HOME/.npm-global/bin` 和 `/usr/local/nodejs/bin`，覆盖本地 Node 前缀以及常见 `npm install -g` CLI 安装位置。
+
 ## Aliases
 
 ### 通用

@@ -94,6 +94,27 @@ test_linux_path_includes_user_npm_global_bin() {
     assert_path_contains "$HOME/.npm-global/bin" "$path_value"
 }
 
+test_linux_path_includes_local_node_current_bin() {
+    if [ "$(uname)" != "Linux" ]; then
+        printf 'SKIP: zsh path test requires Linux\n'
+        return 0
+    fi
+
+    if [ ! -d "$HOME/.local/opt/node-current/bin" ]; then
+        printf 'SKIP: %s/.local/opt/node-current/bin is not present\n' "$HOME"
+        return 0
+    fi
+
+    if [ -z "$ZSH_BIN" ]; then
+        printf 'SKIP: zsh is not installed\n'
+        return 0
+    fi
+
+    path_value=$(run_path_zsh)
+
+    assert_path_contains "$HOME/.local/opt/node-current/bin" "$path_value"
+}
+
 test_linux_desktop_portal_environment_targets_awesome() {
     if [ "$(uname)" != "Linux" ]; then
         printf 'SKIP: zsh environment test requires Linux\n'
@@ -130,6 +151,7 @@ test_linux_wayland_environment_preserves_current_desktop() {
 
 test_linux_path_includes_usr_local_nodejs_bin
 test_linux_path_includes_user_npm_global_bin
+test_linux_path_includes_local_node_current_bin
 test_linux_desktop_portal_environment_targets_awesome
 test_linux_wayland_environment_preserves_current_desktop
 

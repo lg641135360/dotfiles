@@ -16,6 +16,13 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-06-24 — zsh PATH 支持本地 Node current npm 全局 CLI
+
+- 目的：修复 `npm install -g oh-my-codex` 后 `omx` 已安装在 `/home/rikoo/.local/opt/node-current/bin` 但 zsh 中 `command not found` 的问题。
+- 已做：在 `.config/shared/zsh/path.zsh` 的 Linux PATH 追加 `$HOME/.local/opt/node-current/bin`；更新 `tests/zsh_path_test.sh` 覆盖该目录；更新 `.config/shared/zsh/README.md` 说明 Linux PATH 管理；将本地 Node current npm 全局 CLI 规则记录到 `memory/organizing_preferences.md`。
+- 验证：`./tests/zsh_path_test.sh` 通过（当前机器 `/usr/local/nodejs/bin` 与 `$HOME/.npm-global/bin` 不存在而跳过，`$HOME/.local/opt/node-current/bin` 覆盖生效）；`git diff --check` 通过；`zsh -fc ". .config/shared/zsh/path.zsh; command -v omx"` 输出 `/home/rikoo/.local/opt/node-current/bin/omx`。
+- live：用户已运行 `./install.sh`，`.config/shared/zsh/path.zsh` 已同步到 `/home/rikoo/.config/zsh/path.zsh`，且 `cmp -s .config/shared/zsh/path.zsh /home/rikoo/.config/zsh/path.zsh` 通过；未重载运行态服务。
+
 ## 2026-06-24 — niri 配置 include 化结构性重构
 
 - 目的：消除 ubuntu_x64 与 arch_x64 两份 niri 配置的高度重复，公共段统一维护。
