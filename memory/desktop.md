@@ -42,7 +42,7 @@
 - Wayland autostart 中统一 `unset GTK_IM_MODULE`，`export QT_IM_MODULE=fcitx` 等 Qt 应用仍需
 
 ## niri / Wayland 试用
-- niri 迁移先作为与 AwesomeWM 并行的 Wayland 试用桌面纳入 dotfiles；Awesome/X11 保持可回退，不直接删除或替换。
+- 桌面首选按架构区分：x86_64 上 niri + Wayland 为首选与积极演进方向，AwesomeWM + X11 进入维护模式仅作回退；aarch64 上 X11 + AwesomeWM 仍为主要图形显示服务器（保持可回退，不直接删除），niri + Wayland 在该架构暂不作为首选。
 - niri 配置不复用 `picom`、`xrandr`、`xinput`、`feh`、`xautolock`；分别由 niri output/input、Wayland 合成、`swaybg`、`swayidle`/`swaylock` 等替代。
 - Wayland 启动入口保持脚本化：`wayland-autostart` 只静默启动存在的 Waybar、Mako、fcitx5、壁纸、idle lock 和 polkit agent；`launcher-wayland` 优先 fuzzel，rofi 仅作 fallback。
 - Wayland 色温优先使用更接近 Redshift 继承者、发行版覆盖更广的 `gammastep`，缺失时回退轻量 wlroots 专用的 `wlsunset`；不要在 niri autostart 里继续沿用 X11 主线的 `redshift`。

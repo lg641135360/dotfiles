@@ -1,5 +1,12 @@
 # macOS Homebrew Bundle
 # Usage: brew bundle --file ~/.config/macos/Brewfile
+#
+# 筛选原则：仅收录 macOS 系统默认未预装、且必要的第三方应用。
+# 系统自带工具不列入：
+#   - zsh  (macOS Catalina+ 默认 shell，/bin/zsh)
+#   - git  (Command Line Tools 自带，Homebrew 前置依赖)
+#   - zsh-completions / zsh-autosuggestions / zsh-syntax-highlighting
+#     (统一由 zinit 从 zsh-users 官方仓库加载，避免重复加载/补全冲突)
 
 # Taps
 tap "felixkratz/formulae"
@@ -9,8 +16,6 @@ tap "nikitabobko/tap"
 brew "bat"
 brew "fd"
 brew "fzf"
-brew "git"
-brew "lazygit"
 brew "lsd"
 brew "neovim"
 brew "ripgrep"
@@ -18,10 +23,6 @@ brew "rsync"
 brew "tmux"
 brew "yazi"
 brew "zoxide"
-brew "zsh"
-brew "zsh-completions"
-brew "zsh-autosuggestions"
-brew "zsh-syntax-highlighting"
 
 # Terminal
 cask "alacritty"

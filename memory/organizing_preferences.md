@@ -14,6 +14,7 @@
 - 对通过本地 Node current 前缀安装的全局 npm CLI，在共享 zsh PATH 中追加 `$HOME/.local/opt/node-current/bin`。
 - 对通过 `npm install -g` 安装到 `/usr/local/nodejs` 前缀的 CLI，在共享 zsh PATH 中追加 `/usr/local/nodejs/bin`。
 - 对通过 `npm install -g` 安装到用户级 `/home/rikoo/.npm-global` 前缀的 CLI，在共享 zsh PATH 中追加 `$HOME/.npm-global/bin`。
+- 跨系统包管理策略：macOS 统一用 Homebrew（Brewfile 一键安装全部依赖）；Linux 分层——GUI/桌面环境（awesome/niri/waybar/mako/fuzzel 等）/系统服务（pipewire/wireplumber/xdg-desktop-portal/polkit）/输入法（fcitx5）/构建库（libportal-dev 等）/字体（fonts-noto-cjk）用系统原生包管理器（apt/pacman/dnf），纯用户级 CLI 工具（neovim/tmux/alacritty/fzf/zoxide/bat/lsd/ripgrep/fd/yazi）用 Homebrew。Linux Brewfile 只收录纯 CLI 工具，不收录 GUI/X11 工具。
 
 ## 仓库管理
 - `.omx/` 属于本地 OMX 运行状态目录；按当前仓库惯例，通常放入 `.gitignore`，不进入远端仓库。

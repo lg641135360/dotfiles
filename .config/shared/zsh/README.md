@@ -27,7 +27,6 @@ chmod +x install.sh
 | 工具 | 用途 | 安装方式 |
 |------|------|----------|
 | [yazi](https://github.com/sxyazi/yazi) | 终端文件管理器（`y` 函数） | `brew install yazi` / `pacman -S yazi` |
-| [lazygit](https://github.com/jesseduffield/lazygit) | 终端 Git TUI（`lg` 别名） | `brew install lazygit` / `pacman -S lazygit` |
 | tmuxifier | tmux 会话布局 | `git clone https://github.com/jimeh/tmuxifier.git ~/.config/tmux/plugins/tmuxifier` |
 | rsync | 带进度条的文件复制（`cpp` 函数） | 系统通常自带 |
 
@@ -110,7 +109,6 @@ chmod +x install.sh
 |------|------|------|
 | `nv` | `nvim` | 启动 Neovim |
 | `snv` | `sudo nvim` | 以 root 启动 Neovim |
-| `lg` | `lazygit` | 终端 Git TUI |
 
 ### 网络
 

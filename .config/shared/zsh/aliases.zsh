@@ -42,11 +42,6 @@ if [[ -x "$(command -v evince)" ]]; then
     alias pdf='runfree evince'
 fi
 
-# lazygit
-if [[ -x "$(command -v lazygit)" ]]; then
-    alias lg='lazygit'
-fi
-
 # fzf
 if [[ -x "$(command -v fzf)" ]]; then
     alias fzf='fzf --preview "bat --style=numbers --color=always --line-range :500 {}"'

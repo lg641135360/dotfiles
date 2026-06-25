@@ -1,9 +1,20 @@
 # Linux Homebrew Bundle
 # Usage: brew bundle --file ~/.config/linux/Brewfile
 #
-# GUI / X11 工具（rofi, feh, picom, xautolock 等）请用系统包管理器安装：
-#   apt-get install rofi feh picom xautolock i3lock-color pavucontrol \
-#       flameshot xclip greenclip fcitx5 redshift nm-applet blueman pasystray xorg-xrdb
+# 筛选原则：仅收录可通过 Linuxbrew 安全安装、来源可靠（知名开源社区维护）
+# 的纯用户级 CLI 工具。这些工具无系统集成需求，brew 版本更新且跨发行版一致。
+#
+# 以下类别不适合通过 brew 安装，必须用系统原生包管理器（apt/pacman/dnf）：
+#   - 桌面环境 / Wayland / X11 合成器（awesome niri waybar mako fuzzel picom rofi feh）
+#   - 系统服务 / 会话 / polkit / portal（pipewire wireplumber xdg-desktop-portal-* gnome-keyring）
+#   - 输入法（fcitx5）
+#   - 系统级工具与硬件守护（redshift xautolock i3lock brightnessctl playerctl）
+#     * redshift 需读写 X11/Geoclue 系统资源，brew 沙箱内运行有安全隐患，走系统包管理器
+#   - 构建依赖库（libportal-dev libpipewire-0.3-dev libopencv-dev 等 -dev 包）
+#   - 字体（fonts-noto-cjk）
+# 示例：
+#   sudo apt install awesome picom rofi feh redshift fcitx5 \
+#       pipewire wireplumber xdg-desktop-portal-gtk fonts-noto-cjk
 
 # CLI tools
 brew "bat"
