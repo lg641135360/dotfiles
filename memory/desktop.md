@@ -53,6 +53,7 @@
 - niri 全局窗口效果使用 `opacity 0.88` + `background-effect { blur true }`，并配合 `draw-border-with-background false` 避免半透明窗口聚焦时透出蓝色 focus ring 背景；Chrome 不再单独覆盖透明度或背景模糊，保持全局统一。
 - niri 主导航偏好使用 `Mod+h/l` 左右聚焦窗口列、`Mod+j/k` 下/上聚焦 workspace；不要保留 `Mod+Left/Right/Up/Down` 方向键替代绑定。
 - niri overview 使用 `Mod+o` 打开/关闭，作为查看全局窗口/workspace 的主入口。
+- niri overview 美化：`layout { background-color "transparent" }` 保持日常桌面干净无毛玻璃；`overview {}` 用暗底色 `#1e1e2e` + workspace 卡片阴影制造 overview 层次。`place-within-backdrop` 在 niri 26.04 上 `load-config-file` 后不生效（无论存量还是新 surface），双壁纸方案（awww+swaybg）暂不可行，待 niri 更新后重试。
 - niri 配置按系统类型放在 `.config/linux/niri/<platform>/config.kdl`；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，各平台文件只保留 output 段和 `include "../common.kdl"`。当前已落地 `ubuntu_x64` 与 `arch_x64`，安装器把匹配平台的 `config.kdl` 复制到 `~/.config/niri/config.kdl`、把 `common.kdl` 复制到 `~/.config/niri/common.kdl`，并把 include 路径从仓库的 `../common.kdl` 改写成 live 扁平布局的 `common.kdl`；不要把 README 或整个平台目录复制到 live。
 - Wayland 壁纸来源只使用 `~/Pictures/wall`，不再从 `~/Pictures`、系统背景或其它目录回退。
 - Wayland 锁屏使用 `swaylock` 时优先复用当前 `wallpaper-wayland` 记录或正在运行的 `swaybg -i` 壁纸，并用 `-s fill` 填充；找不到当前壁纸时才回退纯色 `11111b`。

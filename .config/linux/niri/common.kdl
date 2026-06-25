@@ -50,6 +50,10 @@ layout {
 
     border { off; }
 
+    // Transparent workspace background: wallpaper shows cleanly during normal use.
+    // Overview uses a separate blurred wallpaper (awww) in the backdrop.
+    background-color "transparent"
+
     shadow {
         on
         softness 30
@@ -77,6 +81,21 @@ blur {
     offset 3.0
     noise 0.02
     saturation 1.5
+}
+
+// Overview: wallpaper stays on background layer (no place-within-backdrop).
+// Use backdrop-color to dim the background for visual separation from workspace cards.
+// place-within-backdrop was tested with both swaybg and awww but did not take effect
+// on niri 26.04 via load-config-file; may revisit after niri update.
+overview {
+    backdrop-color "#1e1e2e"
+
+    workspace-shadow {
+        softness 40
+        spread 10
+        offset x=0 y=10
+        color "#00000060"
+    }
 }
 
 window-rule {

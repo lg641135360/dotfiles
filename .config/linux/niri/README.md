@@ -14,6 +14,7 @@
 - niri 的多屏 workspace 不是 i3/Sway 式全局编号列表；每个显示器都有自己的一条垂直 workspace 轨道。需要跨屏时，用 monitor 级快捷键移动焦点、列或整个 workspace。
 - `xwayland-satellite` 已放入 Nix profile；niri 26.04 会在需要运行 X11 应用时按需自动拉起它，因此本仓库不手动 autostart 该进程。
 - Portal 偏好由 `.config/linux/xdg-desktop-portal/niri-portals.conf` 维护，安装到 `~/.local/share/xdg-desktop-portal/niri-portals.conf`；其中 `FileChooser=gtk` 用来避免 GNOME portal 在缺少 Nautilus 时影响文件选择器。
+- **Overview 美化**（Mod+O）：`layout { background-color "transparent" }` 保持日常桌面干净，`overview {}` 使用暗底色 `#1e1e2e` 压暗 overview 背景并加 workspace 卡片阴影。`place-within-backdrop` 经测试在 niri 26.04 上 `load-config-file` 后不生效（含新 surface），待 niri 更新后重新评估 awall 双壁纸方案。
 
 ## 建议依赖
 

@@ -133,6 +133,14 @@ test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
     assert_contains 'VS Code 默认列宽为 1.0' "$NIRI_README"
 }
 
+test_niri_overview_beautification() {
+    assert_contains 'background-color "transparent"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'overview {' "$NIRI_COMMON_CONFIG"
+    assert_contains 'backdrop-color "#1e1e2e"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'workspace-shadow {' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Overview 美化' "$NIRI_README"
+}
+
 test_wayland_autostart_runs_only_wayland_safe_services() {
     assert_executable "$AUTOSTART_SCRIPT"
     assert_contains 'run_once' "$AUTOSTART_SCRIPT"
@@ -695,6 +703,7 @@ test_niri_config_exposes_multi_monitor_navigation
 test_niri_config_uses_wayland_replacements_not_x11_autostart
 test_arch_niri_config_uses_current_arch_x64_output
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules
+test_niri_overview_beautification
 test_wayland_autostart_runs_only_wayland_safe_services
 test_wayland_wallpaper_helper_covers_current_wallpaper_locations
 test_wayland_wallpaper_helper_records_current_wallpaper
