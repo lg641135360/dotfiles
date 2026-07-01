@@ -28,6 +28,13 @@
 - 验证：`jq empty .config/linux/waybar/config` 通过；`./tests/niri_wayland_config_test.sh` 通过；`git diff --check` 通过。
 - 后续：本轮未执行 install/sync；live `~/.config/waybar` 与仓库一致，Waybar 已从 niri 会话内重启；未提交推送。trace 标题数量继续超过建议上限，提交前应运行归档。
 
+## 2026-07-01 — Waybar 音量与 CPU 图标细调
+
+- 目的：提交当前 Waybar 小幅视觉/交互调整。
+- 已做：`.config/linux/waybar/config` 将音量显示改为双空格间距并关闭音量 tooltip，将 CPU 图标从 `` 调整为 `󰻠`；同步 `tests/niri_wayland_config_test.sh` 回归断言。
+- 验证：`jq empty .config/linux/waybar/config` 通过；`./tests/niri_wayland_config_test.sh` 通过；`git diff --check` 通过。
+- 后续：未同步 live `~/.config`，未重载 Waybar。
+
 ## 2026-06-25 — Brewfile 精简（macOS 移除系统自带）+ Linux 安全筛选注释 + SETUP.md 引用强化
 
 - 目的：按用户三点要求——macOS Brewfile 仅保留非系统默认必要第三方（移除 zsh/git）；Linux Brewfile 明确安全筛选原则（排除 redshift 等不适合 brew 的）；SETUP.md 明确引用两个 Brewfile 路径/适用系统/安装命令。
@@ -60,16 +67,3 @@
   - `memory/desktop.md`：niri 首选决策改为按架构区分，消除与"aarch64 X11 主要"的矛盾。
 - 验证：`git diff --check` 通过；`./tests/run.sh docs` 通过（repo docs + git_config PASS）。
 - 后续：未同步 live `~/.config`，未提交推送。macOS Brewfile 中 zsh 三插件 brew 版未删除（用户只要求文档说明，未要求改配置），如遇补全冲突可后续清理。
-
-## 2026-06-25 — SETUP.md 优化：awesome+x11 降级维护模式、移除 lazygit、明确跨系统包管理策略
-
-- 目的：按用户三点要求优化 SETUP.md 与相关配置——标记 awesome+x11 为维护模式、niri+wayland 为首选；精简 lazygit 等低频工具；明确 macOS 全 brew、Linux 分层（桌面/系统/库走 apt/pacman、CLI 走 brew）的包管理策略。
-- 已做：
-  - `SETUP.md`：1.1 兼容性表标记 niri+wayland 首选、awesome+x11 维护模式并加桌面环境策略引言；2.2 节标题加维护模式标记与过时提示；2.1 移除 lazygit 行；第 3 节开头新增跨系统包管理策略说明；3.2/3.3 Linux 安装流程重构（CLI 工具从 apt/pacman 移出改由 brew，移除 lazygit，修正 Ubuntu X11 包名为 `x11-xserver-utils`，X11 块标注维护模式）；3.2.4 Homebrew 从"可选"改"CLI 工具推荐"；3.4 macOS 描述移除 lazygit。
-  - `.config/macos/Brewfile`：移除 `brew "lazygit"`。
-  - `.config/shared/zsh/aliases.zsh`：移除 `lg` 别名（条件判断块）。
-  - `.config/shared/zsh/README.md`：移除可选依赖表 lazygit 行与别名表 `lg` 行。
-  - `memory/desktop.md`：niri 决策从"并行试用、保持可回退"演进为"首选，awesome 进入维护模式"。
-  - `memory/organizing_preferences.md`：新增跨系统包管理策略条目。
-- 验证：`grep lazygit SETUP.md` 无残留；`git diff --check` 通过；`bash -n .config/shared/zsh/aliases.zsh` 通过；`./tests/run.sh docs` 通过（repo docs + git_config 测试 PASS）。
-- 后续：用户提到的"包括但不限于 lazygit 等"低频工具，本轮只处理明确点名的 lazygit，如需继续精简其他工具请用户指定；未同步 live `~/.config`，未提交推送。trace 当前 6 条 `##` 标题，超出 5 条上限，提交前可运行 `npm --prefix scripts run archive-trace` 归档最旧条目。
