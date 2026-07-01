@@ -16,6 +16,18 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-07-01 — Waybar 一体化 Catppuccin 视觉精修
+
+- 目的：按用户要求参考 `catppuccin/waybar`，把 niri 主线 Waybar 从三段独立胶囊改为更有一体感的连续顶栏，同时保持现有轻量模块结构。
+- 已做：
+  - 新增 `.config/linux/waybar/mocha.css`，提供 Catppuccin Mocha GTK CSS 颜色变量；`style.css` 改为导入 token，并将整条 `window#waybar` 设为半透明 Mocha 顶栏。
+  - `.config/linux/waybar/config`：缩短 bar 高度和窗口标题长度；网络、CPU、内存、音量改为图标化显示并加入宽度约束；按用户要求不加标题 rewrite。
+  - `.config/scripts/wayland-autostart`：移除 `pot` 默认自启动，保留常用托盘与挂载辅助服务。
+  - 更新 `.config/linux/waybar/README.md`、`tests/niri_wayland_config_test.sh` 和 `memory/desktop.md`，记录一体化顶栏偏好与回归断言。
+- 运行态：用户反馈从工具 shell 重启后 Waybar 退出；改用 `niri msg action spawn -- waybar` 从 niri 会话内恢复，复核进程 `3435564 waybar` 存活且两个输出的 top layer 均有 `Namespace: "waybar"`。
+- 验证：`jq empty .config/linux/waybar/config` 通过；`./tests/niri_wayland_config_test.sh` 通过；`git diff --check` 通过。
+- 后续：本轮未执行 install/sync；live `~/.config/waybar` 与仓库一致，Waybar 已从 niri 会话内重启；未提交推送。trace 标题数量继续超过建议上限，提交前应运行归档。
+
 ## 2026-06-25 — Brewfile 精简（macOS 移除系统自带）+ Linux 安全筛选注释 + SETUP.md 引用强化
 
 - 目的：按用户三点要求——macOS Brewfile 仅保留非系统默认必要第三方（移除 zsh/git）；Linux Brewfile 明确安全筛选原则（排除 redshift 等不适合 brew 的）；SETUP.md 明确引用两个 Brewfile 路径/适用系统/安装命令。
@@ -61,80 +73,3 @@
   - `memory/organizing_preferences.md`：新增跨系统包管理策略条目。
 - 验证：`grep lazygit SETUP.md` 无残留；`git diff --check` 通过；`bash -n .config/shared/zsh/aliases.zsh` 通过；`./tests/run.sh docs` 通过（repo docs + git_config 测试 PASS）。
 - 后续：用户提到的"包括但不限于 lazygit 等"低频工具，本轮只处理明确点名的 lazygit，如需继续精简其他工具请用户指定；未同步 live `~/.config`，未提交推送。trace 当前 6 条 `##` 标题，超出 5 条上限，提交前可运行 `npm --prefix scripts run archive-trace` 归档最旧条目。
-
-## 2026-06-24 — zsh PATH 支持本地 Node current npm 全局 CLI
-
-- 目的：修复 `npm install -g oh-my-codex` 后 `omx` 已安装在 `/home/rikoo/.local/opt/node-current/bin` 但 zsh 中 `command not found` 的问题。
-- 已做：在 `.config/shared/zsh/path.zsh` 的 Linux PATH 追加 `$HOME/.local/opt/node-current/bin`；更新 `tests/zsh_path_test.sh` 覆盖该目录；更新 `.config/shared/zsh/README.md` 说明 Linux PATH 管理；将本地 Node current npm 全局 CLI 规则记录到 `memory/organizing_preferences.md`。
-- 验证：`./tests/zsh_path_test.sh` 通过（当前机器 `/usr/local/nodejs/bin` 与 `$HOME/.npm-global/bin` 不存在而跳过，`$HOME/.local/opt/node-current/bin` 覆盖生效）；`git diff --check` 通过；`zsh -fc ". .config/shared/zsh/path.zsh; command -v omx"` 输出 `/home/rikoo/.local/opt/node-current/bin/omx`。
-- live：用户已运行 `./install.sh`，`.config/shared/zsh/path.zsh` 已同步到 `/home/rikoo/.config/zsh/path.zsh`，且 `cmp -s .config/shared/zsh/path.zsh /home/rikoo/.config/zsh/path.zsh` 通过；未重载运行态服务。
-
-## 2026-06-24 — niri 配置 include 化结构性重构
-
-- 目的：消除 ubuntu_x64 与 arch_x64 两份 niri 配置的高度重复，公共段统一维护。
-- 已做：
-  - 新增 `.config/linux/niri/common.kdl`，承载 input/layout/blur/window-rule/binds 等全部公共段。
-  - 改写 `ubuntu_x64/config.kdl` 与 `arch_x64/config.kdl`，只保留头部注释 + output 段 + `include "../common.kdl"`。
-  - 调整 `install.sh` 的 `install_niri_config_for_platform`：把 `common.kdl` 复制到 `~/.config/niri/common.kdl`，把平台 `config.kdl` 复制到 `~/.config/niri/config.kdl` 并用 sed 把 include 路径从仓库的 `../common.kdl` 改写成 live 扁平布局的 `common.kdl`；用目标目录内确定性临时文件替代 mktemp，兼容最小 PATH 测试环境。
-  - 更新 `tests/niri_wayland_config_test.sh`：公共内容断言指向 `common.kdl`，平台文件只断言 output + include；新增 install.sh 复制 common.kdl 与 include 改写的断言。
-  - 同步 `README.md`、`memory/desktop.md` 说明新的 include 结构与安装行为。
-- 验证：`bash -n install.sh`、`niri validate` 两份平台配置、`./tests/niri_wayland_config_test.sh` 全部通过；`./install.sh` 部署 live 后 `niri validate -c ~/.config/niri/config.kdl` 通过，旧 config.kdl 自动备份。
-- 后续：本次仅结构性重构，行为完全等价；之前分析里的高优先级优化项（关键应用透明度豁免、raise-on-focus 等）未落地，可后续单独进行。
-
-## 2026-06-14 — 提示词系统优化：移除 githook，全由 prompt 规则接管
-
-- 目的：消除 USER.md 与 organizing_preferences.md 的重复内容，激活 USER.md / SOUL.md；随后删除 githook 体系，交给 AGENTS.md prompt 规则统一接管验证。
-- 已做：
-  - 将`记录语言`和`持久化文件读取`从 organizing_preferences.md 合并到 USER.md。
-  - 创建后删除 `.githooks/`（pre-commit + pre-push），验证策略由 AGENTS.md 统一管理。
-  - AGENTS.md 操作前约束中增加读取 `USER.md` / `SOUL.md` 规则。
-  - 更新 `logs/trace.md` 维护规则，归档改由 agent 按 AGENTS.md 执行。
-  - 扩展 `tests/repo_docs_test.sh` 断言覆盖全部变更。
-- 验证：`./tests/repo_docs_test.sh` 通过。
-
-## 2026-06-15 — niri 快速切换壁纸快捷键
-
-- 已做：新增 `wallpaper-wayland-next`，先结束当前 `swaybg` 再复用 `wallpaper-wayland` 随机选图；在 Ubuntu/Arch 两份 niri 配置中绑定 `Mod+Shift+w`；更新 niri README、安装清单与回归测试。
-- 验证：`./tests/niri_wayland_config_test.sh && sh -n .config/scripts/wallpaper-wayland-next tests/niri_wayland_config_test.sh && git diff --check -- .config/scripts/wallpaper-wayland-next install.sh .config/linux/niri/arch_x64/config.kdl .config/linux/niri/ubuntu_x64/config.kdl .config/linux/niri/README.md tests/niri_wayland_config_test.sh logs/trace.md` 通过。
-
-## 2026-06-15 — niri Chrome 视觉效果回归全局
-
-- 已做：移除 Chrome 专属 `opacity 0.72` 与重复背景模糊规则，保留 2/3 默认列宽；README、测试与桌面记忆同步说明 Chrome 透明度/背景模糊跟随全局窗口效果。
-- 验证：`./tests/niri_wayland_config_test.sh && sh -n .config/scripts/wallpaper-wayland-next tests/niri_wayland_config_test.sh && git diff --check -- .config/scripts/wallpaper-wayland-next install.sh .config/linux/niri/arch_x64/config.kdl .config/linux/niri/ubuntu_x64/config.kdl .config/linux/niri/README.md tests/niri_wayland_config_test.sh memory/desktop.md logs/trace.md` 通过。
-
-## 2026-06-15 — niri 壁纸目录收窄到 ~/Pictures/wall
-
-- 已做：将 `wallpaper-wayland` 候选目录改为仅 `~/Pictures/wall`；同步 niri README、测试与桌面记忆，避免继续从 `~/Pictures`、系统背景或其它目录回退。
-- 验证：`./tests/niri_wayland_config_test.sh`、`sh -n .config/scripts/wallpaper-wayland .config/scripts/wallpaper-wayland-next tests/niri_wayland_config_test.sh`、`git diff --check -- .config/scripts/wallpaper-wayland .config/linux/niri/README.md tests/niri_wayland_config_test.sh memory/desktop.md logs/trace.md` 通过。
-
-## 2026-06-13 — Brew 大清理 + patchelf 避雷
-
-- 清理 neofetch/rofi/mesa/xinput + unar/meson，brew autoremove 清理 66+15 个孤儿
-- Brewfile 删除 git/rsync/zsh/lazygit/alacritty（系统已提供或不必要）
-- env.zsh 添加 `HOMEBREW_BOTTLE_DOMAIN` USTC 镜像
-- 修复 ARM64 bottle 损坏：`patchelf --force-rpath` 展开 `@@HOMEBREW_PREFIX@@` 占位符
-- 根因：brew 自带的 Ruby gem `patchelf` v1.5.2 在 ARM64 上有 bug
-- brew 的 patchelf 0.18.0 写操作 segfault，已卸载，改用系统 `/usr/bin/patchelf` 0.14.3
-- 效果：150→62 formula，5.6G→4.7G，leaves 仅 8 个
-- 稳定知识已归档到 `memory/repo/brew-setup.md`、`memory/dingtalk.md`、`memory/desktop.md`
-- 验证：lsd/tmux/nvim 正常运行；`tests/repo_docs_test.sh` 通过
-- 提交：`046089d`（chore: cleanup brew packages and update mirror config）
-
-## 2026-06-11 — 提示词系统基线化
-
-- 目的：按提示词系统评估结果收紧仓库 agent 行为协议，减少 memory/trace 读取摩擦，并把本地 OMX 工作流层与公共提示词入口文档化。
-- 已做：更新 `AGENTS.md`，将 memory 读取改为先读 `memory/organizing_preferences.md`、再按任务路径或关键词读取对应模块，默认不全量读取所有模块，并明确只读评估不更新 `logs/trace.md`；更新根 `README.md`，新增“提示词系统”说明，记录 `AGENTS.md` 是权威协议、`.github/copilot-instructions.md` 与 `CLAUDE.md` 只是薄入口，`.omx/` 是已忽略的本地工作流状态/计划产物目录且默认不提交；扩展 `tests/repo_docs_test.sh`，用回归断言保护上述入口与文档说明。本轮只修改仓库文件，没有同步 live 配置、没有重载运行态，准备提交但不推送。
-- 验证：`./tests/repo_docs_test.sh && sh -n tests/repo_docs_test.sh && git diff --check` 通过；`./tests/run.sh docs` 通过；`git status --short` 仅显示 `AGENTS.md`、`README.md`、`tests/repo_docs_test.sh` 和本 trace 变更。
-- 后续：若后续继续优化提示词系统，可考虑单独检查是否需要把更多稳定的 trace 经验提升到 `memory/`，但不要把 `.omx/` 纳入版本控制。
-
-## 2026-06-09 — 仓库整理收口
-
-- fcitx/Wayland GTK_IM_MODULE 排查（知识 → `memory/desktop.md`）
-- 重写 README 目录树、补 6 个 README、删除 xmobar/xmonad/dunst 残留
-- 修复 wallpaper-wayland 候选目录、Waybar 测试护栏
-- 修正 README 目录树层级、补测试护栏、6 个新 README 纳入 Git 跟踪
-- 未提交推送（当时为中间状态）
-
-## 2026-06-05 — niri 窗口规则调整
-
-- niri: 钉钉浮动、Cherry Studio/Chrome 默认 0.66667 列宽、VS Code 默认 1.0

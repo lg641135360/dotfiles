@@ -11,6 +11,7 @@ NIRI_LEGACY_CONFIG=$REPO_ROOT/.config/linux/niri/config.kdl
 NIRI_README=$REPO_ROOT/.config/linux/niri/README.md
 WAYBAR_CONFIG=$REPO_ROOT/.config/linux/waybar/config
 WAYBAR_STYLE=$REPO_ROOT/.config/linux/waybar/style.css
+WAYBAR_MOCHA=$REPO_ROOT/.config/linux/waybar/mocha.css
 MAKO_CONFIG=$REPO_ROOT/.config/linux/mako/config
 FUZZEL_CONFIG=$REPO_ROOT/.config/linux/fuzzel/fuzzel.ini
 PORTAL_CONFIG=$REPO_ROOT/.config/linux/xdg-desktop-portal/niri-portals.conf
@@ -149,7 +150,7 @@ test_wayland_autostart_runs_only_wayland_safe_services() {
     assert_contains "run_once '(^|/)nm-applet( |$)' nm-applet" "$AUTOSTART_SCRIPT"
     assert_contains "run_once '(^|/)pasystray( |$)' pasystray" "$AUTOSTART_SCRIPT"
     assert_contains "run_once '(^|/)blueman-applet( |$)' blueman-applet" "$AUTOSTART_SCRIPT"
-    assert_contains "run_once '(^|/)pot( |$)' pot" "$AUTOSTART_SCRIPT"
+    assert_not_contains "run_once '(^|/)pot( |$)' pot" "$AUTOSTART_SCRIPT"
     assert_contains "run_once '(^|/)udiskie( |$)' udiskie -t" "$AUTOSTART_SCRIPT"
     assert_contains 'export INPUT_METHOD=fcitx' "$AUTOSTART_SCRIPT"
     assert_contains 'dbus-update-activation-environment --systemd' "$AUTOSTART_SCRIPT"
@@ -495,6 +496,7 @@ test_fuzzel_config_matches_wayland_launcher_contract() {
 test_waybar_and_mako_match_niri_trial_contract() {
     assert_file_exists "$WAYBAR_CONFIG"
     assert_file_exists "$WAYBAR_STYLE"
+    assert_file_exists "$WAYBAR_MOCHA"
     assert_file_exists "$MAKO_CONFIG"
 
     assert_contains '"modules-left": ["niri/workspaces", "custom/separator", "niri/window"]' "$WAYBAR_CONFIG"
@@ -508,21 +510,27 @@ test_waybar_and_mako_match_niri_trial_contract() {
     assert_not_contains '"4":' "$WAYBAR_CONFIG"
     assert_not_contains '"5":' "$WAYBAR_CONFIG"
     assert_contains '"modules-right": ["network", "cpu", "memory", "pulseaudio", "tray"]' "$WAYBAR_CONFIG"
-    assert_contains '"format-wifi": "↓{bandwidthDownBytes} ↑{bandwidthUpBytes}"' "$WAYBAR_CONFIG"
-    assert_contains '"format-ethernet": "↓{bandwidthDownBytes} ↑{bandwidthUpBytes}"' "$WAYBAR_CONFIG"
+    assert_contains '"format-wifi": "󰤨 ↓{bandwidthDownBytes} ↑{bandwidthUpBytes}"' "$WAYBAR_CONFIG"
+    assert_contains '"format-ethernet": "󰈀 ↓{bandwidthDownBytes} ↑{bandwidthUpBytes}"' "$WAYBAR_CONFIG"
     assert_contains '下载：{bandwidthDownBytes}/s' "$WAYBAR_CONFIG"
     assert_contains '上传：{bandwidthUpBytes}/s' "$WAYBAR_CONFIG"
     assert_contains 'SSID：{essid}' "$WAYBAR_CONFIG"
-    assert_contains '"format": "CPU:{usage}%"' "$WAYBAR_CONFIG"
-    assert_contains '"format": "MEM:{percentage}%"' "$WAYBAR_CONFIG"
-    assert_contains '"format": "VOL:{volume}%"' "$WAYBAR_CONFIG"
+    assert_contains '"max-length": 52' "$WAYBAR_CONFIG"
+    assert_not_contains '"rewrite":' "$WAYBAR_CONFIG"
+    assert_contains '"format": " {usage}%"' "$WAYBAR_CONFIG"
+    assert_contains '"format": "󰍛 {percentage}%"' "$WAYBAR_CONFIG"
+    assert_contains '"format": " {volume}%"' "$WAYBAR_CONFIG"
+    assert_contains '@define-color base #1e1e2e;' "$WAYBAR_MOCHA"
+    assert_contains '@define-color blue #89b4fa;' "$WAYBAR_MOCHA"
     assert_contains 'font-family: "Maple Mono NF CN", "JetBrainsMono Nerd Font", "Noto Sans CJK SC", sans-serif;' "$WAYBAR_STYLE"
+    assert_contains '@import "mocha.css";' "$WAYBAR_STYLE"
+    assert_contains 'background-color: alpha(@base, 0.72);' "$WAYBAR_STYLE"
+    assert_contains 'border: 1px solid alpha(@surface1, 0.72);' "$WAYBAR_STYLE"
     assert_contains 'background: transparent;' "$WAYBAR_STYLE"
-    assert_contains 'background: rgba(30, 30, 46, 0.95);' "$WAYBAR_STYLE"
     assert_contains 'border-radius: 12px;' "$WAYBAR_STYLE"
     assert_contains '#workspaces button.empty' "$WAYBAR_STYLE"
     assert_contains '#workspaces button.focused' "$WAYBAR_STYLE"
-    assert_contains 'transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease;' "$WAYBAR_STYLE"
+    assert_contains 'transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;' "$WAYBAR_STYLE"
     assert_contains '#workspaces button:hover' "$WAYBAR_STYLE"
     assert_contains '#clock:hover,' "$WAYBAR_STYLE"
     assert_contains '#tray > .needs-attention' "$WAYBAR_STYLE"

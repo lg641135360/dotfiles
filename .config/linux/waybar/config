@@ -1,11 +1,11 @@
 {
   "layer": "top",
   "position": "top",
-  "height": 40,
+  "height": 36,
   "margin-top": 6,
   "margin-left": 8,
   "margin-right": 8,
-  "spacing": 4,
+  "spacing": 2,
   "modules-left": ["niri/workspaces", "custom/separator", "niri/window"],
   "modules-center": ["clock"],
   "modules-right": ["network", "cpu", "memory", "pulseaudio", "tray"],
@@ -20,8 +20,8 @@
     }
   },
   "niri/window": {
-    "format": "{}",
-    "max-length": 72,
+    "format": "{title}",
+    "max-length": 52,
     "separate-outputs": true
   },
   "custom/separator": {
@@ -34,19 +34,23 @@
   },
   "clock": {
     "format": "{:%a %m月%d日 %H:%M}",
-    "tooltip-format": "{:%Y-%m-%d %A %H:%M}"
+    "tooltip": false
   },
   "network": {
-    "interval": 1,
-    "format-wifi": "↓{bandwidthDownBytes} ↑{bandwidthUpBytes}",
-    "format-ethernet": "↓{bandwidthDownBytes} ↑{bandwidthUpBytes}",
-    "format-disconnected": "NET:N/A",
+    "interval": 2,
+    "format-wifi": "󰤨 ↓{bandwidthDownBytes} ↑{bandwidthUpBytes}",
+    "format-ethernet": "󰈀 ↓{bandwidthDownBytes} ↑{bandwidthUpBytes}",
+    "format-disconnected": "󰤭 N/A",
+    "min-length": 19,
+    "align": 0.5,
     "tooltip-format": "网络\nSSID：{essid}\n接口：{ifname}\n地址：{ipaddr}/{cidr}\n下载：{bandwidthDownBytes}/s\n上传：{bandwidthUpBytes}/s",
     "on-click": "nm-connection-editor"
   },
   "pulseaudio": {
-    "format": "VOL:{volume}%",
-    "format-muted": "VOL:MUTE",
+    "format": " {volume}%",
+    "format-muted": "󰝟 mute",
+    "min-length": 5,
+    "align": 0.5,
     "tooltip-format": "音量：{volume}%",
     "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
     "on-click-right": "pavucontrol",
@@ -54,11 +58,15 @@
     "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
   },
   "cpu": {
-    "format": "CPU:{usage}%",
+    "format": " {usage}%",
+    "min-length": 5,
+    "align": 0.5,
     "tooltip": true
   },
   "memory": {
-    "format": "MEM:{percentage}%",
+    "format": "󰍛 {percentage}%",
+    "min-length": 5,
+    "align": 0.5,
     "tooltip": true
   },
   "battery": {

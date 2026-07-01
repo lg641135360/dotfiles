@@ -4,8 +4,9 @@
 
 ```text
 .config/linux/waybar/
-├── config    # Waybar 布局和模块配置
-└── style.css # Catppuccin Mocha 主题样式
+├── config     # Waybar 布局和模块配置
+├── mocha.css  # Catppuccin Mocha GTK CSS 颜色变量
+└── style.css  # 一体化顶栏样式
 ```
 
 部署到 `~/.config/waybar/`。
@@ -21,6 +22,7 @@
 ## 当前配置要点
 
 - **工作区**：使用图标（聚焦/活动/紧急/空），无数字编号，适配 niri 动态工作区
-- **网络**：显示实时带宽（↓↑），tooltip 含 SSID/IP/接口
-- **音量**：单击静音切换，右击打开 pavucontrol，滚轮调音量（步长 5%）
-- **样式**：Catppuccin Mocha 配色，模块带圆角背景和 hover 高亮效果
+- **窗口标题**：保留当前输出的 niri 窗口标题，并清理常见 VS Code / Chrome / Alacritty 标题
+- **网络**：图标化显示实时带宽（↓↑），tooltip 含 SSID/IP/接口
+- **音量**：图标化显示音量；单击静音切换，右击打开 pavucontrol，滚轮调音量（步长 5%）
+- **样式**：`style.css` 顶部导入 `mocha.css`，使用 Catppuccin Mocha 颜色变量；整条 Waybar 作为连续半透明顶栏，内部模块只保留弱分隔和 hover 层级

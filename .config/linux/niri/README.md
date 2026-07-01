@@ -115,7 +115,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `gammastep` 自动色温（日志写到 `~/.local/state/dotfiles/wayland-autostart.log`）
 - `swayidle` + `lock-wayland`
 - KDE 或 GNOME polkit agent（若存在）
-- `nm-applet`、`pasystray`、`blueman-applet`、`pot`、`udiskie -t` 等托盘/辅助服务（若存在）
+- `nm-applet`、`pasystray`、`blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）
 
 缺依赖不会中断 niri 启动。
 

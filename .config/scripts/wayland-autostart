@@ -76,7 +76,6 @@ run_once '(^|/)mako( |$)' mako
 run_once '(^|/)nm-applet( |$)' nm-applet
 run_once '(^|/)pasystray( |$)' pasystray
 run_once '(^|/)blueman-applet( |$)' blueman-applet
-run_once '(^|/)pot( |$)' pot
 run_once '(^|/)udiskie( |$)' udiskie -t
 
 if command -v fcitx5 >/dev/null 2>&1; then
