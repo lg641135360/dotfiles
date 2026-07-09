@@ -543,7 +543,7 @@ main() {
             if [ ! -d "$alacritty_themes_dir" ]; then
                 log_info "Installing Alacritty themes"
                 if command -v git >/dev/null 2>&1; then
-                    git clone --depth 1 https://github.com/alacritty-theme/alacritty-themes.git "$alacritty_themes_dir" || \
+                    git clone --depth 1 git@github.com:alacritty/alacritty-theme.git "$alacritty_themes_dir" || \
                         log_warn "Failed to clone alacritty-themes, please install it manually"
                 else
                     log_warn "git not found, cannot install alacritty-themes automatically"
