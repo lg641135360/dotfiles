@@ -1,0 +1,28 @@
+#!/bin/sh
+# Open a directory with the first available graphical or terminal file manager.
+
+set -u
+
+target=${1:-$HOME}
+
+if command -v dolphin >/dev/null 2>&1; then
+    exec dolphin "$target"
+fi
+if command -v xdg-open >/dev/null 2>&1; then
+    exec xdg-open "$target"
+fi
+if command -v nautilus >/dev/null 2>&1; then
+    exec nautilus --new-window "$target"
+fi
+if command -v thunar >/dev/null 2>&1; then
+    exec thunar "$target"
+fi
+if command -v pcmanfm >/dev/null 2>&1; then
+    exec pcmanfm "$target"
+fi
+if command -v yazi >/dev/null 2>&1 && [ -x "$HOME/.config/scripts/terminal-wayland" ]; then
+    exec "$HOME/.config/scripts/terminal-wayland" -e yazi "$target"
+fi
+
+printf '[file-manager-wayland] 未找到可用的文件管理器\n' >&2
+exit 0

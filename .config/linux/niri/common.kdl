@@ -155,7 +155,7 @@ binds {
 
     // Awesome-compatible launcher muscle memory.
     Mod+Return hotkey-overlay-title="打开终端" { spawn "~/.config/scripts/terminal-wayland"; }
-    Mod+E hotkey-overlay-title="打开文件管理器" { spawn "dolphin"; }
+    Mod+E hotkey-overlay-title="打开文件管理器" { spawn "~/.config/scripts/file-manager-wayland"; }
     Mod+C hotkey-overlay-title="启动应用" { spawn "~/.config/scripts/launcher-wayland"; }
     Mod+Q repeat=false hotkey-overlay-title="关闭当前窗口" { close-window; }
     Mod+Shift+L repeat=false hotkey-overlay-title="锁屏" { spawn "~/.config/scripts/lock-wayland"; }

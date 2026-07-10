@@ -6,7 +6,7 @@
 
 - 当前本机已通过上游 flake 重新构建并切到 `niri 26.04 (3819182)`。
 - AwesomeWM 仍是可回退桌面；本目录只提供 niri 试用配置。
-- 平台配置按子目录维护；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，各平台文件只保留 output 段和 `include "../common.kdl"`。当前已落地 `.config/linux/niri/ubuntu_x64/config.kdl` 与 `.config/linux/niri/arch_x64/config.kdl`。`install.sh` 会把匹配平台的 `config.kdl` 复制成 `~/.config/niri/config.kdl`，同时把 `common.kdl` 复制成 `~/.config/niri/common.kdl`，并把 include 路径从仓库里的 `../common.kdl` 改写成 live 扁平布局下的 `common.kdl`；不会把 README 或整个平台目录复制到 live。
+- 平台配置按子目录维护；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，各平台文件只保留 output 段和 `include "../common.kdl"`。当前已落地 `.config/linux/niri/ubuntu_x64/config.kdl`、`.config/linux/niri/arch_x64/config.kdl` 与 `.config/linux/niri/opensuse_tumbleweed_x64/config.kdl`。检测到 niri 后，`install.sh` 按发行版和架构选择匹配的平台 KDL，复制为 `~/.config/niri/config.kdl`，同时部署 `common.kdl` 并将 include 路径改写成 live 布局使用的 `common.kdl`；不会把 README 或整个平台目录复制到 live。
 - Waybar / Mako 第一版沿用 Catppuccin Mocha 色系，便于和现有 Awesome 外观保持接近。
 - Fuzzel 是 niri 会话下的首选 launcher，使用 CJK 字体、fuzzy match 与更清晰的深色主题；Rofi 仅作为 fallback。
 - `picom`、`xrandr`、`xinput`、`feh`、`xautolock` 不进入 niri 配置：Wayland 下分别由 niri/output/input、`swaybg`、`swayidle`/`swaylock` 等替代。
@@ -16,59 +16,34 @@
 - Portal 偏好由 `.config/linux/xdg-desktop-portal/niri-portals.conf` 维护，安装到 `~/.local/share/xdg-desktop-portal/niri-portals.conf`；其中 `FileChooser=gtk` 用来避免 GNOME portal 在缺少 Nautilus 时影响文件选择器。
 - **Overview 美化**（Mod+O）：`layout { background-color "transparent" }` 保持日常桌面干净，`overview {}` 使用暗底色 `#1e1e2e` 压暗 overview 背景并加 workspace 卡片阴影。`place-within-backdrop` 经测试在 niri 26.04 上 `load-config-file` 后不生效（含新 surface），待 niri 更新后重新评估 awall 双壁纸方案。
 
-## 建议依赖
+## 配置部署边界
 
-Ubuntu 24.04 的 apt 仓库没有 niri；当前机器通过 Nix 安装了 niri。为了和最新 niri 搭配，Waybar 也建议优先用 Nix 或源码安装较新的版本，因为 Ubuntu 24.04 apt 的 Waybar `0.9.24` 没有 niri 专用模块。
+本仓库不负责安装 niri 或其它桌面软件，也不检测显示管理器、desktop entry 或系统服务。`install.sh` 只通过 `command -v` 判断 niri 是否存在，并按发行版和架构选择已维护的平台 KDL；没有匹配平台或对应 KDL 时保留现有 live Niri 配置。Waybar、Mako、Fuzzel 分别在自身命令存在时部署配置。当前是否处于 Wayland 会话不会影响部署。
 
-基础组件：
-
-```bash
-# Ubuntu 仓库里可直接补齐的组件
-sudo apt install waybar fuzzel mako swaybg swayidle swaylock wl-clipboard grim slurp brightnessctl playerctl pavucontrol
-sudo apt install fcitx5 fcitx5-chinese-addons
-sudo apt install xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-gnome gnome-keyring policykit-1-gnome
-sudo apt install pipewire wireplumber libportal-dev libpipewire-0.3-dev libopencv-dev libx11-dev libxrandr-dev libxext-dev libxdamage-dev cmake ninja-build
-
-# 截图标注首选 Satty；若当前发行版没有包，可用 upstream release 或 cargo 补齐
-cargo install satty
-
-# 自动色温
-sudo apt install gammastep
-
-# 当前机器已通过 Nix profile 补齐：
-# waybar/fuzzel/mako/swayidle/swaylock/wl-clipboard/grim/slurp/brightnessctl/playerctl/xwayland-satellite。
-```
-
-> 注：本仓库的 Waybar 配置使用 `niri/workspaces` 与 `niri/window`。这些模块来自较新的 Waybar；如果只安装 Ubuntu 24.04 apt 里的 Waybar，可能需要先升级 Waybar 或临时移除这两个模块。
+Wayland 自动色温固定使用 `gammastep`；命令缺失时自启动脚本打印提示并跳过，不回退其它色温程序。
 
 ## 平台配置
 
-公共配置（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，各平台文件只保留 output 段和 `include "../common.kdl"`，避免两份平台配置重复维护。安装时 `install.sh` 会把匹配平台的 `config.kdl` 复制成 `~/.config/niri/config.kdl`，把 `common.kdl` 复制成 `~/.config/niri/common.kdl`，并把 include 路径改写成 live 扁平布局下的 `common.kdl`。
+公共配置（input/layout/blur/window-rule/binds 等）放在 `.config/linux/niri/common.kdl`，各平台文件只保留 output 段和 `include "../common.kdl"`。安装时 `install.sh` 选择匹配平台的 `config.kdl`，复制为 `~/.config/niri/config.kdl`，同时部署 `common.kdl` 并将 include 路径改写为 live 布局的 `common.kdl`。
 
 | 平台 key | 仓库路径 | 状态 |
 | --- | --- | --- |
 | `ubuntu_x64` | `.config/linux/niri/ubuntu_x64/config.kdl` | 已落地；Ubuntu x86_64 双 2K 外接屏 |
-| `ubuntu_aarch64` | `.config/linux/niri/ubuntu_aarch64/config.kdl` | 预留，未落地时安装器跳过 |
+| `ubuntu_aarch64` | `.config/linux/niri/ubuntu_aarch64/config.kdl` | 预留，未落地时安装器保留现有 live 配置 |
 | `arch_x64` | `.config/linux/niri/arch_x64/config.kdl` | 已落地；Arch x86_64 单 4K 外接屏 |
-| `arch_aarch64` | `.config/linux/niri/arch_aarch64/config.kdl` | 预留，未落地时安装器跳过 |
+| `opensuse_tumbleweed_x64` | `.config/linux/niri/opensuse_tumbleweed_x64/config.kdl` | 已落地；复用 Arch x86_64 单 4K 外接屏配置 |
+| `arch_aarch64` | `.config/linux/niri/arch_aarch64/config.kdl` | 预留，未落地时安装器保留现有 live 配置 |
 
 新增平台时先复制最接近的平台配置，只调整 output 段（接口名/分辨率/scale/位置），公共行为改动统一在 `common.kdl` 里完成，并用 `niri validate -c <path>` 验证。
 
-## 启动方式
+## 配置验证
 
-从显示管理器里选择 `niri`/`niri-session`。如果显示管理器没有条目，先确认：
+仓库只负责配置部署，不创建或检查显示管理器的 niri 会话入口。配置可使用以下命令验证：
 
 ```bash
 command -v niri
-command -v niri-session
 niri --version
 niri validate -c ~/.config/niri/config.kdl
-```
-
-TTY 临时测试可运行：
-
-```bash
-niri-session
 ```
 
 ## 快捷键映射
@@ -76,7 +51,7 @@ niri-session
 | Awesome 习惯 | niri 动作 |
 | --- | --- |
 | `Mod+Return` | 打开终端：优先 Alacritty，缺失时回退 kitty |
-| `Mod+e` | 打开 Dolphin |
+| `Mod+e` | 打开文件管理器：Dolphin → 系统默认 → Nautilus/Thunar/PCManFM → Yazi |
 | `Mod+c` | 启动 launcher：优先 `fuzzel`，缺失时回退 `rofi-launch` |
 | `Mod+q` | 关闭当前窗口 |
 | `Mod+Shift+l` | 锁屏：优先 `swaylock` |
@@ -106,14 +81,14 @@ niri 只调用一个入口：
 spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 ```
 
-该脚本会按命令是否存在静默启动：
+该脚本会逐项检查命令是否存在；缺失时向 stderr 打印提示并继续。实际启动的应用会把最近一次启动的 stdout、stderr 和退出码分别写入 `~/.local/state/niri/autostart/<app>.log`，每次重新启动覆盖对应日志，避免持续累积：
 
 - `waybar`
 - `mako`
 - `fcitx5`
 - `swaybg` 随机壁纸（只从 `~/Pictures/wall` 选择）
-- `gammastep` 自动色温（日志写到 `~/.local/state/dotfiles/wayland-autostart.log`）
-- `swayidle` + `lock-wayland`
+- `gammastep` 自动色温（`~/.local/state/niri/autostart/gammastep.log`）
+- `swayidle`：空闲 10 分钟锁屏、30 分钟自动挂起；系统主动睡眠前也调用 `lock-wayland`
 - KDE 或 GNOME polkit agent（若存在）
 - `nm-applet`、`pasystray`、`blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）
 
@@ -124,7 +99,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 如果 `gammastep` 进程存在但屏幕色温没有变化，先看日志：
 
 ```bash
-tail -n 80 ~/.local/state/dotfiles/wayland-autostart.log
+tail -n 80 ~/.local/state/niri/autostart/gammastep.log
 gammastep -m drm -p -l 30.6:114.3 -t 6500:4000
 ```
 

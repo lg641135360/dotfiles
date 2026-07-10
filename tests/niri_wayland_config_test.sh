@@ -6,8 +6,8 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 NIRI_CONFIG=$REPO_ROOT/.config/linux/niri/ubuntu_x64/config.kdl
 ARCH_NIRI_CONFIG=$REPO_ROOT/.config/linux/niri/arch_x64/config.kdl
+OPENSUSE_NIRI_CONFIG=$REPO_ROOT/.config/linux/niri/opensuse_tumbleweed_x64/config.kdl
 NIRI_COMMON_CONFIG=$REPO_ROOT/.config/linux/niri/common.kdl
-NIRI_LEGACY_CONFIG=$REPO_ROOT/.config/linux/niri/config.kdl
 NIRI_README=$REPO_ROOT/.config/linux/niri/README.md
 WAYBAR_CONFIG=$REPO_ROOT/.config/linux/waybar/config
 WAYBAR_STYLE=$REPO_ROOT/.config/linux/waybar/style.css
@@ -17,6 +17,7 @@ FUZZEL_CONFIG=$REPO_ROOT/.config/linux/fuzzel/fuzzel.ini
 PORTAL_CONFIG=$REPO_ROOT/.config/linux/xdg-desktop-portal/niri-portals.conf
 DINGTALK_SOURCE=$REPO_ROOT/tools/dingtalk-wayland-screenshare
 AUTOSTART_SCRIPT=$REPO_ROOT/.config/scripts/wayland-autostart
+FILE_MANAGER_SCRIPT=$REPO_ROOT/.config/scripts/file-manager-wayland
 DINGTALK_SCRIPT=$REPO_ROOT/.config/scripts/dingtalk-wayland
 TERMINAL_SCRIPT=$REPO_ROOT/.config/scripts/terminal-wayland
 LAUNCHER_SCRIPT=$REPO_ROOT/.config/scripts/launcher-wayland
@@ -29,8 +30,8 @@ INSTALL_FILE=$REPO_ROOT/install.sh
 test_niri_config_exists_and_validates_when_available() {
     assert_file_exists "$NIRI_CONFIG"
     assert_file_exists "$ARCH_NIRI_CONFIG"
+    assert_file_exists "$OPENSUSE_NIRI_CONFIG"
     assert_file_exists "$NIRI_COMMON_CONFIG"
-    assert_file_not_exists "$NIRI_LEGACY_CONFIG"
 
     # Platform configs must include the shared common.kdl.
     assert_contains 'include "../common.kdl"' "$NIRI_CONFIG"
@@ -41,6 +42,8 @@ test_niri_config_exists_and_validates_when_available() {
             fail "expected niri config to validate with installed niri"
         niri validate -c "$ARCH_NIRI_CONFIG" >/dev/null 2>&1 ||
             fail "expected Arch niri config to validate with installed niri"
+        niri validate -c "$OPENSUSE_NIRI_CONFIG" >/dev/null 2>&1 ||
+            fail "expected openSUSE Tumbleweed niri config to validate with installed niri"
     fi
 }
 
@@ -48,6 +51,7 @@ test_niri_config_keeps_awesome_muscle_memory() {
     # Shared behavior lives in common.kdl, included by every platform config.
     assert_contains 'spawn-sh-at-startup "~/.config/scripts/wayland-autostart"' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Return hotkey-overlay-title="打开终端" { spawn "~/.config/scripts/terminal-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+E hotkey-overlay-title="打开文件管理器" { spawn "~/.config/scripts/file-manager-wayland"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+C hotkey-overlay-title="启动应用" { spawn "~/.config/scripts/launcher-wayland"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Q repeat=false hotkey-overlay-title="关闭当前窗口" { close-window; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Shift+L repeat=false hotkey-overlay-title="锁屏" { spawn "~/.config/scripts/lock-wayland"; }' "$NIRI_COMMON_CONFIG"
@@ -104,6 +108,13 @@ test_arch_niri_config_uses_current_arch_x64_output() {
     assert_not_contains 'com\.alibabainc\.dingtalk' "$ARCH_NIRI_CONFIG"
 }
 
+test_opensuse_tumbleweed_x64_niri_config_matches_arch_x64() {
+    arch_config=$(cat "$ARCH_NIRI_CONFIG")
+    opensuse_config=$(cat "$OPENSUSE_NIRI_CONFIG")
+    [ "$arch_config" = "$opensuse_config" ] ||
+        fail "expected openSUSE Tumbleweed x64 niri config to match Arch x64"
+}
+
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
     assert_not_contains 'com\.alibabainc\.dingtalk' "$NIRI_CONFIG"
     assert_not_contains 'tblive' "$NIRI_CONFIG"
@@ -142,16 +153,20 @@ test_niri_overview_beautification() {
     assert_contains 'Overview 美化' "$NIRI_README"
 }
 
-test_wayland_autostart_runs_only_wayland_safe_services() {
+test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_executable "$AUTOSTART_SCRIPT"
-    assert_contains 'run_once' "$AUTOSTART_SCRIPT"
-    assert_contains "run_once '(^|/)waybar( |$)' waybar" "$AUTOSTART_SCRIPT"
-    assert_contains "run_once '(^|/)mako( |$)' mako" "$AUTOSTART_SCRIPT"
-    assert_contains "run_once '(^|/)nm-applet( |$)' nm-applet" "$AUTOSTART_SCRIPT"
-    assert_contains "run_once '(^|/)pasystray( |$)' pasystray" "$AUTOSTART_SCRIPT"
-    assert_contains "run_once '(^|/)blueman-applet( |$)' blueman-applet" "$AUTOSTART_SCRIPT"
-    assert_not_contains "run_once '(^|/)pot( |$)' pot" "$AUTOSTART_SCRIPT"
-    assert_contains "run_once '(^|/)udiskie( |$)' udiskie -t" "$AUTOSTART_SCRIPT"
+    assert_contains 'run_once_logged' "$AUTOSTART_SCRIPT"
+    assert_contains "run_once_logged waybar '(^|/)waybar( |$)' waybar" "$AUTOSTART_SCRIPT"
+    assert_contains "run_once_logged mako '(^|/)mako( |$)' mako" "$AUTOSTART_SCRIPT"
+    assert_contains "run_once_logged nm-applet '(^|/)nm-applet( |$)' nm-applet" "$AUTOSTART_SCRIPT"
+    assert_contains "run_once_logged pasystray '(^|/)pasystray( |$)' pasystray" "$AUTOSTART_SCRIPT"
+    assert_contains "run_once_logged blueman-applet '(^|/)blueman-applet( |$)' blueman-applet" "$AUTOSTART_SCRIPT"
+    assert_not_contains "run_once_logged pot '(^|/)pot( |$)' pot" "$AUTOSTART_SCRIPT"
+    assert_contains "run_once_logged udiskie '(^|/)udiskie( |$)' udiskie -t" "$AUTOSTART_SCRIPT"
+    assert_contains '未找到命令' "$AUTOSTART_SCRIPT"
+    assert_contains '${XDG_STATE_HOME:-$HOME/.local/state}/niri/autostart' "$AUTOSTART_SCRIPT"
+    assert_contains 'log_file=$log_dir/$app.log' "$AUTOSTART_SCRIPT"
+    assert_contains '>"$log_file" 2>&1 &' "$AUTOSTART_SCRIPT"
     assert_contains 'export INPUT_METHOD=fcitx' "$AUTOSTART_SCRIPT"
     assert_contains 'dbus-update-activation-environment --systemd' "$AUTOSTART_SCRIPT"
     assert_contains 'systemctl --user import-environment' "$AUTOSTART_SCRIPT"
@@ -161,8 +176,9 @@ test_wayland_autostart_runs_only_wayland_safe_services() {
     assert_contains 'wallpaper-wayland-next' "$NIRI_README"
     assert_contains 'gammastep -m wayland -l 30.6:114.3 -t 6500:4000' "$AUTOSTART_SCRIPT"
     assert_contains 'start_gammastep' "$AUTOSTART_SCRIPT"
-    assert_contains 'wayland-autostart.log' "$AUTOSTART_SCRIPT"
-    assert_contains 'swayidle -w timeout 600 "$HOME/.config/scripts/lock-wayland" before-sleep "$HOME/.config/scripts/lock-wayland"' "$AUTOSTART_SCRIPT"
+    assert_contains 'gammastep.log' "$NIRI_README"
+    assert_contains "timeout 1800 'systemctl suspend'" "$AUTOSTART_SCRIPT"
+    assert_contains 'swayidle -w timeout 600 "$lock_script" timeout 1800 '"'"'systemctl suspend'"'"' before-sleep "$lock_script"' "$AUTOSTART_SCRIPT"
     assert_contains '/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1' "$AUTOSTART_SCRIPT"
     assert_not_contains 'picom' "$AUTOSTART_SCRIPT"
     assert_not_contains 'xrandr' "$AUTOSTART_SCRIPT"
@@ -173,6 +189,75 @@ test_wayland_autostart_runs_only_wayland_safe_services() {
     assert_not_contains 'gammastep-indicator' "$AUTOSTART_SCRIPT"
     assert_not_contains 'gammastep -m drm' "$AUTOSTART_SCRIPT"
     assert_not_contains 'feh --' "$AUTOSTART_SCRIPT"
+}
+
+test_wayland_autostart_logs_each_app_and_warns_for_missing_commands() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    state_dir=$tmpdir/state
+    bin_dir=$tmpdir/bin
+    stderr_log=$tmpdir/stderr.log
+
+    mkdir -p "$home_dir" "$state_dir" "$bin_dir"
+    ln -s "$(command -v mkdir)" "$bin_dir/mkdir"
+
+    cat >"$bin_dir/waybar" <<'EOF'
+#!/bin/sh
+printf 'waybar stdout\n'
+printf 'waybar stderr\n' >&2
+exit 7
+EOF
+    chmod +x "$bin_dir/waybar"
+
+    PATH=$bin_dir HOME=$home_dir XDG_STATE_HOME=$state_dir \
+        /bin/sh "$AUTOSTART_SCRIPT" 2>"$stderr_log" ||
+        fail "wayland-autostart should continue when optional commands are missing"
+
+    log_file=$state_dir/niri/autostart/waybar.log
+    attempt=0
+    while [ "$attempt" -lt 50 ]; do
+        if [ -f "$log_file" ] && grep -Fq '[exit] code=7' "$log_file"; then
+            break
+        fi
+        sleep 0.05
+        attempt=$((attempt + 1))
+    done
+
+    assert_file_exists "$log_file"
+    assert_contains 'waybar stdout' "$log_file"
+    assert_contains 'waybar stderr' "$log_file"
+    assert_contains '[exit] code=7' "$log_file"
+    assert_contains '未找到命令 mako' "$stderr_log"
+
+    rm -rf "$tmpdir"
+}
+
+test_file_manager_wayland_uses_available_fallbacks() {
+    assert_executable "$FILE_MANAGER_SCRIPT"
+    assert_contains 'exec dolphin "$target"' "$FILE_MANAGER_SCRIPT"
+    assert_contains 'exec xdg-open "$target"' "$FILE_MANAGER_SCRIPT"
+    assert_contains 'exec nautilus --new-window "$target"' "$FILE_MANAGER_SCRIPT"
+    assert_contains 'exec thunar "$target"' "$FILE_MANAGER_SCRIPT"
+    assert_contains 'exec pcmanfm "$target"' "$FILE_MANAGER_SCRIPT"
+    assert_order 'exec dolphin "$target"' 'exec xdg-open "$target"' "$FILE_MANAGER_SCRIPT"
+    assert_order 'exec xdg-open "$target"' 'exec nautilus --new-window "$target"' "$FILE_MANAGER_SCRIPT"
+
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    call_log=$tmpdir/call.log
+    mkdir -p "$bin_dir"
+
+    cat >"$bin_dir/xdg-open" <<'EOF'
+#!/bin/sh
+printf 'xdg-open %s\n' "$*" >"$FILE_MANAGER_CALL_LOG"
+EOF
+    chmod +x "$bin_dir/xdg-open"
+
+    PATH=$bin_dir HOME=$tmpdir FILE_MANAGER_CALL_LOG=$call_log \
+        /bin/sh "$FILE_MANAGER_SCRIPT" || fail "file manager should fall back to xdg-open"
+    assert_contains "xdg-open $tmpdir" "$call_log"
+
+    rm -rf "$tmpdir"
 }
 
 test_wayland_wallpaper_helper_covers_current_wallpaper_locations() {
@@ -548,11 +633,15 @@ test_waybar_and_mako_match_niri_trial_contract() {
 }
 
 test_install_deploys_wayland_trial_files() {
-    assert_contains 'is_wayland_session()' "$INSTALL_FILE"
-    assert_contains '[ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]' "$INSTALL_FILE"
+    assert_not_contains 'is_wayland_session()' "$INSTALL_FILE"
+    assert_not_contains 'XDG_SESSION_TYPE' "$INSTALL_FILE"
+    assert_not_contains 'WAYLAND_DISPLAY' "$INSTALL_FILE"
+    assert_contains 'script_dir=' "$INSTALL_FILE"
+    assert_contains 'cur_path=$script_dir' "$INSTALL_FILE"
     assert_contains 'linux_wayland_configs=(' "$INSTALL_FILE"
     assert_contains 'linux_wayland_dir_configs=(' "$INSTALL_FILE"
     assert_contains '|.config/scripts/wayland-autostart|~/.config/scripts/wayland-autostart|Wayland autostart script' "$INSTALL_FILE"
+    assert_contains '|.config/scripts/file-manager-wayland|~/.config/scripts/file-manager-wayland|Wayland file manager selector' "$INSTALL_FILE"
     assert_contains '|.config/scripts/dingtalk-wayland|~/.config/scripts/dingtalk-wayland|DingTalk Wayland script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/terminal-wayland|~/.config/scripts/terminal-wayland|Wayland terminal script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/launcher-wayland|~/.config/scripts/launcher-wayland|Wayland launcher script' "$INSTALL_FILE"
@@ -561,14 +650,15 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/wallpaper-wayland-next|~/.config/scripts/wallpaper-wayland-next|Wayland wallpaper switcher' "$INSTALL_FILE"
     assert_contains '|.config/linux/xdg-desktop-portal/niri-portals.conf|~/.local/share/xdg-desktop-portal/niri-portals.conf|niri desktop portal preferences' "$INSTALL_FILE"
+    assert_contains 'if command -v niri >/dev/null 2>&1; then' "$INSTALL_FILE"
     assert_contains 'install_niri_config_for_platform()' "$INSTALL_FILE"
+    assert_contains 'niri_platform_key()' "$INSTALL_FILE"
     assert_contains "printf 'ubuntu_x64'" "$INSTALL_FILE"
     assert_contains "printf 'arch_x64'" "$INSTALL_FILE"
+    assert_contains "printf 'opensuse_tumbleweed_x64'" "$INSTALL_FILE"
     assert_contains 'source="$cur_path/.config/linux/niri/$platform/config.kdl"' "$INSTALL_FILE"
     assert_contains 'common_source="$cur_path/.config/linux/niri/common.kdl"' "$INSTALL_FILE"
-    # common.kdl is deployed next to config.kdl in the live layout.
     assert_contains 'copy_config "$common_source" "$target_dir/common.kdl" "niri common config"' "$INSTALL_FILE"
-    # Repo include path "../common.kdl" is rewritten to flat "common.kdl" for live.
     assert_contains 'sed ' "$INSTALL_FILE"
     assert_contains 'include "common.kdl"' "$INSTALL_FILE"
     assert_not_contains 'command -v niri|.config/linux/niri|~/.config/niri|niri' "$INSTALL_FILE"
@@ -597,7 +687,7 @@ EOF
     chmod +x "$bin_dir/niri"
 }
 
-test_install_skips_wayland_files_outside_wayland_session() {
+test_install_copies_wayland_files_when_niri_exists_outside_wayland_session() {
     tmpdir=$(mktemp -d)
     home_dir=$tmpdir/home
     bin_dir=$tmpdir/bin
@@ -605,18 +695,20 @@ test_install_skips_wayland_files_outside_wayland_session() {
     mkdir -p "$home_dir" "$bin_dir"
     prepare_install_path "$bin_dir"
 
-    PATH=$bin_dir HOME=$home_dir XDG_SESSION_TYPE=x11 WAYLAND_DISPLAY= /bin/bash "$REPO_ROOT/install.sh" >/dev/null 2>&1 ||
-        fail "install.sh should succeed outside Wayland session"
+    (
+        cd "$tmpdir"
+        PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=ubuntu DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=x11 WAYLAND_DISPLAY= \
+            /bin/bash "$REPO_ROOT/install.sh" >/dev/null 2>&1
+    ) || fail "install.sh should use its own directory and deploy niri outside Wayland"
 
-    [ ! -e "$home_dir/.config/scripts/wayland-autostart" ] ||
-        fail "expected Wayland scripts to be skipped outside Wayland session"
-    [ ! -e "$home_dir/.config/niri" ] ||
-        fail "expected niri config to be skipped outside Wayland session"
+    assert_file_exists "$home_dir/.config/scripts/wayland-autostart"
+    assert_file_exists "$home_dir/.config/scripts/file-manager-wayland"
+    assert_file_exists "$home_dir/.config/niri/config.kdl"
 
     rm -rf "$tmpdir"
 }
 
-test_install_copies_wayland_files_in_wayland_session() {
+test_install_copies_ubuntu_x64_niri_config() {
     tmpdir=$(mktemp -d)
     home_dir=$tmpdir/home
     bin_dir=$tmpdir/bin
@@ -632,14 +724,15 @@ test_install_copies_wayland_files_in_wayland_session() {
     assert_file_exists "$home_dir/.config/niri/common.kdl"
     assert_file_not_exists "$home_dir/.config/niri/README.md"
     assert_contains '// Platform: ubuntu_x64' "$home_dir/.config/niri/config.kdl"
-    # Live config rewrites the repo include path to the flat layout.
     assert_contains 'include "common.kdl"' "$home_dir/.config/niri/config.kdl"
     assert_not_contains 'include "../common.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_contains 'output "DP-4" {' "$home_dir/.config/niri/config.kdl"
+    assert_contains 'scale 1.25' "$home_dir/.config/niri/config.kdl"
 
     rm -rf "$tmpdir"
 }
 
-test_install_copies_arch_x64_niri_config_in_wayland_session() {
+test_install_copies_arch_x64_niri_config() {
     tmpdir=$(mktemp -d)
     home_dir=$tmpdir/home
     bin_dir=$tmpdir/bin
@@ -660,7 +753,7 @@ test_install_copies_arch_x64_niri_config_in_wayland_session() {
     rm -rf "$tmpdir"
 }
 
-test_install_skips_niri_config_for_unmapped_platform() {
+test_install_copies_opensuse_tumbleweed_x64_niri_config() {
     tmpdir=$(mktemp -d)
     home_dir=$tmpdir/home
     bin_dir=$tmpdir/bin
@@ -668,28 +761,56 @@ test_install_skips_niri_config_for_unmapped_platform() {
     mkdir -p "$home_dir" "$bin_dir"
     prepare_install_path "$bin_dir"
 
-    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=fedora DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >/dev/null 2>&1 ||
-        fail "install.sh should succeed on Wayland even when niri platform mapping is unsupported"
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=opensuse-tumbleweed DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >/dev/null 2>&1 ||
+        fail "install.sh should succeed on openSUSE Tumbleweed x64"
 
-    assert_file_exists "$home_dir/.config/scripts/wayland-autostart"
-    assert_file_not_exists "$home_dir/.config/niri/config.kdl"
+    assert_file_exists "$home_dir/.config/niri/config.kdl"
+    assert_file_exists "$home_dir/.config/niri/common.kdl"
+    assert_contains '// Platform: arch_x64' "$home_dir/.config/niri/config.kdl"
+    assert_contains 'scale 2' "$home_dir/.config/niri/config.kdl"
+    assert_contains 'include "common.kdl"' "$home_dir/.config/niri/config.kdl"
 
     rm -rf "$tmpdir"
 }
 
-test_install_copies_wayland_files_when_wayland_display_is_set() {
+test_install_keeps_live_niri_config_for_unmapped_platform() {
     tmpdir=$(mktemp -d)
     home_dir=$tmpdir/home
     bin_dir=$tmpdir/bin
 
     mkdir -p "$home_dir" "$bin_dir"
     prepare_install_path "$bin_dir"
+    mkdir -p "$home_dir/.config/niri"
+    printf 'include "existing-output.kdl"\n' >"$home_dir/.config/niri/config.kdl"
 
-    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=ubuntu DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE= WAYLAND_DISPLAY=wayland-1 /bin/bash "$REPO_ROOT/install.sh" >/dev/null 2>&1 ||
-        fail "install.sh should detect Wayland from WAYLAND_DISPLAY"
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=fedora DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >/dev/null 2>&1 ||
+        fail "install.sh should keep the live niri config for an unmapped platform"
 
     assert_file_exists "$home_dir/.config/scripts/wayland-autostart"
     assert_file_exists "$home_dir/.config/niri/config.kdl"
+    assert_contains 'include "existing-output.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_file_not_exists "$home_dir/.config/niri/common.kdl"
+
+    rm -rf "$tmpdir"
+}
+
+test_install_skips_niri_and_wayland_files_when_niri_is_missing() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    rm -f "$bin_dir/niri"
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=ubuntu DOTFILES_ARCH=x86_64 \
+        /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed when niri is missing"
+
+    assert_file_not_exists "$home_dir/.config/niri/config.kdl"
+    assert_file_not_exists "$home_dir/.config/scripts/wayland-autostart"
+    assert_contains 'niri not found' "$output"
 
     rm -rf "$tmpdir"
 }
@@ -711,9 +832,12 @@ test_niri_config_keeps_awesome_muscle_memory
 test_niri_config_exposes_multi_monitor_navigation
 test_niri_config_uses_wayland_replacements_not_x11_autostart
 test_arch_niri_config_uses_current_arch_x64_output
+test_opensuse_tumbleweed_x64_niri_config_matches_arch_x64
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules
 test_niri_overview_beautification
-test_wayland_autostart_runs_only_wayland_safe_services
+test_wayland_autostart_checks_apps_and_separates_logs
+test_wayland_autostart_logs_each_app_and_warns_for_missing_commands
+test_file_manager_wayland_uses_available_fallbacks
 test_wayland_wallpaper_helper_covers_current_wallpaper_locations
 test_wayland_wallpaper_helper_records_current_wallpaper
 test_portal_preferences_avoid_nautilus_filechooser_requirement
@@ -726,11 +850,12 @@ test_dingtalk_wayland_entrypoint_preserves_preload_contract
 test_fuzzel_config_matches_wayland_launcher_contract
 test_waybar_and_mako_match_niri_trial_contract
 test_install_deploys_wayland_trial_files
-test_install_skips_wayland_files_outside_wayland_session
-test_install_copies_wayland_files_in_wayland_session
-test_install_copies_arch_x64_niri_config_in_wayland_session
-test_install_skips_niri_config_for_unmapped_platform
-test_install_copies_wayland_files_when_wayland_display_is_set
+test_install_copies_wayland_files_when_niri_exists_outside_wayland_session
+test_install_copies_ubuntu_x64_niri_config
+test_install_copies_arch_x64_niri_config
+test_install_copies_opensuse_tumbleweed_x64_niri_config
+test_install_keeps_live_niri_config_for_unmapped_platform
+test_install_skips_niri_and_wayland_files_when_niri_is_missing
 test_readme_documents_parallel_trial_and_fallback
 
 printf 'PASS: niri Wayland config tests\n'

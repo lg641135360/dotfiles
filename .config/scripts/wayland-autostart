@@ -1,50 +1,87 @@
 #!/bin/sh
-# Shared Wayland autostart entry for niri. Missing optional services are skipped.
+# Shared Wayland autostart entry for niri. Missing optional services are reported and skipped.
 
-log_dir=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles
-mkdir -p "$log_dir"
-log_file=$log_dir/wayland-autostart.log
+log_dir=${XDG_STATE_HOME:-$HOME/.local/state}/niri/autostart
+logging_available=1
 
-run_once() {
+warn() {
+    printf '[niri-autostart] %s\n' "$*" >&2
+}
+
+if command -v mkdir >/dev/null 2>&1; then
+    mkdir -p "$log_dir" || {
+        warn "无法创建日志目录：$log_dir"
+        logging_available=0
+    }
+else
+    warn "缺少基础命令 mkdir，日志将只输出到 stderr"
+    logging_available=0
+fi
+
+if ! command -v pgrep >/dev/null 2>&1; then
+    warn "缺少基础命令 pgrep，无法检查重复进程"
+fi
+if ! command -v id >/dev/null 2>&1; then
+    warn "缺少基础命令 id，无法按当前用户检查重复进程"
+fi
+
+is_running() {
     pattern=$1
-    shift
-    command -v "$1" >/dev/null 2>&1 || return 0
-    if command -v pgrep >/dev/null 2>&1 && pgrep -u "$(id -u)" -f "$pattern" >/dev/null 2>&1; then
-        return 0
-    fi
-    "$@" >/dev/null 2>&1 &
+    command -v pgrep >/dev/null 2>&1 || return 1
+    command -v id >/dev/null 2>&1 || return 1
+    pgrep -u "$(id -u)" -f "$pattern" >/dev/null 2>&1
 }
 
 run_once_logged() {
-    pattern=$1
-    shift
-    command -v "$1" >/dev/null 2>&1 || return 1
-    if command -v pgrep >/dev/null 2>&1 && pgrep -u "$(id -u)" -f "$pattern" >/dev/null 2>&1; then
+    app=$1
+    pattern=$2
+    shift 2
+    command_name=$1
+
+    if ! command -v "$command_name" >/dev/null 2>&1; then
+        warn "跳过 $app：未找到命令 $command_name"
         return 0
     fi
-    {
-        printf '[%s] start:' "$(date '+%Y-%m-%d %H:%M:%S')"
-        printf ' %s' "$@"
-        printf '\n'
-        "$@"
-        printf '[%s] exit %s:' "$(date '+%Y-%m-%d %H:%M:%S')" "$?"
-        printf ' %s' "$@"
-        printf '\n'
-    } >>"$log_file" 2>&1 &
+    if is_running "$pattern"; then
+        return 0
+    fi
+
+    log_file=$log_dir/$app.log
+    if [ "$logging_available" -eq 1 ]; then
+        warn "启动 $app，日志：$log_file"
+        {
+            if command -v date >/dev/null 2>&1; then
+                printf '[start] time=%s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')"
+            else
+                printf '[start] time=unknown\n'
+            fi
+            printf '[command]'
+            printf ' %s' "$@"
+            printf '\n'
+            "$@"
+            exit_code=$?
+            printf '[exit] code=%s\n' "$exit_code"
+        } >"$log_file" 2>&1 &
+    else
+        warn "启动 $app（无法写入独立日志）"
+        "$@" >&2 2>&1 &
+    fi
 }
 
 start_gammastep() {
     managed_pattern='(^|/)gammastep -m wayland -l 30\.6[: ]114\.3 -t 6500[: ]4000( |$)'
-    if command -v pgrep >/dev/null 2>&1 && pgrep -u "$(id -u)" -f "$managed_pattern" >/dev/null 2>&1; then
+    if is_running "$managed_pattern"; then
         return 0
     fi
 
-    if command -v pkill >/dev/null 2>&1; then
+    if command -v pkill >/dev/null 2>&1 && command -v id >/dev/null 2>&1; then
         pkill -u "$(id -u)" -x gammastep >/dev/null 2>&1 || true
         pkill -u "$(id -u)" -f '(^|/)gammastep( |$)' >/dev/null 2>&1 || true
+    elif ! command -v pkill >/dev/null 2>&1; then
+        warn "缺少基础命令 pkill，无法清理旧 gammastep 进程"
     fi
 
-    run_once_logged "$managed_pattern" gammastep -m wayland -l 30.6:114.3 -t 6500:4000
+    run_once_logged gammastep "$managed_pattern" gammastep -m wayland -l 30.6:114.3 -t 6500:4000
 }
 
 # export GTK_IM_MODULE=fcitx
@@ -61,50 +98,75 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     dbus-update-activation-environment --systemd \
         WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE \
         QT_IM_MODULE XMODIFIERS SDL_IM_MODULE GLFW_IM_MODULE INPUT_METHOD LC_CTYPE \
-        >/dev/null 2>&1 || true
+        >/dev/null 2>&1 || warn "dbus 环境同步失败"
+else
+    warn "跳过 DBus 环境同步：未找到命令 dbus-update-activation-environment"
 fi
 
 if command -v systemctl >/dev/null 2>&1; then
     systemctl --user import-environment \
         WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE \
         QT_IM_MODULE XMODIFIERS SDL_IM_MODULE GLFW_IM_MODULE INPUT_METHOD LC_CTYPE \
-        >/dev/null 2>&1 || true
+        >/dev/null 2>&1 || warn "systemd 用户环境同步失败"
+else
+    warn "跳过 systemd 用户环境同步：未找到命令 systemctl"
 fi
 
-run_once '(^|/)waybar( |$)' waybar
-run_once '(^|/)mako( |$)' mako
-run_once '(^|/)nm-applet( |$)' nm-applet
-run_once '(^|/)pasystray( |$)' pasystray
-run_once '(^|/)blueman-applet( |$)' blueman-applet
-run_once '(^|/)udiskie( |$)' udiskie -t
+run_once_logged waybar '(^|/)waybar( |$)' waybar
+run_once_logged mako '(^|/)mako( |$)' mako
+run_once_logged nm-applet '(^|/)nm-applet( |$)' nm-applet
+run_once_logged pasystray '(^|/)pasystray( |$)' pasystray
+run_once_logged blueman-applet '(^|/)blueman-applet( |$)' blueman-applet
+run_once_logged udiskie '(^|/)udiskie( |$)' udiskie -t
 
 if command -v fcitx5 >/dev/null 2>&1; then
-    if ! fcitx5-remote --check >/dev/null 2>&1; then
-        run_once '(^|/)fcitx5( |$)' fcitx5 -d --replace
+    if ! command -v fcitx5-remote >/dev/null 2>&1 || ! fcitx5-remote --check >/dev/null 2>&1; then
+        run_once_logged fcitx5 '(^|/)fcitx5( |$)' fcitx5 -d --replace
     fi
+else
+    warn "跳过 fcitx5：未找到命令 fcitx5"
 fi
 
-if [ -x "$HOME/.config/scripts/wallpaper-wayland" ] && command -v swaybg >/dev/null 2>&1; then
-    if ! pgrep -u "$(id -u)" -f '(^|/)swaybg( |$)' >/dev/null 2>&1; then
-        "$HOME/.config/scripts/wallpaper-wayland" >/dev/null 2>&1 &
+wallpaper_script=$HOME/.config/scripts/wallpaper-wayland
+if [ -x "$wallpaper_script" ]; then
+    if command -v swaybg >/dev/null 2>&1; then
+        run_once_logged swaybg '(^|/)swaybg( |$)' "$wallpaper_script"
+    else
+        warn "跳过 Wayland 壁纸：未找到命令 swaybg"
     fi
+else
+    warn "跳过 Wayland 壁纸：脚本不可执行 $wallpaper_script"
 fi
 
 if command -v gammastep >/dev/null 2>&1; then
     start_gammastep
+else
+    warn "跳过 gammastep：未找到命令 gammastep"
 fi
 
-if [ -x "$HOME/.config/scripts/lock-wayland" ] && command -v swayidle >/dev/null 2>&1; then
-    run_once 'swayidle.*lock-wayland' \
-        swayidle -w timeout 600 "$HOME/.config/scripts/lock-wayland" before-sleep "$HOME/.config/scripts/lock-wayland"
+lock_script=$HOME/.config/scripts/lock-wayland
+if [ ! -x "$lock_script" ]; then
+    warn "跳过 swayidle：锁屏脚本不可执行 $lock_script"
+elif ! command -v systemctl >/dev/null 2>&1; then
+    warn "跳过 swayidle：未找到命令 systemctl"
+else
+    run_once_logged swayidle 'swayidle.*lock-wayland' \
+        swayidle -w timeout 600 "$lock_script" timeout 1800 'systemctl suspend' before-sleep "$lock_script"
 fi
 
+polkit_agent=
 for agent in \
     /usr/lib/polkit-kde-authentication-agent-1 \
     /usr/libexec/polkit-kde-authentication-agent-1 \
     /usr/libexec/polkit-gnome-authentication-agent-1 \
     /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1; do
     [ -x "$agent" ] || continue
-    run_once "$(basename "$agent")" "$agent"
+    polkit_agent=$agent
     break
 done
+
+if [ -n "$polkit_agent" ]; then
+    run_once_logged polkit-agent "$(basename "$polkit_agent")" "$polkit_agent"
+else
+    warn "跳过 polkit agent：未找到可执行程序"
+fi

@@ -26,6 +26,9 @@ assert_contains '├── tests/' "$ROOT_README"
 assert_not_contains '│   ├── tests/' "$ROOT_README"
 assert_not_contains '- kitty' "$ROOT_README"
 assert_not_contains '- zed settings' "$ROOT_README"
+assert_file_not_exists "$REPO_ROOT/SETUP.md"
+assert_contains '不会自动安装桌面软件' "$ROOT_README"
+assert_contains '不判断当前会话类型' "$ROOT_README"
 
 # Test runner docs
 assert_contains './tests/run.sh' "$ROOT_README"

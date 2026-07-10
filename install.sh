@@ -4,7 +4,16 @@ set -e  # Exit on error
 # Script configuration
 os=${DOTFILES_OS:-$(uname -s)}
 arch=${DOTFILES_ARCH:-$(uname -m)}
-cur_path=$(pwd)
+script_path=${BASH_SOURCE[0]}
+case "$script_path" in
+    */*) script_parent=${script_path%/*} ;;
+    *) script_parent=. ;;
+esac
+script_dir="$(cd -- "$script_parent" >/dev/null 2>&1 && pwd -P)" || {
+    printf '[ERROR] Unable to determine repository directory\n' >&2
+    exit 1
+}
+cur_path=$script_dir
 backup_limit=3
 timestamp=$(date +%Y%m%d_%H%M%S)
 
@@ -45,8 +54,9 @@ check_dependencies() {
         fi
     done
     if [ ${#missing_deps[@]} -ne 0 ]; then
-        log_error "Missing required dependencies: ${missing_deps[*]}"
-        exit 1
+        log_warn "Missing required commands: ${missing_deps[*]}"
+        log_error "Cannot safely copy configurations; installation was not started"
+        return 1
     fi
 }
 
@@ -74,9 +84,9 @@ clean_old_backups() {
     
     count=$(echo "$backup_items" | grep -c . || true)
     if [ "$count" -gt "$backup_limit" ]; then
-        echo "$backup_items" | tail -n +"$((backup_limit + 1))" | while read -r item; do
+        while read -r item; do
             rm -rf "$item" && removed=$((removed + 1))
-        done
+        done <<< "$(echo "$backup_items" | tail -n +"$((backup_limit + 1))")"
         if [ $removed -gt 0 ]; then
             log_info "Cleaned $removed old backups for $(basename "$target")"
         fi
@@ -145,15 +155,14 @@ copy_config() {
 process_config() {
     local check_cmd="$1" source="$2" target="$3" name="$4"
 
-    [ -n "$check_cmd" ] && ! eval "$check_cmd" >/dev/null 2>&1 && return 0
+    if [ -n "$check_cmd" ] && ! eval "$check_cmd" >/dev/null 2>&1; then
+        log_warn "$name not found; skipping its configuration"
+        return 0
+    fi
     [[ "$source" != /* ]] && source="$cur_path/$source"
     target="${target/#\~/$HOME}"
 
     copy_config "$source" "$target" "$name"
-}
-
-is_wayland_session() {
-    [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]
 }
 
 niri_platform_key() {
@@ -166,6 +175,9 @@ niri_platform_key() {
             ;;
         arch_x86_64|arch_amd64)
             printf 'arch_x64'
+            ;;
+        opensuse-tumbleweed_x86_64|opensuse-tumbleweed_amd64)
+            printf 'opensuse_tumbleweed_x64'
             ;;
         arch_aarch64|arch_arm64)
             printf 'arch_aarch64'
@@ -181,14 +193,14 @@ install_niri_config_for_platform() {
 
     local platform source common_source target_dir
     if ! platform=$(niri_platform_key); then
-        log_warn "No niri platform mapping for distro=${distro:-unknown}, arch=${arch:-unknown}; skipping niri config"
+        log_warn "No niri platform mapping for distro=${distro:-unknown}, arch=${arch:-unknown}; keeping existing niri config"
         return 0
     fi
 
     source="$cur_path/.config/linux/niri/$platform/config.kdl"
     common_source="$cur_path/.config/linux/niri/common.kdl"
     if [ ! -f "$source" ]; then
-        log_warn "No niri config for platform $platform; skipping niri config"
+        log_warn "No niri config for platform $platform; keeping existing niri config"
         return 0
     fi
     if [ ! -f "$common_source" ]; then
@@ -199,15 +211,8 @@ install_niri_config_for_platform() {
     target_dir="$HOME/.config/niri"
     ensure_dir "$target_dir" || return 1
 
-    # common.kdl lives next to config.kdl in the live layout so that
-    # `include "common.kdl"` resolves correctly. The repo keeps common.kdl
-    # one level above the platform config and uses `include "../common.kdl"`,
-    # so rewrite the include path when deploying to the live target.
     copy_config "$common_source" "$target_dir/common.kdl" "niri common config"
 
-    # Deploy platform config with include path rewritten for the flat live layout.
-    # Avoid mktemp to stay compatible with minimal PATH environments; use a
-    # deterministic temp name inside the target directory and clean it up.
     local tmp_config="$target_dir/.config.kdl.tmp"
     sed 's#include "\.\./common\.kdl"#include "common.kdl"#' "$source" >"$tmp_config" || {
         rm -f "$tmp_config"
@@ -234,22 +239,22 @@ shared_dir_configs=(
 
 # Zsh module files (all copied to ZDOTDIR)
 zsh_files=(
-    "|.config/shared/zsh/.zshrc|~/.config/zsh/.zshrc|.zshrc"
-    "|.config/shared/zsh/plugins.zsh|~/.config/zsh/plugins.zsh|zsh plugins"
-    "|.config/shared/zsh/options.zsh|~/.config/zsh/options.zsh|zsh options"
-    "|.config/shared/zsh/env.zsh|~/.config/zsh/env.zsh|zsh env"
-    "|.config/shared/zsh/path.zsh|~/.config/zsh/path.zsh|zsh path"
-    "|.config/shared/zsh/keybindings.zsh|~/.config/zsh/keybindings.zsh|zsh keybindings"
-    "|.config/shared/zsh/history.zsh|~/.config/zsh/history.zsh|zsh history"
-    "|.config/shared/zsh/aliases.zsh|~/.config/zsh/aliases.zsh|zsh aliases"
-    "|.config/shared/zsh/functions.zsh|~/.config/zsh/functions.zsh|zsh functions"
-    "|.config/shared/zsh/integrations.zsh|~/.config/zsh/integrations.zsh|zsh integrations"
-    "|.config/shared/zsh/zsh-syntax-highlighting-catppuccin-mocha.zsh|~/.config/zsh/zsh-syntax-highlighting-catppuccin-mocha.zsh|zsh syntax-highlighting-catppuccin-mocha"
+    "command -v zsh|.config/shared/zsh/.zshrc|~/.config/zsh/.zshrc|.zshrc"
+    "command -v zsh|.config/shared/zsh/plugins.zsh|~/.config/zsh/plugins.zsh|zsh plugins"
+    "command -v zsh|.config/shared/zsh/options.zsh|~/.config/zsh/options.zsh|zsh options"
+    "command -v zsh|.config/shared/zsh/env.zsh|~/.config/zsh/env.zsh|zsh env"
+    "command -v zsh|.config/shared/zsh/path.zsh|~/.config/zsh/path.zsh|zsh path"
+    "command -v zsh|.config/shared/zsh/keybindings.zsh|~/.config/zsh/keybindings.zsh|zsh keybindings"
+    "command -v zsh|.config/shared/zsh/history.zsh|~/.config/zsh/history.zsh|zsh history"
+    "command -v zsh|.config/shared/zsh/aliases.zsh|~/.config/zsh/aliases.zsh|zsh aliases"
+    "command -v zsh|.config/shared/zsh/functions.zsh|~/.config/zsh/functions.zsh|zsh functions"
+    "command -v zsh|.config/shared/zsh/integrations.zsh|~/.config/zsh/integrations.zsh|zsh integrations"
+    "command -v zsh|.config/shared/zsh/zsh-syntax-highlighting-catppuccin-mocha.zsh|~/.config/zsh/zsh-syntax-highlighting-catppuccin-mocha.zsh|zsh syntax-highlighting-catppuccin-mocha"
 )
 
 # .zshrc.pre is only needed when grml-zsh is installed (fixes fpath issues)
 zshrc_pre_files=(
-    "|.config/shared/zsh/.zshrc.pre|~/.config/zsh/.zshrc.pre|.zshrc.pre"
+    "command -v zsh|.config/shared/zsh/.zshrc.pre|~/.config/zsh/.zshrc.pre|.zshrc.pre"
 )
 
 macos_configs=(
@@ -273,6 +278,7 @@ linux_configs=(
 
 linux_wayland_configs=(
     "|.config/scripts/wayland-autostart|~/.config/scripts/wayland-autostart|Wayland autostart script"
+    "|.config/scripts/file-manager-wayland|~/.config/scripts/file-manager-wayland|Wayland file manager selector"
     "|.config/scripts/dingtalk-wayland|~/.config/scripts/dingtalk-wayland|DingTalk Wayland script"
     "|.config/scripts/terminal-wayland|~/.config/scripts/terminal-wayland|Wayland terminal script"
     "|.config/scripts/launcher-wayland|~/.config/scripts/launcher-wayland|Wayland launcher script"
@@ -464,14 +470,14 @@ main() {
             process_config "$check_cmd" "$source" "$target" "$name"
         done
 
-        if is_wayland_session; then
-            log_info "Detected Wayland session, processing Wayland configurations..."
+        if command -v niri >/dev/null 2>&1; then
+            log_info "niri found, processing Wayland configurations..."
             for config in "${linux_wayland_configs[@]}"; do
                 IFS='|' read -r check_cmd source target name <<< "$config"
                 process_config "$check_cmd" "$source" "$target" "$name"
             done
         else
-            log_info "Wayland session not detected, skipping Wayland configurations"
+            log_warn "niri not found, skipping niri and Wayland helper configurations"
         fi
 
         # Save AwesomeWM external dependencies before copying
@@ -499,7 +505,7 @@ main() {
             process_config "$check_cmd" "$source" "$target" "$name"
         done
 
-        if is_wayland_session; then
+        if command -v niri >/dev/null 2>&1; then
             log_info "Processing Wayland directory configurations..."
             install_niri_config_for_platform
             for config in "${linux_wayland_dir_configs[@]}"; do
@@ -518,21 +524,6 @@ main() {
                 fi
             done
             rm -rf "$awesome_deps_save_dir"
-        fi
-
-        # Check and install optional AwesomeWM external dependencies (if not in backup, clone fresh)
-        if command -v awesome >/dev/null 2>&1; then
-            awesome_config_dir="$HOME/.config/awesome"
-
-            if [ ! -d "$awesome_config_dir/collision" ]; then
-                log_info "Installing AwesomeWM dependency: collision"
-                if command -v git >/dev/null 2>&1; then
-                    git clone https://github.com/Elv13/collision.git "$awesome_config_dir/collision" || \
-                        log_warn "Failed to clone collision, please install it manually"
-                else
-                    log_warn "git not found, cannot install collision automatically"
-                fi
-            fi
         fi
 
         # Check and install Alacritty themes
@@ -561,7 +552,7 @@ main() {
         elif [[ "$distro" == "ubuntu" ]]; then
             # Warn when the Ubuntu system package is missing, but do not install it automatically.
             if command -v dpkg >/dev/null 2>&1 && ! dpkg -l redshift 2>/dev/null | grep -q '^ii'; then
-                log_warn "redshift is not installed. Please install it manually: sudo apt-get install -y redshift"
+                log_warn "redshift is not installed; skipping redshift-dependent behavior"
             fi
 
             if [[ "$arch" == "aarch64" ]]; then

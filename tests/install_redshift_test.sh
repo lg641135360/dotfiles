@@ -50,7 +50,9 @@ EOF
 
     assert_file_exists "$output_file"
     assert_contains "redshift" "$output_file"
-    assert_contains "Please install it manually" "$output_file"
+    assert_contains "skipping redshift-dependent behavior" "$output_file"
+    assert_not_contains "Please install it manually" "$output_file"
+    assert_not_contains "apt-get install" "$output_file"
 
     if [ -e "$sudo_log" ]; then
         fail "install.sh should not invoke sudo for redshift installation"
