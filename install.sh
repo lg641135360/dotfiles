@@ -29,6 +29,14 @@ if [[ "$os" == "Linux" ]]; then
     fi
 fi
 
+is_opensuse() {
+    [[ "$os" == "Linux" && "${distro:-}" == opensuse* ]]
+}
+
+is_repo_niri_platform() {
+    [[ "$os" == "Linux" && "${distro:-}" == "ubuntu" ]]
+}
+
 # Logging functions
 log_info() {
     echo -e "\033[0;32m[INFO]\033[0m $1"
@@ -159,28 +167,43 @@ process_config() {
         log_warn "$name not found; skipping its configuration"
         return 0
     fi
-    [[ "$source" != /* ]] && source="$cur_path/$source"
+
     target="${target/#\~/$HOME}"
 
+    if is_opensuse; then
+        case "$target" in
+            "$HOME/.config/alacritty/alacritty.toml"|"$HOME/.config/alacritty/keys.toml"|"$HOME/.config/alacritty/window.toml")
+                log_info "openSUSE detected; skipping Alacritty configuration copy for $name"
+                return 0
+                ;;
+        esac
+    fi
+
+    [[ "$source" != /* ]] && source="$cur_path/$source"
+
     copy_config "$source" "$target" "$name"
+}
+
+ensure_zdotdir() {
+    local zshenv="$HOME/.zshenv"
+    local export_line='export ZDOTDIR=$HOME/.config/zsh'
+
+    if [ -f "$zshenv" ] && grep -Fxq -- "$export_line" "$zshenv"; then
+        log_info "ZDOTDIR is already configured in $zshenv"
+        return 0
+    fi
+
+    if [ -s "$zshenv" ]; then
+        printf '\n' >>"$zshenv"
+    fi
+    printf '%s\n' "$export_line" >>"$zshenv"
+    log_info "Configured ZDOTDIR in $zshenv"
 }
 
 niri_platform_key() {
     case "${distro:-}_${arch:-}" in
         ubuntu_x86_64|ubuntu_amd64)
             printf 'ubuntu_x64'
-            ;;
-        ubuntu_aarch64|ubuntu_arm64)
-            printf 'ubuntu_aarch64'
-            ;;
-        arch_x86_64|arch_amd64)
-            printf 'arch_x64'
-            ;;
-        opensuse-tumbleweed_x86_64|opensuse-tumbleweed_amd64)
-            printf 'opensuse_tumbleweed_x64'
-            ;;
-        arch_aarch64|arch_arm64)
-            printf 'arch_aarch64'
             ;;
         *)
             return 1
@@ -190,6 +213,11 @@ niri_platform_key() {
 
 install_niri_config_for_platform() {
     command -v niri >/dev/null 2>&1 || return 0
+
+    if ! is_repo_niri_platform; then
+        log_info "${distro:-unknown} detected; skipping niri configuration copy"
+        return 0
+    fi
 
     local platform source common_source target_dir
     if ! platform=$(niri_platform_key); then
@@ -420,6 +448,9 @@ main() {
 
     # Process Zsh file configurations
     log_info "Processing Zsh file configurations..."
+    if command -v zsh >/dev/null 2>&1; then
+        ensure_zdotdir
+    fi
     for config in "${zsh_files[@]}"; do
         IFS='|' read -r check_cmd source target name <<< "$config"
         process_config "$check_cmd" "$source" "$target" "$name"

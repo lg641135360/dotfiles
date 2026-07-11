@@ -5,8 +5,6 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$REPO_ROOT/tests/lib/assert.sh"
 
 NIRI_CONFIG=$REPO_ROOT/.config/linux/niri/ubuntu_x64/config.kdl
-ARCH_NIRI_CONFIG=$REPO_ROOT/.config/linux/niri/arch_x64/config.kdl
-OPENSUSE_NIRI_CONFIG=$REPO_ROOT/.config/linux/niri/opensuse_tumbleweed_x64/config.kdl
 NIRI_COMMON_CONFIG=$REPO_ROOT/.config/linux/niri/common.kdl
 NIRI_README=$REPO_ROOT/.config/linux/niri/README.md
 WAYBAR_CONFIG=$REPO_ROOT/.config/linux/waybar/config
@@ -29,21 +27,14 @@ INSTALL_FILE=$REPO_ROOT/install.sh
 
 test_niri_config_exists_and_validates_when_available() {
     assert_file_exists "$NIRI_CONFIG"
-    assert_file_exists "$ARCH_NIRI_CONFIG"
-    assert_file_exists "$OPENSUSE_NIRI_CONFIG"
     assert_file_exists "$NIRI_COMMON_CONFIG"
 
-    # Platform configs must include the shared common.kdl.
+    # The Ubuntu platform config includes the shared common.kdl.
     assert_contains 'include "../common.kdl"' "$NIRI_CONFIG"
-    assert_contains 'include "../common.kdl"' "$ARCH_NIRI_CONFIG"
 
     if command -v niri >/dev/null 2>&1; then
         niri validate -c "$NIRI_CONFIG" >/dev/null 2>&1 ||
             fail "expected niri config to validate with installed niri"
-        niri validate -c "$ARCH_NIRI_CONFIG" >/dev/null 2>&1 ||
-            fail "expected Arch niri config to validate with installed niri"
-        niri validate -c "$OPENSUSE_NIRI_CONFIG" >/dev/null 2>&1 ||
-            fail "expected openSUSE Tumbleweed niri config to validate with installed niri"
     fi
 }
 
@@ -96,30 +87,9 @@ test_niri_config_uses_wayland_replacements_not_x11_autostart() {
     assert_contains 'position x=2048 y=0' "$NIRI_CONFIG"
 }
 
-test_arch_niri_config_uses_current_arch_x64_output() {
-    assert_contains '// Platform: arch_x64' "$ARCH_NIRI_CONFIG"
-    assert_contains 'output "DP-3" {' "$ARCH_NIRI_CONFIG"
-    assert_contains 'mode "3840x2160@59.997"' "$ARCH_NIRI_CONFIG"
-    assert_contains 'scale 2' "$ARCH_NIRI_CONFIG"
-    assert_contains 'position x=0 y=0' "$ARCH_NIRI_CONFIG"
-    assert_not_contains 'scale 1.25' "$ARCH_NIRI_CONFIG"
-    assert_not_contains 'output "DP-4" {' "$ARCH_NIRI_CONFIG"
-    assert_not_contains 'output "HDMI-A-3" {' "$ARCH_NIRI_CONFIG"
-    assert_not_contains 'com\.alibabainc\.dingtalk' "$ARCH_NIRI_CONFIG"
-}
-
-test_opensuse_tumbleweed_x64_niri_config_matches_arch_x64() {
-    arch_config=$(cat "$ARCH_NIRI_CONFIG")
-    opensuse_config=$(cat "$OPENSUSE_NIRI_CONFIG")
-    [ "$arch_config" = "$opensuse_config" ] ||
-        fail "expected openSUSE Tumbleweed x64 niri config to match Arch x64"
-}
-
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
     assert_not_contains 'com\.alibabainc\.dingtalk' "$NIRI_CONFIG"
     assert_not_contains 'tblive' "$NIRI_CONFIG"
-    assert_not_contains 'com\.alibabainc\.dingtalk' "$ARCH_NIRI_CONFIG"
-    assert_not_contains 'tblive' "$ARCH_NIRI_CONFIG"
     assert_contains '钉钉不再由 niri window-rule 管理' "$NIRI_README"
     # Window rules and blur live in the shared common.kdl.
     assert_contains 'blur {' "$NIRI_COMMON_CONFIG"
@@ -653,9 +623,11 @@ test_install_deploys_wayland_trial_files() {
     assert_contains 'if command -v niri >/dev/null 2>&1; then' "$INSTALL_FILE"
     assert_contains 'install_niri_config_for_platform()' "$INSTALL_FILE"
     assert_contains 'niri_platform_key()' "$INSTALL_FILE"
+    assert_contains 'is_repo_niri_platform()' "$INSTALL_FILE"
     assert_contains "printf 'ubuntu_x64'" "$INSTALL_FILE"
-    assert_contains "printf 'arch_x64'" "$INSTALL_FILE"
-    assert_contains "printf 'opensuse_tumbleweed_x64'" "$INSTALL_FILE"
+    assert_contains 'is_opensuse()' "$INSTALL_FILE"
+    assert_contains 'skipping Alacritty configuration copy' "$INSTALL_FILE"
+    assert_contains 'skipping niri configuration copy' "$INSTALL_FILE"
     assert_contains 'source="$cur_path/.config/linux/niri/$platform/config.kdl"' "$INSTALL_FILE"
     assert_contains 'common_source="$cur_path/.config/linux/niri/common.kdl"' "$INSTALL_FILE"
     assert_contains 'copy_config "$common_source" "$target_dir/common.kdl" "niri common config"' "$INSTALL_FILE"
@@ -685,6 +657,12 @@ prepare_install_path() {
 exit 0
 EOF
     chmod +x "$bin_dir/niri"
+
+    cat >"$bin_dir/alacritty" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+    chmod +x "$bin_dir/alacritty"
 }
 
 test_install_copies_wayland_files_when_niri_exists_outside_wayland_session() {
@@ -732,43 +710,50 @@ test_install_copies_ubuntu_x64_niri_config() {
     rm -rf "$tmpdir"
 }
 
-test_install_copies_arch_x64_niri_config() {
+test_install_preserves_arch_niri_config() {
     tmpdir=$(mktemp -d)
     home_dir=$tmpdir/home
     bin_dir=$tmpdir/bin
 
     mkdir -p "$home_dir" "$bin_dir"
     prepare_install_path "$bin_dir"
+    mkdir -p "$home_dir/.config/niri"
+    printf 'include "arch-existing.kdl"\n' >"$home_dir/.config/niri/config.kdl"
+    printf 'arch common configuration\n' >"$home_dir/.config/niri/common.kdl"
 
     PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=arch DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >/dev/null 2>&1 ||
         fail "install.sh should succeed on Arch x64 Wayland"
 
     assert_file_exists "$home_dir/.config/scripts/wayland-autostart"
-    assert_file_exists "$home_dir/.config/niri/config.kdl"
-    assert_file_exists "$home_dir/.config/niri/common.kdl"
-    assert_contains '// Platform: arch_x64' "$home_dir/.config/niri/config.kdl"
-    assert_contains 'scale 2' "$home_dir/.config/niri/config.kdl"
-    assert_contains 'include "common.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_contains 'include "arch-existing.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_contains 'arch common configuration' "$home_dir/.config/niri/common.kdl"
 
     rm -rf "$tmpdir"
 }
 
-test_install_copies_opensuse_tumbleweed_x64_niri_config() {
+test_install_preserves_opensuse_dms_niri_and_alacritty_configs() {
     tmpdir=$(mktemp -d)
     home_dir=$tmpdir/home
     bin_dir=$tmpdir/bin
 
     mkdir -p "$home_dir" "$bin_dir"
     prepare_install_path "$bin_dir"
+    mkdir -p "$home_dir/.config/niri" "$home_dir/.config/alacritty"
+    printf 'include "dms/layout.kdl"\n' >"$home_dir/.config/niri/config.kdl"
+    printf 'dms common configuration\n' >"$home_dir/.config/niri/common.kdl"
+    printf '[general]\nimport = ["~/.config/alacritty/dank-theme.toml"]\n' >"$home_dir/.config/alacritty/alacritty.toml"
+    printf 'dms keys configuration\n' >"$home_dir/.config/alacritty/keys.toml"
+    printf 'dms window configuration\n' >"$home_dir/.config/alacritty/window.toml"
 
     PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=opensuse-tumbleweed DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >/dev/null 2>&1 ||
         fail "install.sh should succeed on openSUSE Tumbleweed x64"
 
-    assert_file_exists "$home_dir/.config/niri/config.kdl"
-    assert_file_exists "$home_dir/.config/niri/common.kdl"
-    assert_contains '// Platform: arch_x64' "$home_dir/.config/niri/config.kdl"
-    assert_contains 'scale 2' "$home_dir/.config/niri/config.kdl"
-    assert_contains 'include "common.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_file_exists "$home_dir/.config/scripts/wayland-autostart"
+    assert_contains 'include "dms/layout.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_contains 'dms common configuration' "$home_dir/.config/niri/common.kdl"
+    assert_contains 'dank-theme.toml' "$home_dir/.config/alacritty/alacritty.toml"
+    assert_contains 'dms keys configuration' "$home_dir/.config/alacritty/keys.toml"
+    assert_contains 'dms window configuration' "$home_dir/.config/alacritty/window.toml"
 
     rm -rf "$tmpdir"
 }
@@ -822,7 +807,7 @@ test_readme_documents_parallel_trial_and_fallback() {
     assert_contains 'xwayland-satellite' "$NIRI_README"
     assert_contains 'niri validate -c .config/linux/niri/ubuntu_x64/config.kdl' "$NIRI_README"
     assert_contains '平台配置' "$NIRI_README"
-    assert_contains '`arch_x64` | `.config/linux/niri/arch_x64/config.kdl` | 已落地' "$NIRI_README"
+    assert_contains '仅 Ubuntu 部署本仓库的 Niri 配置' "$NIRI_README"
     assert_contains '`~/Pictures/wall`' "$NIRI_README"
     assert_not_contains '`~/Pictures` 优先' "$NIRI_README"
 }
@@ -831,8 +816,6 @@ test_niri_config_exists_and_validates_when_available
 test_niri_config_keeps_awesome_muscle_memory
 test_niri_config_exposes_multi_monitor_navigation
 test_niri_config_uses_wayland_replacements_not_x11_autostart
-test_arch_niri_config_uses_current_arch_x64_output
-test_opensuse_tumbleweed_x64_niri_config_matches_arch_x64
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules
 test_niri_overview_beautification
 test_wayland_autostart_checks_apps_and_separates_logs
@@ -852,8 +835,8 @@ test_waybar_and_mako_match_niri_trial_contract
 test_install_deploys_wayland_trial_files
 test_install_copies_wayland_files_when_niri_exists_outside_wayland_session
 test_install_copies_ubuntu_x64_niri_config
-test_install_copies_arch_x64_niri_config
-test_install_copies_opensuse_tumbleweed_x64_niri_config
+test_install_preserves_arch_niri_config
+test_install_preserves_opensuse_dms_niri_and_alacritty_configs
 test_install_keeps_live_niri_config_for_unmapped_platform
 test_install_skips_niri_and_wayland_files_when_niri_is_missing
 test_readme_documents_parallel_trial_and_fallback

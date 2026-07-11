@@ -6,7 +6,7 @@
 
 - 当前本机已通过上游 flake 重新构建并切到 `niri 26.04 (3819182)`。
 - AwesomeWM 仍是可回退桌面；本目录只提供 niri 试用配置。
-- 平台配置按子目录维护；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，各平台文件只保留 output 段和 `include "../common.kdl"`。当前已落地 `.config/linux/niri/ubuntu_x64/config.kdl`、`.config/linux/niri/arch_x64/config.kdl` 与 `.config/linux/niri/opensuse_tumbleweed_x64/config.kdl`。检测到 niri 后，`install.sh` 按发行版和架构选择匹配的平台 KDL，复制为 `~/.config/niri/config.kdl`，同时部署 `common.kdl` 并将 include 路径改写成 live 布局使用的 `common.kdl`；不会把 README 或整个平台目录复制到 live。
+- Niri 配置仅维护 Ubuntu x86_64 平台；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，平台文件只保留 output 段和 `include "../common.kdl"`。检测到 Ubuntu x86_64 的 niri 后，`install.sh` 复制平台 KDL 为 `~/.config/niri/config.kdl`，同时部署 `common.kdl` 并将 include 路径改写成 live 布局使用的 `common.kdl`；不会把 README 或整个平台目录复制到 live。仅 Ubuntu 部署本仓库的 Niri 配置；Arch 保留现有 live 配置，openSUSE 同时保留 DMS 管理的 Niri 与 Alacritty 配置。
 - Waybar / Mako 第一版沿用 Catppuccin Mocha 色系，便于和现有 Awesome 外观保持接近。
 - Fuzzel 是 niri 会话下的首选 launcher，使用 CJK 字体、fuzzy match 与更清晰的深色主题；Rofi 仅作为 fallback。
 - `picom`、`xrandr`、`xinput`、`feh`、`xautolock` 不进入 niri 配置：Wayland 下分别由 niri/output/input、`swaybg`、`swayidle`/`swaylock` 等替代。
@@ -18,23 +18,19 @@
 
 ## 配置部署边界
 
-本仓库不负责安装 niri 或其它桌面软件，也不检测显示管理器、desktop entry 或系统服务。`install.sh` 只通过 `command -v` 判断 niri 是否存在，并按发行版和架构选择已维护的平台 KDL；没有匹配平台或对应 KDL 时保留现有 live Niri 配置。Waybar、Mako、Fuzzel 分别在自身命令存在时部署配置。当前是否处于 Wayland 会话不会影响部署。
+本仓库不负责安装 niri 或其它桌面软件，也不检测显示管理器、desktop entry 或系统服务。`install.sh` 只通过 `command -v` 判断 niri 是否存在，并仅在 Ubuntu x86_64 上部署已维护的平台 KDL；Arch 与 openSUSE 始终保留现有 live Niri 配置，后者由 DMS 管理。Waybar、Mako、Fuzzel 分别在自身命令存在时部署配置。当前是否处于 Wayland 会话不会影响部署。
 
 Wayland 自动色温固定使用 `gammastep`；命令缺失时自启动脚本打印提示并跳过，不回退其它色温程序。
 
 ## 平台配置
 
-公共配置（input/layout/blur/window-rule/binds 等）放在 `.config/linux/niri/common.kdl`，各平台文件只保留 output 段和 `include "../common.kdl"`。安装时 `install.sh` 选择匹配平台的 `config.kdl`，复制为 `~/.config/niri/config.kdl`，同时部署 `common.kdl` 并将 include 路径改写为 live 布局的 `common.kdl`。
+公共配置（input/layout/blur/window-rule/binds 等）放在 `.config/linux/niri/common.kdl`，Ubuntu x86_64 平台文件只保留 output 段和 `include "../common.kdl"`。安装时 `install.sh` 复制该平台的 `config.kdl` 为 `~/.config/niri/config.kdl`，同时部署 `common.kdl` 并将 include 路径改写为 live 布局的 `common.kdl`。
 
 | 平台 key | 仓库路径 | 状态 |
 | --- | --- | --- |
 | `ubuntu_x64` | `.config/linux/niri/ubuntu_x64/config.kdl` | 已落地；Ubuntu x86_64 双 2K 外接屏 |
-| `ubuntu_aarch64` | `.config/linux/niri/ubuntu_aarch64/config.kdl` | 预留，未落地时安装器保留现有 live 配置 |
-| `arch_x64` | `.config/linux/niri/arch_x64/config.kdl` | 已落地；Arch x86_64 单 4K 外接屏 |
-| `opensuse_tumbleweed_x64` | `.config/linux/niri/opensuse_tumbleweed_x64/config.kdl` | 已落地；复用 Arch x86_64 单 4K 外接屏配置 |
-| `arch_aarch64` | `.config/linux/niri/arch_aarch64/config.kdl` | 预留，未落地时安装器保留现有 live 配置 |
 
-新增平台时先复制最接近的平台配置，只调整 output 段（接口名/分辨率/scale/位置），公共行为改动统一在 `common.kdl` 里完成，并用 `niri validate -c <path>` 验证。
+新增平台时先增加对应平台 KDL 与安装器映射，只调整 output 段（接口名/分辨率/scale/位置）；公共行为改动统一在 `common.kdl` 里完成，并用 `niri validate -c <path>` 验证。
 
 ## 配置验证
 

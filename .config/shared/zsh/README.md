@@ -9,7 +9,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-确保 `ZDOTDIR=~/.config/zsh` 已设置（由系统或 `~/.zshenv` 定义）。
+安装器会在检测到 Zsh 时向 `~/.zshenv` 写入 `export ZDOTDIR=$HOME/.config/zsh`；已有相同行时跳过，不会重复追加。
 
 ## 依赖
 

@@ -16,6 +16,20 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-07-11 — Zsh ZDOTDIR 引导
+
+- 目的：让安装器部署模块化 Zsh 配置后，默认由 `~/.zshenv` 选择 `~/.config/zsh` 作为 `ZDOTDIR`。
+- 已做：新增幂等 `ensure_zdotdir()`，仅在检测到 Zsh 时追加 `export ZDOTDIR=$HOME/.config/zsh`；已有精确行时跳过。新增创建、保留现有内容与重复调用测试，并同步 Zsh README 和长期规则。
+- 验证：`bash -n install.sh`、`bash tests/install_zshenv_test.sh`、`./tests/niri_wayland_config_test.sh`、`bash tests/install_backup_test.sh`、`./tests/zsh_path_test.sh`、`./tests/repo_docs_test.sh`、`./tests/alacritty_config_test.sh` 均通过。`./tests/run.sh fast` 在未改动的 `tests/awesome_autostart_test.sh` 外接屏断言失败。
+- 后续：未同步 live、未重载服务；随本轮提交推送。
+
+## 2026-07-11 — Ubuntu-only Niri 配置部署
+
+- 目的：避免 `install.sh` 覆盖 Arch 与 openSUSE 的现有 Niri 配置，并保留 openSUSE 上 DMS 管理的 Alacritty 配置。
+- 已做：Niri KDL 部署改为仅 Ubuntu x86_64，并删除 Arch/openSUSE 平台 KDL 及其测试、文档引用；Arch 与 openSUSE 保留 `~/.config/niri/config.kdl`、`common.kdl`。openSUSE 继续跳过 Alacritty 主配置、按键和窗口 TOML 的复制；Wayland 辅助脚本仍会部署。同步 Niri、Alacritty 和仓库 README，并新增 Arch/DMS 哨兵配置保留回归测试。
+- 验证：`bash -n install.sh`、`./tests/niri_wayland_config_test.sh`、`./tests/alacritty_config_test.sh`、`bash tests/install_backup_test.sh`、`./tests/repo_docs_test.sh` 与 `git diff --check` 均通过。
+- 后续：未同步 live、未重载 niri/DMS；随本轮提交推送。
+
 ## 2026-07-10 — openSUSE Tumbleweed x64 niri 配置
 
 - 目的：为 openSUSE Tumbleweed x86_64 提供可由安装器自动部署的 Niri 平台配置。

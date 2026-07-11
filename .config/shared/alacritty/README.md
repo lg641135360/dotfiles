@@ -11,7 +11,7 @@
 └── window.macos.toml     # macOS 窗口设置（无边框 + Option 作为 Alt）
 ```
 
-安装时 `keys.toml` 和 `window.toml` 会根据 OS 自动选择对应版本。
+安装时 `keys.toml` 和 `window.toml` 会根据 OS 自动选择对应版本；openSUSE 不复制 Alacritty 配置，以保留 DMS 管理的 `~/.config/alacritty`。
 
 ## 窗口设置
 

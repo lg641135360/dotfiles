@@ -43,6 +43,7 @@
 
 ## niri / Wayland 试用
 - 桌面首选按架构区分：x86_64 上 niri + Wayland 为首选与积极演进方向，AwesomeWM + X11 进入维护模式仅作回退；aarch64 上 X11 + AwesomeWM 仍为主要图形显示服务器（保持可回退，不直接删除），niri + Wayland 在该架构暂不作为首选。
+- 仅 Ubuntu 由 `install.sh` 部署本仓库的 `~/.config/niri`；Arch 保留 live Niri 配置，openSUSE 则由 DMS 接管 `~/.config/niri` 与 `~/.config/alacritty`，必须跳过这两类配置复制，保留 DMS 的生成文件和动态主题。
 - niri 配置不复用 `picom`、`xrandr`、`xinput`、`feh`、`xautolock`；分别由 niri output/input、Wayland 合成、`swaybg`、`swayidle`/`swaylock` 等替代。
 - Wayland 启动入口保持脚本化：`wayland-autostart` 只静默启动存在的 Waybar、Mako、fcitx5、壁纸、idle lock 和 polkit agent；`launcher-wayland` 优先 fuzzel，rofi 仅作 fallback。
 - Wayland 色温固定使用更接近 Redshift 继承者、发行版覆盖更广的 `gammastep`；缺失时打印提示并跳过，不回退 `wlsunset`，也不在 niri autostart 里沿用 X11 主线的 `redshift`。
@@ -54,7 +55,7 @@
 - niri 主导航偏好使用 `Mod+h/l` 左右聚焦窗口列、`Mod+j/k` 下/上聚焦 workspace；不要保留 `Mod+Left/Right/Up/Down` 方向键替代绑定。
 - niri overview 使用 `Mod+o` 打开/关闭，作为查看全局窗口/workspace 的主入口。
 - niri overview 美化：`layout { background-color "transparent" }` 保持日常桌面干净无毛玻璃；`overview {}` 用暗底色 `#1e1e2e` + workspace 卡片阴影制造 overview 层次。`place-within-backdrop` 在 niri 26.04 上 `load-config-file` 后不生效（无论存量还是新 surface），双壁纸方案（awww+swaybg）暂不可行，待 niri 更新后重试。
-- niri 配置按系统类型放在 `.config/linux/niri/<platform>/config.kdl`；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，各平台文件只保留 output 段和 `include "../common.kdl"`。当前已落地 `ubuntu_x64` 与 `arch_x64`，安装器把匹配平台的 `config.kdl` 复制到 `~/.config/niri/config.kdl`、把 `common.kdl` 复制到 `~/.config/niri/common.kdl`，并把 include 路径从仓库的 `../common.kdl` 改写成 live 扁平布局的 `common.kdl`；不要把 README 或整个平台目录复制到 live。
+- niri 配置仅维护 `.config/linux/niri/ubuntu_x64/config.kdl`；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`。安装器仅在 Ubuntu x86_64 把该配置复制到 `~/.config/niri/config.kdl`、把 `common.kdl` 复制到 `~/.config/niri/common.kdl`，并把 include 路径从仓库的 `../common.kdl` 改写成 live 扁平布局的 `common.kdl`；不要把 README 或整个平台目录复制到 live。
 - Wayland 壁纸来源只使用 `~/Pictures/wall`，不再从 `~/Pictures`、系统背景或其它目录回退。
 - Wayland 锁屏使用 `swaylock` 时优先复用当前 `wallpaper-wayland` 记录或正在运行的 `swaybg -i` 壁纸，并用 `-s fill` 填充；找不到当前壁纸时才回退纯色 `11111b`。
 - niri/Wayland 选区截图标注入口使用 `F1`，并只使用 Satty；缺少 `satty`、`grim`、`slurp` 或 `wl-copy` 时脚本直接失败提示，不回退到 `swappy` / `ksnip`。
