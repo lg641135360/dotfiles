@@ -14,6 +14,13 @@ import tomllib
 with open(sys.argv[1], "rb") as handle:
     config = tomllib.load(handle)
 
+actual_term = config.get("env", {}).get("TERM")
+if actual_term != "xterm-256color":
+    raise SystemExit(
+        "Alacritty TERM should use portable xterm-256color for remote compatibility, "
+        f"got {actual_term!r}"
+    )
+
 font = config["font"]
 expected_styles = {
     "normal": "Regular",
@@ -122,6 +129,11 @@ grep -q 'Option+Right' "$README" || {
 
 grep -q 'Option+Up' "$README" || {
   echo "README should document macOS Option-Up for Neovim line movement"
+  exit 1
+}
+
+grep -q 'TERM=xterm-256color' "$README" || {
+  echo "README should document the portable TERM setting"
   exit 1
 }
 

@@ -16,6 +16,13 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-07-20 — Alacritty 远程颜色兼容
+
+- 目的：解决 `TERM=alacritty` 在 SSH 远程端不被 Ubuntu 默认 Bash 彩色提示符检测识别的问题，并提高远程 terminfo 兼容性。
+- 已做：将 Alacritty 的 `TERM` 改为 `xterm-256color`；先新增回归断言并确认旧值会失败，再同步 Alacritty README 与长期偏好。
+- 验证：`bash -n tests/alacritty_config_test.sh`、`bash tests/alacritty_config_test.sh`、`bash tests/repo_docs_test.sh` 与 `git diff --check` 均通过。
+- 后续：已通过 `./install.sh` 同步 live，未重载 Alacritty；随本轮提交推送，新终端实例将使用新 `TERM`。
+
 ## 2026-07-11 — Zsh ZDOTDIR 引导
 
 - 目的：让安装器部署模块化 Zsh 配置后，默认由 `~/.zshenv` 选择 `~/.config/zsh` 作为 `ZDOTDIR`。
