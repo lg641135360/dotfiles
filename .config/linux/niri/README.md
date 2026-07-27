@@ -53,6 +53,7 @@ niri validate -c ~/.config/niri/config.kdl
 | `Mod+Shift+l` | 锁屏：优先 `swaylock` |
 | `Mod+Shift+w` | 随机切换 Wayland 壁纸 |
 | `Mod+o` | 显示/关闭 niri overview 总览 |
+| `Mod+Tab` | 切换到焦点历史中的上一个窗口 |
 | `Mod+h/l` | 左/右聚焦窗口列 |
 | `Mod+j/k` | 下/上聚焦 workspace |
 | `Mod+Minus/Equal` | 缩小/放大当前列宽 |
@@ -60,7 +61,6 @@ niri validate -c ~/.config/niri/config.kdl
 | `Mod+Ctrl+h/l` | 移动当前列到左/右 |
 | `Mod+Shift+a/d` | 移动当前列到左/右显示器 |
 | `Mod+a/d` | 左/右聚焦显示器 |
-| `Mod+Page_Up/Page_Down` | 上/下聚焦 workspace |
 | `Mod+1..9` | 聚焦指定 workspace |
 | `Mod+Shift+1..9` | 移动当前窗口到指定 workspace |
 | `Mod+Ctrl+Shift+a/d` | 移动当前 workspace 到左/右显示器 |
@@ -68,6 +68,10 @@ niri validate -c ~/.config/niri/config.kdl
 | `Mod+f` | 全屏当前窗口 |
 | `Mod+m` | 最大化到屏幕边缘 |
 | `Mod+Shift+q` | 退出 niri，会有确认 |
+
+终端、文件管理器、launcher、锁屏、壁纸切换、overview、退出、截图标注和关闭显示器等一次性动作均禁用按键重复，避免长按时重复启动或连续切换。workspace 使用 `Mod+j/k`、数字键或 `Mod+滚轮` 导航，不再保留 `Page_Up/Page_Down` 及其 Shift 组合；左右切列统一使用 `Mod+h/l` 或 `Mod+横向滚轮`，不再保留重复的 `Mod+Alt+h/l`。
+
+浮动切换、浮动/平铺焦点切换、列标签模式以及窗口并入/移出列等不易从按键直接判断的操作，已在 `Mod+Shift+/` 热键面板中补充中文说明。
 
 ## 自启动
 

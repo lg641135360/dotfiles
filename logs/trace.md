@@ -16,6 +16,13 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-07-27 — Niri 快捷键精简与防连发
+
+- 目的：减少重复的 workspace/列导航快捷键，并避免一次性桌面动作因长按重复触发。
+- 已做：移除 `Page_Up/Page_Down` 及其 Shift workspace 组合和重复的 `Mod+Alt+h/l`；增加 `Mod+Tab` 切换到焦点历史中的上一个窗口；为启动程序、壁纸、overview、退出、F1 截图与关闭显示器增加 `repeat=false`；修正列宽注释，并为浮动、列标签和窗口并入/移出操作补充热键面板中文说明；同步 Niri README、回归测试与长期偏好。
+- 验证：`bash -n tests/niri_wayland_config_test.sh`、`./tests/niri_wayland_config_test.sh`、`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl`、`./tests/repo_docs_test.sh` 与 `git diff --check` 均通过。
+- 后续：按当前使用习惯暂不新增列内窗口聚焦绑定；用户已通过 `./install.sh` 同步 live，仓库与 live Niri 配置比对一致；未手动重载 niri，随本轮提交推送。
+
 ## 2026-07-20 — Alacritty 远程颜色兼容
 
 - 目的：解决 `TERM=alacritty` 在 SSH 远程端不被 Ubuntu 默认 Bash 彩色提示符检测识别的问题，并提高远程 terminfo 兼容性。

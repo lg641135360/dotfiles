@@ -53,6 +53,9 @@
 - niri 钉钉窗口保持不由 `window-rule` 管理；会议窗口、浮动状态和位置交给应用自身或手动切换，不在仓库配置里强制匹配 `com.alibabainc.dingtalk` / `tblive`。
 - niri 全局窗口效果使用 `opacity 0.88` + `background-effect { blur true }`，并配合 `draw-border-with-background false` 避免半透明窗口聚焦时透出蓝色 focus ring 背景；Chrome 不再单独覆盖透明度或背景模糊，保持全局统一。
 - niri 主导航偏好使用 `Mod+h/l` 左右聚焦窗口列、`Mod+j/k` 下/上聚焦 workspace；不要保留 `Mod+Left/Right/Up/Down` 方向键替代绑定。
+- niri workspace 导航只保留 `Mod+j/k`、数字键和 `Mod+滚轮`，不保留 `Page_Up/Page_Down` 及其 Shift 组合；左右切列只保留 `Mod+h/l` 和 `Mod+横向滚轮`，不保留重复的 `Mod+Alt+h/l`。
+- niri 使用 `Mod+Tab` 切换到焦点历史中的上一个窗口；暂不为不常用的列内上下窗口聚焦单独设置快捷键。
+- niri 中启动程序、壁纸切换、overview、退出、截图标注和关闭显示器等一次性动作应设置 `repeat=false`，音量、亮度和尺寸调整等连续动作继续允许按键重复。
 - niri overview 使用 `Mod+o` 打开/关闭，作为查看全局窗口/workspace 的主入口。
 - niri overview 美化：`layout { background-color "transparent" }` 保持日常桌面干净无毛玻璃；`overview {}` 用暗底色 `#1e1e2e` + workspace 卡片阴影制造 overview 层次。`place-within-backdrop` 在 niri 26.04 上 `load-config-file` 后不生效（无论存量还是新 surface），双壁纸方案（awww+swaybg）暂不可行，待 niri 更新后重试。
 - niri 配置仅维护 `.config/linux/niri/ubuntu_x64/config.kdl`；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`。安装器仅在 Ubuntu x86_64 把该配置复制到 `~/.config/niri/config.kdl`、把 `common.kdl` 复制到 `~/.config/niri/common.kdl`，并把 include 路径从仓库的 `../common.kdl` 改写成 live 扁平布局的 `common.kdl`；不要把 README 或整个平台目录复制到 live。

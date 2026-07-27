@@ -41,13 +41,15 @@ test_niri_config_exists_and_validates_when_available() {
 test_niri_config_keeps_awesome_muscle_memory() {
     # Shared behavior lives in common.kdl, included by every platform config.
     assert_contains 'spawn-sh-at-startup "~/.config/scripts/wayland-autostart"' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+Return hotkey-overlay-title="打开终端" { spawn "~/.config/scripts/terminal-wayland"; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+E hotkey-overlay-title="打开文件管理器" { spawn "~/.config/scripts/file-manager-wayland"; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+C hotkey-overlay-title="启动应用" { spawn "~/.config/scripts/launcher-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Return repeat=false hotkey-overlay-title="打开终端" { spawn "~/.config/scripts/terminal-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+E repeat=false hotkey-overlay-title="打开文件管理器" { spawn "~/.config/scripts/file-manager-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+C repeat=false hotkey-overlay-title="启动应用" { spawn "~/.config/scripts/launcher-wayland"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Q repeat=false hotkey-overlay-title="关闭当前窗口" { close-window; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Shift+L repeat=false hotkey-overlay-title="锁屏" { spawn "~/.config/scripts/lock-wayland"; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+Shift+W hotkey-overlay-title="切换壁纸" { spawn "~/.config/scripts/wallpaper-wayland-next"; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+O hotkey-overlay-title="显示总览" { toggle-overview; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Shift+W repeat=false hotkey-overlay-title="切换壁纸" { spawn "~/.config/scripts/wallpaper-wayland-next"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+O repeat=false hotkey-overlay-title="显示总览" { toggle-overview; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Shift+Q repeat=false hotkey-overlay-title="退出 niri" { quit; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Tab repeat=false hotkey-overlay-title="切换到上一个窗口" { focus-window-previous; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+H { focus-column-left; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+L { focus-column-right; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+J { focus-workspace-down; }' "$NIRI_COMMON_CONFIG"
@@ -58,6 +60,8 @@ test_niri_config_keeps_awesome_muscle_memory() {
     assert_not_contains 'Mod+Right' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Up' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Down' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Alt+H' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Alt+L' "$NIRI_COMMON_CONFIG"
 }
 
 test_niri_config_exposes_multi_monitor_navigation() {
@@ -67,6 +71,15 @@ test_niri_config_exposes_multi_monitor_navigation() {
     assert_contains 'Mod+Shift+D { move-column-to-monitor-right; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Ctrl+Shift+A { move-workspace-to-monitor-left; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Ctrl+Shift+D { move-workspace-to-monitor-right; }' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Page_Up' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Page_Down' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Shift+Page_Up' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Shift+Page_Down' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Ctrl+Space hotkey-overlay-title="切换窗口浮动" { toggle-window-floating; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Shift+V hotkey-overlay-title="切换浮动/平铺焦点" { switch-focus-between-floating-and-tiling; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+W hotkey-overlay-title="切换列标签模式" { toggle-column-tabbed-display; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Comma hotkey-overlay-title="将右侧窗口并入当前列" { consume-window-into-column; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Period hotkey-overlay-title="将底部窗口移出当前列" { expel-window-from-column; }' "$NIRI_COMMON_CONFIG"
 }
 
 test_niri_config_uses_wayland_replacements_not_x11_autostart() {
@@ -421,10 +434,11 @@ test_wayland_screenshot_uses_selection_and_annotation() {
     assert_contains '--font-family "Noto Sans CJK SC"' "$SCREENSHOT_SCRIPT"
     assert_contains '--actions-on-enter save-to-file' "$SCREENSHOT_SCRIPT"
     assert_contains '--actions-on-escape exit' "$SCREENSHOT_SCRIPT"
-    assert_contains 'F1 { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'F1 repeat=false { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Print { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Ctrl+Print { screenshot-screen; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Alt+Print { screenshot-window; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Shift+P repeat=false { power-off-monitors; }' "$NIRI_COMMON_CONFIG"
 }
 
 test_wayland_screenshot_uses_satty() {
