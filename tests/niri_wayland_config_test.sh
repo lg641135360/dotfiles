@@ -45,7 +45,7 @@ test_niri_config_keeps_awesome_muscle_memory() {
     assert_contains 'Mod+E repeat=false hotkey-overlay-title="打开文件管理器" { spawn "~/.config/scripts/file-manager-wayland"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+C repeat=false hotkey-overlay-title="启动应用" { spawn "~/.config/scripts/launcher-wayland"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Q repeat=false hotkey-overlay-title="关闭当前窗口" { close-window; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+Shift+L repeat=false hotkey-overlay-title="锁屏" { spawn "~/.config/scripts/lock-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Alt+L repeat=false hotkey-overlay-title="锁屏" { spawn "~/.config/scripts/lock-wayland"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Shift+W repeat=false hotkey-overlay-title="切换壁纸" { spawn "~/.config/scripts/wallpaper-wayland-next"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+O repeat=false hotkey-overlay-title="显示总览" { toggle-overview; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Shift+Q repeat=false hotkey-overlay-title="退出 niri" { quit; }' "$NIRI_COMMON_CONFIG"
@@ -56,12 +56,16 @@ test_niri_config_keeps_awesome_muscle_memory() {
     assert_contains 'Mod+K { focus-workspace-up; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Minus { set-column-width "-10%"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Equal { set-column-width "+10%"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Shift+H { move-column-left; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Shift+L { move-column-right; }' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Ctrl+H { move-column-left; }' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Ctrl+L { move-column-right; }' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Left' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Right' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Up' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Down' "$NIRI_COMMON_CONFIG"
-    assert_not_contains 'Mod+Alt+H' "$NIRI_COMMON_CONFIG"
-    assert_not_contains 'Mod+Alt+L' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Alt+H { focus-column-left; }' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Alt+L { focus-column-right; }' "$NIRI_COMMON_CONFIG"
 }
 
 test_niri_config_exposes_multi_monitor_navigation() {

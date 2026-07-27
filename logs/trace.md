@@ -23,6 +23,13 @@
 - 验证：`bash -n tests/niri_wayland_config_test.sh`、`./tests/niri_wayland_config_test.sh`、`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl`、`./tests/repo_docs_test.sh` 与 `git diff --check` 均通过。
 - 后续：按当前使用习惯暂不新增列内窗口聚焦绑定；用户已通过 `./install.sh` 同步 live，仓库与 live Niri 配置比对一致；未手动重载 niri，随本轮提交推送。
 
+## 2026-07-27 — Niri 列位置与锁屏快捷键调整
+
+- 目的：用更顺手的 `Mod+Shift+h/l` 调整同一 workspace 中窗口列的位置，并避开该组合与锁屏的冲突。
+- 已做：将移动列绑定从 `Mod+Ctrl+h/l` 改为 `Mod+Shift+h/l`，将锁屏从 `Mod+Shift+l` 改为 `Mod+Alt+l`；同步 Niri README、回归测试与长期偏好。
+- 验证：待本轮配置修改后运行 Niri 回归、配置验证、文档测试和 `git diff --check`。
+- 后续：未同步 live、未重载 niri、未提交推送。
+
 ## 2026-07-20 — Alacritty 远程颜色兼容
 
 - 目的：解决 `TERM=alacritty` 在 SSH 远程端不被 Ubuntu 默认 Bash 彩色提示符检测识别的问题，并提高远程 terminfo 兼容性。

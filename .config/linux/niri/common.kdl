@@ -158,7 +158,7 @@ binds {
     Mod+E repeat=false hotkey-overlay-title="打开文件管理器" { spawn "~/.config/scripts/file-manager-wayland"; }
     Mod+C repeat=false hotkey-overlay-title="启动应用" { spawn "~/.config/scripts/launcher-wayland"; }
     Mod+Q repeat=false hotkey-overlay-title="关闭当前窗口" { close-window; }
-    Mod+Shift+L repeat=false hotkey-overlay-title="锁屏" { spawn "~/.config/scripts/lock-wayland"; }
+    Mod+Alt+L repeat=false hotkey-overlay-title="锁屏" { spawn "~/.config/scripts/lock-wayland"; }
     Mod+Shift+W repeat=false hotkey-overlay-title="切换壁纸" { spawn "~/.config/scripts/wallpaper-wayland-next"; }
     Mod+O repeat=false hotkey-overlay-title="显示总览" { toggle-overview; }
     Mod+Tab repeat=false hotkey-overlay-title="切换到上一个窗口" { focus-window-previous; }
@@ -175,8 +175,8 @@ binds {
     Mod+K { focus-workspace-up; }
     Mod+Shift+J { move-window-down; }
     Mod+Shift+K { move-window-up; }
-    Mod+Ctrl+H { move-column-left; }
-    Mod+Ctrl+L { move-column-right; }
+    Mod+Shift+H { move-column-left; }
+    Mod+Shift+L { move-column-right; }
     Mod+Shift+A { move-column-to-monitor-left; }
     Mod+Shift+D { move-column-to-monitor-right; }
 

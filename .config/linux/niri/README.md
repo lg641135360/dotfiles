@@ -50,7 +50,7 @@ niri validate -c ~/.config/niri/config.kdl
 | `Mod+e` | 打开文件管理器：Dolphin → 系统默认 → Nautilus/Thunar/PCManFM → Yazi |
 | `Mod+c` | 启动 launcher：优先 `fuzzel`，缺失时回退 `rofi-launch` |
 | `Mod+q` | 关闭当前窗口 |
-| `Mod+Shift+l` | 锁屏：优先 `swaylock` |
+| `Mod+Alt+l` | 锁屏：优先 `swaylock` |
 | `Mod+Shift+w` | 随机切换 Wayland 壁纸 |
 | `Mod+o` | 显示/关闭 niri overview 总览 |
 | `Mod+Tab` | 切换到焦点历史中的上一个窗口 |
@@ -58,7 +58,7 @@ niri validate -c ~/.config/niri/config.kdl
 | `Mod+j/k` | 下/上聚焦 workspace |
 | `Mod+Minus/Equal` | 缩小/放大当前列宽 |
 | `Mod+Shift+j/k` | 当前列内上下移动窗口 |
-| `Mod+Ctrl+h/l` | 移动当前列到左/右 |
+| `Mod+Shift+h/l` | 移动当前列到左/右，调整同一 workspace 中窗口列的位置 |
 | `Mod+Shift+a/d` | 移动当前列到左/右显示器 |
 | `Mod+a/d` | 左/右聚焦显示器 |
 | `Mod+1..9` | 聚焦指定 workspace |
