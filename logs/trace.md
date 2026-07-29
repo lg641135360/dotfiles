@@ -16,6 +16,13 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-07-29 — Launcher 美化：fuzzel blur + 选中色 + 图标主题
+
+- 目的：提升应用启动器视觉体验，统一 fuzzel 与 rofi fallback 的配色和图标风格。
+- 已做：niri `common.kdl` 新增 `layer-rule { match namespace="^fuzzel$" }` 启用 `background-effect { blur true }`，启动器弹出时背景模糊；fuzzel.ini 选中项配色从 `#2a2d3a`/`#ffffff` 改为 `#89b4fa`/`#1e1e2e`（Catppuccin Mocha 蓝），与 rofi 主题对齐；fuzzel.ini 新增 `icon-theme=Papirus-Dark`，与 rofi 一致；同步更新 fuzzel README、niri README 和 niri 测试断言。
+- 验证：`niri validate` 返回 `config is valid`；`fuzzel --check-config` 因环境 libstdc++ RPATH 问题无法运行（与 niri 同源问题）；`bash tests/niri_wayland_config_test.sh` 通过（除历史遗留 install 环境问题）；`bash tests/repo_docs_test.sh` 通过；`git diff --check` 通过。
+- 后续：未同步 live、未重载 niri、未提交推送。
+
 ## 2026-07-29 — Niri 列循环导航与窗口高度调整
 
 - 目的：补齐列循环切换和键盘窗口高度调整，提升键盘操作完整性。
@@ -43,10 +50,3 @@
 - 已做：在 `common.kdl` 顶部新增 `environment {}` 块（QT_IM_MODULE/XMODIFIERS/SDL_IM_MODULE/GLFW_IM_MODULE/INPUT_METHOD/LC_CTYPE/XCURSOR_SIZE，GTK_IM_MODULE 故意不设置）和 `cursor { xcursor-size 32 }`；将空 `animations {}` 细化为 workspace-switch/window-open/window-close/window-resize 四组 spring 参数；同步 README 与 niri 回归测试断言。
 - 验证：`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl`、`./tests/niri_wayland_config_test.sh`、`./tests/repo_docs_test.sh`、`git diff --check` 均通过。
 - 后续：未同步 live、未重载 niri、未提交推送；原计划的 `workspace-auto-back-forth` 经查 niri 26.04 不支持此 layout 选项，已回退，如需 "go back" 可后续用 `focus-workspace-previous` bind 替代。
-
-## 2026-07-27 — Niri 快捷键精简与防连发
-
-- 目的：减少重复的 workspace/列导航快捷键，并避免一次性桌面动作因长按重复触发。
-- 已做：移除 `Page_Up/Page_Down` 及其 Shift workspace 组合和重复的 `Mod+Alt+h/l`；增加 `Mod+Tab` 切换到焦点历史中的上一个窗口；为启动程序、壁纸、overview、退出、F1 截图与关闭显示器增加 `repeat=false`；修正列宽注释，并为浮动、列标签和窗口并入/移出操作补充热键面板中文说明；同步 Niri README、回归测试与长期偏好。
-- 验证：`bash -n tests/niri_wayland_config_test.sh`、`./tests/niri_wayland_config_test.sh`、`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl`、`./tests/repo_docs_test.sh` 与 `git diff --check` 均通过。
-- 后续：按当前使用习惯暂不新增列内窗口聚焦绑定；用户已通过 `./install.sh` 同步 live，仓库与 live Niri 配置比对一致；未手动重载 niri，随本轮提交推送。

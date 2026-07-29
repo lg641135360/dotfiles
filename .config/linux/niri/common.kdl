@@ -134,6 +134,14 @@ layer-rule {
     }
 }
 
+layer-rule {
+    match namespace="^fuzzel$"
+
+    background-effect {
+        blur true
+    }
+}
+
 window-rule {
     draw-border-with-background false
     opacity 0.88

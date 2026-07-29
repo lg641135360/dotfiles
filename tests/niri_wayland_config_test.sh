@@ -618,8 +618,10 @@ test_fuzzel_config_matches_wayland_launcher_contract() {
     assert_contains 'background=15161dee' "$FUZZEL_CONFIG"
     assert_contains 'prompt=94e2d5ff' "$FUZZEL_CONFIG"
     assert_contains 'input=f5e0dcff' "$FUZZEL_CONFIG"
-    assert_contains 'selection=2a2d3aff' "$FUZZEL_CONFIG"
+    assert_contains 'selection=89b4faff' "$FUZZEL_CONFIG"
+    assert_contains 'selection-text=1e1e2eff' "$FUZZEL_CONFIG"
     assert_contains 'border=94e2d5ff' "$FUZZEL_CONFIG"
+    assert_contains 'icon-theme=Papirus-Dark' "$FUZZEL_CONFIG"
 }
 
 test_waybar_and_mako_match_niri_trial_contract() {
