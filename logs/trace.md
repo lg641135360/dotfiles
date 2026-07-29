@@ -16,6 +16,14 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-07-29 — Mod+H/L 扩展为跨显示器切列
+
+- 目的：让 `Mod+H/L` 在到边界后自然跨到左/右显示器，减少双屏下 `Mod+A/D` 的额外按键。
+- 已做：`common.kdl` 的 `Mod+H/L` 从 `focus-column-left-or-last/right-or-first`（屏内循环）改为 `focus-column-or-monitor-left/right`（到边界后切到左/右显示器）；`Mod+WheelScrollLeft/Right` 同步改为 `focus-column-or-monitor-left/right`，保持滚轮与键盘行为一致；更新 `common.kdl` 注释说明新行为；更新 niri README 快捷键映射表和导航说明段落（注明 `Mod+a/d` 仍可作为「显式只切显示器」的补充）；更新 `tests/niri_wayland_config_test.sh` 的 `Mod+H/L` 断言匹配新 action。
+- 行为变化：`Mod+H/L` 不再屏内循环到首/末列，而是跨到相邻显示器；单显示器时停在最左/最右列不循环。
+- 验证：`LD_LIBRARY_PATH=/nix/store/.../gcc-14.3.0-lib/lib niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 返回 `config is valid`；`bash tests/niri_wayland_config_test.sh` 通过（`PASS: niri Wayland config tests`）；`git diff --check` 通过。
+- 后续：未同步 live、未重载 niri；已提交推送（commit 见 `git log`）。
+
 ## 2026-07-29 — Launcher 美化：fuzzel blur + 选中色 + 图标主题
 
 - 目的：提升应用启动器视觉体验，统一 fuzzel 与 rofi fallback 的配色和图标风格。
