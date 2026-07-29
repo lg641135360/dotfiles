@@ -16,6 +16,13 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-07-29 — Niri 原生环境变量/光标/动画配置
+
+- 目的：用 niri 原生 `environment {}`/`cursor {}`/`animations {}` 块提升 Wayland 会话启动一致性与视觉过渡。
+- 已做：在 `common.kdl` 顶部新增 `environment {}` 块（QT_IM_MODULE/XMODIFIERS/SDL_IM_MODULE/GLFW_IM_MODULE/INPUT_METHOD/LC_CTYPE/XCURSOR_SIZE，GTK_IM_MODULE 故意不设置）和 `cursor { xcursor-size 32 }`；将空 `animations {}` 细化为 workspace-switch/window-open/window-close/window-resize 四组 spring 参数；同步 README 与 niri 回归测试断言。
+- 验证：`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl`、`./tests/niri_wayland_config_test.sh`、`./tests/repo_docs_test.sh`、`git diff --check` 均通过。
+- 后续：未同步 live、未重载 niri、未提交推送；原计划的 `workspace-auto-back-forth` 经查 niri 26.04 不支持此 layout 选项，已回退，如需 "go back" 可后续用 `focus-workspace-previous` bind 替代。
+
 ## 2026-07-27 — Niri 快捷键精简与防连发
 
 - 目的：减少重复的 workspace/列导航快捷键，并避免一次性桌面动作因长按重复触发。

@@ -104,6 +104,31 @@ test_niri_config_uses_wayland_replacements_not_x11_autostart() {
     assert_contains 'position x=2048 y=0' "$NIRI_CONFIG"
 }
 
+test_niri_config_uses_native_environment_cursor_and_animations() {
+    # environment {} block: niri spawns inherit these directly.
+    assert_contains 'environment {' "$NIRI_COMMON_CONFIG"
+    assert_contains 'QT_IM_MODULE "fcitx"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'XMODIFIERS "@im=fcitx"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'SDL_IM_MODULE "fcitx"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'GLFW_IM_MODULE "ibus"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'INPUT_METHOD "fcitx"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'LC_CTYPE "zh_CN.UTF-8"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'XCURSOR_SIZE "32"' "$NIRI_COMMON_CONFIG"
+    # GTK_IM_MODULE intentionally unset for Wayland text-input protocol.
+    assert_not_contains 'GTK_IM_MODULE "fcitx"' "$NIRI_COMMON_CONFIG"
+
+    # cursor {} block: drawn before autostart runs.
+    assert_contains 'cursor {' "$NIRI_COMMON_CONFIG"
+    assert_contains 'xcursor-size 32' "$NIRI_COMMON_CONFIG"
+
+    # animations {} refined with per-action spring settings.
+    assert_contains 'workspace-switch {' "$NIRI_COMMON_CONFIG"
+    assert_contains 'window-open {' "$NIRI_COMMON_CONFIG"
+    assert_contains 'window-close {' "$NIRI_COMMON_CONFIG"
+    assert_contains 'window-resize {' "$NIRI_COMMON_CONFIG"
+    assert_contains 'spring damping-ratio=0.8 stiffness=800 epsilon=0.0001' "$NIRI_COMMON_CONFIG"
+}
+
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
     assert_not_contains 'com\.alibabainc\.dingtalk' "$NIRI_CONFIG"
     assert_not_contains 'tblive' "$NIRI_CONFIG"
@@ -834,6 +859,7 @@ test_niri_config_exists_and_validates_when_available
 test_niri_config_keeps_awesome_muscle_memory
 test_niri_config_exposes_multi_monitor_navigation
 test_niri_config_uses_wayland_replacements_not_x11_autostart
+test_niri_config_uses_native_environment_cursor_and_animations
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules
 test_niri_overview_beautification
 test_wayland_autostart_checks_apps_and_separates_logs
