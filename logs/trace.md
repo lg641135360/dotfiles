@@ -16,6 +16,13 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-07-29 — Niri 列循环导航与窗口高度调整
+
+- 目的：补齐列循环切换和键盘窗口高度调整，提升键盘操作完整性。
+- 已做：`common.kdl` 的 `Mod+H/L` 从 `focus-column-left/right` 改为 `focus-column-left-or-last/right-or-first`（到边界后循环到首/末列），`Mod+WheelScrollRight/Left` 同步改为循环版本；新增 `Mod+Shift+Minus/Equal` 绑定 `set-window-height "-10%"/"+10%"`，补齐键盘调整窗口高度的缺口；`Mod+J/K` 从 `focus-workspace-down/up` 改为 `focus-window-or-workspace-down/up`（优先切同 workspace 内窗口，到边界后切 workspace，对齐 Awesome 肌肉记忆）；`Mod+Shift+H/L` 从 `move-column-left/right` 改为 `move-column-left-or-to-monitor-left/right-or-to-monitor-right`（到边界后自动移到下一个显示器），并删除冗余的 `Mod+Shift+A/D`（原 `move-column-to-monitor-left/right`，功能已被 `Mod+Shift+H/L` 覆盖）；更新注释和 README 快捷键表及导航说明；更新 `tests/niri_wayland_config_test.sh` 断言匹配新 action 并新增 `Mod+Shift+A/D` 不存在断言。
+- 验证：`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 返回 `config is valid`；`bash tests/niri_wayland_config_test.sh` 通过；`bash tests/repo_docs_test.sh` 通过；`git diff --check` 通过。所有改动均先用 `niri validate` 验证 action 存在且语法正确。
+- 后续：未同步 live、未重载 niri、未提交推送。`Mod+J/K` 与 `Mod+Shift+H/L` 行为变更需用户实际使用后确认是否符合预期。
+
 ## 2026-07-29 — 低风险小优化批量修复
 
 - 目的：消除 trace.md 超条目违规，并修复 zsh/nvim/picom 三处低风险历史遗留问题。
@@ -43,10 +50,3 @@
 - 已做：移除 `Page_Up/Page_Down` 及其 Shift workspace 组合和重复的 `Mod+Alt+h/l`；增加 `Mod+Tab` 切换到焦点历史中的上一个窗口；为启动程序、壁纸、overview、退出、F1 截图与关闭显示器增加 `repeat=false`；修正列宽注释，并为浮动、列标签和窗口并入/移出操作补充热键面板中文说明；同步 Niri README、回归测试与长期偏好。
 - 验证：`bash -n tests/niri_wayland_config_test.sh`、`./tests/niri_wayland_config_test.sh`、`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl`、`./tests/repo_docs_test.sh` 与 `git diff --check` 均通过。
 - 后续：按当前使用习惯暂不新增列内窗口聚焦绑定；用户已通过 `./install.sh` 同步 live，仓库与 live Niri 配置比对一致；未手动重载 niri，随本轮提交推送。
-
-## 2026-07-27 — Niri 列位置与锁屏快捷键调整
-
-- 目的：用更顺手的 `Mod+Shift+h/l` 调整同一 workspace 中窗口列的位置，并避开该组合与锁屏的冲突。
-- 已做：将移动列绑定从 `Mod+Ctrl+h/l` 改为 `Mod+Shift+h/l`，将锁屏从 `Mod+Shift+l` 改为 `Mod+Alt+l`；同步 Niri README、回归测试与长期偏好。
-- 验证：待本轮配置修改后运行 Niri 回归、配置验证、文档测试和 `git diff --check`。
-- 后续：未同步 live、未重载 niri、未提交推送。
