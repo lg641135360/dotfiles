@@ -133,10 +133,6 @@ Snipaste 自己接管裸 `F1` 截图；Awesome 不绑定 `F1`。如果 Snipaste 
 |--------|------|
 | `Mod+h` | 缩小主区域宽度 |
 | `Mod+l` | 扩大主区域宽度 |
-| `Mod+Shift+h` | 增加主区域窗口数量 |
-| `Mod+Ctrl+Shift+l` | 减少主区域窗口数量 |
-| `Mod+Ctrl+h` | 增加列数 |
-| `Mod+Ctrl+l` | 减少列数 |
 | `Mod+Space` | 切换到下一个布局 |
 | `Mod+Shift+Space` | 切换到上一个布局 |
 

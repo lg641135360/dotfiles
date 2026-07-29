@@ -39,6 +39,15 @@ test_layout_keys_still_adjust_master_width_factor() {
     assert_contains 'awful.tag.incmwfact(-0.05)' "$BINDINGS_FILE"
 }
 
+test_layout_keys_do_not_adjust_master_count_or_columns() {
+    assert_not_contains 'awful.tag.incnmaster' "$BINDINGS_FILE"
+    assert_not_contains 'awful.tag.incncol' "$BINDINGS_FILE"
+    assert_not_contains '| `Mod+Shift+h` | 增加主区域窗口数量 |' "$README_FILE"
+    assert_not_contains '| `Mod+Ctrl+Shift+l` | 减少主区域窗口数量 |' "$README_FILE"
+    assert_not_contains '| `Mod+Ctrl+h` | 增加列数 |' "$README_FILE"
+    assert_not_contains '| `Mod+Ctrl+l` | 减少列数 |' "$README_FILE"
+}
+
 test_client_rules_ignore_size_hints_for_tiling() {
     assert_contains 'size_hints_honor = false,' "$CLIENT_FILE"
 }
@@ -125,6 +134,7 @@ test_titlebar_controls_are_minimal_and_styleable() {
 
 test_default_layout_is_tile_left
 test_layout_keys_still_adjust_master_width_factor
+test_layout_keys_do_not_adjust_master_count_or_columns
 test_client_rules_ignore_size_hints_for_tiling
 test_no_dingtalk_specific_layout_hook
 test_no_legacy_dta_auto_float_rule
