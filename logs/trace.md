@@ -16,6 +16,20 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-07-29 — 低风险小优化批量修复
+
+- 目的：消除 trace.md 超条目违规，并修复 zsh/nvim/picom 三处低风险历史遗留问题。
+- 已做：归档 trace.md 6 条旧条目到 `logs/trace-archive/2026-07.md`；删除 zsh `cpp()` 的 strace fallback 死代码（strace 通常未安装、进度条逻辑无效、`set -e` 污染调用者 shell），无 rsync 时回退 `cp -v`，同步 zsh README；修复 nvim `float_trem.lua` 硬编码 `zsh -i`，改用 `vim.o.shell` 跟随用户登录 shell；修复 picom `arch_aarch64.conf` 注释拼写（`form aesthetics` → `visual aesthetics`）；新增 `tests/zsh_functions_test.sh` 与 `tests/nvim_float_trem_test.sh` 静态断言测试。
+- 验证：`bash tests/zsh_functions_test.sh`、`bash tests/nvim_float_trem_test.sh`、`bash tests/zsh_path_test.sh`、`bash tests/picom_config_test.sh`、`bash tests/repo_docs_test.sh` 均通过；`zsh -n`/`luajit loadfile`/`bash -n`/`git diff --check` 全部 OK。
+- 后续：未同步 live、未重载服务、未提交推送；zsh 模块函数级测试覆盖仍不足（`cpg`/`mvg`/`mkdirg`/`y` 等），可作为后续单独切片。
+
+## 2026-07-29 — Niri workspace-wrap-around 回退与 waybar battery dead config 清理
+
+- 目的：补齐 workspace 循环切换肌肉记忆，清理 waybar 中未启用的 battery 模块死配置。
+- 已做：尝试在 `common.kdl` 的 `layout {}` 块新增 `workspace-wrap-around`，但 `niri validate` 报 `unexpected node 'workspace-wrap-around'`——niri 26.04 不支持此选项（这是 i3/hyprland 概念，非 niri 原生），已回滚该改动。删除 waybar `config` 中未在 `modules-right` 启用的 `battery` 模块定义，以及 `style.css` 中对应的 `#battery` 样式（ubuntu_x64 是 desktop 无电池）；新增 `test_waybar_drops_dead_battery_module_on_desktop_platform` 回归断言。修复 `test_niri_config_exists_and_validates_when_available`：niri 从 nix profile 安装时，`niri validate` 子命令在非 nix shell 下会因 RUNPATH 解析差异报 `libstdc++.so.6` 加载失败；测试现在会先尝试直接调用，失败后从 niri 二进制的 RUNPATH 提取 gcc-lib 路径作为 `LD_LIBRARY_PATH` 重试。
+- 验证：`bash tests/niri_wayland_config_test.sh`（除历史遗留的 `install_copies_wayland_files_when_niri_exists_outside_wayland` 环境问题外）通过；`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 用 `LD_LIBRARY_PATH` 修复后返回 `config is valid`；`bash tests/repo_docs_test.sh`、`git diff --check` 通过。
+- 后续：未同步 live、未重载 niri、未提交推送。教训：推荐 niri 配置选项前必须先用 `niri validate` 验证，不能仅凭其它 WM 的概念类推。
+
 ## 2026-07-29 — Niri 原生环境变量/光标/动画配置
 
 - 目的：用 niri 原生 `environment {}`/`cursor {}`/`animations {}` 块提升 Wayland 会话启动一致性与视觉过渡。
@@ -35,60 +49,4 @@
 - 目的：用更顺手的 `Mod+Shift+h/l` 调整同一 workspace 中窗口列的位置，并避开该组合与锁屏的冲突。
 - 已做：将移动列绑定从 `Mod+Ctrl+h/l` 改为 `Mod+Shift+h/l`，将锁屏从 `Mod+Shift+l` 改为 `Mod+Alt+l`；同步 Niri README、回归测试与长期偏好。
 - 验证：待本轮配置修改后运行 Niri 回归、配置验证、文档测试和 `git diff --check`。
-- 后续：未同步 live、未重载 niri、未提交推送。
-
-## 2026-07-20 — Alacritty 远程颜色兼容
-
-- 目的：解决 `TERM=alacritty` 在 SSH 远程端不被 Ubuntu 默认 Bash 彩色提示符检测识别的问题，并提高远程 terminfo 兼容性。
-- 已做：将 Alacritty 的 `TERM` 改为 `xterm-256color`；先新增回归断言并确认旧值会失败，再同步 Alacritty README 与长期偏好。
-- 验证：`bash -n tests/alacritty_config_test.sh`、`bash tests/alacritty_config_test.sh`、`bash tests/repo_docs_test.sh` 与 `git diff --check` 均通过。
-- 后续：已通过 `./install.sh` 同步 live，未重载 Alacritty；随本轮提交推送，新终端实例将使用新 `TERM`。
-
-## 2026-07-11 — Zsh ZDOTDIR 引导
-
-- 目的：让安装器部署模块化 Zsh 配置后，默认由 `~/.zshenv` 选择 `~/.config/zsh` 作为 `ZDOTDIR`。
-- 已做：新增幂等 `ensure_zdotdir()`，仅在检测到 Zsh 时追加 `export ZDOTDIR=$HOME/.config/zsh`；已有精确行时跳过。新增创建、保留现有内容与重复调用测试，并同步 Zsh README 和长期规则。
-- 验证：`bash -n install.sh`、`bash tests/install_zshenv_test.sh`、`./tests/niri_wayland_config_test.sh`、`bash tests/install_backup_test.sh`、`./tests/zsh_path_test.sh`、`./tests/repo_docs_test.sh`、`./tests/alacritty_config_test.sh` 均通过。`./tests/run.sh fast` 在未改动的 `tests/awesome_autostart_test.sh` 外接屏断言失败。
-- 后续：未同步 live、未重载服务；随本轮提交推送。
-
-## 2026-07-11 — Ubuntu-only Niri 配置部署
-
-- 目的：避免 `install.sh` 覆盖 Arch 与 openSUSE 的现有 Niri 配置，并保留 openSUSE 上 DMS 管理的 Alacritty 配置。
-- 已做：Niri KDL 部署改为仅 Ubuntu x86_64，并删除 Arch/openSUSE 平台 KDL 及其测试、文档引用；Arch 与 openSUSE 保留 `~/.config/niri/config.kdl`、`common.kdl`。openSUSE 继续跳过 Alacritty 主配置、按键和窗口 TOML 的复制；Wayland 辅助脚本仍会部署。同步 Niri、Alacritty 和仓库 README，并新增 Arch/DMS 哨兵配置保留回归测试。
-- 验证：`bash -n install.sh`、`./tests/niri_wayland_config_test.sh`、`./tests/alacritty_config_test.sh`、`bash tests/install_backup_test.sh`、`./tests/repo_docs_test.sh` 与 `git diff --check` 均通过。
-- 后续：未同步 live、未重载 niri/DMS；随本轮提交推送。
-
-## 2026-07-10 — openSUSE Tumbleweed x64 niri 配置
-
-- 目的：为 openSUSE Tumbleweed x86_64 提供可由安装器自动部署的 Niri 平台配置。
-- 已做：新增 `opensuse_tumbleweed_x64/config.kdl`，配置文本复用 Arch x64 单 4K output 布局；`install.sh` 将 `opensuse-tumbleweed` 的 x86_64/amd64 映射到该平台；同步 README 与 Niri 回归覆盖。
-- 验证：`./tests/niri_wayland_config_test.sh` 通过，包含 Tumbleweed 模拟安装与 KDL 条件校验。
-- 后续：未同步 live、未重载 niri、未提交推送。
-
-## 2026-07-10 — niri 定时自动挂起
-
-- 目的：在所有 Niri 会话中统一启用空闲自动睡眠，同时保证进入睡眠前已锁屏。
-- 已做：`wayland-autostart` 的 `swayidle` 增加空闲 30 分钟执行 `systemctl suspend`；保留空闲 10 分钟锁屏和 `before-sleep` 锁屏，并在缺少 `systemctl` 时跳过该服务并提示。
-- 验证：`./tests/niri_wayland_config_test.sh` 通过。
-- 后续：未同步 live、未重载 niri、未触发实际 suspend、未提交推送。
-
-## 2026-07-10 — niri 平台输出配置恢复
-
-- 目的：让仓库中 Ubuntu/Arch 的显示器缩放和 output 规则能随 `install.sh` 部署，而不增加额外 profile 参数。
-- 已做：恢复按发行版和架构选择 Niri 平台 KDL；匹配平台部署 output 配置与 `common.kdl`，未知平台保留现有 live Niri 配置；Ubuntu x64 缩放保持 `1.25`。
-- 验证：`./tests/niri_wayland_config_test.sh` 通过，覆盖 Ubuntu/Arch 平台输出部署和未知平台保留配置。
-- 后续：未同步 live、未重载 niri、未提交推送。
-
-## 2026-07-10 — install.sh 备份清理计数
-
-- 目的：修正清理旧配置备份后日志未显示删除数量的问题。
-- 已做：`clean_old_backups()` 将读取待删除项的循环移出管道子 shell，使 `removed` 计数能在当前 shell 中累加；新增 `tests/install_backup_test.sh` 覆盖保留三份最新备份、删除最旧项及日志计数。
-- 验证：`bash tests/install_backup_test.sh`、`bash -n install.sh` 和 `./tests/niri_wayland_config_test.sh` 均通过。
-- 后续：未同步 live、未重载服务、未提交推送。
-
-## 2026-07-10 — niri 通用配置部署
-
-- 目的：避免安装器按发行版和架构选择固定显示器 output 规则，确保任意安装了 niri 的 Linux 环境都能部署公共配置。
-- 已做：新增不含 output 的 `.config/linux/niri/config.kdl`；`install.sh` 检测到 niri 后直接复制该入口和 `common.kdl`，不再进行平台映射或 KDL 路径重写；平台 KDL 继续仅作本机显示器规则参考。
-- 验证：`./tests/niri_wayland_config_test.sh` 通过，覆盖 Ubuntu、Arch 和 Fedora 模拟环境。
 - 后续：未同步 live、未重载 niri、未提交推送。

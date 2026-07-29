@@ -68,11 +68,5 @@
     "min-length": 5,
     "align": 0.5,
     "tooltip": true
-  },
-  "battery": {
-    "format": "BAT:{capacity}% {icon}",
-    "format-charging": "BAT:{capacity}% ",
-    "format-plugged": "BAT:{capacity}% ",
-    "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
   }
 }

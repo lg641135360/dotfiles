@@ -133,7 +133,7 @@ chmod +x install.sh
 |------|------|------|
 | `y` | Yazi 文件管理器（退出时同步 cd） | `y /path/to/dir` |
 | `runfree` | 后台运行程序并断开终端关联 | `runfree firefox` |
-| `cpp` | 带进度条的文件复制（优先 rsync） | `cpp source.tar.gz /backup/` |
+| `cpp` | 带进度条的文件复制（优先 rsync，无 rsync 时 `cp -v`） | `cpp source.tar.gz /backup/` |
 | `cpg` | 复制后跳转到目标目录 | `cpg file.txt /tmp` |
 | `mvg` | 移动后跳转到目标目录 | `mvg file.txt /tmp` |
 | `mkdirg` | 创建目录并进入 | `mkdirg new-project` |

@@ -33,8 +33,22 @@ test_niri_config_exists_and_validates_when_available() {
     assert_contains 'include "../common.kdl"' "$NIRI_CONFIG"
 
     if command -v niri >/dev/null 2>&1; then
-        niri validate -c "$NIRI_CONFIG" >/dev/null 2>&1 ||
+        # niri from a nix profile may fail to find libstdc++.so.6 when run
+        # outside a nix shell because RUNPATH resolution differs for subcommands.
+        # Retry with the gcc-lib path from niri's own RUNPATH if the first call
+        # fails with a shared library error.
+        if niri validate -c "$NIRI_CONFIG" >/dev/null 2>&1; then
+            return 0
+        fi
+
+        niri_lib_dir=$(readelf -d "$(command -v niri)" 2>/dev/null \
+            | grep -oE '/nix/store/[^:]*gcc-[^:]*-lib/lib' | head -n 1)
+        if [ -n "$niri_lib_dir" ] && [ -d "$niri_lib_dir" ]; then
+            LD_LIBRARY_PATH="$niri_lib_dir" niri validate -c "$NIRI_CONFIG" >/dev/null 2>&1 ||
+                fail "expected niri config to validate with installed niri"
+        else
             fail "expected niri config to validate with installed niri"
+        fi
     fi
 }
 
@@ -127,6 +141,19 @@ test_niri_config_uses_native_environment_cursor_and_animations() {
     assert_contains 'window-close {' "$NIRI_COMMON_CONFIG"
     assert_contains 'window-resize {' "$NIRI_COMMON_CONFIG"
     assert_contains 'spring damping-ratio=0.8 stiffness=800 epsilon=0.0001' "$NIRI_COMMON_CONFIG"
+}
+
+test_niri_layout_enables_workspace_wrap_around() {
+    # workspace-wrap-around lets Mod+J/K cycle between first and last workspace,
+    # matching i3/Awesome muscle memory.
+    assert_contains 'workspace-wrap-around' "$NIRI_COMMON_CONFIG"
+}
+
+test_waybar_drops_dead_battery_module_on_desktop_platform() {
+    # Ubuntu x64 target is a desktop without battery; the battery module was
+    # defined but never enabled in modules-right, leaving dead config and CSS.
+    assert_not_contains '"battery"' "$WAYBAR_CONFIG"
+    assert_not_contains '#battery' "$WAYBAR_STYLE"
 }
 
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
@@ -860,6 +887,7 @@ test_niri_config_keeps_awesome_muscle_memory
 test_niri_config_exposes_multi_monitor_navigation
 test_niri_config_uses_wayland_replacements_not_x11_autostart
 test_niri_config_uses_native_environment_cursor_and_animations
+test_waybar_drops_dead_battery_module_on_desktop_platform
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules
 test_niri_overview_beautification
 test_wayland_autostart_checks_apps_and_separates_logs

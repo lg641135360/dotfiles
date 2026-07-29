@@ -90,8 +90,7 @@ window#waybar {
 #network,
 #pulseaudio,
 #cpu,
-#memory,
-#battery {
+#memory {
   padding: 0 7px;
   margin: 0 1px;
   background: transparent;
@@ -141,12 +140,4 @@ window#waybar {
 
 #tray > .needs-attention {
   -gtk-icon-effect: highlight;
-}
-
-#battery.warning {
-  color: @yellow;
-}
-
-#battery.critical {
-  color: @red;
 }
