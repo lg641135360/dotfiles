@@ -180,6 +180,7 @@ test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
     assert_contains 'match app-id=r#"^google-chrome$"#' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'opacity 0.72' "$NIRI_COMMON_CONFIG"
     assert_contains 'match app-id=r#"^code$"#' "$NIRI_COMMON_CONFIG"
+    assert_contains 'match app-id=r#"^trae-cn$"#' "$NIRI_COMMON_CONFIG"
     assert_contains 'default-column-width { proportion 1.0; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Cherry Studio 默认列宽为 2/3 屏' "$NIRI_README"
     assert_contains 'Chrome 默认列宽为 2/3 屏' "$NIRI_README"

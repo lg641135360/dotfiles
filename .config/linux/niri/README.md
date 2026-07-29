@@ -126,6 +126,7 @@ session include common-session
 - Cherry Studio 默认列宽为 2/3 屏，保留较宽的对话阅读区域，同时还能露出相邻列。
 - Chrome 默认列宽为 2/3 屏，适合网页阅读和文档页面；透明度和背景模糊不做 Chrome 特例，统一使用全局窗口效果。
 - VS Code 默认列宽为 1.0，适合代码、终端和侧边栏同时展开。
+- Trae（`trae-cn`）默认列宽为 1.0，与 VS Code 一致，占满整个 workspace 宽度。
 
 ## Portal
 
