@@ -13,8 +13,23 @@
   ```
 - 旧条目按月份归档到 `logs/trace-archive/YYYY-MM.md`。
 - 默认任务不得读取 `logs/trace-archive/` 全文。
-- 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
+
+## 2026-07-30 — Nvim 配置清理与懒加载优化
+
+- 目的：修复配置错误、清理死代码/冗余、为非核心插件补懒加载 trigger，减少启动开销。
+- 已做：
+  - `lua/config/lazy.lua`：`install.colorscheme` 从未安装的 `tokyonight` 改为实际主题 `catppuccin-mocha`；删除被 base.lua `loaded_netrwPlugin=1` 覆盖的 `-- "netrwPlugin"` 冗余注释。
+  - `lua/plugins/formatter.lua`：删除永不生效的 `cc = { "clang-format" }`（`.cc` filetype 实际为 `cpp`）；为 `conform.nvim` 加 `event = "BufReadPre"` 懒加载。
+  - `lua/plugins/latex.lua`：`vimtex` 从 `lazy = false` 改为 `ft = "tex"`，仅在 tex 文件加载。
+  - `lua/plugins/misc.lua`：`gitsigns.nvim` 加 `event = "BufReadPre"` 懒加载；清理尾部空行。
+  - `lua/plugins/blink-cmp.lua`：删除末尾 `-- return {}` 残留注释。
+  - `lua/plugins/ui.lua`：清理尾部空行。
+  - `lua/config/options/diagnostics.lua`：删除 `-- underline` / `-- update_in_insert` 残留注释。
+  - `lua/config/options/base.lua`：`whichwrap` 改用 `vim.opt.whichwrap:append()`；删除冗余的启动时 `formatoptions:remove`（autocmds.lua 的 FileType autocmd 已覆盖）。
+- 验证：8 个改动文件 `luajit -e 'assert(loadfile(...))'` 全通过；`tests/nvim_0_12_cleanup_test.sh` exit 0；其余 nvim 测试（autopairs/float_trem/neo_tree/render_markdown/theme）均 exit 0；`git diff --check` 通过。`tests/nvim_comment_test.sh` 失败但属历史遗留（stash 改动后重跑仍 exit 1），非本轮引入。
+- live 同步：未同步（子模块改动，需用户确认后同步）。
+- 后续：改动尚未提交推送；lazy-lock.json 在测试运行时被 lazy.nvim 自动更新，已用 `git checkout` 恢复。
 
 ## 2026-07-30 — Waybar CPU/内存模块按负载阈值变色
 
@@ -47,10 +62,3 @@
 - 已做：niri `common.kdl` 新增 `layer-rule { match namespace="^fuzzel$" }` 启用 `background-effect { blur true }`，启动器弹出时背景模糊；fuzzel.ini 选中项配色从 `#2a2d3a`/`#ffffff` 改为 `#89b4fa`/`#1e1e2e`（Catppuccin Mocha 蓝），与 rofi 主题对齐；fuzzel.ini 新增 `icon-theme=Papirus-Dark`，与 rofi 一致；同步更新 fuzzel README、niri README 和 niri 测试断言。
 - 验证：`niri validate` 返回 `config is valid`；`fuzzel --check-config` 因环境 libstdc++ RPATH 问题无法运行（与 niri 同源问题）；`bash tests/niri_wayland_config_test.sh` 通过（除历史遗留 install 环境问题）；`bash tests/repo_docs_test.sh` 通过；`git diff --check` 通过。
 - 后续：未同步 live、未重载 niri、未提交推送。
-
-## 2026-07-29 — Niri 列循环导航与窗口高度调整
-
-- 目的：补齐列循环切换和键盘窗口高度调整，提升键盘操作完整性。
-- 已做：`common.kdl` 的 `Mod+H/L` 从 `focus-column-left/right` 改为 `focus-column-left-or-last/right-or-first`（到边界后循环到首/末列），`Mod+WheelScrollRight/Left` 同步改为循环版本；新增 `Mod+Shift+Minus/Equal` 绑定 `set-window-height "-10%"/"+10%"`，补齐键盘调整窗口高度的缺口；`Mod+J/K` 从 `focus-workspace-down/up` 改为 `focus-window-or-workspace-down/up`（优先切同 workspace 内窗口，到边界后切 workspace，对齐 Awesome 肌肉记忆）；`Mod+Shift+H/L` 从 `move-column-left/right` 改为 `move-column-left-or-to-monitor-left/right-or-to-monitor-right`（到边界后自动移到下一个显示器），并删除冗余的 `Mod+Shift+A/D`（原 `move-column-to-monitor-left/right`，功能已被 `Mod+Shift+H/L` 覆盖）；更新注释和 README 快捷键表及导航说明；更新 `tests/niri_wayland_config_test.sh` 断言匹配新 action 并新增 `Mod+Shift+A/D` 不存在断言。
-- 验证：`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 返回 `config is valid`；`bash tests/niri_wayland_config_test.sh` 通过；`bash tests/repo_docs_test.sh` 通过；`git diff --check` 通过。所有改动均先用 `niri validate` 验证 action 存在且语法正确。
-- 后续：未同步 live、未重载 niri、未提交推送。`Mod+J/K` 与 `Mod+Shift+H/L` 行为变更需用户实际使用后确认是否符合预期。
