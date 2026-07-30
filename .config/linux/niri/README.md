@@ -16,7 +16,8 @@
 - Portal 偏好由 `.config/linux/xdg-desktop-portal/niri-portals.conf` 维护，安装到 `~/.local/share/xdg-desktop-portal/niri-portals.conf`；其中 `FileChooser=gtk` 用来避免 GNOME portal 在缺少 Nautilus 时影响文件选择器。
 - **Overview 美化**（Mod+O）：`layout { background-color "transparent" }` 保持日常桌面干净，`overview {}` 使用暗底色 `#1e1e2e` 压暗 overview 背景并加 workspace 卡片阴影。`place-within-backdrop` 经测试在 niri 26.04 上 `load-config-file` 后不生效（含新 surface），待 niri 更新后重新评估 awall 双壁纸方案。
 - **环境变量**：`common.kdl` 顶部的 `environment {}` 块声明 `QT_IM_MODULE`/`XMODIFIERS`/`SDL_IM_MODULE`/`GLFW_IM_MODULE`/`INPUT_METHOD`/`LC_CTYPE`/`XCURSOR_SIZE` 等，niri 直接 spawn 的进程会继承；`wayland-autostart` 仍保留 `export` 与 `dbus-update-activation-environment`/`systemctl --user import-environment` 把这些变量同步到 DBus 和 systemd 用户会话。`GTK_IM_MODULE` 故意不设置，让 Wayland GTK 走 text-input 协议（fcitx5 偏好）。
-- **光标**：`cursor { xcursor-size 32 }` 让 niri 在 autostart 执行前就使用正确尺寸；与 `XCURSOR_SIZE=32` 环境变量互补。
+- **光标**：`cursor { xcursor-size 32; hide-when-typing }` 让 niri 在 autostart 执行前就使用正确尺寸，并在键盘输入时自动隐藏鼠标；与 `XCURSOR_SIZE=32` 环境变量互补。
+- **焦点环**：`focus-ring` 使用 Catppuccin Mocha 蓝 `#89b4fa`（活动）/灰 `#45475a`（非活动）/红 `#f38ba8`（紧急，用于 IM 闪动等需要注意的窗口）。
 - **动画**：`animations {}` 按 `workspace-switch`/`window-open`/`window-close`/`window-resize` 分别配置 spring 参数（damping-ratio 0.7-0.8、stiffness 700-800），过渡更顺滑。
 
 ## 配置部署边界
