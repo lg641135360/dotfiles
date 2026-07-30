@@ -38,6 +38,7 @@ if [[ "$(uname)" == "Darwin" ]]; then
     pathprepend "/usr/local/bin"
 elif [[ "$(uname)" == "Linux" ]]; then
     pathappend "/home/linuxbrew/.linuxbrew/bin"
+    pathappend "/home/linuxbrew/.linuxbrew/sbin"
     pathappend "$HOME/.local/opt/node-current/bin"
     pathappend "$HOME/.npm-global/bin"
     pathappend "/usr/local/nodejs/bin"

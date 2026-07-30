@@ -80,7 +80,9 @@ chmod +x install.sh
 
 ## PATH 管理
 
-`path.zsh` 会在目录存在且未重复时再写入 PATH。Linux 环境会追加 `/home/linuxbrew/.linuxbrew/bin`、`$HOME/.local/opt/node-current/bin`、`$HOME/.npm-global/bin` 和 `/usr/local/nodejs/bin`，覆盖本地 Node 前缀以及常见 `npm install -g` CLI 安装位置。
+`path.zsh` 会在目录存在且未重复时再写入 PATH。Linux 环境会**追加**（`pathappend`，不遮蔽系统二进制）`/home/linuxbrew/.linuxbrew/bin`、`/home/linuxbrew/.linuxbrew/sbin`、`$HOME/.local/opt/node-current/bin`、`$HOME/.npm-global/bin` 和 `/usr/local/nodejs/bin`，覆盖 Homebrew CLI 工具与 sbin 工具、本地 Node 前缀以及常见 `npm install -g` CLI 安装位置。
+
+> 注：故意用 `pathappend` 而非 `pathprepend`，让系统 `/usr/bin` 的 `python3`/`git`/`curl`/`openssl` 等优先于 brew 版本，符合"Linuxbrew 仅作纯用户级 CLI 工具补充、不遮蔽工作系统二进制"的策略。brew doctor 关于此的 PATH 顺序警告属于可接受的误报。
 
 ## Aliases
 
