@@ -61,12 +61,20 @@
     "format": "󰻠 {usage}%",
     "min-length": 5,
     "align": 0.5,
-    "tooltip": true
+    "tooltip": true,
+    "states": {
+      "warning": 70,
+      "critical": 90
+    }
   },
   "memory": {
     "format": "󰍛 {percentage}%",
     "min-length": 5,
     "align": 0.5,
-    "tooltip": true
+    "tooltip": true,
+    "states": {
+      "warning": 80,
+      "critical": 95
+    }
   }
 }

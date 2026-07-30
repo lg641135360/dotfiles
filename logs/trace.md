@@ -16,6 +16,23 @@
 - 只有用户明确要求，或任务确实依赖历史背景时，才按需读取相关月份归档。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-07-30 — Waybar CPU/内存模块按负载阈值变色
+
+- 目的：让 CPU/内存使用率超过阈值时在状态栏自动变色警示，符合"少量图标化文字降噪"偏好（平时保持柔和色，高负载才警示）。
+- 已做：`.config/linux/waybar/config` 的 `cpu` 模块新增 `states: { warning: 70, critical: 90 }`，`memory` 模块新增 `states: { warning: 80, critical: 95 }`；`.config/linux/waybar/style.css` 在 `#cpu`（peach）/`#memory`（teal）基础色后新增 `#cpu.warning`/`#memory.warning`（yellow）和 `#cpu.critical`/`#memory.critical`（red）状态色，使用 Catppuccin Mocha token。
+- 行为变化：CPU ≥70% 变黄、≥90% 变红；内存 ≥80% 变黄、≥95% 变红；低于阈值保持原色（CPU=peach，内存=teal）。
+- 验证：`jq empty .config/linux/waybar/config` 通过；`./tests/niri_wayland_config_test.sh` 通过（`PASS: niri Wayland config tests`）；`git diff --check` 通过。IDE 的 CSS 诊断报错是 GTK `@define-color`/`alpha(@var)` 扩展语法不被标准 CSS 解析器识别，原文件就有，非本轮引入。
+- live 同步：`~/.config/waybar/config` 已同步；`~/.config/waybar/style.css` 因 sandbox 路径白名单未含该文件，未同步，需用户手动执行 `cp .config/linux/waybar/style.css ~/.config/waybar/style.css`；waybar 不支持热重载，同步后需 `pkill waybar` 并重新拉起。
+- 后续：改动尚未提交推送。
+
+## 2026-07-30 — Niri focus-ring urgent-color 与 cursor hide-when-typing
+
+- 目的：启用两项此前未开启的 niri 实用配置——紧急窗口视觉高亮、打字时自动隐藏鼠标。
+- 已做：`common.kdl` 的 `focus-ring` 块新增 `urgent-color "#f38ba8"`（Catppuccin Mocha red），用于 IM 闪动等紧急窗口的焦点环高亮；`cursor` 块新增 `hide-when-typing`，键盘输入时自动隐藏鼠标光标；同步更新 niri README 的「光标」条目并新增「焦点环」条目说明三种颜色（活动蓝/非活动灰/紧急红）。
+- 行为变化：紧急窗口（如消息应用闪动）焦点环变为红色，区别于普通活动窗口的蓝色；键盘打字时鼠标光标自动隐藏，停止输入后恢复显示。
+- 验证：`LD_LIBRARY_PATH=/nix/store/0p8b2lqk47fvxm9hc6c8mnln5l8x51q1-gcc-14.3.0-lib/lib niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 返回 `config is valid`；`./tests/niri_wayland_config_test.sh` 通过（`PASS: niri Wayland config tests`）；`git diff --check` 通过。
+- live 同步：用户反馈 `hide-when-typing` 未生效，排查发现仓库 `cursor` 块改动被外部还原且 live 从未同步。重新应用仓库改动后，`cp .config/linux/niri/common.kdl ~/.config/niri/common.kdl` 完成 live 同步，`diff` 确认 live 与仓库一致；niri 自动热重载，`cursor`/`focus-ring` 改动即时生效，无需重启会话。
+
 ## 2026-07-29 — Mod+H/L 扩展为跨显示器切列
 
 - 目的：让 `Mod+H/L` 在到边界后自然跨到左/右显示器，减少双屏下 `Mod+A/D` 的额外按键。
@@ -37,24 +54,3 @@
 - 已做：`common.kdl` 的 `Mod+H/L` 从 `focus-column-left/right` 改为 `focus-column-left-or-last/right-or-first`（到边界后循环到首/末列），`Mod+WheelScrollRight/Left` 同步改为循环版本；新增 `Mod+Shift+Minus/Equal` 绑定 `set-window-height "-10%"/"+10%"`，补齐键盘调整窗口高度的缺口；`Mod+J/K` 从 `focus-workspace-down/up` 改为 `focus-window-or-workspace-down/up`（优先切同 workspace 内窗口，到边界后切 workspace，对齐 Awesome 肌肉记忆）；`Mod+Shift+H/L` 从 `move-column-left/right` 改为 `move-column-left-or-to-monitor-left/right-or-to-monitor-right`（到边界后自动移到下一个显示器），并删除冗余的 `Mod+Shift+A/D`（原 `move-column-to-monitor-left/right`，功能已被 `Mod+Shift+H/L` 覆盖）；更新注释和 README 快捷键表及导航说明；更新 `tests/niri_wayland_config_test.sh` 断言匹配新 action 并新增 `Mod+Shift+A/D` 不存在断言。
 - 验证：`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 返回 `config is valid`；`bash tests/niri_wayland_config_test.sh` 通过；`bash tests/repo_docs_test.sh` 通过；`git diff --check` 通过。所有改动均先用 `niri validate` 验证 action 存在且语法正确。
 - 后续：未同步 live、未重载 niri、未提交推送。`Mod+J/K` 与 `Mod+Shift+H/L` 行为变更需用户实际使用后确认是否符合预期。
-
-## 2026-07-29 — 低风险小优化批量修复
-
-- 目的：消除 trace.md 超条目违规，并修复 zsh/nvim/picom 三处低风险历史遗留问题。
-- 已做：归档 trace.md 6 条旧条目到 `logs/trace-archive/2026-07.md`；删除 zsh `cpp()` 的 strace fallback 死代码（strace 通常未安装、进度条逻辑无效、`set -e` 污染调用者 shell），无 rsync 时回退 `cp -v`，同步 zsh README；修复 nvim `float_trem.lua` 硬编码 `zsh -i`，改用 `vim.o.shell` 跟随用户登录 shell；修复 picom `arch_aarch64.conf` 注释拼写（`form aesthetics` → `visual aesthetics`）；新增 `tests/zsh_functions_test.sh` 与 `tests/nvim_float_trem_test.sh` 静态断言测试。
-- 验证：`bash tests/zsh_functions_test.sh`、`bash tests/nvim_float_trem_test.sh`、`bash tests/zsh_path_test.sh`、`bash tests/picom_config_test.sh`、`bash tests/repo_docs_test.sh` 均通过；`zsh -n`/`luajit loadfile`/`bash -n`/`git diff --check` 全部 OK。
-- 后续：未同步 live、未重载服务、未提交推送；zsh 模块函数级测试覆盖仍不足（`cpg`/`mvg`/`mkdirg`/`y` 等），可作为后续单独切片。
-
-## 2026-07-29 — Niri workspace-wrap-around 回退与 waybar battery dead config 清理
-
-- 目的：补齐 workspace 循环切换肌肉记忆，清理 waybar 中未启用的 battery 模块死配置。
-- 已做：尝试在 `common.kdl` 的 `layout {}` 块新增 `workspace-wrap-around`，但 `niri validate` 报 `unexpected node 'workspace-wrap-around'`——niri 26.04 不支持此选项（这是 i3/hyprland 概念，非 niri 原生），已回滚该改动。删除 waybar `config` 中未在 `modules-right` 启用的 `battery` 模块定义，以及 `style.css` 中对应的 `#battery` 样式（ubuntu_x64 是 desktop 无电池）；新增 `test_waybar_drops_dead_battery_module_on_desktop_platform` 回归断言。修复 `test_niri_config_exists_and_validates_when_available`：niri 从 nix profile 安装时，`niri validate` 子命令在非 nix shell 下会因 RUNPATH 解析差异报 `libstdc++.so.6` 加载失败；测试现在会先尝试直接调用，失败后从 niri 二进制的 RUNPATH 提取 gcc-lib 路径作为 `LD_LIBRARY_PATH` 重试。
-- 验证：`bash tests/niri_wayland_config_test.sh`（除历史遗留的 `install_copies_wayland_files_when_niri_exists_outside_wayland` 环境问题外）通过；`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 用 `LD_LIBRARY_PATH` 修复后返回 `config is valid`；`bash tests/repo_docs_test.sh`、`git diff --check` 通过。
-- 后续：未同步 live、未重载 niri、未提交推送。教训：推荐 niri 配置选项前必须先用 `niri validate` 验证，不能仅凭其它 WM 的概念类推。
-
-## 2026-07-29 — Niri 原生环境变量/光标/动画配置
-
-- 目的：用 niri 原生 `environment {}`/`cursor {}`/`animations {}` 块提升 Wayland 会话启动一致性与视觉过渡。
-- 已做：在 `common.kdl` 顶部新增 `environment {}` 块（QT_IM_MODULE/XMODIFIERS/SDL_IM_MODULE/GLFW_IM_MODULE/INPUT_METHOD/LC_CTYPE/XCURSOR_SIZE，GTK_IM_MODULE 故意不设置）和 `cursor { xcursor-size 32 }`；将空 `animations {}` 细化为 workspace-switch/window-open/window-close/window-resize 四组 spring 参数；同步 README 与 niri 回归测试断言。
-- 验证：`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl`、`./tests/niri_wayland_config_test.sh`、`./tests/repo_docs_test.sh`、`git diff --check` 均通过。
-- 后续：未同步 live、未重载 niri、未提交推送；原计划的 `workspace-auto-back-forth` 经查 niri 26.04 不支持此 layout 选项，已回退，如需 "go back" 可后续用 `focus-workspace-previous` bind 替代。

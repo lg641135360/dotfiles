@@ -114,8 +114,24 @@ window#waybar {
   color: @peach;
 }
 
+#cpu.warning {
+  color: @yellow;
+}
+
+#cpu.critical {
+  color: @red;
+}
+
 #memory {
   color: @teal;
+}
+
+#memory.warning {
+  color: @yellow;
+}
+
+#memory.critical {
+  color: @red;
 }
 
 #network {
