@@ -54,6 +54,19 @@
 - 验证：`tests/zsh_path_test.sh` exit 0（`PASS: zsh path tests`，含新增 2 个测试）；`tests/zsh_functions_test.sh` exit 0（无回归）；`bash -n` / `zsh -n path.zsh` 语法 OK；live 新 shell 中 PATH 顺序为 `/usr/bin`(9) → linuxbrew/bin(16) → linuxbrew/sbin(19)，系统二进制仍优先、sbin 已入 PATH。
 - 未处理/后续：过期包未升级（glibc 升级风险高，建议单独评估）；未提交推送。
 
+## 2026-07-30 — gammastep 热插拔检测
+
+- 目的：解决 gammastep 长时间运行后，热插拔显示器导致新输出无色温调节的问题。gammastep 通过 `wlr-gamma-control` 协议为每个输出注册 gamma 表，进程启动后不会自动为新输出补注册。
+- 已做：
+  - `.config/scripts/wayland-autostart` 新增 `count_niri_outputs` 函数，通过 `niri msg outputs | grep -c '^Output '` 获取当前已连接输出数量。
+  - `start_gammastep` 增加输出数量检测：若 gammastep 已在运行但 niri 输出数量与记录的不一致（记录在 `~/.local/state/niri/autostart/gammastep.outputs`），自动 kill 并重启 gammastep。
+  - 更新 `tests/niri_wayland_config_test.sh`：新增断言验证输出数量检测逻辑，并断言不引入后台 watch 进程。
+  - 更新 niri README：说明 gammastep 输出数量检测机制和手动修复方法。
+- 设计取舍：初版曾加 `start_gammastep_watch` 后台轮询（60s 间隔），用户反馈"后台轮询太占用 CPU"后移除。最终方案不引入任何后台进程，只在 wayland-autostart 被调用时（登录或手动执行）检测；热插拔后手动执行 `wayland-autostart` 即可修复。
+- 验证：`sh -n wayland-autostart` 语法检查通过；`sh tests/niri_wayland_config_test.sh` 通过（`PASS: niri Wayland config tests`）。
+- live 同步：未同步（需用户确认后执行 `cp .config/scripts/wayland-autostart ~/.config/scripts/wayland-autostart` 并重新执行 wayland-autostart）。
+- 后续：改动尚未提交推送。
+
 ## 2026-07-30 — Nvim 配置清理与懒加载优化
 
 - 目的：修复配置错误、清理死代码/冗余、为非核心插件补懒加载 trigger，减少启动开销。
@@ -78,26 +91,3 @@
 - 验证：`jq empty .config/linux/waybar/config` 通过；`./tests/niri_wayland_config_test.sh` 通过（`PASS: niri Wayland config tests`）；`git diff --check` 通过。IDE 的 CSS 诊断报错是 GTK `@define-color`/`alpha(@var)` 扩展语法不被标准 CSS 解析器识别，原文件就有，非本轮引入。
 - live 同步：`~/.config/waybar/config` 已同步；`~/.config/waybar/style.css` 因 sandbox 路径白名单未含该文件，未同步，需用户手动执行 `cp .config/linux/waybar/style.css ~/.config/waybar/style.css`；waybar 不支持热重载，同步后需 `pkill waybar` 并重新拉起。
 - 后续：改动尚未提交推送。
-
-## 2026-07-30 — Niri focus-ring urgent-color 与 cursor hide-when-typing
-
-- 目的：启用两项此前未开启的 niri 实用配置——紧急窗口视觉高亮、打字时自动隐藏鼠标。
-- 已做：`common.kdl` 的 `focus-ring` 块新增 `urgent-color "#f38ba8"`（Catppuccin Mocha red），用于 IM 闪动等紧急窗口的焦点环高亮；`cursor` 块新增 `hide-when-typing`，键盘输入时自动隐藏鼠标光标；同步更新 niri README 的「光标」条目并新增「焦点环」条目说明三种颜色（活动蓝/非活动灰/紧急红）。
-- 行为变化：紧急窗口（如消息应用闪动）焦点环变为红色，区别于普通活动窗口的蓝色；键盘打字时鼠标光标自动隐藏，停止输入后恢复显示。
-- 验证：`LD_LIBRARY_PATH=/nix/store/0p8b2lqk47fvxm9hc6c8mnln5l8x51q1-gcc-14.3.0-lib/lib niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 返回 `config is valid`；`./tests/niri_wayland_config_test.sh` 通过（`PASS: niri Wayland config tests`）；`git diff --check` 通过。
-- live 同步：用户反馈 `hide-when-typing` 未生效，排查发现仓库 `cursor` 块改动被外部还原且 live 从未同步。重新应用仓库改动后，`cp .config/linux/niri/common.kdl ~/.config/niri/common.kdl` 完成 live 同步，`diff` 确认 live 与仓库一致；niri 自动热重载，`cursor`/`focus-ring` 改动即时生效，无需重启会话。
-
-## 2026-07-29 — Mod+H/L 扩展为跨显示器切列
-
-- 目的：让 `Mod+H/L` 在到边界后自然跨到左/右显示器，减少双屏下 `Mod+A/D` 的额外按键。
-- 已做：`common.kdl` 的 `Mod+H/L` 从 `focus-column-left-or-last/right-or-first`（屏内循环）改为 `focus-column-or-monitor-left/right`（到边界后切到左/右显示器）；`Mod+WheelScrollLeft/Right` 同步改为 `focus-column-or-monitor-left/right`，保持滚轮与键盘行为一致；更新 `common.kdl` 注释说明新行为；更新 niri README 快捷键映射表和导航说明段落（注明 `Mod+a/d` 仍可作为「显式只切显示器」的补充）；更新 `tests/niri_wayland_config_test.sh` 的 `Mod+H/L` 断言匹配新 action。
-- 行为变化：`Mod+H/L` 不再屏内循环到首/末列，而是跨到相邻显示器；单显示器时停在最左/最右列不循环。
-- 验证：`LD_LIBRARY_PATH=/nix/store/.../gcc-14.3.0-lib/lib niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 返回 `config is valid`；`bash tests/niri_wayland_config_test.sh` 通过（`PASS: niri Wayland config tests`）；`git diff --check` 通过。
-- 后续：未同步 live、未重载 niri；已提交推送（commit 见 `git log`）。
-
-## 2026-07-29 — Launcher 美化：fuzzel blur + 选中色 + 图标主题
-
-- 目的：提升应用启动器视觉体验，统一 fuzzel 与 rofi fallback 的配色和图标风格。
-- 已做：niri `common.kdl` 新增 `layer-rule { match namespace="^fuzzel$" }` 启用 `background-effect { blur true }`，启动器弹出时背景模糊；fuzzel.ini 选中项配色从 `#2a2d3a`/`#ffffff` 改为 `#89b4fa`/`#1e1e2e`（Catppuccin Mocha 蓝），与 rofi 主题对齐；fuzzel.ini 新增 `icon-theme=Papirus-Dark`，与 rofi 一致；同步更新 fuzzel README、niri README 和 niri 测试断言。
-- 验证：`niri validate` 返回 `config is valid`；`fuzzel --check-config` 因环境 libstdc++ RPATH 问题无法运行（与 niri 同源问题）；`bash tests/niri_wayland_config_test.sh` 通过（除历史遗留 install 环境问题）；`bash tests/repo_docs_test.sh` 通过；`git diff --check` 通过。
-- 后续：未同步 live、未重载 niri、未提交推送。

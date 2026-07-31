@@ -233,6 +233,12 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_not_contains 'gammastep-indicator' "$AUTOSTART_SCRIPT"
     assert_not_contains 'gammastep -m drm' "$AUTOSTART_SCRIPT"
     assert_not_contains 'feh --' "$AUTOSTART_SCRIPT"
+    # gammastep 输出数量检测：wayland-autostart 被调用时若输出数量变化则重启 gammastep
+    assert_contains 'count_niri_outputs' "$AUTOSTART_SCRIPT"
+    assert_contains 'gammastep.outputs' "$AUTOSTART_SCRIPT"
+    assert_contains 'niri 输出数量变化' "$AUTOSTART_SCRIPT"
+    assert_not_contains 'start_gammastep_watch' "$AUTOSTART_SCRIPT"
+    assert_not_contains 'gammastep-watch.pid' "$AUTOSTART_SCRIPT"
 }
 
 test_wayland_autostart_logs_each_app_and_warns_for_missing_commands() {

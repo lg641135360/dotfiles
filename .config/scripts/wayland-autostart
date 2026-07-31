@@ -32,6 +32,12 @@ is_running() {
     pgrep -u "$(id -u)" -f "$pattern" >/dev/null 2>&1
 }
 
+count_niri_outputs() {
+    # 返回 niri 当前认识的已连接输出数量；niri 不可用或 IPC 失败时返回 0。
+    command -v niri >/dev/null 2>&1 || { printf '0\n'; return; }
+    niri msg outputs 2>/dev/null | grep -c '^Output '
+}
+
 run_once_logged() {
     app=$1
     pattern=$2
@@ -70,8 +76,25 @@ run_once_logged() {
 
 start_gammastep() {
     managed_pattern='(^|/)gammastep -m wayland -l 30\.6[: ]114\.3 -t 6500[: ]4000( |$)'
+    state_file=$log_dir/gammastep.outputs
+    current_count=$(count_niri_outputs)
+
     if is_running "$managed_pattern"; then
-        return 0
+        # gammastep 已在运行；若 niri 输出数量变化（热插拔）则重启以覆盖新接入的显示器。
+        # gammastep 通过 wlr-gamma-control 协议为每个输出注册 gamma，进程启动后不会自动
+        # 为新输出补注册，因此输出数量变化时必须重启进程。
+        if [ -n "$current_count" ] && [ "$current_count" -gt 0 ]; then
+            recorded_count=$(cat "$state_file" 2>/dev/null || printf '0')
+            if [ "$recorded_count" != "$current_count" ]; then
+                warn "niri 输出数量变化（$recorded_count -> $current_count），重启 gammastep"
+                pkill -u "$(id -u)" -x gammastep >/dev/null 2>&1 || true
+                sleep 1
+            else
+                return 0
+            fi
+        else
+            return 0
+        fi
     fi
 
     if command -v pkill >/dev/null 2>&1 && command -v id >/dev/null 2>&1; then
@@ -79,6 +102,10 @@ start_gammastep() {
         pkill -u "$(id -u)" -f '(^|/)gammastep( |$)' >/dev/null 2>&1 || true
     elif ! command -v pkill >/dev/null 2>&1; then
         warn "缺少基础命令 pkill，无法清理旧 gammastep 进程"
+    fi
+
+    if [ -n "$current_count" ] && [ "$current_count" -gt 0 ]; then
+        printf '%s\n' "$current_count" > "$state_file"
     fi
 
     run_once_logged gammastep "$managed_pattern" gammastep -m wayland -l 30.6:114.3 -t 6500:4000

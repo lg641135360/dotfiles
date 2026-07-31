@@ -107,6 +107,8 @@ tail -n 80 ~/.local/state/niri/autostart/gammastep.log
 gammastep -m drm -p -l 30.6:114.3 -t 6500:4000
 ```
 
+`gammastep` 通过 `wlr-gamma-control` 协议为每个输出注册 gamma 表，但进程启动后不会自动为新接入的输出补注册。`wayland-autostart` 在启动 `gammastep` 时会记录当前 niri 输出数量到 `~/.local/state/niri/autostart/gammastep.outputs`；再次执行时若输出数量变化（热插拔）则自动重启 `gammastep`。热插拔显示器后色温未生效时，手动重新执行 `~/.config/scripts/wayland-autostart` 即可修复。
+
 `lock-wayland` 使用 `swaylock`，解锁密码来自系统 PAM 账户认证；它不是 GNOME Keyring/KWallet/浏览器保存密码。脚本会优先调用 `/usr/bin/swaylock`，避免 Nix profile 里的 `swaylock` 与系统 PAM 配置格式不兼容。锁屏背景优先复用 `wallpaper-wayland` 记录的当前壁纸；若记录缺失，会尝试从当前 `swaybg -i <图片>` 进程解析图片路径；两者都不可用时才退回 Catppuccin Mocha 的纯色背景 `11111b`。若手动补 `/etc/pam.d/swaylock`，使用 PAM 的 `include` 控制语法：
 
 ```pam
