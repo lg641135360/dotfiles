@@ -1,5 +1,73 @@
 #!/bin/sh
 # DingTalk Wayland entrypoint with the PipeWire/X11 screenshot hook preloaded.
+# 支持 `dingtalk-wayland restart`：先终止当前用户名下所有钉钉进程（用于缓解长期
+# 运行导致的内存累积），再走启动流程。无参数时仅启动，不检查已有实例。
+
+notify_problem() {
+    title=$1
+    body=$2
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "$title" "$body" || true
+    fi
+    printf '%s: %s\n' "$title" "$body" >&2
+}
+
+print_usage() {
+    cat <<'EOF'
+用法: dingtalk-wayland [子命令] [-- 钉钉参数...]
+  (无参数)      启动钉钉（不检查已有实例）
+  restart       先终止当前用户名下钉钉进程，再启动
+  usage|--help  显示此帮助
+
+环境变量:
+  DINGTALK_WAYLAND_HOOK  hook 库路径（默认从 ~/.local/lib/... 查找）
+  DINGTALK_WAYLAND_LOG   日志路径（默认 /tmp/dingtalk-wayland.log）
+  DINGTALK_BASE          钉钉安装根（默认 /opt/apps/com.alibabainc.dingtalk/files）
+  DINGTALK_DIR           钉钉版本目录（默认自动查找 *Release）
+
+示例:
+  dingtalk-wayland
+  dingtalk-wayland restart
+  dingtalk-wayland -- --some-dingtalk-flag=value
+EOF
+}
+
+case "${1:-}" in
+    usage|--help|-h)
+        print_usage
+        exit 0
+        ;;
+    restart)
+        # 问题1：pkill/pgrep/id 缺失时不得静默跳过，否则会变成"不 kill 直接启动新实例"
+        for dep in pkill pgrep id; do
+            if ! command -v "$dep" >/dev/null 2>&1; then
+                notify_problem \
+                    "DingTalk restart unavailable" \
+                    "缺少基础命令 $dep，无法安全重启钉钉。请安装 procps 包后重试。"
+                exit 127
+            fi
+        done
+        pkill -u "$(id -u)" -f 'com\.alibabainc\.dingtalk' >/dev/null 2>&1 || true
+        # 最多等待 5 秒让进程响应 SIGTERM 退出，避免新实例与旧实例同时持有 Wayland 资源
+        i=0
+        while [ "$i" -lt 5 ]; do
+            pgrep -u "$(id -u)" -f 'com\.alibabainc\.dingtalk' >/dev/null 2>&1 || break
+            sleep 1
+            i=$((i + 1))
+        done
+        # SIGTERM 5 秒后仍未退出则 SIGKILL 强杀（钉钉作为 Electron 应用常响应慢）
+        if pgrep -u "$(id -u)" -f 'com\.alibabainc\.dingtalk' >/dev/null 2>&1; then
+            pkill -9 -u "$(id -u)" -f 'com\.alibabainc\.dingtalk' >/dev/null 2>&1 || true
+            sleep 1
+        fi
+        shift
+        ;;
+esac
+
+# 支持 `--` 分隔符：之后的所有参数原样透传给钉钉，不再解释为子命令
+if [ "${1:-}" = "--" ]; then
+    shift
+fi
 
 hook_lib=${DINGTALK_WAYLAND_HOOK:-}
 log_file=${DINGTALK_WAYLAND_LOG:-/tmp/dingtalk-wayland.log}
@@ -15,15 +83,6 @@ if [ -z "$hook_lib" ]; then
         fi
     done
 fi
-
-notify_problem() {
-    title=$1
-    body=$2
-    if command -v notify-send >/dev/null 2>&1; then
-        notify-send "$title" "$body" || true
-    fi
-    printf '%s: %s\n' "$title" "$body" >&2
-}
 
 if [ -z "$hook_lib" ] || [ ! -r "$hook_lib" ]; then
     notify_problem \

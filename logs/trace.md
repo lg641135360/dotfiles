@@ -15,6 +15,28 @@
 - 默认任务不得读取 `logs/trace-archive/` 全文。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-07-31 — dingtalk-wayland 增加 restart 子命令
+
+- 目的：钉钉长期运行存在内存累积（实测主进程 9 天达 3GB、占用 191MB swap，总 RSS 5.55GB/17 进程），需要可执行的重启入口缓解。
+- 已做（`repo-change`，未同步 live、未提交）：
+  - `.config/scripts/dingtalk-wayland`：
+    - 在脚本开头加 `case "${1:-}" in restart)` 分支，先 `pkill -u "$(id -u)" -f 'com\.alibabainc\.dingtalk'`，再用 `pgrep` 轮询最多 5 秒等待退出，然后 `shift` 落入原启动流程；无参数时行为不变（不检查已有实例）。
+    - 问题1修复：`restart` 分支前置 `for dep in pkill pgrep id` 检查，任一缺失则 `notify_problem` + `exit 127`，不再静默跳过导致新旧实例并存。
+    - 问题2修复：等待循环结束后再做一次 `pgrep` 校验，仍命中则 `pkill -9` SIGKILL 强杀（钉钉作为 Electron 应用常响应慢），然后继续启动流程——restart 语义就是必须重启，不能因旧进程未退出而放弃。
+    - 问题3修复：新增 `print_usage` 函数和 `usage|--help|-h` 子命令，列出用法、环境变量、示例。
+    - 问题4修复：在子命令 case 之后加 `if [ "${1:-}" = "--" ]; then shift; fi`，兑现 usage 中承诺的 `--` 分隔符语义，使 `dingtalk-wayland -- --flag` 与 `dingtalk-wayland restart -- --flag` 行为一致。
+    - 将 `notify_problem` 提到脚本开头（供 restart 分支复用）。
+  - `tests/niri_wayland_config_test.sh`：在 `test_dingtalk_wayland_entrypoint_preserves_preload_contract` 内追加 `restart)`、`pkill`、`pgrep`、`缺少基础命令`、`for dep in pkill pgrep id`、`pkill -9`、`SIGKILL`、`print_usage`、`usage|--help|-h`、`dingtalk-wayland restart`、`显示此帮助`、`"${1:-}" = "--"`、`原样透传给钉钉` 共 13 条断言；保留原有 `nohup`/`exit 0`/preload 合约断言。
+  - 文档同步：`.config/scripts/README.md` 表格行、`.config/linux/niri/README.md` 钉钉段落、`memory/dingtalk.md` 启动命令块均补充 `restart`/`usage` 子命令与 SIGTERM→SIGKILL 两段式 kill 说明。
+- 验证：
+  - `sh -n .config/scripts/dingtalk-wayland` 通过。
+  - dingtalk 相关断言单独运行 PASS（含 13 条新断言）。
+  - `tests/repo_docs_test.sh` PASS。
+  - 实测 `dingtalk-wayland usage` 输出正确帮助文本。
+  - 实测 `PATH` 缺 pkill 时 `dingtalk-wayland restart` 正确报错 `缺少基础命令 pkill` 并退出。
+  - `tests/niri_wayland_config_test.sh` 中 `test_install_copies_wayland_files_when_niri_exists_outside_wayland_session` 失败，已确认是历史遗留（stash 后同样失败），非本轮引入。
+- 后续：用户确认后同步 live（`cp .config/scripts/dingtalk-wayland ~/.config/scripts/`）并提交。
+
 ## 2026-07-31 — Brew 二进制 RPATH 修复（zoxide GLIBC_2.39 报错/p10k 警告）
 
 - 目的：修复用户启动 zsh 时 `zoxide: GLIBC_2.39 not found` 报错与 p10k instant prompt 警告。
@@ -82,12 +104,3 @@
 - 验证：8 个改动文件 `luajit -e 'assert(loadfile(...))'` 全通过；`tests/nvim_0_12_cleanup_test.sh` exit 0；其余 nvim 测试（autopairs/float_trem/neo_tree/render_markdown/theme）均 exit 0；`git diff --check` 通过。`tests/nvim_comment_test.sh` 失败但属历史遗留（stash 改动后重跑仍 exit 1），非本轮引入。
 - live 同步：未同步（子模块改动，需用户确认后同步）。
 - 后续：改动尚未提交推送；lazy-lock.json 在测试运行时被 lazy.nvim 自动更新，已用 `git checkout` 恢复。
-
-## 2026-07-30 — Waybar CPU/内存模块按负载阈值变色
-
-- 目的：让 CPU/内存使用率超过阈值时在状态栏自动变色警示，符合"少量图标化文字降噪"偏好（平时保持柔和色，高负载才警示）。
-- 已做：`.config/linux/waybar/config` 的 `cpu` 模块新增 `states: { warning: 70, critical: 90 }`，`memory` 模块新增 `states: { warning: 80, critical: 95 }`；`.config/linux/waybar/style.css` 在 `#cpu`（peach）/`#memory`（teal）基础色后新增 `#cpu.warning`/`#memory.warning`（yellow）和 `#cpu.critical`/`#memory.critical`（red）状态色，使用 Catppuccin Mocha token。
-- 行为变化：CPU ≥70% 变黄、≥90% 变红；内存 ≥80% 变黄、≥95% 变红；低于阈值保持原色（CPU=peach，内存=teal）。
-- 验证：`jq empty .config/linux/waybar/config` 通过；`./tests/niri_wayland_config_test.sh` 通过（`PASS: niri Wayland config tests`）；`git diff --check` 通过。IDE 的 CSS 诊断报错是 GTK `@define-color`/`alpha(@var)` 扩展语法不被标准 CSS 解析器识别，原文件就有，非本轮引入。
-- live 同步：`~/.config/waybar/config` 已同步；`~/.config/waybar/style.css` 因 sandbox 路径白名单未含该文件，未同步，需用户手动执行 `cp .config/linux/waybar/style.css ~/.config/waybar/style.css`；waybar 不支持热重载，同步后需 `pkill waybar` 并重新拉起。
-- 后续：改动尚未提交推送。

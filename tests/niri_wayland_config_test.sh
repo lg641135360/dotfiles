@@ -598,6 +598,24 @@ test_dingtalk_wayland_entrypoint_preserves_preload_contract() {
     assert_contains 'nohup ./com.alibabainc.dingtalk' "$DINGTALK_SCRIPT"
     assert_contains '>>"$log_file" 2>&1 </dev/null &' "$DINGTALK_SCRIPT"
     assert_contains 'exit 0' "$DINGTALK_SCRIPT"
+    # restart 子命令：先终止当前用户名下钉钉进程，再继续走启动流程
+    assert_contains 'restart)' "$DINGTALK_SCRIPT"
+    assert_contains 'pkill -u "$(id -u)" -f' "$DINGTALK_SCRIPT"
+    assert_contains 'pgrep -u "$(id -u)" -f' "$DINGTALK_SCRIPT"
+    # 问题1：pkill/pgrep/id 缺失时不得静默跳过（必须 notify+exit）
+    assert_contains '缺少基础命令' "$DINGTALK_SCRIPT"
+    assert_contains 'for dep in pkill pgrep id' "$DINGTALK_SCRIPT"
+    # 问题2：SIGTERM 5 秒未退出则 SIGKILL 兜底（restart 语义是必须重启）
+    assert_contains 'pkill -9' "$DINGTALK_SCRIPT"
+    assert_contains 'SIGKILL' "$DINGTALK_SCRIPT"
+    # 问题3：提供 usage 帮助
+    assert_contains 'print_usage' "$DINGTALK_SCRIPT"
+    assert_contains 'usage|--help|-h' "$DINGTALK_SCRIPT"
+    assert_contains 'dingtalk-wayland restart' "$DINGTALK_SCRIPT"
+    assert_contains '显示此帮助' "$DINGTALK_SCRIPT"
+    # 问题4：-- 分隔符支持（usage 中承诺，实际也要处理）
+    assert_contains '"${1:-}" = "--"' "$DINGTALK_SCRIPT"
+    assert_contains '原样透传给钉钉' "$DINGTALK_SCRIPT"
     assert_contains 'SPA_FORMAT_VIDEO_modifier' "$DINGTALK_SOURCE/payload.hpp"
     assert_contains 'SPA_POD_PROP_FLAG_MANDATORY' "$DINGTALK_SOURCE/payload.hpp"
     assert_contains 'DRM_FORMAT_MOD_LINEAR' "$DINGTALK_SOURCE/payload.hpp"

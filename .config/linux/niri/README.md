@@ -172,6 +172,8 @@ install -Dm755 /tmp/dingtalk-wayland-screenshare-build/libdingtalkhook.so ~/.loc
 ~/.config/scripts/dingtalk-wayland
 ```
 
+钉钉长期运行会出现内存累积（主进程可达数 GB），需要重启时执行 `~/.config/scripts/dingtalk-wayland restart`：脚本会先 `pkill` 当前用户名下所有 `com.alibabainc.dingtalk` 进程，最多等待 5 秒退出；若 SIGTERM 5 秒后仍存活则 `pkill -9` 强杀（钉钉作为 Electron 应用常响应慢）。无参数时仅启动，不检查已有实例。执行 `~/.config/scripts/dingtalk-wayland usage` 可查看帮助。
+
 脚本会优先使用 `~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so`，把它放在 `LD_PRELOAD` 最前面，同时保留钉钉原本依赖的 `libgbm.so` 和 `plugins/dtwebview/libcef.so` preload；如果 hook 库放在其它位置，可用 `DINGTALK_WAYLAND_HOOK=/path/to/libdingtalkhook.so ~/.config/scripts/dingtalk-wayland` 指定。排障时可查看 `/tmp/dingtalk-wayland-debug.log`，正常路径会看到 `stream state changed from paused to streaming` 以及前几帧的 `process frame type=3` / `mmap frame` 记录。
 
 ## 截图标注

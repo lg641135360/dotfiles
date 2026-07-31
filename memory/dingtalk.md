@@ -31,5 +31,9 @@
 
 ## 启动命令
 ```bash
-~/.config/scripts/dingtalk-wayland
+~/.config/scripts/dingtalk-wayland              # 启动（不检查已有实例）
+~/.config/scripts/dingtalk-wayland restart      # 重启：先 pkill 当前用户名下钉钉进程再启动
+~/.config/scripts/dingtalk-wayland usage        # 显示帮助
 ```
+
+钉钉长期运行存在内存累积（主进程可达 3GB+、占用大量 swap），通过 `restart` 子命令定期重启缓解。restart 时先发 SIGTERM，5 秒未退出则 SIGKILL 强杀，然后启动新实例。

@@ -8,7 +8,7 @@
 | `lock-wayland` | Wayland 锁屏（swaylock） |
 | `rofi-launch` | Rofi 应用启动器包装 |
 | `wayland-autostart` | Wayland 会话自启动；启动前检查应用，日志按应用写入 `~/.local/state/niri/autostart/` |
-| `dingtalk-wayland` | 钉钉 Wayland 屏幕共享（LD_PRELOAD hook） |
+| `dingtalk-wayland` | 钉钉 Wayland 屏幕共享（LD_PRELOAD hook）；支持 `restart`（先 kill 再启动）、`usage`（帮助）子命令 |
 | `terminal-wayland` | Wayland 终端启动器 |
 | `file-manager-wayland` | Wayland 文件管理器选择器（Dolphin → 系统默认 → 常见文件管理器） |
 | `launcher-wayland` | Wayland 应用启动器 |
