@@ -1,0 +1,90 @@
+#!/bin/sh
+# 临时管理飞连 Corplink 系统服务。systemctl stop 会抑制 Restart=always 的自动拉起，
+# 但不修改 enable/mask 状态，因此服务可在下次开机时按原配置恢复。
+set -eu
+
+unit=${CORPLINK_UNIT:-corplink.service}
+systemctl_cmd=${CORPLINK_SYSTEMCTL:-systemctl}
+action=${1:-status}
+cgroup_root=${CORPLINK_CGROUP_ROOT:-/sys/fs/cgroup}
+kill_wait_seconds=${CORPLINK_KILL_WAIT_SECONDS:-1}
+
+print_usage() {
+    cat <<'EOF'
+用法: corplink-service [status|disable|enable]
+  status   查看 corplink.service 状态（默认）
+  disable  临时停止服务，不改变开机启动状态
+  enable   在不改变开机启动状态的前提下立即启动服务
+
+disable/enable 会通过 sudo 获取 root 权限；status 不需要提权。
+EOF
+}
+
+case "$action" in
+    status|disable|enable)
+        ;;
+    usage|--help|-h)
+        print_usage
+        exit 0
+        ;;
+    *)
+        print_usage >&2
+        exit 2
+        ;;
+esac
+
+if ! command -v "$systemctl_cmd" >/dev/null 2>&1; then
+    printf '错误：未找到 systemctl 命令：%s\n' "$systemctl_cmd" >&2
+    exit 127
+fi
+
+if [ "$action" != "status" ] && [ "$(id -u)" -ne 0 ]; then
+    if ! command -v sudo >/dev/null 2>&1; then
+        printf '错误：%s 需要 root 权限，但未找到 sudo\n' "$action" >&2
+        exit 127
+    fi
+    exec sudo -- "$0" "$@"
+fi
+
+unit_has_processes() {
+    control_group=$("$systemctl_cmd" show "$unit" --property=ControlGroup --value)
+    case "$control_group" in
+        /*)
+            [ -s "${cgroup_root%/}${control_group}/cgroup.procs" ]
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+case "$action" in
+    status)
+        exec "$systemctl_cmd" status "$unit" --no-pager
+        ;;
+    disable)
+        # 显式 stop 不会触发 Restart=always；不执行 disable/mask，重启后可自动恢复。
+        "$systemctl_cmd" stop "$unit"
+
+        # 厂商单元使用 KillMode=process，stop 只终止主进程；继续清理单元 cgroup 中
+        # 脱离主进程存活的 corplink-uc 子进程。kill 可能因 cgroup 已为空而返回非零。
+        "$systemctl_cmd" kill --kill-whom=all --signal=TERM "$unit" || true
+        sleep "$kill_wait_seconds"
+        "$systemctl_cmd" kill --kill-whom=all --signal=KILL "$unit" || true
+        sleep "$kill_wait_seconds"
+
+        if "$systemctl_cmd" is-active --quiet "$unit"; then
+            printf '错误：%s 仍在运行\n' "$unit" >&2
+            exit 1
+        fi
+        if unit_has_processes; then
+            printf '错误：%s 的 cgroup 中仍有残留进程\n' "$unit" >&2
+            exit 1
+        fi
+        printf '%s 已临时停止；未修改开机启动状态，重启后会按原配置恢复\n' "$unit"
+        ;;
+    enable)
+        "$systemctl_cmd" start "$unit"
+        printf '%s 已启动；未修改开机启动状态\n' "$unit"
+        ;;
+esac

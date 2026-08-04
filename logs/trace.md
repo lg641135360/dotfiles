@@ -15,6 +15,17 @@
 - 默认任务不得读取 `logs/trace-archive/` 全文。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-08-04 — 新增飞连临时停止脚本
+
+- 目的：为持续占用单核 CPU 的 `corplink-uc` 提供临时停止入口，当前会话停止、下次重启按原开机配置自动恢复；该进程由 `corplink.service` 拉起，单元配置为 `Restart=always`。
+- 已做（`repo-change` + 用户同步 live 并执行临时停止，未提交）：
+  - 新增 `.config/scripts/corplink-service`，支持 `status`、`disable`、`enable` 和帮助；默认状态查询不提权，变更操作才通过 sudo 获取 root 权限。
+  - `disable` 先用 `systemctl stop` 临时停止服务；因厂商单元使用 `KillMode=process`、实测会残留 5 个 `corplink-uc`，随后对该单元整个 cgroup 依次发送 SIGTERM/SIGKILL，并同时验证单元 inactive、cgroup 无残留进程。不执行 `disable`、`mask` 或 `daemon-reload`，保留原开机启动关系。`enable` 仅立即启动服务。
+  - `install.sh` 将脚本纳入 Linux 通用配置，安装到 `~/.config/scripts/corplink-service`；`.config/scripts/README.md` 补充用法和企业 VPN/终端安全风险说明。
+  - 新增 `tests/corplink_service_test.sh`，以临时假的 `systemctl`、`sudo` 和 `id` 覆盖默认状态、stop→SIGTERM→SIGKILL 顺序、单元仍 active/cgroup 仍有进程的失败路径、启用、非 root 提权、非法参数、安装器与文档契约；测试不会操作真实服务。
+- 验证：`sh -n .config/scripts/corplink-service`、`bash -n install.sh`、`tests/corplink_service_test.sh`、`tests/repo_docs_test.sh`、`git diff --check` 均通过；仓库脚本与 `~/.config/scripts/corplink-service` 内容一致。用户执行 `disable` 后，`corplink.service` 为 inactive，服务 cgroup 与 `corplink-uc` 进程均已清空。`tests/run.sh fast` 在未改动的 `awesome_autostart_test.sh` ARM 外接屏既有断言处失败，本轮涉及文件的针对性测试已通过；环境未安装 `shellcheck`，该项未运行。
+- 运行态：飞连仅临时停止，未改变开机启动关系；下次重启会按原配置恢复。临时停止期间可能影响公司内网、访问控制或终端合规。
+
 ## 2026-07-31 — dingtalk-wayland 增加 restart 子命令
 
 - 目的：钉钉长期运行存在内存累积（实测主进程 9 天达 3GB、占用 191MB swap，总 RSS 5.55GB/17 进程），需要可执行的重启入口缓解。
