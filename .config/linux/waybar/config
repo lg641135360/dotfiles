@@ -8,7 +8,7 @@
   "spacing": 2,
   "modules-left": ["niri/workspaces", "custom/separator", "niri/window"],
   "modules-center": ["clock"],
-  "modules-right": ["network", "cpu", "memory", "pulseaudio", "tray"],
+  "modules-right": ["network", "cpu", "memory", "pulseaudio", "privacy", "tray"],
   "niri/workspaces": {
     "format": "{icon}",
     "format-icons": {
@@ -22,7 +22,12 @@
   "niri/window": {
     "format": "{title}",
     "max-length": 52,
-    "separate-outputs": true
+    "separate-outputs": true,
+    "rewrite": {
+      "(.*) - Visual Studio Code$": "$1",
+      "(.*) - Google Chrome$": "$1",
+      "(.*) - Alacritty$": "$1"
+    }
   },
   "custom/separator": {
     "format": "│",
@@ -34,7 +39,19 @@
   },
   "clock": {
     "format": "{:%a %m月%d日 %H:%M}",
-    "tooltip": false
+    "tooltip-format": "<tt><small>{calendar}</small></tt>",
+    "calendar": {
+      "mode": "month",
+      "weeks-pos": "left",
+      "iso8601": true,
+      "format": {
+        "months": "<span color='#cba6f7'><b>{}</b></span>",
+        "weeks": "<span color='#6c7086'>W{}</span>",
+        "weekdays": "<span color='#89b4fa'><b>{}</b></span>",
+        "days": "<span color='#cdd6f4'>{}</span>",
+        "today": "<span color='#1e1e2e' bgcolor='#89b4fa'><b>{}</b></span>"
+      }
+    }
   },
   "network": {
     "interval": 2,
@@ -43,12 +60,14 @@
     "format-disconnected": "󰤭 N/A",
     "min-length": 19,
     "align": 0.5,
-    "tooltip-format": "网络\nSSID：{essid}\n接口：{ifname}\n地址：{ipaddr}/{cidr}\n下载：{bandwidthDownBytes}/s\n上传：{bandwidthUpBytes}/s",
+    "tooltip-format-wifi": "Wi-Fi\nSSID：{essid}\n信号：{signalStrength}%\n接口：{ifname}\n地址：{ipaddr}/{cidr}",
+    "tooltip-format-ethernet": "有线网络\n接口：{ifname}\n地址：{ipaddr}/{cidr}",
+    "tooltip-format-disconnected": "网络未连接",
     "on-click": "nm-connection-editor"
   },
   "pulseaudio": {
     "format": "  {volume}%",
-    "format-muted": "󰝟 mute",
+    "format-muted": "󰝟 静音",
     "min-length": 5,
     "align": 0.5,
     "tooltip": false,
@@ -56,6 +75,23 @@
     "on-click-right": "pavucontrol",
     "on-scroll-up": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ -l 1.0",
     "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+  },
+  "privacy": {
+    "icon-spacing": 4,
+    "icon-size": 18,
+    "transition-duration": 250,
+    "modules": [
+      {
+        "type": "screenshare",
+        "tooltip": true,
+        "tooltip-icon-size": 24
+      },
+      {
+        "type": "audio-in",
+        "tooltip": true,
+        "tooltip-icon-size": 24
+      }
+    ]
   },
   "cpu": {
     "format": "󰻠 {usage}%",

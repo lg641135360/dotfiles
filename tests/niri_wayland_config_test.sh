@@ -147,12 +147,6 @@ test_niri_config_uses_native_environment_cursor_and_animations() {
     assert_contains 'spring damping-ratio=0.8 stiffness=800 epsilon=0.0001' "$NIRI_COMMON_CONFIG"
 }
 
-test_niri_layout_enables_workspace_wrap_around() {
-    # workspace-wrap-around lets Mod+J/K cycle between first and last workspace,
-    # matching i3/Awesome muscle memory.
-    assert_contains 'workspace-wrap-around' "$NIRI_COMMON_CONFIG"
-}
-
 test_waybar_drops_dead_battery_module_on_desktop_platform() {
     # Ubuntu x64 target is a desktop without battery; the battery module was
     # defined but never enabled in modules-right, leaving dead config and CSS.
@@ -175,6 +169,10 @@ test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
     assert_contains 'background-effect {' "$NIRI_COMMON_CONFIG"
     assert_contains 'blur true' "$NIRI_COMMON_CONFIG"
     assert_contains '全局窗口默认启用 0.88 透明度和 niri 背景模糊' "$NIRI_README"
+    assert_contains 'match app-id=r#"^(org\.kde\.polkit-kde-authentication-agent-1|pinentry|ssh-askpass)$"#' "$NIRI_COMMON_CONFIG"
+    assert_contains 'open-floating true
+    opacity 1.0' "$NIRI_COMMON_CONFIG"
+    assert_contains '认证窗口强制浮动并覆盖为 1.0 不透明度' "$NIRI_README"
     assert_contains 'match app-id=r#"^CherryStudio$"#' "$NIRI_COMMON_CONFIG"
     assert_contains 'default-column-width { proportion 0.66667; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'match app-id=r#"^google-chrome$"#' "$NIRI_COMMON_CONFIG"
@@ -665,17 +663,30 @@ test_waybar_and_mako_match_niri_trial_contract() {
     assert_not_contains '"3":' "$WAYBAR_CONFIG"
     assert_not_contains '"4":' "$WAYBAR_CONFIG"
     assert_not_contains '"5":' "$WAYBAR_CONFIG"
-    assert_contains '"modules-right": ["network", "cpu", "memory", "pulseaudio", "tray"]' "$WAYBAR_CONFIG"
+    assert_contains '"modules-right": ["network", "cpu", "memory", "pulseaudio", "privacy", "tray"]' "$WAYBAR_CONFIG"
     assert_contains '"format-wifi": "󰤨 ↓{bandwidthDownBytes} ↑{bandwidthUpBytes}"' "$WAYBAR_CONFIG"
     assert_contains '"format-ethernet": "󰈀 ↓{bandwidthDownBytes} ↑{bandwidthUpBytes}"' "$WAYBAR_CONFIG"
-    assert_contains '下载：{bandwidthDownBytes}/s' "$WAYBAR_CONFIG"
-    assert_contains '上传：{bandwidthUpBytes}/s' "$WAYBAR_CONFIG"
-    assert_contains 'SSID：{essid}' "$WAYBAR_CONFIG"
+    assert_not_contains '"format-alt":' "$WAYBAR_CONFIG"
+    assert_contains '"on-click": "nm-connection-editor"' "$WAYBAR_CONFIG"
+    assert_contains '"tooltip-format-wifi": "Wi-Fi\nSSID：{essid}\n信号：{signalStrength}%\n接口：{ifname}\n地址：{ipaddr}/{cidr}"' "$WAYBAR_CONFIG"
+    assert_contains '"tooltip-format-ethernet": "有线网络\n接口：{ifname}\n地址：{ipaddr}/{cidr}"' "$WAYBAR_CONFIG"
+    assert_not_contains '下载：{bandwidthDownBytes}' "$WAYBAR_CONFIG"
+    assert_not_contains '上传：{bandwidthUpBytes}' "$WAYBAR_CONFIG"
+    assert_contains '"tooltip-format-disconnected": "网络未连接"' "$WAYBAR_CONFIG"
     assert_contains '"max-length": 52' "$WAYBAR_CONFIG"
-    assert_not_contains '"rewrite":' "$WAYBAR_CONFIG"
+    assert_contains '"rewrite": {' "$WAYBAR_CONFIG"
+    assert_contains '"(.*) - Visual Studio Code$": "$1"' "$WAYBAR_CONFIG"
+    assert_contains '"(.*) - Google Chrome$": "$1"' "$WAYBAR_CONFIG"
+    assert_contains '"(.*) - Alacritty$": "$1"' "$WAYBAR_CONFIG"
     assert_contains '"format": "󰻠 {usage}%"' "$WAYBAR_CONFIG"
     assert_contains '"format": "󰍛 {percentage}%"' "$WAYBAR_CONFIG"
     assert_contains '"format": "  {volume}%"' "$WAYBAR_CONFIG"
+    assert_contains '"format-muted": "󰝟 静音"' "$WAYBAR_CONFIG"
+    assert_contains '"privacy": {' "$WAYBAR_CONFIG"
+    assert_contains '"type": "screenshare"' "$WAYBAR_CONFIG"
+    assert_contains '"type": "audio-in"' "$WAYBAR_CONFIG"
+    assert_contains '"tooltip-format": "<tt><small>{calendar}</small></tt>"' "$WAYBAR_CONFIG"
+    assert_contains '"iso8601": true' "$WAYBAR_CONFIG"
     assert_contains '"tooltip": false' "$WAYBAR_CONFIG"
     assert_contains '@define-color base #1e1e2e;' "$WAYBAR_MOCHA"
     assert_contains '@define-color blue #89b4fa;' "$WAYBAR_MOCHA"
@@ -687,9 +698,14 @@ test_waybar_and_mako_match_niri_trial_contract() {
     assert_contains 'border-radius: 12px;' "$WAYBAR_STYLE"
     assert_contains '#workspaces button.empty' "$WAYBAR_STYLE"
     assert_contains '#workspaces button.focused' "$WAYBAR_STYLE"
-    assert_contains 'transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;' "$WAYBAR_STYLE"
+    assert_contains 'transition: color 0.15s ease, background-color 0.15s ease;' "$WAYBAR_STYLE"
+    assert_not_contains 'border-color 0.15s ease' "$WAYBAR_STYLE"
+    assert_not_contains 'opacity 0.15s ease' "$WAYBAR_STYLE"
     assert_contains '#workspaces button:hover' "$WAYBAR_STYLE"
     assert_contains '#clock:hover,' "$WAYBAR_STYLE"
+    assert_contains '#network.disconnected' "$WAYBAR_STYLE"
+    assert_contains '#privacy-item.screenshare' "$WAYBAR_STYLE"
+    assert_contains '#privacy-item.audio-in' "$WAYBAR_STYLE"
     assert_contains '#tray > .needs-attention' "$WAYBAR_STYLE"
     assert_contains 'background-color=#1e1e2ef2' "$MAKO_CONFIG"
     assert_contains 'border-color=#89b4fa' "$MAKO_CONFIG"

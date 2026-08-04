@@ -6,7 +6,6 @@
   font-family: "Maple Mono NF CN", "JetBrainsMono Nerd Font", "Noto Sans CJK SC", sans-serif;
   font-size: 12px;
   min-height: 0;
-  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
 window#waybar {
@@ -21,6 +20,15 @@ window#waybar {
 .modules-right {
   background: transparent;
   padding: 3px 8px;
+}
+
+#workspaces button,
+#clock,
+#network,
+#pulseaudio,
+#cpu,
+#memory {
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 #workspaces button {
@@ -138,12 +146,37 @@ window#waybar {
   color: @blue;
 }
 
+#network.disconnected {
+  color: @red;
+}
+
 #pulseaudio {
   color: @yellow;
 }
 
 #pulseaudio.muted {
   color: @red;
+}
+
+#privacy {
+  padding: 0;
+  margin: 0;
+}
+
+#privacy-item {
+  padding: 0 7px;
+  margin: 0 1px;
+  border-radius: 6px;
+}
+
+#privacy-item.screenshare {
+  color: @base;
+  background-color: @red;
+}
+
+#privacy-item.audio-in {
+  color: @base;
+  background-color: @mauve;
 }
 
 #tray {

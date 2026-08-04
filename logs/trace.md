@@ -15,7 +15,45 @@
 - 默认任务不得读取 `logs/trace-archive/` 全文。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
-## 2026-08-04 — 新增飞连临时停止脚本
+## 2026-08-04
+
+### niri / Waybar 网络提示与认证窗口优化
+
+- 目的：让网络 tooltip 按连接类型提供有效信息，并提高认证窗口可读性。
+- 已做（`repo-change`，未同步 live、未提交）：
+  - 网络模块保留常驻实时上下行带宽；tooltip 拆分为 Wi-Fi、有线和断开三种状态，Wi-Fi 增加信号强度，有线不再显示无意义 SSID。实测 Waybar 0.15 中相同带宽占位符在主模块与 tooltip 的单位换算不一致，因此 tooltip 不再重复显示速率，只保留连接元数据，以顶栏常驻速率为准。
+  - `#network.disconnected` 使用 Catppuccin 红色显示断网状态。
+  - Polkit、`pinentry`、`ssh-askpass` 认证窗口在保留浮动的同时覆盖为 `opacity 1.0`，README 与回归断言同步更新。
+- 验证：Waybar JSON 解析、`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl`、`tests/niri_wayland_config_test.sh`、`tests/repo_docs_test.sh`、`git diff --check` 均通过。
+
+### Waybar 第三批样式整理
+
+- 目的：收窄不必要的 GTK CSS 动画作用域并统一用户可见文案。
+- 已做（`repo-change`，未同步 live、未提交）：
+  - 移除全局 `*` 选择器上的 transition，仅对 workspace 按钮、时钟、网络、音量、CPU 和内存模块保留颜色/背景色过渡；删除未使用的边框色和透明度 transition。
+  - 音量静音文案由英文 `mute` 统一为中文“静音”，README 与回归断言同步更新。
+  - 保留现有模块 padding：当前 36px 顶栏与各模块 `0 7px` 间距一致，缺少 live 视觉证据时不做无依据压缩。
+- 验证：Waybar JSON 解析与 `tests/niri_wayland_config_test.sh` 通过；后续完整验证见本轮收尾记录。
+
+### niri / Waybar 第二批信息降噪与隐私提示
+
+- 目的：补充屏幕共享/麦克风使用提示和时钟月历；网络模块原计划降噪，后按用户反馈保留其监控价值。
+- 已做（`repo-change`，未同步 live、未提交）：
+  - 新增 Waybar `privacy` 模块，仅监测 PipeWire 屏幕共享和麦克风采集，并用 Catppuccin 红/紫状态样式突出显示。
+  - 时钟悬停新增 ISO 8601 月历，README 与回归断言同步更新。
+  - 网络模块曾改为默认显示 SSID/接口、点击切换带宽；用户指出这会使模块失去意义，现已恢复常驻实时上下行带宽、2 秒刷新和单击打开网络编辑器，并将该偏好记录到 `memory/desktop.md`。
+- 验证：Waybar JSON 解析、`tests/niri_wayland_config_test.sh`、`tests/repo_docs_test.sh`、`git diff --check` 均通过；`ldd` 确认 Waybar 0.15.0 本体链接 `libpipewire-0.3.so.0`，具备 privacy 模块所需的 PipeWire 支持。未启动第二个 Waybar 实例，privacy 的实际捕获状态识别与月历观感留待同步 live 后验证。
+
+### niri / Waybar 第一批一致性整理
+
+- 目的：落实 niri / Waybar 配置分析中的第一批一致性修复。
+- 已做（`repo-change`，未同步 live、未提交）：
+  - Waybar `niri/window` 增加 VS Code、Chrome、Alacritty 常见标题后缀 rewrite，并补充对应回归断言，使配置兑现现有 README 描述。
+  - 修正 `common.kdl` 中已过期的 awww 双壁纸 Overview 注释，改为描述当前 `backdrop-color` + workspace 卡片阴影方案。
+  - 删除未被调用且要求无效 `workspace-wrap-around` 节点的死测试；实测 niri 26.04 将该节点放入 `layout` 会报 `unexpected node`，因此不引入不受支持的行为。
+- 验证：Waybar JSON 解析、`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl`、`tests/niri_wayland_config_test.sh`、`tests/repo_docs_test.sh`、`git diff --check` 均通过。
+
+### 新增飞连临时停止脚本
 
 - 目的：为持续占用单核 CPU 的 `corplink-uc` 提供临时停止入口，当前会话停止、下次重启按原开机配置自动恢复；该进程由 `corplink.service` 拉起，单元配置为 `Restart=always`。
 - 已做（`repo-change` + 用户同步 live 并执行临时停止，未提交）：

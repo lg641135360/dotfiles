@@ -70,7 +70,7 @@ layout {
     border { off; }
 
     // Transparent workspace background: wallpaper shows cleanly during normal use.
-    // Overview uses a separate blurred wallpaper (awww) in the backdrop.
+    // Overview dims the wallpaper with backdrop-color and adds workspace card shadows.
     background-color "transparent"
 
     shadow {
@@ -186,6 +186,7 @@ window-rule {
 window-rule {
     match app-id=r#"^(org\.kde\.polkit-kde-authentication-agent-1|pinentry|ssh-askpass)$"#
     open-floating true
+    opacity 1.0
 }
 
 window-rule {

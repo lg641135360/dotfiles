@@ -66,3 +66,4 @@
 - Satty 文字标注显式使用 `Noto Sans CJK SC`；Satty 支持 IME，但没有可靠字体 fallback，未指定 CJK 字体时中文标注可能看起来像无法输入。
 - Satty 在 niri/Wayland 下启动前应显式 `unset GTK_IM_MODULE`，让 GTK4 走 Wayland text-input/fcitx 路径；不要为 Satty 强制 `GTK_IM_MODULE=fcitx`。
 - Waybar 视觉偏好：niri 主线状态栏优先做整条连续顶栏，避免左/中/右三段独立胶囊导致一体感不足；配色使用 Catppuccin Mocha GTK CSS token，模块内部只用弱分隔、hover 和少量图标化文字降噪。
+- Waybar 网络模块应常驻显示实时上下行带宽；只显示 SSID 或接口名会失去监控价值，不要把带宽隐藏到点击切换的 `format-alt`。
