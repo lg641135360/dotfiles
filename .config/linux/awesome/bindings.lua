@@ -58,14 +58,14 @@ function M.setup(args)
     local run_lua_prompt = args.run_lua_prompt
     local actions = args.actions or {}
 
-    local screenshot_ocr = actions.screenshot_ocr or function() end
+    local screenshot_flameshot = actions.screenshot_flameshot or function() end
     local open_file_manager = actions.open_file_manager or function() end
     local launch_rofi = actions.launch_rofi or function() end
     local lock = actions.lock or function() end
 
     local globalkeys = gears.table.join(
-        awful.key({ modkey }, "s", screenshot_ocr,
-            { description = "screenshot and ocr", group = "launcher" }),
+        awful.key({ modkey }, "s", screenshot_flameshot,
+            { description = "screenshot (flameshot)", group = "launcher" }),
         awful.key({ modkey, "Shift" }, "s", hotkeys_popup.show_help,
             { description = "show help", group = "awesome" }),
         awful.key({ modkey }, "Escape", awful.tag.history.restore,

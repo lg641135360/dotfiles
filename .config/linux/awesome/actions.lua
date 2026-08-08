@@ -83,6 +83,16 @@ function M.screenshot_ocr()
     )
 end
 
+function M.screenshot_flameshot()
+    run_shell_after_check(
+        "截图",
+        command_check({ "flameshot" }),
+        "flameshot gui",
+        "需要安装 flameshot。",
+        true
+    )
+end
+
 function M.open_file_manager()
     run_after_check(
         "文件管理器",

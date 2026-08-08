@@ -5,6 +5,7 @@
 - Ubuntu x64 + picom v10 环境：`shadow-exclude` 里的 `_GTK_FRAME_EXTENTS@` 会触发 `c2_parse_target` 解析错误；不在 Ubuntu x64 配置里保留它。
 - 不使用 `opacity-rule` 把 Alacritty/kitty 强制拉回 100% opacity；终端使用自身透明度使 blur 可见；浏览器/Thunderbird 等窗口按需保持 100%。
 - 美观调优优先只改当前平台，不强求 `ubuntu_x64`/`arch_x64`/`arch_aarch64` 三份配置同步收口，除非用户明确要求。
+- Ubuntu aarch64 为降负载已走低占用方案：关 blur（`method = "none"`）、阴影 radius 6/opacity 0.3、圆角 8px；经实测 picom CPU 从 15.2% 降到 6.7%。
 
 ## 锁屏
 - 锁屏脚本优先 `i3lock-color`/带 `--blur` 的 `i3lock`；不硬编码 `--screen 1`。

@@ -53,7 +53,8 @@
 
 ## 快捷键
 - 锁屏使用 `Mod+Shift+l`；`Mod+Ctrl+l` 留给布局减少列数；`Mod+Ctrl+Shift+l` 减少主区域窗口数量。
-- 桌面动作入口（Rofi、Dolphin、截图 OCR、锁屏等）在执行前检查关键命令/脚本能力，缺依赖或执行失败时用通知提示；用户主动取消不弹失败提示。
+- `Mod+s` 使用 flameshot 截图（`flameshot gui`，通过 `actions.screenshot_flameshot`）。`actions.screenshot_ocr`（maim + 本机 Pot OCR）保留为库动作但默认不绑快捷键。
+- 桌面动作入口（Rofi、Dolphin、flameshot 截图、锁屏等）在执行前检查关键命令/脚本能力，缺依赖或执行失败时用通知提示；用户主动取消不弹失败提示。
 
 ## Widget 实现
 - NET 用 Lua 解析 `/proc/net/dev`，先初始化上一轮计数再显示速率；不依赖 `cat|grep|awk` shell pipeline。

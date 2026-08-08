@@ -15,6 +15,50 @@
 - 默认任务不得读取 `logs/trace-archive/` 全文。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-08-08
+
+### Awesome 界面截图改为 flameshot（Mod+s）
+
+- 目的：将 Awesome 的截图快捷键统一为 flameshot，替代原先 Mod+s 的 maim+Pot OCR。
+- 已做（`repo-change`；live `~/.config/awesome` 因环境写保护未同步、未提交）：
+  - `actions.lua` 新增 `M.screenshot_flameshot()`，执行前用 `command -v flameshot` 检查，缺依赖时通知提示，存在则跑 `flameshot gui`。
+  - `bindings.lua` 把 `Mod+s` 从 `actions.screenshot_ocr` 改为 `actions.screenshot_flameshot`；`screenshot_ocr` 仍留在 actions 模块作为库动作但不再绑快捷键。rc.lua 未改动。
+  - README 快捷键表与「桌面动作入口」段落同步；`memory/awesome.md` 快捷键条目更新。
+- 验证：`tests/awesome_config_test.sh` 通过。
+- 后续方向：如需保留 OCR 入口，可另绑一个快捷键（如 `Mod+Shift+s` 已被 hotkeys_popup 占用，需另选）；live 侧需用户手动同步 actions.lua/bindings.lua 并重载 Awesome 后 `Mod+s` 才生效。
+
+### fcitx5 Rime 崩溃排查与词典重建
+
+- 目的：定位 fcitx5 使用 rime-ice 时反复出现的 lua 报错与一次真实崩溃。
+- 已做（系统/用户数据变更，非仓库；未提交）：
+  - 崩溃定位：`~/.config/fcitx5/crash.log` 记录 08-08 17:22:25 一次 SIGSEGV，崩溃点在 MediaTek 定制 librime（`librime.so.1 +MTTAIOS260630.1`）的 `Prism::CommonPrefixSearch`/`BuildSyllableGraph`（Darts 双数组 trie 检字），进程随后自动重启为 PID 279112。
+  - 根因判断：`build/rime_ice.prism.bin` 仅 40KB，与词典不同步；删除 `build/rime_ice.{prism,table,reverse}.bin` 后 `RIME_USER_DATA_DIR=~/.local/share/fcitx5/rime RIME_SHARED_DATA_DIR=/usr/share/rime-data rime_deployer --build` 重建，`prism.bin` 由 40032→51880 字节（变大），证明原 prism 与词典不同步是检字崩溃的常见诱因。
+  - 重载：`fcitx5-remote -r` 让 rime 用新数据；重载后 crash.log 无新增，当前实例稳定。
+  - 遗留噪音：lua_processor/lua_translator/lua_filter 创建失败（rime-ice 引用的 lua 组件未被 MediaTek librime 注册，插件 dlopen 正常但未生效）与 xdg-desktop-portal 在 X11 无法启动，均为非致命噪音，不影响基础拼音输入。
+- 验证：`rime_deployer --build` 重建产物时间戳更新；`fcitx5-remote -r` 成功；`pgrep fcitx5` 稳定。
+- 后续方向：若崩溃仍复现，需替换/升级 MediaTek 定制 librime 或换官方 librime；lua 插件与 portal 问题如需彻底解决需另行处理。
+
+### picom 低占用优化（降负载）
+
+- 目的：降低 picom 在 aarch64 上的 CPU 占用，缓解系统卡顿。
+- 背景：负载常驻 ~10/12 核，picom 占 15.2% CPU；`dual_kawase` blur 是主要开销。
+- 已做（`repo-change` + live 同步 `~/.config/picom.conf`；未提交）：
+  - `picom-arch_aarch64.conf`：blur 改 `method = "none"`（关模糊）、shadow-radius 10→6、shadow-opacity 0.4→0.3、corner-radius 16→8。
+  - 同步 live 并重启 picom（`pkill -x picom; picom --experimental-backends`）。
+  - README、`memory/desktop.md` 同步更新。
+  - 顺带修复 `actions.lua` 第 86 行 `Function` 误大写为 `function` 的语法错误。
+- 验证：picom CPU 15.2% → 6.7%（降幅超一半）；`tests/awesome_config_test.sh` PASS；配置解析无错。
+- 后续方向：剩余负载大头是 CherryStudio（~35%）与 Trae IDE（~30%），与配置无关；如需进一步降负载应处理这两个应用。
+
+### 内置屏黑屏排查（eDP 链路重初始化）
+
+- 目的：解决内置屏物理不亮的问题。
+- 排查：软件全部正常——xrandr 里 eDP-1 connected/active 主屏、背光 `m1000_backlight` brightness 423/500 且 `bl_power=0`、DPMS On、`/proc/acpi/button/lid` 为 open、AC 供电。据此判断为 **eDP 链路卡住**而非背光/DPMS/合盖问题。
+- 修复：`xrandr --output eDP-1 --off && sleep 3 && xrandr --output eDP-1 --auto --primary --mode 2880x1800 --rate 120` 强制重建 eDP 链路，内置屏恢复点亮。
+- 注意：关屏重开会导致外接 DP-2 重排回 `+0+0` 与内置屏重叠，需手动 `xrandr --output DP-2 --mode 2560x1440 --rate 59.95 --right-of eDP-1` 恢复右侧布局（总尺寸 5440x1800）。
+- 验证：用户确认内置屏已亮；布局已恢复外接在右侧。
+- 后续方向：若黑屏复现，可考虑在相关脚本加入 eDP-1 检测/重初始化逻辑；此问题多为偶发链路状态，非配置所致。
+
 ## 2026-08-04
 
 ### niri / Waybar 网络提示与认证窗口优化

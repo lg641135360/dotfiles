@@ -76,7 +76,7 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 
 ### 桌面动作入口
 
-`actions.lua` 会在执行 Rofi、Dolphin、截图 OCR 与锁屏前检查关键命令或脚本是否可用；缺少依赖或执行失败时会通过 Awesome 通知提示，而不是让快捷键静默无效。截图 OCR 仍使用 `maim` 截图并调用本机 Pot OCR 服务，取消截图选择不会弹失败提示。
+`actions.lua` 会在执行 Rofi、Dolphin、flameshot 截图与锁屏前检查关键命令或脚本是否可用；缺少依赖或执行失败时会通过 Awesome 通知提示，而不是让快捷键静默无效。`Mod+s` 使用 flameshot 截图（`flameshot gui`），未安装 flameshot 时会提示。actions 模块仍保留 `screenshot_ocr`（maim + 本机 Pot OCR 服务）作为库动作，但默认不再绑定快捷键。
 
 ## 锁屏
 
@@ -99,13 +99,13 @@ git clone https://github.com/Elv13/collision.git ~/.config/awesome/collision
 | `Mod+w` | 显示主菜单 |
 | `Mod+c` | 显示 Rofi 应用启动器 |
 | `Mod+r` | 运行命令提示框 |
-| `Mod+s` | 截图 + OCR 翻译 |
+| `Mod+s` | flameshot 截图 |
 | `Mod+Shift+s` | 显示快捷键帮助 |
 | `Mod+Ctrl+r` | 重启 AwesomeWM |
 | `Mod+Shift+q` | 退出 AwesomeWM |
 | `Mod+Shift+l` | 锁屏 |
 
-Snipaste 自己接管裸 `F1` 截图；Awesome 不绑定 `F1`。如果 Snipaste 已运行但 `F1` 无效，优先检查 KDE 全局快捷键服务是否还在运行并抢占了该键：`~/.config/kglobalshortcutsrc` 中 `[org.flameshot.Flameshot.desktop]` 的 `Capture` 应为 `none,none,进行截图`，否则 `kglobalaccel5` 会把 `F1` 交给 Flameshot，Snipaste 日志会出现 `Unable to register global hotkey`。
+`Mod+s` 使用 flameshot 截图（需安装 flameshot）；x86_64 桌面机上 Snipaste 接管裸 `F1` 截图，Awesome 不绑 `F1`。若 x86_64 上 Snipaste 已运行但 `F1` 无效，优先检查 KDE 全局快捷键服务是否抢占了该键：`~/.config/kglobalshortcutsrc` 中 `[org.flameshot.Flameshot.desktop]` 的 `Capture` 应为 `none,none,进行截图`，否则 `kglobalaccel5` 会把 `F1` 交给 Flameshot，Snipaste 日志会出现 `Unable to register global hotkey`。
 
 ### 窗口焦点
 
