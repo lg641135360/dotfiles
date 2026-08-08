@@ -4,6 +4,7 @@
 .vscode
 .claude
 .codex
+CLAUDE.md
 
 # IDE / editor
 *.swp
