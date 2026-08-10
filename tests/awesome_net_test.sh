@@ -144,28 +144,27 @@ test_status_labels_use_one_shared_palette() {
     for status_file in "$SYSTEM_WIDGETS_FILE" "$VOLUME_FILE" "$BRIGHTNESS_FILE"; do
         python - <<'INNERPY' "$status_file"
 from pathlib import Path
-import re
 import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
 
-label_colors = set(re.findall(r"foreground='\" \.\. (ctpp\.\w+) \.\. \"'>\" \.\. \w*_?label", text))
-forbidden = label_colors - {"ctpp.overlay1"}
-assert not forbidden, f"{path.name}: status labels must stay ctpp.overlay1, found {sorted(forbidden)}"
 assert "ctpp.text" not in text, (
-    f"{path.name}: normal status values should use ctpp.subtext0, not the brighter ctpp.text"
+    f"{path.name}: status widgets should not use the brighter ctpp.text"
 )
 INNERPY
-        [ $? -eq 0 ] || fail "expected status labels and values to share one palette in $status_file"
+        [ $? -eq 0 ] || fail "expected status widgets to avoid ctpp.text in $status_file"
     done
 }
 
-test_metric_markup_uses_colon_separator() {
-    grep -F 'label .. ":</span><span foreground=' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected metric markup to use a colon separator"
-    if grep -F '"</span><span foreground='"'"' .. value_color .. '"'"'> "' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
-        fail "expected metric markup to avoid leading space before values"
+test_metric_markup_uses_unified_span() {
+    grep -F 'label .. value_text' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected metric markup to concatenate label and value in one span"
+    if grep -F 'label .. " </span><span foreground=' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
+        fail "expected metric markup to drop the split-span separator"
+    fi
+    if grep -F 'label .. ":</span>' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
+        fail "expected metric markup to drop the colon separator"
     fi
 }
 
@@ -199,8 +198,8 @@ test_net_widget_uses_compact_markup() {
 test_net_widget_uses_compact_spacing() {
     grep -F "ctpp.surface1" "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected separators to use subdued surface1 color"
-    grep -F 'system_row.spacing = dpi(2)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected NET/sysinfo row spacing to be compacted to dpi(2)"
+    grep -F 'system_row.spacing = dpi(4)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET/sysinfo row spacing to be dpi(4) after dropping separators"
     grep -F 'left = dpi(2),' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected sysinfo left padding to be compacted to dpi(2)"
     grep -F 'right = dpi(2),' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
@@ -223,7 +222,7 @@ test_net_widget_uses_short_speed_format() {
 test_net_widget_has_hover_tooltip() {
     grep -F 'local awful = require("awful")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET tooltip to use awful.tooltip"
-    grep -F 'local net_tooltip_text = "网络\n状态：离线\n接口：未匹配"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+    grep -F 'local net_tooltip_text = "网络\n接口：未匹配"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET tooltip to have an explicit offline state"
     grep -F 'awful.tooltip {' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET widget to create a hover tooltip"
@@ -233,13 +232,15 @@ test_net_widget_has_hover_tooltip() {
         fail "expected NET tooltip to refresh from current state"
     grep -F 'totals.interface' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET tooltip to expose interface name"
-    grep -F '"\n下载：" .. format_speed(recv_speed) .. "/s"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected NET tooltip to show download speed units"
-    grep -F '"\n上传：" .. format_speed(sent_speed) .. "/s"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected NET tooltip to show upload speed units"
+    if grep -F '"\n下载："' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
+        fail "expected NET tooltip to drop download speed (shown in main bar)"
+    fi
+    if grep -F '"\n上传："' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
+        fail "expected NET tooltip to drop upload speed (shown in main bar)"
+    fi
     grep -F 'local function render_net_offline_markup()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET widget to render an explicit offline state"
-    grep -F 'NET:N/A' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+    grep -F 'NET N/A' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET offline markup to show N/A"
     grep -F 'local function set_net_offline()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET widget to reset stale rates when no interface is available"
@@ -388,7 +389,7 @@ test_net_widget_seeds_previous_counters_before_speed_display
 test_net_widget_moves_before_cpu
 test_sysinfo_keeps_mem_visible_in_compact_mode
 test_status_labels_use_one_shared_palette
-test_metric_markup_uses_colon_separator
+test_metric_markup_uses_unified_span
 test_sysinfo_uses_contextual_labels
 test_net_widget_uses_compact_markup
 test_net_widget_uses_compact_spacing

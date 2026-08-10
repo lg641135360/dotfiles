@@ -341,8 +341,8 @@ local function aggregate_battery_readings(snapshots)
     return summary
 end
 
-local function render_metric_markup(label, label_color, value_text, value_color)
-    return "<span foreground='" .. label_color .. "'>" .. label .. ":</span><span foreground='" .. value_color .. "'>" .. value_text .. "</span>"
+local function render_metric_markup(label, value_text, color)
+    return "<span foreground='" .. color .. "'>" .. label .. value_text .. "</span>"
 end
 
 local function read_load_average()
@@ -424,7 +424,7 @@ local function create_system_widgets(config, options)
 
     -- CPU widget
     local cpu_widget = wibox.widget.textbox()
-    cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.overlay1, "0%", ctpp.subtext0))
+    cpu_widget:set_markup(render_metric_markup(cpu_label, "0%", ctpp.subtext0))
     awful.tooltip {
         objects = { cpu_widget },
         timer_function = function()
@@ -434,7 +434,7 @@ local function create_system_widgets(config, options)
 
     -- Memory widget
     local mem_widget = wibox.widget.textbox()
-    mem_widget:set_markup(render_metric_markup(mem_label, ctpp.overlay1, "0%", ctpp.subtext0))
+    mem_widget:set_markup(render_metric_markup(mem_label, "0%", ctpp.subtext0))
     awful.tooltip {
         objects = { mem_widget },
         timer_function = function()
@@ -444,11 +444,18 @@ local function create_system_widgets(config, options)
 
     local previous_cpu_totals = nil
 
+    local function format_usage_ratio(usage)
+        if not usage then
+            return "N/A"
+        end
+        return string.format("%.1f", usage / 100)
+    end
+
     local function update_cpu()
         local current = parse_proc_stat_line(read_file_line("/proc/stat"))
         if not current then
             system_state.cpu_usage = "N/A"
-            cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.overlay1, "N/A", ctpp.overlay1))
+            cpu_widget:set_markup(render_metric_markup(cpu_label, "N/A", ctpp.overlay1))
             return
         end
 
@@ -460,19 +467,19 @@ local function create_system_widgets(config, options)
         end
 
         system_state.cpu_usage = usage .. "%"
-        cpu_widget:set_markup(render_metric_markup(cpu_label, ctpp.overlay1, usage .. "%", usage_color(usage, 50, 80, ctpp)))
+        cpu_widget:set_markup(render_metric_markup(cpu_label, format_usage_ratio(usage), usage_color(usage, 50, 80, ctpp)))
     end
 
     local function update_mem()
         local usage = calculate_mem_usage(parse_meminfo(read_file_all("/proc/meminfo")))
         if not usage then
             system_state.mem_usage = "N/A"
-            mem_widget:set_markup(render_metric_markup(mem_label, ctpp.overlay1, "N/A", ctpp.overlay1))
+            mem_widget:set_markup(render_metric_markup(mem_label, "N/A", ctpp.overlay1))
             return
         end
 
         system_state.mem_usage = usage .. "%"
-        mem_widget:set_markup(render_metric_markup(mem_label, ctpp.overlay1, usage .. "%", usage_color(usage, 60, 80, ctpp)))
+        mem_widget:set_markup(render_metric_markup(mem_label, format_usage_ratio(usage), usage_color(usage, 60, 80, ctpp)))
     end
 
     update_cpu()
@@ -488,7 +495,7 @@ local function create_system_widgets(config, options)
 
     -- Network widget
     local net_widget = wibox.widget.textbox()
-    local net_tooltip_text = "网络\n状态：离线\n接口：未匹配"
+    local net_tooltip_text = "网络\n接口：未匹配"
 
     local function render_net_markup(recv_speed, sent_speed)
         local active = (recv_speed + sent_speed) > 0
@@ -498,14 +505,12 @@ local function create_system_widgets(config, options)
     end
 
     local function render_net_offline_markup()
-        return "<span foreground='" .. ctpp.overlay0 .. "'>NET:N/A</span>"
+        return "<span foreground='" .. ctpp.overlay0 .. "'>NET N/A</span>"
     end
 
     local function update_net_tooltip(interface, recv_speed, sent_speed)
         net_tooltip_text = "网络"
             .. "\n接口：" .. interface
-            .. "\n下载：" .. format_speed(recv_speed) .. "/s"
-            .. "\n上传：" .. format_speed(sent_speed) .. "/s"
     end
 
     net_widget:set_markup(render_net_offline_markup())
@@ -522,7 +527,7 @@ local function create_system_widgets(config, options)
     local battery_paths = find_battery_paths()
     if #battery_paths > 0 then
         battery_widget = wibox.widget.textbox()
-        battery_widget:set_markup(render_metric_markup(battery_label, ctpp.overlay1, "0%", ctpp.subtext0))
+        battery_widget:set_markup(render_metric_markup(battery_label, "0%", ctpp.subtext0))
     end
 
     -- Network monitoring
@@ -532,7 +537,7 @@ local function create_system_widgets(config, options)
         net_prev.recv = nil
         net_prev.sent = nil
         net_widget:set_markup(render_net_offline_markup())
-        net_tooltip_text = "网络\n状态：离线\n接口：未匹配"
+        net_tooltip_text = "网络\n接口：未匹配"
     end
 
     local function update_net()
@@ -689,7 +694,7 @@ local function create_system_widgets(config, options)
 
             local summary = aggregate_battery_readings(snapshots)
             if not summary then
-                battery_widget:set_markup(render_metric_markup(battery_label, ctpp.overlay1, "N/A", ctpp.overlay1))
+                battery_widget:set_markup(render_metric_markup(battery_label, "N/A", ctpp.overlay1))
                 battery_tooltip_text = battery_label .. "\n状态：未知\n电量：N/A"
                 return
             end
@@ -707,7 +712,7 @@ local function create_system_widgets(config, options)
                 color = ctpp.overlay1
             end
 
-            battery_widget:set_markup(render_metric_markup(battery_label, ctpp.overlay1, capacity and (capacity .. "%") or "N/A", color))
+            battery_widget:set_markup(render_metric_markup(battery_label, capacity and tostring(capacity) or "N/A", color))
             update_battery_tooltip(summary)
         end
 
@@ -729,19 +734,16 @@ local function create_system_widgets(config, options)
 
     local system_items = {
         net_widget,
-        make_separator(),
         cpu_widget,
-        make_separator(),
         mem_widget,
     }
 
     if battery_widget then
-        table.insert(system_items, make_separator())
         table.insert(system_items, battery_widget)
     end
 
     local system_row = wibox.layout.fixed.horizontal()
-    system_row.spacing = dpi(2)
+    system_row.spacing = dpi(4)
     for _, item in ipairs(system_items) do
         system_row:add(item)
     end

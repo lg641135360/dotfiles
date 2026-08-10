@@ -63,7 +63,7 @@ end
 
 local function create_textclock(ctpp, config, screen)
     local textclock = wibox.widget.textbox()
-    local clock_h_padding = is_compact_screen(screen, config) and dpi(4) or dpi(6)
+    local clock_h_padding = is_compact_screen(screen, config) and dpi(1) or dpi(2)
     local clock_v_padding = is_compact_screen(screen, config) and dpi(1) or dpi(2)
     local weekdays = {
         "星期日",
@@ -171,7 +171,6 @@ local function create_sysinfo_bundle(config, screen, compact)
     end
 
     if brightness_bundle then
-        system_row:add(make_separator())
         system_row:add(brightness_bundle.widget)
     end
 
@@ -179,7 +178,6 @@ local function create_sysinfo_bundle(config, screen, compact)
         volume_bundle = require("widgets.volume").create({
             compact = compact,
         })
-        system_row:add(make_separator())
         system_row:add(volume_bundle.widget)
     end
 
@@ -261,7 +259,7 @@ local function create_right_widgets(config, ctpp, target_screen, clock_widget)
     table.insert(right_widgets, {
         clock_widget,
         left = 0,
-        right = compact and dpi(1) or dpi(3),
+        right = 0,
         widget = wibox.container.margin,
     })
 
