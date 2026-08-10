@@ -14,22 +14,22 @@
 - 同一个动作不在顶栏和快捷键上各留一个入口；锁屏只保留 `Mod+Shift+l`，顶栏不放锁屏按钮。
 
 ## 右侧状态区
-- 主屏右侧显示 NET/CPU/MEM/BAT/VOL 与 systray；非主屏只保留时钟。
+- 主屏右侧显示 NET/CPU/MEM/BRI/VOL/BAT 与 systray；非主屏只保留时钟。BAT 固定排在 VOL 右侧，作为状态信息带的末端读数。
 - 弱化竖线分隔符；时钟与托盘保持扁平透明，时钟文字作为右端视觉终点。
-- full 模式使用 `CPU/MEM/BAT/VOL` 完整标签，compact 模式使用 `C/M/B/V` 短标签（`BRI` 为 `L`）；标签和值之间使用冒号分隔（如 `C:12%`）。
-- compact 模式只缩短标签，不隐藏状态项；MEM 在任何屏幕尺寸下都保留，避免同一台机器接不同屏时状态项数量来回变化。
-- 状态项配色只用来表达异常：标签统一 `overlay1`，正常值 `subtext0`，只有告警区间才升到 `yellow` / `red`。
-- NET/CPU/MEM 保持不可点击，只在 hover 显示 detail；VOL 左键静音、滚轮调音量、右键 `pavucontrol`。
+- 状态项改用 Nerd Font 图标（CPU 󰻠 / MEM 󰍛 / BRI 󰃟 / VOL 󰕾 / BAT 󰁹），不再区分 full/compact 标签长度；图标与数值之间用 thin space（`\u{2009}`）分隔，比模块间距（`dpi(4)`）更窄，避免重叠或松散。
+- compact 模式只缩短日期，不隐藏状态项；MEM 在任何屏幕尺寸下都保留，避免同一台机器接不同屏时状态项数量来回变化。
+- 状态项配色：标签统一 `overlay1`，正常数值用 `subtext0`，只有告警区间才升到 `yellow` / `red`；图标与数值同色显示。
+- NET 不用图标，直接显示 `↓速率 ↑速率`；NET/CPU/MEM 保持不可点击，只在 hover 显示 detail；VOL 左键静音、滚轮调音量、右键 `pavucontrol`。
 - CPU/MEM hover detail 展示使用率、load average 和 top 进程；top 进程列表由 5 秒后台异步缓存刷新，hover 时只读缓存。
-- VOL 左键静音后只显示 `MUTE`，取消静音后恢复音量值。
-- NET 找不到匹配接口时显示 `NET:N/A`/offline，清掉旧速率计数。
+- VOL 左键静音后只显示 `󰕾 MUTE`，取消静音后恢复音量值。
+- NET 找不到匹配接口时显示 `N/A`/offline，清掉旧速率计数。
 - 时钟不绑定点击或滚轮动作，只在 hover tooltip 显示完整日期、星期和时间。
 
 ## Sysinfo 紧凑化
-- 压缩优先级：内部 spacing → 左右 padding；基线 `system_row.spacing = 4`、容器 `left/right = 6`。
-- 紧凑基线：CPU/MEM/BAT 用短标签 `C/M/B`，NET 用箭头速率，`system_row.spacing = 2`，容器 `left/right = 4`，右侧 wibar spacing = 6。
-- 紧凑顺序：`NET → CPU → MEM → BAT`。
-- CPU/BAT/VOL 标签和值之间用冒号分隔。
+- 压缩优先级：内部 spacing → 左右 padding；基线 `system_row.spacing = dpi(4)`、容器 `left/right = dpi(2)`。
+- 紧凑基线：`system_row.spacing = dpi(2)`，容器 `left/right = dpi(2)`，右侧 wibar spacing = `dpi(2)`。
+- 顺序：`NET → CPU → MEM → BRI → VOL → BAT`。
+- 图标与数值之间用 thin space（`\u{2009}`）分隔，不再用冒号。
 
 ## 屏幕检测与模式
 - compact/full 判定优先读取 `screen.outputs` 物理尺寸；物理对角线 >15" 切 full 模式，≤15" compact 用短时钟。
