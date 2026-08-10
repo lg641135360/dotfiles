@@ -6,14 +6,19 @@
 
 ## 架构
 - 优先把可复用桌面动作收口到独立 `actions.lua`，`bindings.lua` 通过显式注入消费 prompt runner，不直接读取 `screen.mypromptbox` 等隐式字段。
-- `ui/wibar.lua` 自己创建每屏 widget（lock button、clock、sysinfo），只把 `actions`、`config`、能力标志从 `rc.lua` 注入。
+- `ui/wibar.lua` 自己创建每屏 widget（clock、sysinfo），只把 `config`、能力标志从 `rc.lua` 注入；顶栏没有需要 `actions` 的入口，因此不再注入 `actions`。
+- 语义标签定义（图标/名称/描述）收口在 `client/policies.lua` 的 `semantic_tags`，`ui/wibar.lua` 直接引用，不再各持一份。
 - 顶栏使用悬浮圆角容器：外层 wibar 透明并预留工作区高度，内层状态栏顶部和左右留少量空隙。
-- 单个状态项保持扁平透明：锁屏、布局、sysinfo、时钟、托盘等只保留文字、图标、分隔符和必要 padding，不再为每个项目单独加背景色或胶囊。
+- 单个状态项保持扁平透明：布局、sysinfo、时钟、托盘等只保留文字、图标、分隔符和必要 padding，不再为每个项目单独加背景色或胶囊。
+- 顶栏内边距一律走 `dpi()` 缩放，不写死像素常量，避免 HiDPI 屏上间距被压扁。
+- 同一个动作不在顶栏和快捷键上各留一个入口；锁屏只保留 `Mod+Shift+l`，顶栏不放锁屏按钮。
 
 ## 右侧状态区
 - 主屏右侧显示 NET/CPU/MEM/BAT/VOL 与 systray；非主屏只保留时钟。
 - 弱化竖线分隔符；时钟与托盘保持扁平透明，时钟文字作为右端视觉终点。
-- full 模式使用 `CPU/MEM/BAT/VOL` 完整标签，compact 模式使用 `C/M/B/V` 短标签；标签和值之间使用冒号分隔（如 `C:12%`）。
+- full 模式使用 `CPU/MEM/BAT/VOL` 完整标签，compact 模式使用 `C/M/B/V` 短标签（`BRI` 为 `L`）；标签和值之间使用冒号分隔（如 `C:12%`）。
+- compact 模式只缩短标签，不隐藏状态项；MEM 在任何屏幕尺寸下都保留，避免同一台机器接不同屏时状态项数量来回变化。
+- 状态项配色只用来表达异常：标签统一 `overlay1`，正常值 `subtext0`，只有告警区间才升到 `yellow` / `red`。
 - NET/CPU/MEM 保持不可点击，只在 hover 显示 detail；VOL 左键静音、滚轮调音量、右键 `pavucontrol`。
 - CPU/MEM hover detail 展示使用率、load average 和 top 进程；top 进程列表由 5 秒后台异步缓存刷新，hover 时只读缓存。
 - VOL 左键静音后只显示 `MUTE`，取消静音后恢复音量值。

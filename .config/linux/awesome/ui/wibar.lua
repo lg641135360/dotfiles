@@ -9,34 +9,9 @@ local hidden_windows = require("ui.hidden_windows")
 local window_menu = require("ui.window_menu")
 local status_area = require("ui.status_area")
 local is_compact_screen = assert(status_area.is_compact_screen)
+local policies = require("client.policies")
 
-local TAG_DEFINITIONS = {
-    {
-        icon = "󰇩 ",
-        name = "开发",
-        description = "终端、编辑器、调试与构建任务。",
-    },
-    {
-        icon = "󰓠 ",
-        name = "浏览器",
-        description = "浏览器、网页检索与在线工作流。",
-    },
-    {
-        icon = " ",
-        name = "文档",
-        description = "资料阅读、PDF、笔记与文档整理。",
-    },
-    {
-        icon = "󰠮 ",
-        name = "沟通",
-        description = "IM、会议与即时协作。",
-    },
-    {
-        icon = " ",
-        name = "杂项",
-        description = "临时工具、文件处理与未归类窗口。",
-    },
-}
+local TAG_DEFINITIONS = policies.semantic_tags
 
 local function tag_definition(tag)
     if not tag or not tag.screen or not tag.screen.tags then
@@ -71,38 +46,9 @@ local function tag_icons()
     return icons
 end
 
-local function create_lock_button(ctpp, actions)
-    local lock = actions.lock or function() end
-
-    local lock_button = wibox.widget {
-        {
-            markup = "<span foreground='" .. ctpp.yellow .. "'> 󰷛 </span>",
-            widget = wibox.widget.textbox,
-        },
-        left = 8,
-        right = 8,
-        top = 4,
-        bottom = 4,
-        widget = wibox.container.margin,
-    }
-
-    lock_button:buttons(gears.table.join(
-        awful.button({ }, 1, lock)
-    ))
-
-    awful.tooltip {
-        objects = { lock_button },
-        timer_function = function()
-            return "锁屏\n操作：立即锁屏\n快捷键：Super+Shift+L"
-        end,
-    }
-
-    return lock_button
-end
-
 local function create_layoutbox(ctpp, screen)
     local mylayoutbox_widget = wibox.widget {
-        markup = " [M] ",
+        markup = "[M]",
         widget = wibox.widget.textbox,
     }
 
@@ -113,10 +59,10 @@ local function create_layoutbox(ctpp, screen)
 
     local layoutbox = wibox.widget {
         mylayoutbox_widget,
-        left = 4,
-        right = 4,
-        top = 2,
-        bottom = 2,
+        left = dpi(2),
+        right = dpi(2),
+        top = dpi(1),
+        bottom = dpi(1),
         widget = wibox.container.margin,
     }
 
@@ -140,7 +86,7 @@ local function create_layoutbox(ctpp, screen)
             cornersw = "└─┘",
             cornerse = "└─┘",
         }
-        mylayoutbox_widget.markup = " <span foreground='" .. ctpp.mauve .. "'> " .. (layout_text[layout_name] or layout_name) .. " </span>"
+        mylayoutbox_widget.markup = "<span foreground='" .. ctpp.mauve .. "'>" .. (layout_text[layout_name] or layout_name) .. "</span>"
     end
 
     update_layoutbox()
@@ -493,7 +439,6 @@ function M.setup(args)
     local modkey = args.modkey
     local ctpp = args.ctpp
     local config = args.config
-    local actions = args.actions or {}
 
     local taglist_buttons = gears.table.join(
         awful.button({}, 1, function(t)
@@ -541,19 +486,17 @@ function M.setup(args)
     local function build_left_widgets(s)
         local left_widgets = {
             layout = wibox.layout.fixed.horizontal,
-            spacing = s == screen.primary and dpi(4) or dpi(2),
+            spacing = s == screen.primary and dpi(2) or dpi(1),
             {
                 s.mytaglist,
-                left = 8,
-                right = s == screen.primary and 4 or 2,
+                left = dpi(4),
+                right = dpi(2),
                 widget = wibox.container.margin,
             },
             s.mylayoutbox,
         }
 
         if s == screen.primary then
-            table.insert(left_widgets, s.mylockbutton)
-            table.insert(left_widgets, status_area.create_separator(ctpp))
             table.insert(left_widgets, s.mypromptbox)
         end
 
@@ -635,7 +578,6 @@ function M.setup(args)
 
         s.mypromptbox = awful.widget.prompt()
         s.mylayoutbox = create_layoutbox(ctpp, s)
-        s.mylockbutton = create_lock_button(ctpp, actions)
         s.mytaglist = awful.widget.taglist {
             screen = s,
             filter = awful.widget.taglist.filter.all,
@@ -648,8 +590,8 @@ function M.setup(args)
                             id = "text_role",
                             widget = wibox.widget.textbox,
                         },
-                        left = 8,
-                        right = 8,
+                        left = dpi(6),
+                        right = dpi(6),
                         widget = wibox.container.margin,
                     },
                     {

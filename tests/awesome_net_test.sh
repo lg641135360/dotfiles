@@ -4,6 +4,8 @@ set -eu
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 CONFIG_FILE=$REPO_ROOT/.config/linux/awesome/config.lua
 SYSTEM_WIDGETS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/system.lua
+VOLUME_FILE=$REPO_ROOT/.config/linux/awesome/widgets/volume.lua
+BRIGHTNESS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/brightness.lua
 WIBAR_FILE=$REPO_ROOT/.config/linux/awesome/ui/wibar.lua
 STATUS_AREA_FILE=$REPO_ROOT/.config/linux/awesome/ui/status_area.lua
 
@@ -119,6 +121,46 @@ INNERPY
     [ $? -eq 0 ] || fail "expected net_widget to appear before cpu_widget in system_items"
 }
 
+test_sysinfo_keeps_mem_visible_in_compact_mode() {
+    if grep -F 'if not compact then' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
+        fail "expected compact mode to shorten the MEM label instead of dropping the item"
+    fi
+    python - <<'INNERPY' "$SYSTEM_WIDGETS_FILE"
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+start = text.index('local system_items = {')
+end = text.index('    if battery_widget then', start)
+chunk = text[start:end]
+
+assert 'mem_widget' in chunk, 'MEM must stay in the base system_items list on every screen size'
+assert chunk.index('cpu_widget') < chunk.index('mem_widget'), 'expected NET -> CPU -> MEM order'
+INNERPY
+    [ $? -eq 0 ] || fail "expected mem_widget to stay in system_items regardless of compact mode"
+}
+
+test_status_labels_use_one_shared_palette() {
+    for status_file in "$SYSTEM_WIDGETS_FILE" "$VOLUME_FILE" "$BRIGHTNESS_FILE"; do
+        python - <<'INNERPY' "$status_file"
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+
+label_colors = set(re.findall(r"foreground='\" \.\. (ctpp\.\w+) \.\. \"'>\" \.\. \w*_?label", text))
+forbidden = label_colors - {"ctpp.overlay1"}
+assert not forbidden, f"{path.name}: status labels must stay ctpp.overlay1, found {sorted(forbidden)}"
+assert "ctpp.text" not in text, (
+    f"{path.name}: normal status values should use ctpp.subtext0, not the brighter ctpp.text"
+)
+INNERPY
+        [ $? -eq 0 ] || fail "expected status labels and values to share one palette in $status_file"
+    done
+}
+
 test_metric_markup_uses_colon_separator() {
     grep -F 'label .. ":</span><span foreground=' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected metric markup to use a colon separator"
@@ -157,17 +199,17 @@ test_net_widget_uses_compact_markup() {
 test_net_widget_uses_compact_spacing() {
     grep -F "ctpp.surface1" "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected separators to use subdued surface1 color"
-    grep -F 'system_row.spacing = 2' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected NET/sysinfo row spacing to be compacted to 2"
-    grep -F 'left = 2,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected sysinfo left padding to be compacted to 2"
-    grep -F 'right = 2,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected sysinfo right padding to be compacted to 2"
-    grep -F 'top = 2,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected sysinfo top padding to be compacted to 2"
-    grep -F 'bottom = 2,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected sysinfo bottom padding to be compacted to 2"
-    grep -F 'spacing = compact and 2 or 4,' "$STATUS_AREA_FILE" >/dev/null 2>&1 ||
+    grep -F 'system_row.spacing = dpi(2)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected NET/sysinfo row spacing to be compacted to dpi(2)"
+    grep -F 'left = dpi(2),' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected sysinfo left padding to be compacted to dpi(2)"
+    grep -F 'right = dpi(2),' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected sysinfo right padding to be compacted to dpi(2)"
+    grep -F 'top = dpi(2),' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected sysinfo top padding to be compacted to dpi(2)"
+    grep -F 'bottom = dpi(2),' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected sysinfo bottom padding to be compacted to dpi(2)"
+    grep -F 'spacing = compact and dpi(2) or dpi(4),' "$STATUS_AREA_FILE" >/dev/null 2>&1 ||
         fail "expected right side wibar spacing to adapt between tighter compact and full layouts"
 }
 
@@ -344,6 +386,8 @@ test_net_widget_avoids_shell_pipeline_parsing
 test_net_widget_parses_proc_net_dev_in_lua
 test_net_widget_seeds_previous_counters_before_speed_display
 test_net_widget_moves_before_cpu
+test_sysinfo_keeps_mem_visible_in_compact_mode
+test_status_labels_use_one_shared_palette
 test_metric_markup_uses_colon_separator
 test_sysinfo_uses_contextual_labels
 test_net_widget_uses_compact_markup

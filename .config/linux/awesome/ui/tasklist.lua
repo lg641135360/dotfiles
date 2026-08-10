@@ -216,9 +216,9 @@ end
 
 local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact, available_width)
     compact = compact == true
-    local item_spacing = compact and 3 or 5
-    local item_h_padding = compact and 5 or 7
-    local item_v_padding = compact and 1 or 2
+    local item_spacing = compact and dpi(3) or dpi(5)
+    local item_h_padding = compact and dpi(4) or dpi(6)
+    local item_v_padding = compact and dpi(1) or dpi(2)
 
     return awful.widget.tasklist {
         screen = screen,

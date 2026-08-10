@@ -689,7 +689,7 @@ local function create_system_widgets(config, options)
 
             local summary = aggregate_battery_readings(snapshots)
             if not summary then
-                battery_widget:set_markup(render_metric_markup(battery_label, ctpp.yellow, "N/A", ctpp.overlay1))
+                battery_widget:set_markup(render_metric_markup(battery_label, ctpp.overlay1, "N/A", ctpp.overlay1))
                 battery_tooltip_text = battery_label .. "\n状态：未知\n电量：N/A"
                 return
             end
@@ -731,12 +731,9 @@ local function create_system_widgets(config, options)
         net_widget,
         make_separator(),
         cpu_widget,
+        make_separator(),
+        mem_widget,
     }
-
-    if not compact then
-        table.insert(system_items, make_separator())
-        table.insert(system_items, mem_widget)
-    end
 
     if battery_widget then
         table.insert(system_items, make_separator())
@@ -744,7 +741,7 @@ local function create_system_widgets(config, options)
     end
 
     local system_row = wibox.layout.fixed.horizontal()
-    system_row.spacing = 2
+    system_row.spacing = dpi(2)
     for _, item in ipairs(system_items) do
         system_row:add(item)
     end
@@ -752,10 +749,10 @@ local function create_system_widgets(config, options)
     -- System info container
     local sysinfo_widget = wibox.widget {
         system_row,
-        left = 2,
-        right = 2,
-        top = 2,
-        bottom = 2,
+        left = dpi(2),
+        right = dpi(2),
+        top = dpi(2),
+        bottom = dpi(2),
         widget = wibox.container.margin,
     }
 

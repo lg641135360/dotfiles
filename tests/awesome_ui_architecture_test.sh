@@ -70,6 +70,26 @@ test_rc_wires_shared_modules() {
     assert_contains 'config = config,' "$RC_FILE"
     assert_not_contains 'local lain_ok = pcall(require, "lain")' "$RC_FILE"
     assert_not_contains 'Please install lain' "$RC_FILE"
+
+    python - "$RC_FILE" <<'PY' || fail "expected rc.lua to stop passing actions into wibar.setup"
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+start = text.index('require("ui.wibar").setup({')
+end = text.index("})", start)
+chunk = text[start:end]
+
+assert "actions = actions," not in chunk, (
+    "wibar no longer reads actions, so rc.lua must not keep passing it"
+)
+
+start = text.index('require("bindings").setup({')
+end = text.index("})", start)
+assert "actions = actions," in text[start:end], (
+    "bindings still owns the lock/screenshot/launcher actions"
+)
+PY
 }
 
 test_rc_no_longer_builds_bar_widgets_locally() {
@@ -730,7 +750,7 @@ test_hidden_window_indicator_tracks_and_restores_hidden_clients() {
 
 test_wibar_owns_bar_widget_creation() {
     assert_contains 'local config = args.config' "$WIBAR_FILE"
-    assert_contains 'local actions = args.actions or {}' "$WIBAR_FILE"
+    assert_not_contains 'local actions = args.actions or {}' "$WIBAR_FILE"
     assert_not_contains 'local terminal = args.terminal or "alacritty"' "$WIBAR_FILE"
     assert_not_contains 'local lain_ok = args.lain_ok' "$WIBAR_FILE"
     assert_contains 'local dpi = require("beautiful.xresources").apply_dpi' "$WIBAR_FILE"
@@ -762,11 +782,10 @@ test_wibar_owns_bar_widget_creation() {
     assert_contains 'local function create_tasklist(ctpp, screen, tasklist_buttons, config, compact, available_width)' "$TASKLIST_FILE"
     assert_contains 'return {' "$TASKLIST_FILE"
     assert_contains 'create_tasklist = create_tasklist,' "$TASKLIST_FILE"
-    assert_contains 'local function create_lock_button(ctpp, actions)' "$WIBAR_FILE"
-    assert_contains 'objects = { lock_button },' "$WIBAR_FILE"
-    assert_contains 'return "锁屏' "$WIBAR_FILE"
-    assert_contains '操作：立即锁屏' "$WIBAR_FILE"
-    assert_contains '快捷键：Super+Shift+L' "$WIBAR_FILE"
+    assert_not_contains 'local function create_lock_button(ctpp, actions)' "$WIBAR_FILE"
+    assert_not_contains 'objects = { lock_button },' "$WIBAR_FILE"
+    assert_not_contains '操作：立即锁屏' "$WIBAR_FILE"
+    assert_not_contains '快捷键：Super+Shift+L' "$WIBAR_FILE"
     assert_contains 'local status_area = require("ui.status_area")' "$WIBAR_FILE"
     assert_contains 'local clock_widget = status_area.create_textclock(ctpp, config, s)' "$WIBAR_FILE"
     assert_contains 'local right_widget_data = status_area.create_right_widgets(config, ctpp, s, clock_widget)' "$WIBAR_FILE"
@@ -796,7 +815,7 @@ test_wibar_owns_bar_widget_creation() {
     assert_not_contains 'local clock_buttons = gears.table.join(' "$WIBAR_FILE"
     assert_not_contains 'month_calendar:connect_signal' "$WIBAR_FILE"
     assert_not_contains 'show_calendar(' "$WIBAR_FILE"
-    assert_contains 'spacing = compact and 2 or 4,' "$STATUS_AREA_FILE"
+    assert_contains 'spacing = compact and dpi(2) or dpi(4),' "$STATUS_AREA_FILE"
     assert_not_contains 'configure_screen_dpi(s, config)' "$WIBAR_FILE"
     assert_contains 'systray:set_base_size(dpi(20))' "$STATUS_AREA_FILE"
     assert_not_contains 'border_width = dpi(1),' "$STATUS_AREA_FILE"
@@ -820,9 +839,9 @@ test_wibar_owns_bar_widget_creation() {
     assert_not_contains 'local function is_compact_screen(screen, config)' "$TASKLIST_FILE"
     assert_not_contains 'local function screen_diagonal_inches(screen)' "$TASKLIST_FILE"
     assert_not_contains 'local function output_diagonal_inches(output)' "$TASKLIST_FILE"
-    assert_contains 'local item_spacing = compact and 3 or 5' "$TASKLIST_FILE"
-    assert_contains 'local item_h_padding = compact and 5 or 7' "$TASKLIST_FILE"
-    assert_contains 'local item_v_padding = compact and 1 or 2' "$TASKLIST_FILE"
+    assert_contains 'local item_spacing = compact and dpi(3) or dpi(5)' "$TASKLIST_FILE"
+    assert_contains 'local item_h_padding = compact and dpi(4) or dpi(6)' "$TASKLIST_FILE"
+    assert_contains 'local item_v_padding = compact and dpi(1) or dpi(2)' "$TASKLIST_FILE"
     assert_contains 'self._task_tooltip_text = render_task_tooltip(c)' "$TASKLIST_FILE"
     assert_contains 'if not self._task_tooltip then' "$TASKLIST_FILE"
     assert_contains 'objects = { self },' "$TASKLIST_FILE"
@@ -884,9 +903,6 @@ def assert_flat_status_item(chunk, forbidden_bg, label):
         raise AssertionError(f"{label}: expected no per-item rounded background shape")
 
 
-lock_chunk = chunk_between(wibar, "local lock_button = wibox.widget {", "\n    lock_button:buttons")
-assert_flat_status_item(lock_chunk, "bg = ctpp.surface0,", "lock button")
-
 layout_chunk = chunk_between(wibar, "local layoutbox = wibox.widget {", "\n    local function update_layoutbox()")
 assert_flat_status_item(layout_chunk, "bg = ctpp.surface0,", "layoutbox")
 
@@ -920,7 +936,7 @@ test_wibar_refreshes_after_screen_topology_changes() {
     assert_contains 's._omx_wibar_probe = nil' "$WIBAR_FILE"
     assert_contains 'queue_wibar_refresh()' "$WIBAR_FILE"
     assert_contains 'awesome.connect_signal("screen::change", queue_wibar_refresh)' "$WIBAR_FILE"
-    assert_contains 's.mylockbutton = create_lock_button(ctpp, actions)' "$WIBAR_FILE"
+    assert_not_contains 's.mylockbutton = create_lock_button(ctpp, actions)' "$WIBAR_FILE"
     assert_contains 'if not s.mytextclock then' "$WIBAR_FILE"
     assert_contains 's.mytextclock._refresh()' "$WIBAR_FILE"
     assert_contains 'local available_tasklist_width = tasklist_available_width(s, left_widgets, s.myhiddenwindows, right_widgets)' "$WIBAR_FILE"
@@ -1059,6 +1075,9 @@ package.preload["ui.status_area"] = function()
     }
 end
 
+local awesome_root = wibar_file:gsub("/ui/wibar%.lua$", "")
+package.path = awesome_root .. "/?.lua;" .. awesome_root .. "/?/init.lua;" .. package.path
+
 local wibar = assert(loadfile(wibar_file))()
 local widget_fit_size = assert(wibar._private and wibar._private.widget_fit_size)
 local width, height = widget_fit_size({
@@ -1107,15 +1126,15 @@ assert "dispose_status_widgets(target_screen)" in chunk[else_start:clock_start]
 PY
 }
 
-test_wibar_hides_lock_button_on_secondary_screens() {
+test_wibar_hides_promptbox_on_secondary_screens() {
     assert_contains 'if s == screen.primary then' "$WIBAR_FILE"
-    assert_contains 'table.insert(left_widgets, s.mylockbutton)' "$WIBAR_FILE"
-    assert_contains 'table.insert(left_widgets, status_area.create_separator(ctpp))' "$WIBAR_FILE"
     assert_contains 'table.insert(left_widgets, s.mypromptbox)' "$WIBAR_FILE"
-    assert_contains 'spacing = s == screen.primary and dpi(4) or dpi(2),' "$WIBAR_FILE"
+    assert_contains 'spacing = s == screen.primary and dpi(2) or dpi(1),' "$WIBAR_FILE"
+    assert_not_contains 's.mylockbutton' "$WIBAR_FILE"
     assert_not_contains 'lock_button,' "$WIBAR_FILE"
+    assert_not_contains 'table.insert(left_widgets, status_area.create_separator(ctpp))' "$WIBAR_FILE"
 
-    python - "$WIBAR_FILE" <<'PY' || fail "expected secondary left side to omit lock button, separator, and promptbox"
+    python - "$WIBAR_FILE" <<'PY' || fail "expected secondary left side to omit the promptbox"
 from pathlib import Path
 import sys
 
@@ -1125,19 +1144,14 @@ end = text.index("\n    local function rebuild_screen_wibar", start)
 chunk = text[start:end]
 
 primary_marker = "if s == screen.primary then"
-lock_marker = "table.insert(left_widgets, s.mylockbutton)"
-separator_marker = "table.insert(left_widgets, status_area.create_separator(ctpp))"
 prompt_marker = "table.insert(left_widgets, s.mypromptbox)"
 
 assert primary_marker in chunk
 primary_start = chunk.index(primary_marker)
-lock_start = chunk.index(lock_marker)
-separator_start = chunk.index(separator_marker)
 prompt_start = chunk.index(prompt_marker)
-assert primary_start < lock_start < separator_start < prompt_start
-assert lock_marker in chunk[primary_start:separator_start]
-assert separator_marker in chunk[primary_start:prompt_start]
-assert prompt_marker in chunk[primary_start:]
+assert primary_start < prompt_start
+assert "mylockbutton" not in chunk
+assert "create_separator" not in chunk
 PY
 }
 
@@ -1350,19 +1364,53 @@ test_wibar_uses_current_tag_window_menu() {
 }
 
 test_semantic_tag_definitions_exist() {
-    assert_contains 'local TAG_DEFINITIONS = {' "$WIBAR_FILE"
-    assert_contains 'name = "浏览器"' "$WIBAR_FILE"
-    assert_contains 'name = "开发"' "$WIBAR_FILE"
-    assert_contains 'name = "文档"' "$WIBAR_FILE"
-    assert_contains 'name = "沟通"' "$WIBAR_FILE"
-    assert_contains 'name = "杂项"' "$WIBAR_FILE"
+    assert_contains 'local TAG_DEFINITIONS = policies.semantic_tags' "$WIBAR_FILE"
+    assert_contains 'local policies = require("client.policies")' "$WIBAR_FILE"
+    assert_not_contains 'local TAG_DEFINITIONS = {' "$WIBAR_FILE"
+    assert_contains 'name = "浏览器"' "$CLIENT_POLICIES_FILE"
+    assert_contains 'name = "开发"' "$CLIENT_POLICIES_FILE"
+    assert_contains 'name = "文档"' "$CLIENT_POLICIES_FILE"
+    assert_contains 'name = "沟通"' "$CLIENT_POLICIES_FILE"
+    assert_contains 'name = "杂项"' "$CLIENT_POLICIES_FILE"
+    assert_contains 'description = "终端、编辑器、调试与构建任务。"' "$CLIENT_POLICIES_FILE"
     assert_contains 'local function tag_definition(tag)' "$WIBAR_FILE"
     assert_contains 'local function tag_icons()' "$WIBAR_FILE"
     assert_contains 'semantic_tags = {' "$CLIENT_POLICIES_FILE"
     assert_contains 'awful.tag(tag_icons(), s, awful.layout.layouts[1])' "$WIBAR_FILE"
-    assert_line_before 'name = "开发"' 'name = "浏览器"' "$WIBAR_FILE"
+    assert_line_before 'name = "开发"' 'name = "浏览器"' "$CLIENT_POLICIES_FILE"
     assert_line_before 'key = "dev"' 'key = "browser"' "$CLIENT_POLICIES_FILE"
     assert_contains '标签顺序：开发、浏览器、文档、沟通、杂项' "$README_FILE"
+
+    python - "$WIBAR_FILE" "$CLIENT_POLICIES_FILE" <<'PY' || fail "expected tag definitions to be looked up by screen tag index and to carry a description"
+from pathlib import Path
+import re
+import sys
+
+wibar = Path(sys.argv[1]).read_text()
+policies = Path(sys.argv[2]).read_text()
+
+start = wibar.index("local function tag_definition(tag)")
+end = wibar.index("local function tag_display_name(tag)", start)
+chunk = wibar[start:end]
+
+assert "for index, candidate in ipairs(tag.screen.tags) do" in chunk, (
+    "tag definition lookup must walk the screen tag list by index"
+)
+assert "return TAG_DEFINITIONS[index]" in chunk
+assert "definition.name == tag.name" not in chunk, (
+    "tag names hold Nerd Font icons, so name-based matching never matches"
+)
+
+start = policies.index("semantic_tags = {")
+end = policies.index("browser_classes = {", start)
+semantic_chunk = policies[start:end]
+
+entries = re.findall(r"key = \"([a-z]+)\"", semantic_chunk)
+assert entries == ["dev", "browser", "docs", "chat", "misc"], entries
+assert semantic_chunk.count("description = ") == len(entries), (
+    "every semantic tag needs a description so the tooltip can show it"
+)
+PY
 }
 
 test_taglist_notification_indicator_stays_subtle() {
@@ -1499,7 +1547,7 @@ test_wibar_refreshes_after_screen_topology_changes
 test_wibar_exposes_probe_state_for_runtime_visibility_checks
 test_wibar_widget_fit_size_materializes_specs
 test_wibar_keeps_status_widgets_on_primary_only
-test_wibar_hides_lock_button_on_secondary_screens
+test_wibar_hides_promptbox_on_secondary_screens
 test_status_area_owns_compact_screen_policy
 test_wibar_uses_physical_size_before_width_fallback
 test_wibar_scales_task_title_width_by_screen_size

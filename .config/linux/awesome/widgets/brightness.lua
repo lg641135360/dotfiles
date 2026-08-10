@@ -140,7 +140,7 @@ local function create_brightness_widget(options)
     local can_write_brightness = file_writable(brightness_file)
 
     local function render_unavailable_markup()
-        return "<span foreground='" .. ctpp.sky .. "'>" .. brightness_label .. ":</span><span foreground='" .. ctpp.overlay1 .. "'>N/A</span>"
+        return "<span foreground='" .. ctpp.overlay1 .. "'>" .. brightness_label .. ":</span><span foreground='" .. ctpp.overlay1 .. "'>N/A</span>"
     end
 
     local function render_brightness_markup(percent)
@@ -148,14 +148,14 @@ local function create_brightness_widget(options)
             return render_unavailable_markup()
         end
 
-        local value_color = ctpp.text
+        local value_color = ctpp.subtext0
         if percent <= 15 then
             value_color = ctpp.red
         elseif percent <= 35 then
             value_color = ctpp.yellow
         end
 
-        return "<span foreground='" .. ctpp.sky .. "'>" .. brightness_label .. ":</span><span foreground='" .. value_color .. "'>" .. percent .. "%</span>"
+        return "<span foreground='" .. ctpp.overlay1 .. "'>" .. brightness_label .. ":</span><span foreground='" .. value_color .. "'>" .. percent .. "%</span>"
     end
 
     local brightness_widget = wibox.widget.textbox()

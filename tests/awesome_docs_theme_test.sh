@@ -78,13 +78,16 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '工作区有通知时在右上角改用红色小圆点提示' "$README_FILE"
     assert_contains '这些点不占用标签文字宽度' "$README_FILE"
     assert_contains '当前工作区仍保持蓝色图标' "$README_FILE"
-    assert_contains '锁屏按钮悬浮会提示用途' "$README_FILE"
+    assert_not_contains '锁屏按钮' "$README_FILE"
+    assert_contains '顶栏不再放锁屏入口' "$README_FILE"
     assert_contains '布局指示器悬浮会提示当前布局和切换方式' "$README_FILE"
-    assert_contains 'lock / layout / tasklist 的 tooltip 文案也统一成标题 + 字段行' "$README_FILE"
+    assert_contains 'layout / tasklist 的 tooltip 文案也统一成标题 + 字段行' "$README_FILE"
     assert_contains 'tooltip/menu 是更轻的浮层卡片层' "$README_FILE"
     assert_contains '它们通过更轻一点的表面色和更柔和的边线与普通胶囊区分，但不抢主界面焦点' "$README_FILE"
-    assert_contains '二者只保留文字和 padding，不单独绘制背景色或胶囊' "$README_FILE"
+    assert_contains '它只保留文字和 padding，不单独绘制背景色或胶囊' "$README_FILE"
     assert_contains '主屏右侧状态区会继续统一收紧 spacing' "$README_FILE"
+    assert_contains '顶栏内边距统一走 `dpi()` 缩放' "$README_FILE"
+    assert_contains '状态项标签统一使用弱化的 `overlay1`' "$README_FILE"
     assert_contains 'sysinfo / clock / systray 都保持扁平透明' "$README_FILE"
     assert_contains '不为单个状态项额外绘制背景色或胶囊' "$README_FILE"
     assert_contains '托盘只放在主屏，并使用更小图标' "$README_FILE"
@@ -126,7 +129,7 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '悬浮 VOL 会提示左键/右键/滚轮的具体作用' "$README_FILE"
     assert_contains '时钟不绑定点击或滚轮动作' "$README_FILE"
     assert_contains '悬浮时显示完整日期、星期和时间' "$README_FILE"
-    assert_contains '执行 Rofi、Dolphin、截图 OCR 与锁屏前检查关键命令或脚本是否可用' "$README_FILE"
+    assert_contains '执行 Rofi、Dolphin、flameshot 截图与锁屏前检查关键命令或脚本是否可用' "$README_FILE"
     assert_contains '缺少依赖或执行失败时会通过 Awesome 通知提示' "$README_FILE"
 }
 
@@ -160,7 +163,7 @@ test_theme_exposes_fallback_titlebar_tokens() {
 }
 
 test_readme_documents_snipaste_f1_conflict() {
-    assert_contains 'Snipaste 自己接管裸 `F1` 截图；Awesome 不绑定 `F1`' "$README_FILE"
+    assert_contains 'Snipaste 接管裸 `F1` 截图，Awesome 不绑 `F1`' "$README_FILE"
     assert_contains '[org.flameshot.Flameshot.desktop]' "$README_FILE"
     assert_contains 'Capture` 应为 `none,none,进行截图`' "$README_FILE"
     assert_contains 'Unable to register global hotkey' "$README_FILE"

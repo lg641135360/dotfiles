@@ -78,7 +78,6 @@ local wibar_actions = require("ui.wibar").setup({
     modkey = modkey,
     ctpp = ctpp,
     config = config,
-    actions = actions,
 })
 
 local display_layout_refresh_queued = false

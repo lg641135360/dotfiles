@@ -63,8 +63,8 @@ end
 
 local function create_textclock(ctpp, config, screen)
     local textclock = wibox.widget.textbox()
-    local clock_h_padding = is_compact_screen(screen, config) and 5 or 6
-    local clock_v_padding = is_compact_screen(screen, config) and 1 or 2
+    local clock_h_padding = is_compact_screen(screen, config) and dpi(4) or dpi(6)
+    local clock_v_padding = is_compact_screen(screen, config) and dpi(1) or dpi(2)
     local weekdays = {
         "星期日",
         "星期一",
@@ -138,10 +138,10 @@ local function create_systray_widget(ctpp)
             valign = "center",
             widget = wibox.container.place,
         },
-        left = 4,
-        right = 4,
-        top = 2,
-        bottom = 2,
+        left = dpi(4),
+        right = dpi(4),
+        top = dpi(2),
+        bottom = dpi(2),
         widget = wibox.container.margin,
     }
 end
@@ -239,7 +239,7 @@ local function create_right_widgets(config, ctpp, target_screen, clock_widget)
     local compact = is_compact_screen(target_screen, config)
     local right_widgets = {
         layout = wibox.layout.fixed.horizontal,
-        spacing = compact and 2 or 4,
+        spacing = compact and dpi(2) or dpi(4),
     }
 
     if target_screen == screen.primary then
@@ -250,8 +250,8 @@ local function create_right_widgets(config, ctpp, target_screen, clock_widget)
         table.insert(right_widgets, sysinfo_widget)
         table.insert(right_widgets, {
             systray_widget,
-            left = 1,
-            right = 1,
+            left = dpi(1),
+            right = dpi(1),
             widget = wibox.container.margin,
         })
     else
@@ -261,7 +261,7 @@ local function create_right_widgets(config, ctpp, target_screen, clock_widget)
     table.insert(right_widgets, {
         clock_widget,
         left = 0,
-        right = compact and 1 or 3,
+        right = compact and dpi(1) or dpi(3),
         widget = wibox.container.margin,
     })
 
