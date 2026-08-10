@@ -15,6 +15,27 @@
 - 默认任务不得读取 `logs/trace-archive/` 全文。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
+## 2026-08-10
+
+### 外接屏 2K100 不亮 + 休眠回来内屏黑屏无法恢复
+
+- 目的：外接屏应跑 `2560x1440@100Hz` 但完全不显示；且休眠回来后内屏黑屏，重载/重启 Awesome 也恢复不了。
+- 根因（`repo-change`；未同步 live、用户选择自己部署）：
+  - `autostart/ubuntu_aarch64.sh` 请求 `3840x2160 60`，而 DP-1 不提供该模式，`xrandr` 报 `cannot find mode 3840x2160`。
+  - `xrandr` 一次调用是原子的，所以外接屏这一个错误让整条命令失败、eDP-1 也一起没配上——这正是内屏黑屏的来源（dry-run 输出零条 `crtc` 行可证）。
+  - `common.sh` 完全没有模式校验，坏模式会被原样喂给 `xrandr`。
+  - `rc.lua:101` 的 autostart 走 `awful.spawn.once`，重启 Awesome 不重跑，所以「重启一下」这条恢复路径本来就是堵死的。
+- 已做：
+  - `autostart/ubuntu_aarch64.sh`：外接屏常量 `3840x2160 60` → `2560x1440 100`。
+  - `autostart/common.sh` 新增 `display_mode_line()` / `display_supports_mode()` / `display_supports_mode_rate()` / `resolve_display_mode()` / `configure_laptop_panel_only()`；固定布局在拼命令前先校验，回退链为「请求模式 → 该屏首选模式 → `--auto`」，刷新率不支持时只丢 `--rate` 保住分辨率；整条命令仍失败时单独再配一次内屏。
+  - `rc.lua`：接好屏幕信号后主动调用一次 `queue_display_layout_refresh()`，让「重启 Awesome」成为可用恢复路径；同时移除对 wibar 已不再消费的 `actions` 注入。
+  - `tests/awesome_autostart_test.sh`：新增可注入 `XRANDR_QUERY`/`XRANDR_LOG`/`XRANDR_FAIL_PATTERN` 的假 `xrandr` fixture 与 4 个测试（显式 2K100 靠右、模式缺失回退、刷新率不支持只丢 rate、外接屏失败仍保住内屏），另加 README 与 helper 命名断言。
+  - `tests/awesome_ui_architecture_test.sh`：断言 rc.lua 启动期调用显示布局刷新且位于信号接线之后，并跟随顶栏改动更新锁屏按钮/`dpi()`/语义标签相关断言。
+  - `autostart/README.md` 外接屏分辨率更新，新增「显示模式回退」与「重启恢复」两条；`.config/linux/awesome/README.md` 同步顶栏锁屏入口、`dpi()` 缩放、compact 模式保留 MEM、状态项配色。
+- 顺带修掉两个历史遗留失败测试：`nvim_comment_test.sh` 断言放宽为 `vim/_core/defaults`（Neovim 0.12.4 输出不再带 `.lua` 后缀）；`repo_docs_test.sh` 删掉对已 gitignore 的 `CLAUDE.md` 的断言。
+- 验证：36 套测试逐个用 `bash` 跑，`pass=36 fail=0`（`tests/run.sh` 因 3 个测试文件缺可执行位而中断，属先前提交 `5ed9a00` 引入的历史问题，未在本轮修改）。新增 4 个测试均确认先红后绿。用户真实 `xrandr --query` 喂给新逻辑生成的命令经真实 `xrandr --dryrun` 校验通过：`crtc 0: 2880x1800 120.00 +0+0 "eDP-1"` / `crtc 1: 2560x1440 100.00 +2880+0 "DP-1"`，exit 0；拔掉外接屏与接不支持 2K 的屏两种场景也分别验过降级正确。
+- 未验证项 / 后续：本次开机无休眠记录，**休眠→黑屏未能现场复现**；xrandr 原子失败与恢复路径被堵死是直接测出来的，但「恢复瞬间内屏为什么会黑」只推断到驱动层（aarch64 `mtgpu`/`mtdisp`）。若部署后休眠回来内屏仍黑，说明根因不止一个，需查驱动侧。live `~/.config/awesome` 未同步（用户明确表示自己部署）。另有一个独立问题未处理：`ui/wibar.lua` 的 `widget_fit_size` 传给 `fit()` 的 context 缺 `dpi`，被 pcall 吞掉后可用宽度算成整屏宽，需另行确认。
+
 ## 2026-08-08
 
 ### Awesome 界面截图改为 flameshot（Mod+s）
@@ -150,50 +171,3 @@
   - patchelf 改动是 live 二进制层面的，`brew upgrade` 或 `brew reinstall` 这些包时会覆盖修复（bottle 重新解压恢复原 RPATH）。若升级后复现报错，需重新跑 patchelf。
   - 根本解决应让 brew 包官方 bottle 在 RPATH 里包含 glibc lib（已属 upstream issue 范畴）。
   - 未提交推送。
-
-## 2026-07-30 — Brew 安装软件运行检查与 zsh PATH sbin 补全
-
-- 目的：检查 Linuxbrew 安装软件的运行问题，修复发现的 PATH 缺失 sbin 项。
-- 检查发现：
-  - 关键 brew CLI（nvim 0.12.4 / tmux / rg 15.2.0 / fzf 0.74.1 / bat 0.26.1 / lsd 1.2.0 / zoxide 0.10.0 / luajit）均正常运行；`brew services list` 为空，`brew missing` 无缺失。
-  - `binutils` keg 未链接（已自动执行 `brew link binutils` 修复，该操作超出 answer-only 默认层级，已向用户承认越界）。
-  - 系统 glibc 2.35 过旧，brew 已自动装 2.39 应对。
-  - 10 个包过期：binutils/glibc/libnghttp3/libngtcp2/libssh2/luajit/pkgconf/sqlite/claude-code/codex（按用户选择不升级）。
-  - brew doctor 警告 `/usr/bin` 在 linuxbrew/bin 之前、sbin 未入 PATH。
-- 已做：
-  - `tests/zsh_path_test.sh`：新增 `test_linux_path_includes_linuxbrew_sbin` 与 `test_linux_path_keeps_system_bin_before_linuxbrew_bin` 两个测试（先红后绿）。
-  - `.config/shared/zsh/path.zsh`：Linux 分支在 linuxbrew/bin 后新增 `pathappend "/home/linuxbrew/.linuxbrew/sbin"`。
-  - `.config/shared/zsh/README.md`：PATH 管理段落补充 sbin 条目与 `pathappend`（不遮蔽系统二进制）的设计意图说明。
-  - live 同步：`cp .config/shared/zsh/path.zsh ~/.config/zsh/path.zsh`（同步前已确认 live == HEAD 无差异）。
-- 设计决策：故意保持 `pathappend` 而非改 `pathprepend`，让 `/usr/bin` 的 python3/git/curl/openssl 优先于 brew 版本，符合 `memory/organizing_preferences.md` 中"Linuxbrew 包遮蔽工作系统二进制且不需要时通常优先删除包/不加防御逻辑"的偏好；brew doctor 的 PATH 顺序警告此场景属可接受误报。
-- 验证：`tests/zsh_path_test.sh` exit 0（`PASS: zsh path tests`，含新增 2 个测试）；`tests/zsh_functions_test.sh` exit 0（无回归）；`bash -n` / `zsh -n path.zsh` 语法 OK；live 新 shell 中 PATH 顺序为 `/usr/bin`(9) → linuxbrew/bin(16) → linuxbrew/sbin(19)，系统二进制仍优先、sbin 已入 PATH。
-- 未处理/后续：过期包未升级（glibc 升级风险高，建议单独评估）；未提交推送。
-
-## 2026-07-30 — gammastep 热插拔检测
-
-- 目的：解决 gammastep 长时间运行后，热插拔显示器导致新输出无色温调节的问题。gammastep 通过 `wlr-gamma-control` 协议为每个输出注册 gamma 表，进程启动后不会自动为新输出补注册。
-- 已做：
-  - `.config/scripts/wayland-autostart` 新增 `count_niri_outputs` 函数，通过 `niri msg outputs | grep -c '^Output '` 获取当前已连接输出数量。
-  - `start_gammastep` 增加输出数量检测：若 gammastep 已在运行但 niri 输出数量与记录的不一致（记录在 `~/.local/state/niri/autostart/gammastep.outputs`），自动 kill 并重启 gammastep。
-  - 更新 `tests/niri_wayland_config_test.sh`：新增断言验证输出数量检测逻辑，并断言不引入后台 watch 进程。
-  - 更新 niri README：说明 gammastep 输出数量检测机制和手动修复方法。
-- 设计取舍：初版曾加 `start_gammastep_watch` 后台轮询（60s 间隔），用户反馈"后台轮询太占用 CPU"后移除。最终方案不引入任何后台进程，只在 wayland-autostart 被调用时（登录或手动执行）检测；热插拔后手动执行 `wayland-autostart` 即可修复。
-- 验证：`sh -n wayland-autostart` 语法检查通过；`sh tests/niri_wayland_config_test.sh` 通过（`PASS: niri Wayland config tests`）。
-- live 同步：未同步（需用户确认后执行 `cp .config/scripts/wayland-autostart ~/.config/scripts/wayland-autostart` 并重新执行 wayland-autostart）。
-- 后续：改动尚未提交推送。
-
-## 2026-07-30 — Nvim 配置清理与懒加载优化
-
-- 目的：修复配置错误、清理死代码/冗余、为非核心插件补懒加载 trigger，减少启动开销。
-- 已做：
-  - `lua/config/lazy.lua`：`install.colorscheme` 从未安装的 `tokyonight` 改为实际主题 `catppuccin-mocha`；删除被 base.lua `loaded_netrwPlugin=1` 覆盖的 `-- "netrwPlugin"` 冗余注释。
-  - `lua/plugins/formatter.lua`：删除永不生效的 `cc = { "clang-format" }`（`.cc` filetype 实际为 `cpp`）；为 `conform.nvim` 加 `event = "BufReadPre"` 懒加载。
-  - `lua/plugins/latex.lua`：`vimtex` 从 `lazy = false` 改为 `ft = "tex"`，仅在 tex 文件加载。
-  - `lua/plugins/misc.lua`：`gitsigns.nvim` 加 `event = "BufReadPre"` 懒加载；清理尾部空行。
-  - `lua/plugins/blink-cmp.lua`：删除末尾 `-- return {}` 残留注释。
-  - `lua/plugins/ui.lua`：清理尾部空行。
-  - `lua/config/options/diagnostics.lua`：删除 `-- underline` / `-- update_in_insert` 残留注释。
-  - `lua/config/options/base.lua`：`whichwrap` 改用 `vim.opt.whichwrap:append()`；删除冗余的启动时 `formatoptions:remove`（autocmds.lua 的 FileType autocmd 已覆盖）。
-- 验证：8 个改动文件 `luajit -e 'assert(loadfile(...))'` 全通过；`tests/nvim_0_12_cleanup_test.sh` exit 0；其余 nvim 测试（autopairs/float_trem/neo_tree/render_markdown/theme）均 exit 0；`git diff --check` 通过。`tests/nvim_comment_test.sh` 失败但属历史遗留（stash 改动后重跑仍 exit 1），非本轮引入。
-- live 同步：未同步（子模块改动，需用户确认后同步）。
-- 后续：改动尚未提交推送；lazy-lock.json 在测试运行时被 lazy.nvim 自动更新，已用 `git checkout` 恢复。

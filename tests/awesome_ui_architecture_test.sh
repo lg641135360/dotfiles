@@ -107,6 +107,24 @@ test_rc_refreshes_runtime_display_layout_on_screen_topology_changes() {
     assert_contains 'screen.connect_signal("added", queue_display_layout_refresh)' "$RC_FILE"
     assert_contains 'screen.connect_signal("removed", queue_display_layout_refresh)' "$RC_FILE"
     assert_contains 'awesome.connect_signal("screen::change", queue_display_layout_refresh)' "$RC_FILE"
+
+    python - "$RC_FILE" <<'PY' || fail "expected rc.lua to apply the display layout once at startup"
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+
+assert "queue_display_layout_refresh()" in text, (
+    "restarting awesome must re-apply the display layout, because autostart.sh "
+    "runs through awful.spawn.once and is skipped on restart"
+)
+
+signal_start = text.index('screen.connect_signal("added", queue_display_layout_refresh)')
+startup_call = text.index("\nqueue_display_layout_refresh()")
+assert startup_call > signal_start, (
+    "the startup call belongs after the signal wiring so a restart reuses the same path"
+)
+PY
 }
 
 test_bindings_use_injected_prompt_runners() {

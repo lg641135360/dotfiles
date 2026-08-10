@@ -72,6 +72,11 @@ test_common_module_exposes_shared_helpers() {
     assert_contains 'detect_external_displays() {' "$COMMON_FILE"
     assert_contains 'detect_external_display() {' "$COMMON_FILE"
     assert_contains 'detect_display_preferred_mode() {' "$COMMON_FILE"
+    assert_contains 'display_mode_line() {' "$COMMON_FILE"
+    assert_contains 'display_supports_mode() {' "$COMMON_FILE"
+    assert_contains 'display_supports_mode_rate() {' "$COMMON_FILE"
+    assert_contains 'resolve_display_mode() {' "$COMMON_FILE"
+    assert_contains 'configure_laptop_panel_only() {' "$COMMON_FILE"
     assert_contains 'configure_laptop_display_layout() {' "$COMMON_FILE"
     assert_contains 'randomize_wallpaper() {' "$COMMON_FILE"
     assert_contains 'run_idle_lock_service() {' "$COMMON_FILE"
@@ -639,46 +644,117 @@ EOF
     rm -rf "$tmpdir"
 }
 
-test_fixed_external_display_layout_uses_explicit_2k60_on_the_right() {
-    tmpdir=$(mktemp -d)
-    bin_dir=$tmpdir/bin
-    query_file=$tmpdir/xrandr.query
-    log_file=$tmpdir/xrandr.log
+fixed_layout_fixture() {
+    fixture_dir=$1
+    external_modes=$2
 
-    mkdir -p "$bin_dir"
+    mkdir -p "$fixture_dir/bin"
 
-    cat >"$query_file" <<'EOF'
+    cat >"$fixture_dir/xrandr.query" <<EOF
 Screen 0: minimum 320 x 200, current 2880 x 1800, maximum 32767 x 32767
 DP-1 disconnected (normal left inverted right x axis y axis)
 eDP-1 connected primary 2880x1800+0+0 (normal left inverted right x axis y axis) 300mm x 190mm
    2880x1800    120.00*+  60.00
 DP-2 connected (normal left inverted right x axis y axis)
-   3840x2160     29.98*+
-    2560x1440     59.95
-   1920x1080     60.00 +  59.94
+$external_modes
 EOF
 
-    cat >"$bin_dir/xrandr" <<'EOF'
+    cat >"$fixture_dir/bin/xrandr" <<'EOF'
 #!/bin/sh
 if [ "$1" = "--query" ]; then
     cat "$XRANDR_QUERY"
     exit 0
 fi
 printf '%s\n' "$*" >>"$XRANDR_LOG"
+if [ -n "${XRANDR_FAIL_PATTERN:-}" ]; then
+    case "$*" in
+        *"$XRANDR_FAIL_PATTERN"*)
+            printf 'xrandr: configure crtc 1 failed\n' >&2
+            exit 1
+            ;;
+    esac
+fi
+exit 0
 EOF
-    chmod +x "$bin_dir/xrandr"
+    chmod +x "$fixture_dir/bin/xrandr"
+}
+
+run_fixed_layout() {
+    fixture_dir=$1
+    fail_pattern=$2
+    shift 2
 
     (
-        PATH="$bin_dir:/usr/bin:/bin"
-        XRANDR_QUERY=$query_file
-        XRANDR_LOG=$log_file
-        export XRANDR_QUERY XRANDR_LOG
+        PATH="$fixture_dir/bin:/usr/bin:/bin"
+        XRANDR_QUERY=$fixture_dir/xrandr.query
+        XRANDR_LOG=$fixture_dir/xrandr.log
+        XRANDR_FAIL_PATTERN=$fail_pattern
+        export XRANDR_QUERY XRANDR_LOG XRANDR_FAIL_PATTERN
         . "$COMMON_FILE"
-        configure_fixed_external_display_layout 2880x1800 120 right 2560x1440 59.95
+        configure_fixed_external_display_layout "$@"
     )
+}
 
-    grep -Fx -- '--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --mode 2560x1440 --rate 59.95 --right-of eDP-1' "$log_file" >/dev/null 2>&1 ||
-        fail "expected fixed external layout to force DP-2 to 2560x1440@59.95 on the right"
+test_fixed_external_display_layout_uses_explicit_2k100_on_the_right() {
+    tmpdir=$(mktemp -d)
+
+    fixed_layout_fixture "$tmpdir" '   2560x1440     59.95 + 100.00    74.97
+   1920x1080     74.97    60.00'
+
+    run_fixed_layout "$tmpdir" '' 2880x1800 120 right 2560x1440 100
+
+    grep -Fx -- '--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --mode 2560x1440 --rate 100 --right-of eDP-1' "$tmpdir/xrandr.log" >/dev/null 2>&1 ||
+        fail "expected fixed external layout to force DP-2 to 2560x1440@100 on the right"
+
+    rm -rf "$tmpdir"
+}
+
+test_fixed_external_display_layout_falls_back_when_requested_mode_missing() {
+    tmpdir=$(mktemp -d)
+
+    fixed_layout_fixture "$tmpdir" '   2560x1440     59.95 + 100.00    74.97
+   1920x1080     74.97    60.00'
+
+    run_fixed_layout "$tmpdir" '' 2880x1800 120 right 3840x2160 60
+
+    if grep -F -- '3840x2160' "$tmpdir/xrandr.log" >/dev/null 2>&1; then
+        fail "expected an unsupported external mode to never reach xrandr"
+    fi
+
+    grep -Fx -- '--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --mode 2560x1440 --right-of eDP-1' "$tmpdir/xrandr.log" >/dev/null 2>&1 ||
+        fail "expected an unsupported external mode to fall back to the preferred mode"
+
+    rm -rf "$tmpdir"
+}
+
+test_fixed_external_display_layout_drops_unsupported_refresh_rate() {
+    tmpdir=$(mktemp -d)
+
+    fixed_layout_fixture "$tmpdir" '   2560x1440    100.00 +
+   1920x1080     74.97'
+
+    run_fixed_layout "$tmpdir" '' 2880x1800 120 right 2560x1440 59.95
+
+    if grep -F -- '--rate 59.95' "$tmpdir/xrandr.log" >/dev/null 2>&1; then
+        fail "expected an unsupported external refresh rate to be dropped"
+    fi
+
+    grep -Fx -- '--output eDP-1 --primary --mode 2880x1800 --rate 120 --output DP-2 --mode 2560x1440 --right-of eDP-1' "$tmpdir/xrandr.log" >/dev/null 2>&1 ||
+        fail "expected a supported external mode to survive an unsupported refresh rate"
+
+    rm -rf "$tmpdir"
+}
+
+test_fixed_external_display_layout_keeps_laptop_panel_when_external_fails() {
+    tmpdir=$(mktemp -d)
+
+    fixed_layout_fixture "$tmpdir" '   2560x1440     59.95 + 100.00    74.97'
+
+    # The fake xrandr prints a failure on purpose here; keep the suite output clean.
+    run_fixed_layout "$tmpdir" 'DP-2' 2880x1800 120 right 2560x1440 100 2>/dev/null || true
+
+    grep -Fx -- '--output eDP-1 --primary --mode 2880x1800 --rate 120' "$tmpdir/xrandr.log" >/dev/null 2>&1 ||
+        fail "expected the laptop panel to be reconfigured on its own after an external layout failure"
 
     rm -rf "$tmpdir"
 }
@@ -688,7 +764,7 @@ test_platform_specific_behaviors_remain_declared() {
     assert_contains 'run Snipaste' "$ARCH_FILE"
     assert_contains 'run greenclip daemon' "$ARCH_FILE"
     assert_contains 'apply_display_layout() {' "$UBUNTU_ARM_FILE"
-    assert_contains 'configure_fixed_external_display_layout 2880x1800 120 right 2560x1440 59.95' "$UBUNTU_ARM_FILE"
+    assert_contains 'configure_fixed_external_display_layout 2880x1800 120 right 2560x1440 100' "$UBUNTU_ARM_FILE"
     assert_contains 'if [ "${1:-}" = "--display-layout" ]; then' "$UBUNTU_ARM_FILE"
     assert_not_contains 'configure_laptop_display_layout 2880x1800 120 right 1.5x1.5' "$UBUNTU_ARM_FILE"
     assert_not_contains 'configure_laptop_display_layout 2880x1800 120 right 2x2' "$UBUNTU_ARM_FILE"
@@ -721,6 +797,17 @@ test_readme_documents_runtime_wrapper_chain() {
     assert_contains '~/.config/awesome/display-layout.sh' "$README_FILE"
     assert_contains 'autostart/<platform>.sh' "$README_FILE"
     assert_not_contains '在 `install.sh` 中，根据 `uname -m` 和 `/etc/os-release` 判断使用哪个脚本' "$README_FILE"
+}
+
+test_readme_documents_display_mode_fallback() {
+    assert_contains '2560x1440@100Hz' "$README_FILE"
+    assert_not_contains '2560x1440@59.95Hz' "$README_FILE"
+    assert_contains '`xrandr` 一次调用是原子的' "$README_FILE"
+    assert_contains '回退到该外接屏的首选模式' "$README_FILE"
+    assert_contains '退到 `--auto`' "$README_FILE"
+    assert_contains '刷新率不被支持时只丢掉 `--rate`' "$README_FILE"
+    assert_contains '再单独配一次内屏' "$README_FILE"
+    assert_contains 'queue_display_layout_refresh()' "$README_FILE"
 }
 
 test_readme_documents_idle_lock_service() {
@@ -770,10 +857,14 @@ test_display_mode_detection_prefers_progressive_mode_for_scaled_external_monitor
 test_laptop_display_layout_chains_multiple_external_monitors
 test_laptop_display_layout_can_scale_multiple_external_monitors
 test_laptop_display_layout_handles_no_external_monitor
-test_fixed_external_display_layout_uses_explicit_2k60_on_the_right
+test_fixed_external_display_layout_uses_explicit_2k100_on_the_right
+test_fixed_external_display_layout_falls_back_when_requested_mode_missing
+test_fixed_external_display_layout_drops_unsupported_refresh_rate
+test_fixed_external_display_layout_keeps_laptop_panel_when_external_fails
 test_platform_specific_behaviors_remain_declared
 test_readme_documents_random_wallpaper_behavior
 test_readme_documents_runtime_wrapper_chain
+test_readme_documents_display_mode_fallback
 test_readme_documents_idle_lock_service
 test_readme_documents_ubuntu_x64_snipaste_candidates
 test_install_keeps_lain_removed_from_awesome_dependencies

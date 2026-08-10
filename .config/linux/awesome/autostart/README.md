@@ -53,7 +53,9 @@ Ubuntu x86_64      → ubuntu_x64.sh
 
 ### ubuntu_aarch64.sh
 
-- **显示器**：运行时检测内屏（`eDP`/`LVDS`/`DSI`）和所有已连接外接屏；内屏设置为 `2880x1800@120Hz` 主屏，Ubuntu aarch64 默认把外接屏显式固定为 `2560x1440@59.95Hz` 并按顺序放在笔记本屏幕右侧，避免误落到 `3840x2160@30` 或 `1920x2160` 这类不适合横向 16:9 桌面的特殊模式；`display-layout.sh` 会在热插拔后再次调用同一策略；全局 `Xft.dpi` 不在这里调整
+- **显示器**：运行时检测内屏（`eDP`/`LVDS`/`DSI`）和所有已连接外接屏；内屏设置为 `2880x1800@120Hz` 主屏，Ubuntu aarch64 默认把外接屏显式固定为 `2560x1440@100Hz` 并按顺序放在笔记本屏幕右侧，避免误落到 `3840x2160@30` 或 `1920x2160` 这类不适合横向 16:9 桌面的特殊模式；`display-layout.sh` 会在热插拔后再次调用同一策略；全局 `Xft.dpi` 不在这里调整
+- **显示模式回退**：`xrandr` 一次调用是原子的，外接屏用了一个它不支持的模式会让整条命令失败、内屏也一起配不上。所以固定布局在拼命令前会先用 `display_supports_mode()` / `display_supports_mode_rate()` 校验：请求的模式不被支持时回退到该外接屏的首选模式，连首选模式都读不到时退到 `--auto`；刷新率不被支持时只丢掉 `--rate`，保留分辨率。即便如此整条命令仍然失败，则再单独配一次内屏，保证外接屏的问题不会连累内屏黑屏
+- **重启恢复**：`autostart.sh` 走 `awful.spawn.once`，重启 Awesome 不会重跑；`rc.lua` 因此在接好屏幕信号后主动调用一次 `queue_display_layout_refresh()`，让"重启 Awesome"成为休眠回来后可用的恢复路径
 - **触摸板**：动态检测 Touchpad 设备 ID，配置自然滚动、轻触点击、clickfinger 模式、光标加速、打字时禁用
 - **壁纸**：`/usr/share/backgrounds/*`
 - **壁纸选择**：每次执行 autostart 时通过 `feh --no-fehbg --bg-fill --randomize` 从候选目录重新随机选择，不再优先恢复 `~/.fehbg`

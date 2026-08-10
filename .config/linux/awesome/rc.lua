@@ -104,6 +104,10 @@ screen.connect_signal("added", queue_display_layout_refresh)
 screen.connect_signal("removed", queue_display_layout_refresh)
 awesome.connect_signal("screen::change", queue_display_layout_refresh)
 
+-- autostart.sh runs through spawn.once, so a restart would otherwise never
+-- re-apply the layout and could leave a panel dark after resume.
+queue_display_layout_refresh()
+
 root.buttons(gears.table.join(
     awful.button({ }, 3, function () mymainmenu:toggle() end),
     awful.button({ }, 4, awful.tag.viewnext),

@@ -85,7 +85,9 @@
 - lock 脚本：优先 `i3lock-color`/带 `--blur` 的 `i3lock`；普通 fallback 用 Python 生成 Catppuccin Mocha 静态 PNG；多屏按每个输出画居中卡片；生成失败时退纯色。自动锁屏由 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep` 启动，缺依赖时静默跳过。
 
 ## 多屏
-- Ubuntu aarch64 外接屏：内屏 `2880x1800@120Hz` 主屏，外接屏默认显式固定为 `2560x1440@59.95Hz` 放笔记本右侧，避免误选 `3840x2160@30` 或 `1920x2160` 这类不适合横向 16:9 桌面的特殊模式。
+- Ubuntu aarch64 外接屏：内屏 `2880x1800@120Hz` 主屏，外接屏默认显式固定为 `2560x1440@100Hz` 放笔记本右侧，避免误选 `3840x2160@30` 或 `1920x2160` 这类不适合横向 16:9 桌面的特殊模式。
+- `xrandr` 一次调用是原子的：外接屏用了它不支持的模式会让整条命令失败、内屏一起配不上。因此固定布局必须先校验模式再拼命令，回退链为「请求模式 → 该屏首选模式 → `--auto`」，刷新率不支持时只丢 `--rate`；整条命令仍失败时单独再配一次内屏，保证外接屏问题不连累内屏。
+- `autostart.sh` 走 `awful.spawn.once`，重启 Awesome 不重跑，所以 `rc.lua` 必须在启动时主动调一次显示布局刷新，否则「重启 Awesome」不是一条可用的恢复路径。
 - `Xft.dpi: 192` 是内屏合适基线。
 - Ubuntu aarch64 autostart 运行时探测内屏名（`eDP`/`LVDS`/`DSI`）。
 - Snipaste 在候选路径里按版本号选择最新可执行 AppImage。

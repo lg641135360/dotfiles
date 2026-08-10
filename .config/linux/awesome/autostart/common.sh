@@ -406,6 +406,94 @@ configure_laptop_display_layout() {
     xrandr "$@"
 }
 
+display_mode_line() {
+    display=$1
+    mode=$2
+
+    command_available xrandr || return 1
+
+    xrandr --query 2>/dev/null |
+        awk -v display="$display" -v mode="$mode" '
+            $1 == display && / connected/ {
+                in_display = 1
+                next
+            }
+            in_display && /^[^[:space:]]/ {
+                exit
+            }
+            in_display && $1 == mode {
+                print
+                exit
+            }
+        '
+}
+
+display_supports_mode() {
+    [ -n "$(display_mode_line "$1" "$2")" ]
+}
+
+display_supports_mode_rate() {
+    display=$1
+    mode=$2
+    rate=$3
+
+    [ -n "$rate" ] || return 1
+
+    mode_line=$(display_mode_line "$display" "$mode")
+    [ -n "$mode_line" ] || return 1
+
+    printf '%s\n' "$mode_line" |
+        awk -v rate="$rate" '
+            {
+                for (i = 2; i <= NF; i++) {
+                    value = $i
+                    gsub(/[*+]/, "", value)
+                    if (value !~ /^[0-9]+(\.[0-9]+)?$/) {
+                        continue
+                    }
+                    # xrandr prints rounded rates, so 100 must still match 100.00.
+                    if (value + 0 >= rate - 0.01 && value + 0 <= rate + 0.01) {
+                        found = 1
+                        exit
+                    }
+                }
+            }
+            END { exit(found ? 0 : 1) }
+        '
+}
+
+resolve_display_mode() {
+    display=$1
+    requested_mode=$2
+
+    if [ -n "$requested_mode" ] && display_supports_mode "$display" "$requested_mode"; then
+        printf '%s\n' "$requested_mode"
+        return 0
+    fi
+
+    detect_display_preferred_mode "$display"
+}
+
+configure_laptop_panel_only() {
+    laptop_display=$1
+    laptop_mode=$2
+    laptop_rate=$3
+
+    set -- --output "$laptop_display" --primary
+
+    if [ -n "$laptop_mode" ] && display_supports_mode "$laptop_display" "$laptop_mode"; then
+        set -- "$@" --mode "$laptop_mode"
+
+        if display_supports_mode_rate "$laptop_display" "$laptop_mode" "$laptop_rate"; then
+            set -- "$@" --rate "$laptop_rate"
+        fi
+    else
+        set -- "$@" --auto
+    fi
+
+    xrandr "$@"
+}
+
 configure_fixed_external_display_layout() {
     laptop_mode=$1
     laptop_rate=$2
@@ -421,11 +509,7 @@ configure_fixed_external_display_layout() {
     external_displays=$(detect_external_displays "$laptop_display")
 
     if [ -z "$external_displays" ]; then
-        set -- --output "$laptop_display" --primary --mode "$laptop_mode"
-        if [ -n "$laptop_rate" ]; then
-            set -- "$@" --rate "$laptop_rate"
-        fi
-        xrandr "$@"
+        configure_laptop_panel_only "$laptop_display" "$laptop_mode" "$laptop_rate"
         return 0
     fi
 
@@ -439,15 +523,29 @@ configure_fixed_external_display_layout() {
     position_arg=$(display_position_arg "$external_position")
 
     for external_display in $external_displays; do
-        set -- "$@" --output "$external_display" --mode "$external_mode"
-        if [ -n "$external_rate" ]; then
-            set -- "$@" --rate "$external_rate"
+        resolved_mode=$(resolve_display_mode "$external_display" "$external_mode")
+
+        if [ -z "$resolved_mode" ]; then
+            set -- "$@" --output "$external_display" --auto
+        else
+            set -- "$@" --output "$external_display" --mode "$resolved_mode"
+
+            if display_supports_mode_rate "$external_display" "$resolved_mode" "$external_rate"; then
+                set -- "$@" --rate "$external_rate"
+            fi
         fi
+
         set -- "$@" "$position_arg" "$previous_display"
         previous_display=$external_display
     done
 
-    xrandr "$@"
+    # xrandr applies a layout atomically, so one bad external output would
+    # otherwise leave the laptop panel unconfigured too.
+    if xrandr "$@"; then
+        return 0
+    fi
+
+    configure_laptop_panel_only "$laptop_display" "$laptop_mode" "$laptop_rate"
 }
 
 prepare_xresources() {
