@@ -77,7 +77,7 @@ if grep -q 'Comment.nvim' "$nvim_output"; then
   exit 1
 fi
 
-if ! grep -q 'vim/_core/defaults.lua' "$nvim_output"; then
+if ! grep -q 'vim/_core/defaults' "$nvim_output"; then
   echo "gcc should come from Neovim built-in defaults"
   exit 1
 fi

@@ -10,7 +10,6 @@ LINUX_BREWFILE=$REPO_ROOT/.config/linux/Brewfile
 GIT_MEMORY=$REPO_ROOT/memory/git.md
 AGENTS_DOC=$REPO_ROOT/AGENTS.md
 COPILOT_INSTRUCTIONS=$REPO_ROOT/.github/copilot-instructions.md
-CLAUDE_INSTRUCTIONS=$REPO_ROOT/CLAUDE.md
 
 # Root README — new structure format
 assert_contains 'shared/' "$ROOT_README"
@@ -37,7 +36,7 @@ assert_contains 'tests/run.sh awesome' "$ROOT_README"
 
 # Prompt / agent instruction system docs
 assert_contains '完整行为协议定义在 `AGENTS.md`' "$COPILOT_INSTRUCTIONS"
-assert_contains '遵从 AGENTS.md 的约束' "$CLAUDE_INSTRUCTIONS"
+# CLAUDE.md is gitignored, so only the README reference to it is asserted here.
 assert_contains '权威行为协议' "$ROOT_README"
 assert_contains '.github/copilot-instructions.md' "$ROOT_README"
 assert_contains 'CLAUDE.md' "$ROOT_README"
