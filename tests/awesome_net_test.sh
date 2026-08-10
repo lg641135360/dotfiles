@@ -113,7 +113,7 @@ test_net_widget_moves_before_cpu() {
 from pathlib import Path
 text = Path(__import__('sys').argv[1]).read_text()
 start = text.index('local system_items = {')
-end = text.index('    if battery_widget then', start)
+end = text.index('\n    }', start)
 chunk = text[start:end]
 if chunk.index('net_widget') > chunk.index('cpu_widget'):
     raise SystemExit(1)
@@ -131,7 +131,7 @@ import sys
 
 text = Path(sys.argv[1]).read_text()
 start = text.index('local system_items = {')
-end = text.index('    if battery_widget then', start)
+end = text.index('\n    }', start)
 chunk = text[start:end]
 
 assert 'mem_widget' in chunk, 'MEM must stay in the base system_items list on every screen size'
@@ -158,8 +158,8 @@ INNERPY
 }
 
 test_metric_markup_uses_unified_span() {
-    grep -F 'label .. value_text' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected metric markup to concatenate label and value in one span"
+    grep -F 'label .. "\u{2009}" .. value_text' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected metric markup to concatenate label and value with thin space in one span"
     if grep -F 'label .. " </span><span foreground=' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
         fail "expected metric markup to drop the split-span separator"
     fi
@@ -171,16 +171,16 @@ test_metric_markup_uses_unified_span() {
 test_sysinfo_uses_contextual_labels() {
     grep -F 'render_metric_markup(cpu_label' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected CPU widget to use contextual label"
-    grep -F 'local cpu_label = compact and "C" or "CPU"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected full mode to use CPU label"
+    grep -F 'local cpu_label = "󰻠"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU widget to use Nerd Font icon label"
     grep -F 'render_metric_markup(mem_label' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected MEM widget to use contextual label"
-    grep -F 'local mem_label = compact and "M" or "MEM"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected full mode to use MEM label"
+    grep -F 'local mem_label = "󰍛"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM widget to use Nerd Font icon label"
     grep -F 'render_metric_markup(battery_label' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected BAT widget to use contextual label"
-    grep -F 'local battery_label = compact and "B" or "BAT"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected full mode to use BAT label"
+    grep -F 'local battery_label = "󰁹"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected BAT widget to use Nerd Font icon label"
 }
 
 test_net_widget_uses_compact_markup() {
@@ -240,7 +240,7 @@ test_net_widget_has_hover_tooltip() {
     fi
     grep -F 'local function render_net_offline_markup()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET widget to render an explicit offline state"
-    grep -F 'NET N/A' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+    grep -F "'>N/A</span>" "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET offline markup to show N/A"
     grep -F 'local function set_net_offline()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET widget to reset stale rates when no interface is available"

@@ -342,7 +342,7 @@ local function aggregate_battery_readings(snapshots)
 end
 
 local function render_metric_markup(label, value_text, color)
-    return "<span foreground='" .. color .. "'>" .. label .. value_text .. "</span>"
+    return "<span foreground='" .. color .. "'>" .. label .. "\u{2009}" .. value_text .. "</span>"
 end
 
 local function read_load_average()
@@ -377,9 +377,9 @@ local function create_system_widgets(config, options)
     local compact = options and options.compact
     local ctpp = beautiful.ctpp
     local dpi = require("beautiful.xresources").apply_dpi
-    local cpu_label = compact and "C" or "CPU"
-    local mem_label = compact and "M" or "MEM"
-    local battery_label = compact and "B" or "BAT"
+    local cpu_label = "󰻠"
+    local mem_label = "󰍛"
+    local battery_label = "󰁹"
     local system_state = {
         cpu_usage = "0%",
         mem_usage = "0%",
@@ -498,7 +498,7 @@ local function create_system_widgets(config, options)
     end
 
     local function render_net_offline_markup()
-        return "<span foreground='" .. ctpp.overlay0 .. "'>NET N/A</span>"
+        return "<span foreground='" .. ctpp.overlay0 .. "'>N/A</span>"
     end
 
     local function update_net_tooltip(interface, recv_speed, sent_speed)
@@ -730,10 +730,6 @@ local function create_system_widgets(config, options)
         cpu_widget,
         mem_widget,
     }
-
-    if battery_widget then
-        table.insert(system_items, battery_widget)
-    end
 
     local system_row = wibox.layout.fixed.horizontal()
     system_row.spacing = dpi(4)

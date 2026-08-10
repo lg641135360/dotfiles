@@ -48,10 +48,10 @@ test_volume_widget_handles_invalid_output_gracefully() {
 
 test_volume_widget_uses_tight_value_spacing() {
     assert_contains 'local compact = options and options.compact' "$VOLUME_FILE"
-    assert_contains 'local volume_label = compact and "V" or "VOL"' "$VOLUME_FILE"
-    assert_contains 'volume_label .. volume' "$VOLUME_FILE"
-    assert_contains 'volume_label .. "N/A</span>"' "$VOLUME_FILE"
-    assert_contains 'volume_label .. "MUTE</span>"' "$VOLUME_FILE"
+    assert_contains 'local volume_label = "󰕾"' "$VOLUME_FILE"
+    assert_contains 'volume_label .. "\u{2009}" .. volume' "$VOLUME_FILE"
+    assert_contains 'volume_label .. "\u{2009}N/A</span>"' "$VOLUME_FILE"
+    assert_contains 'volume_label .. "\u{2009}MUTE</span>"' "$VOLUME_FILE"
     assert_contains '.. volume .. "</span>"' "$VOLUME_FILE"
 }
 

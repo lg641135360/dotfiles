@@ -63,7 +63,7 @@ end
 
 local function create_textclock(ctpp, config, screen)
     local textclock = wibox.widget.textbox()
-    local clock_h_padding = is_compact_screen(screen, config) and dpi(1) or dpi(2)
+    local clock_h_padding = 0
     local clock_v_padding = is_compact_screen(screen, config) and dpi(1) or dpi(2)
     local weekdays = {
         "星期日",
@@ -138,8 +138,8 @@ local function create_systray_widget(ctpp)
             valign = "center",
             widget = wibox.container.place,
         },
-        left = dpi(4),
-        right = dpi(4),
+        left = dpi(2),
+        right = dpi(2),
         top = dpi(2),
         bottom = dpi(2),
         widget = wibox.container.margin,
@@ -179,6 +179,10 @@ local function create_sysinfo_bundle(config, screen, compact)
             compact = compact,
         })
         system_row:add(volume_bundle.widget)
+    end
+
+    if system_widgets.battery_widget then
+        system_row:add(system_widgets.battery_widget)
     end
 
     local function dispose()

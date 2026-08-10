@@ -21,6 +21,19 @@ test_system_widgets_hide_battery_when_missing() {
         fail "expected battery widget insertion to be conditional"
 }
 
+test_battery_widget_appended_after_volume_in_status_area() {
+    STATUS_AREA_FILE=$REPO_ROOT/.config/linux/awesome/ui/status_area.lua
+    python - "$STATUS_AREA_FILE" <<'PY' || fail "expected BAT to be appended after VOL in status_area"
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+vol_idx = text.index("volume_bundle.widget")
+bat_idx = text.index("system_widgets.battery_widget")
+assert bat_idx > vol_idx, "BAT must be appended after VOL"
+PY
+}
+
 test_system_widgets_aggregate_multiple_batteries() {
     grep -F 'local function aggregate_battery_status(snapshots)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected battery widget code to aggregate battery statuses"
@@ -91,6 +104,7 @@ test_system_widgets_avoid_find_based_probe() {
 
 test_system_widgets_detect_battery_devices
 test_system_widgets_hide_battery_when_missing
+test_battery_widget_appended_after_volume_in_status_area
 test_system_widgets_aggregate_multiple_batteries
 test_system_widgets_avoid_find_based_probe
 

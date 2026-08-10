@@ -51,10 +51,10 @@ end
 local function create_volume_widget(options)
     local ctpp = beautiful.ctpp
     local compact = options and options.compact
-    local volume_label = compact and "V" or "VOL"
+    local volume_label = "󰕾"
 
     local function render_unavailable_markup()
-        return "<span foreground='" .. ctpp.overlay1 .. "'>" .. volume_label .. "N/A</span>"
+        return "<span foreground='" .. ctpp.overlay1 .. "'>" .. volume_label .. "\u{2009}N/A</span>"
     end
 
     local vol_widget = wibox.widget.textbox()
@@ -65,11 +65,11 @@ local function create_volume_widget(options)
 
     local function render_volume_markup(volume, muted)
         if muted then
-            return "<span foreground='" .. ctpp.red .. "'>" .. volume_label .. "MUTE</span>"
+            return "<span foreground='" .. ctpp.red .. "'>" .. volume_label .. "\u{2009}MUTE</span>"
         end
 
         if volume and volume ~= "" then
-            return "<span foreground='" .. ctpp.subtext0 .. "'>" .. volume_label .. volume .. "</span>"
+            return "<span foreground='" .. ctpp.subtext0 .. "'>" .. volume_label .. "\u{2009}" .. volume .. "</span>"
         end
 
         return render_unavailable_markup()

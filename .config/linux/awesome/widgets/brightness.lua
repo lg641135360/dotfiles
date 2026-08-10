@@ -130,7 +130,7 @@ local function create_brightness_widget(options)
     local compact = options and options.compact
     local has_brightnessctl = options and options.can_adjust
     local device_name = brightness_path:match("([^/]+)$") or "backlight"
-    local brightness_label = compact and "L" or "BRI"
+    local brightness_label = "󰃟"
     local brightness_file = brightness_path .. "/brightness"
 
     if has_brightnessctl == nil then
@@ -140,7 +140,7 @@ local function create_brightness_widget(options)
     local can_write_brightness = file_writable(brightness_file)
 
     local function render_unavailable_markup()
-        return "<span foreground='" .. ctpp.overlay1 .. "'>" .. brightness_label .. "N/A</span>"
+        return "<span foreground='" .. ctpp.overlay1 .. "'>" .. brightness_label .. "\u{2009}N/A</span>"
     end
 
     local function render_brightness_markup(percent)
@@ -155,7 +155,7 @@ local function create_brightness_widget(options)
             color = ctpp.yellow
         end
 
-        return "<span foreground='" .. color .. "'>" .. brightness_label .. percent .. "</span>"
+        return "<span foreground='" .. color .. "'>" .. brightness_label .. "\u{2009}" .. percent .. "</span>"
     end
 
     local brightness_widget = wibox.widget.textbox()

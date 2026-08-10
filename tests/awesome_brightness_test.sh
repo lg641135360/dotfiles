@@ -76,9 +76,9 @@ LUA
 }
 
 test_brightness_widget_uses_tight_value_spacing() {
-    assert_contains 'local brightness_label = compact and "L" or "BRI"' "$BRIGHTNESS_FILE"
-    assert_contains 'brightness_label .. percent' "$BRIGHTNESS_FILE"
-    assert_contains 'brightness_label .. "N/A</span>"' "$BRIGHTNESS_FILE"
+    assert_contains 'local brightness_label = "󰃟"' "$BRIGHTNESS_FILE"
+    assert_contains 'brightness_label .. "\u{2009}" .. percent' "$BRIGHTNESS_FILE"
+    assert_contains 'brightness_label .. "\u{2009}N/A</span>"' "$BRIGHTNESS_FILE"
     assert_contains '.. percent .. "</span>"' "$BRIGHTNESS_FILE"
 }
 

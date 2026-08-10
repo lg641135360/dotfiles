@@ -71,7 +71,7 @@ test_readme_documents_wibar_visual_tuning() {
     assert_contains '不再绘制额外灰色胶囊背景' "$README_FILE"
     assert_contains '避开 Awesome tasklist 内置的 `background_role` 自动上色' "$README_FILE"
     assert_contains '当前输入目标仍通过蓝色文字和左侧细条高亮确认' "$README_FILE"
-    assert_contains '只有主屏显示 NET / CPU / MEM / BAT / VOL 与系统托盘' "$README_FILE"
+    assert_contains '只有主屏显示 NET / CPU / MEM / BRI / VOL / BAT 与系统托盘' "$README_FILE"
     assert_contains '其他屏幕右侧只保留时钟' "$README_FILE"
     assert_contains '次屏左侧只保留标签与布局' "$README_FILE"
     assert_contains '非当前且有窗口的工作区在图标右上角用淡紫小点提示' "$README_FILE"
