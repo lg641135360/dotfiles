@@ -424,7 +424,7 @@ local function create_system_widgets(config, options)
 
     -- CPU widget
     local cpu_widget = wibox.widget.textbox()
-    cpu_widget:set_markup(render_metric_markup(cpu_label, "0%", ctpp.subtext0))
+    cpu_widget:set_markup(render_metric_markup(cpu_label, "0", ctpp.subtext0))
     awful.tooltip {
         objects = { cpu_widget },
         timer_function = function()
@@ -434,7 +434,7 @@ local function create_system_widgets(config, options)
 
     -- Memory widget
     local mem_widget = wibox.widget.textbox()
-    mem_widget:set_markup(render_metric_markup(mem_label, "0%", ctpp.subtext0))
+    mem_widget:set_markup(render_metric_markup(mem_label, "0", ctpp.subtext0))
     awful.tooltip {
         objects = { mem_widget },
         timer_function = function()
@@ -443,13 +443,6 @@ local function create_system_widgets(config, options)
     }
 
     local previous_cpu_totals = nil
-
-    local function format_usage_ratio(usage)
-        if not usage then
-            return "N/A"
-        end
-        return string.format("%.1f", usage / 100)
-    end
 
     local function update_cpu()
         local current = parse_proc_stat_line(read_file_line("/proc/stat"))
@@ -467,7 +460,7 @@ local function create_system_widgets(config, options)
         end
 
         system_state.cpu_usage = usage .. "%"
-        cpu_widget:set_markup(render_metric_markup(cpu_label, format_usage_ratio(usage), usage_color(usage, 50, 80, ctpp)))
+        cpu_widget:set_markup(render_metric_markup(cpu_label, tostring(usage), usage_color(usage, 50, 80, ctpp)))
     end
 
     local function update_mem()
@@ -479,7 +472,7 @@ local function create_system_widgets(config, options)
         end
 
         system_state.mem_usage = usage .. "%"
-        mem_widget:set_markup(render_metric_markup(mem_label, format_usage_ratio(usage), usage_color(usage, 60, 80, ctpp)))
+        mem_widget:set_markup(render_metric_markup(mem_label, tostring(usage), usage_color(usage, 60, 80, ctpp)))
     end
 
     update_cpu()
@@ -527,7 +520,7 @@ local function create_system_widgets(config, options)
     local battery_paths = find_battery_paths()
     if #battery_paths > 0 then
         battery_widget = wibox.widget.textbox()
-        battery_widget:set_markup(render_metric_markup(battery_label, "0%", ctpp.subtext0))
+        battery_widget:set_markup(render_metric_markup(battery_label, "0", ctpp.subtext0))
     end
 
     -- Network monitoring
