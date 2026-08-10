@@ -638,6 +638,34 @@ function M.setup(args)
     screen.connect_signal("property::primary", queue_wibar_refresh)
     screen.connect_signal("added", queue_wibar_refresh)
     screen.connect_signal("removed", function(s)
+        local primary = awful.screen.focused()
+        if primary and primary ~= s then
+            local primary_tags = primary.tags
+            for _, c in ipairs(client.get(s)) do
+                local target_tag = nil
+                local current_tags = c:tags()
+                if current_tags and #current_tags > 0 then
+                    for _, t in ipairs(current_tags) do
+                        if t.screen == s then
+                            for idx, src in ipairs(s.tags) do
+                                if src == t then
+                                    target_tag = primary_tags[idx]
+                                    break
+                                end
+                            end
+                            if target_tag then break end
+                        end
+                    end
+                end
+                if not target_tag then
+                    target_tag = primary_tags[1]
+                end
+                c:move_to_tag(target_tag)
+                if c.minimized then
+                    c.minimized = false
+                end
+            end
+        end
         status_area.dispose_status_widgets(s)
         if s.mytextclock and s.mytextclock._dispose then
             s.mytextclock._dispose()
