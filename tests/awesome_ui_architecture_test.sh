@@ -1485,7 +1485,6 @@ test_system_widget_exposes_row_for_extension() {
     assert_contains 'local stop_timer = common.stop_timer' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'local function dispose()' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'dispose = dispose,' "$SYSTEM_WIDGETS_FILE"
-    assert_contains 'stop_timer(details_timer)' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'stop_timer(metrics_timer)' "$SYSTEM_WIDGETS_FILE"
     assert_contains 'stop_timer(net_timer)' "$SYSTEM_WIDGETS_FILE"
     assert_not_contains 'gears.shape.rounded_rect(cr, w, h, dpi(8))' "$SYSTEM_WIDGETS_FILE"

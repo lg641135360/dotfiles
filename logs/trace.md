@@ -151,6 +151,36 @@
   - `tests/niri_wayland_config_test.sh` 中 `test_install_copies_wayland_files_when_niri_exists_outside_wayland_session` 失败，已确认是历史遗留（stash 后同样失败），非本轮引入。
 - 后续：用户确认后同步 live（`cp .config/scripts/dingtalk-wayland ~/.config/scripts/`）并提交。
 
+## 2026-08-11 — 无操作黑屏后内屏无法唤醒：禁用 X11 DPMS/屏保
+
+- 目的：解决 aarch64 无操作黑屏后内置 eDP 屏无法唤醒（外接 DP 屏正常）的问题。根因为 MediaTek `mtgpu`/`mtdisp` 驱动在 DPMS off→on 周期后无法重新点亮 eDP panel 背光（外接屏走 DisplayPort 主链路握手可恢复，内屏走 SoC panel 控制器卡死）。用户明确选择 A 方案（不介意耗电，禁用 DPMS）。
+- 已做（`repo-change`）：
+  - `.config/linux/x11/xsessionrc`：新增 `xset s off && xset -dpms`，关闭 X11 屏保与 DPMS。
+  - `.config/linux/x11/README.md`：新增"DPMS 禁用说明"段落。
+- 验证：`bash -n xsessionrc` OK；`tests/repo_docs_test.sh` PASS；`git diff --check` 无空白错误。
+- 风险与后续：
+  - xsessionrc 仅 X 会话登录时加载，需重登或 `systemctl restart gdm` 生效；当前会话可用 `xset s off && xset -dpms` 即时验证。
+  - 显示器永不熄屏增加耗电（用户接受）；若日后需要省电，可改方案 E（DPMS off 后自动 xrandr 重配 eDP-1）。
+  - 未同步 live `~/.xsessionrc`、未重载、未提交推送。
+
+## 2026-08-11 — CPU/MEM hover top 进程改为 Lua 原生读 /proc + 懒加载
+
+- 目的：降低 Awesome 状态栏 CPU/MEM hover 信息的资源占用。原实现每 5 秒无条件跑 2 个 `ps` 子进程（实测单次 ~0.2s，456 进程下持续占用 ~4% 单核），与是否 hover 无关。
+- 已做（`repo-change`）：
+  - `widgets/system.lua`：删除 `system_details_command`/`normalize_command_output` 与 `details_timer`（5s 定时器）；新增 `list_proc_pids`/`parse_proc_stat_fields`/`compute_process_cpu`/`read_process_rss`/`collect_process_details`/`format_process_list`，用 Lua 原生遍历 `/proc` 计算 top 进程（CPU 用 `/proc/<pid>/stat` 的 utime/stime/starttime，elapsed = uptime - starttime/CLK_TCK，btime 抵消；MEM 用 `/proc/<pid>/status` 的 VmRSS）；`update_system_details_cache` 改为同步读取；tooltip 挂 `mouse::enter` 信号做懒加载刷新，删除 `dispose` 里的 `details_timer`。
+  - 修正一个量纲 bug：`elapsed` 初期误用 `uptime - (starttime/CLK_TCK + btime)`，因 uptime 是开机秒数而 btime 是 Unix 时间戳，导致 elapsed 恒负、top 列表为空；改为 `uptime - starttime/CLK_TCK`。
+  - 更新 `tests/awesome_net_test.sh`、`tests/awesome_ui_architecture_test.sh` 断言；同步 `README.md` 与 `memory/awesome.md` 描述。
+- 验证：
+  - `luajit -e 'assert(loadfile(...))'` 语法 OK。
+  - Lua 原生 top 结果与 `ps` 实测吻合（CPU: code 44%/trae-cn 41%/picom 28%；MEM: trae-cn 934M/chrome 850M 等）。
+  - `tests/awesome_net_test.sh` / `awesome_ui_architecture_test.sh` / `awesome_battery_test.sh` 均 PASS。
+  - `tests/run.sh` 唯一 FAIL 为 `awesome_docs_theme_test.sh:112`（断言 'NET 保持短显示...' 在 README 与测试措辞不一致），已确认 HEAD 版本同样失败，为历史遗留、与本次改动无关，未整改。
+- 修复（用户反馈仍显示 "process list loading" 且负载看不到）：
+  - 根因：`awful.tooltip` 实例是 `gears.object`，并不 emit `mouse::enter`（该信号由 objects widget 触发，见 `/usr/share/awesome/lib/awful/tooltip.lua` 的 `add_to_object`）。原本把 `connect_signal("mouse::enter", ...)` 连在 tooltip 对象上，懒加载从不触发，缓存一直停留初始值，load_average 也没更新（一直 "N/A"）。
+  - 改为：`mouse::enter` 连接在 `cpu_widget`/`mem_widget` 上，置 `details_dirty` 标志；tooltip 的 `render_cpu_tooltip`/`render_mem_tooltip` 在首次渲染时检查 dirty 并调 `update_system_details_cache()` 刷新一次，保证 tooltip 首屏即有真实数据。
+- 风险与后续：
+  - 未同步 live `~/.config/awesome`、未重载、未提交推送。
+
 ## 2026-07-31 — Brew 二进制 RPATH 修复（zoxide GLIBC_2.39 报错/p10k 警告）
 
 - 目的：修复用户启动 zsh 时 `zoxide: GLIBC_2.39 not found` 报错与 p10k instant prompt 警告。

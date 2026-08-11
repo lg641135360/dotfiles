@@ -354,23 +354,150 @@ local function read_load_average()
     return loadavg:match("^(%S+%s+%S+%s+%S+)") or "N/A"
 end
 
-local function normalize_command_output(output, fallback)
-    output = output or ""
-    output = output:gsub("%s+$", "")
+-- Parse top CPU/MEM processes natively in Lua (no ps subprocess).
+-- A single /proc walk feeds both lists; refresh only happens on hover.
+local CLK_TCK = 100
 
-    if output == "" then
-        return fallback
+local function read_proc_uptime()
+    local line = read_file_line("/proc/uptime")
+    if not line then
+        return 0
     end
 
-    return output
+    return tonumber(line:match("^([%d%.]+)")) or 0
 end
 
-local function system_details_command(section)
-    if section == "cpu" then
-        return "LC_ALL=C ps -eo pid,comm,%cpu --sort=-%cpu 2>/dev/null | head -n 5"
+local function list_proc_pids()
+    local handle = io.popen("ls /proc 2>/dev/null")
+    if not handle then
+        return {}
     end
 
-    return "LC_ALL=C ps -eo pid,comm,%mem --sort=-%mem 2>/dev/null | head -n 5"
+    local pids = {}
+    for line in handle:lines() do
+        local pid = line:match("^(%d+)$")
+        if pid then
+            pids[#pids + 1] = pid
+        end
+    end
+    handle:close()
+    return pids
+end
+
+-- /proc/<pid>/stat: pid (comm) state ppid ...; fields after ")" start at index 3
+local function parse_proc_stat_fields(content)
+    if not content then
+        return nil
+    end
+
+    local close = content:find("%)")
+    if not close then
+        return nil
+    end
+
+    local fields = {}
+    for value in content:sub(close + 2):gmatch("%S+") do
+        fields[#fields + 1] = value
+    end
+
+    -- field 14 utime, 15 stime, 22 starttime (rest index = field - 2)
+    local utime = tonumber(fields[12])
+    local stime = tonumber(fields[13])
+    local starttime = tonumber(fields[20])
+
+    if not utime or not stime or not starttime then
+        return nil
+    end
+
+    return utime, stime, starttime
+end
+
+local function compute_process_cpu(utime, stime, starttime, uptime)
+    if not utime or not stime or not starttime then
+        return nil
+    end
+
+    -- btime cancels out: process elapsed = uptime - starttime/CLK_TCK
+    local elapsed = uptime - (starttime / CLK_TCK)
+    if elapsed <= 0 then
+        return nil
+    end
+
+    return (utime + stime) / CLK_TCK / elapsed * 100
+end
+
+local function read_process_comm(pid)
+    return read_file_line("/proc/" .. pid .. "/comm") or pid
+end
+
+local function read_process_rss(pid)
+    local status = read_file_all("/proc/" .. pid .. "/status")
+    if not status then
+        return nil
+    end
+
+    local rss = status:match("VmRSS:%s+(%d+)")
+    return rss and tonumber(rss) or nil
+end
+
+local function collect_process_details()
+    local uptime = read_proc_uptime()
+    local cpu_entries = {}
+    local mem_entries = {}
+
+    for _, pid in ipairs(list_proc_pids()) do
+        local utime, stime, starttime = parse_proc_stat_fields(read_file_all("/proc/" .. pid .. "/stat"))
+        local cpu = compute_process_cpu(utime, stime, starttime, uptime)
+        local rss = cpu and read_process_rss(pid)
+
+        if cpu or rss then
+            local comm = read_process_comm(pid)
+            if cpu then
+                cpu_entries[#cpu_entries + 1] = { pid = pid, comm = comm, value = cpu }
+            end
+            if rss then
+                mem_entries[#mem_entries + 1] = { pid = pid, comm = comm, value = rss }
+            end
+        end
+    end
+
+    table.sort(cpu_entries, function(a, b) return a.value > b.value end)
+    table.sort(mem_entries, function(a, b) return a.value > b.value end)
+    return cpu_entries, mem_entries
+end
+
+local function format_memory_kb(kb)
+    if kb >= 1024 * 1024 then
+        return string.format("%.1fG", kb / 1024 / 1024)
+    elseif kb >= 1024 then
+        return string.format("%.0fM", kb / 1024)
+    end
+
+    return kb .. "K"
+end
+
+local function format_process_list(entries, is_cpu)
+    local lines = {}
+    local count = 0
+
+    for _, entry in ipairs(entries) do
+        if count >= 5 then
+            break
+        end
+
+        local value = is_cpu
+            and string.format("%.0f%%", entry.value)
+            or format_memory_kb(entry.value)
+
+        lines[#lines + 1] = entry.pid .. "  " .. entry.comm .. "  " .. value
+        count = count + 1
+    end
+
+    if #lines == 0 then
+        return "process list unavailable"
+    end
+
+    return table.concat(lines, "\n")
 end
 
 local function create_system_widgets(config, options)
@@ -390,14 +517,9 @@ local function create_system_widgets(config, options)
 
     local function update_system_details_cache()
         system_state.load_average = read_load_average()
-
-        awful.spawn.easy_async_with_shell(system_details_command("cpu"), function(stdout)
-            system_state.cpu_processes = normalize_command_output(stdout, "process list unavailable")
-        end)
-
-        awful.spawn.easy_async_with_shell(system_details_command("mem"), function(stdout)
-            system_state.mem_processes = normalize_command_output(stdout, "process list unavailable")
-        end)
+        local cpu_entries, mem_entries = collect_process_details()
+        system_state.cpu_processes = format_process_list(cpu_entries, true)
+        system_state.mem_processes = format_process_list(mem_entries, false)
     end
 
     local function render_system_details_text(section)
@@ -415,31 +537,48 @@ local function create_system_widgets(config, options)
             .. "\n" .. process_output
     end
 
-    update_system_details_cache()
-    local details_timer = gears.timer {
-        timeout = 5,
-        autostart = true,
-        callback = update_system_details_cache,
-    }
+    -- Lazy-load top process details on hover instead of polling every 5s.
+    -- `mouse::enter` is emitted by the widget (not the tooltip object), so mark
+    -- the cache dirty there; the tooltip's timer_function then refreshes once on
+    -- the first render, so the tooltip shows real data instead of "loading".
+    local details_dirty = true
+    local function refresh_details_on_hover()
+        details_dirty = true
+    end
 
     -- CPU widget
     local cpu_widget = wibox.widget.textbox()
     cpu_widget:set_markup(render_metric_markup(cpu_label, "0", ctpp.subtext0))
-    awful.tooltip {
-        objects = { cpu_widget },
-        timer_function = function()
-            return render_system_details_text("cpu")
-        end,
-    }
+    cpu_widget:connect_signal("mouse::enter", refresh_details_on_hover)
 
     -- Memory widget
     local mem_widget = wibox.widget.textbox()
     mem_widget:set_markup(render_metric_markup(mem_label, "0", ctpp.subtext0))
-    awful.tooltip {
+    mem_widget:connect_signal("mouse::enter", refresh_details_on_hover)
+
+    local function render_cpu_tooltip()
+        if details_dirty then
+            update_system_details_cache()
+            details_dirty = false
+        end
+        return render_system_details_text("cpu")
+    end
+
+    local function render_mem_tooltip()
+        if details_dirty then
+            update_system_details_cache()
+            details_dirty = false
+        end
+        return render_system_details_text("mem")
+    end
+
+    local cpu_tooltip = awful.tooltip {
+        objects = { cpu_widget },
+        timer_function = render_cpu_tooltip,
+    }
+    local mem_tooltip = awful.tooltip {
         objects = { mem_widget },
-        timer_function = function()
-            return render_system_details_text("mem")
-        end,
+        timer_function = render_mem_tooltip,
     }
 
     local previous_cpu_totals = nil
@@ -748,7 +887,6 @@ local function create_system_widgets(config, options)
     }
 
     local function dispose()
-        stop_timer(details_timer)
         stop_timer(metrics_timer)
         stop_timer(net_timer)
         if battery_timer then

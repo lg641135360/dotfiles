@@ -302,18 +302,26 @@ test_status_widgets_use_hover_details_only() {
         fail "expected CPU hover details to keep a cached process list"
     grep -F 'mem_processes = "process list loading"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected MEM hover details to keep a cached process list"
-    grep -F 'local function normalize_command_output(output, fallback)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected CPU/MEM process cache to normalize command output"
     grep -F 'local function update_system_details_cache()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected CPU/MEM hover details to refresh a background cache"
-    grep -F 'awful.spawn.easy_async_with_shell(system_details_command("cpu")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected CPU process list cache to refresh asynchronously"
-    grep -F 'awful.spawn.easy_async_with_shell(system_details_command("mem")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected MEM process list cache to refresh asynchronously"
-    grep -F 'timeout = 5,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected CPU/MEM detail cache to refresh every 5 seconds"
-    grep -F 'callback = update_system_details_cache,' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected CPU/MEM detail cache timer to call the refresh function"
+        fail "expected CPU/MEM hover details to refresh a process cache"
+    grep -F 'local function collect_process_details()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU/MEM hover details to gather top processes in Lua"
+    grep -F 'local function parse_proc_stat_fields(content)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU hover details to parse /proc/<pid>/stat in Lua"
+    grep -F 'VmRSS:%s+(%d+)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM hover details to parse VmRSS from /proc/<pid>/status"
+    grep -F 'refresh_details_on_hover' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU/MEM hover details to refresh lazily on hover"
+    grep -F 'cpu_widget:connect_signal("mouse::enter", refresh_details_on_hover)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU hover details to refresh on widget mouse enter"
+    grep -F 'mem_widget:connect_signal("mouse::enter", refresh_details_on_hover)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM hover details to refresh on widget mouse enter"
+    grep -F 'local function render_cpu_tooltip()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected CPU tooltip to render details lazily"
+    grep -F 'local function render_mem_tooltip()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected MEM tooltip to render details lazily"
+    grep -F 'if details_dirty then' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
+        fail "expected hover tooltip to refresh the cache only when dirty"
     grep -F 'local function render_system_details_text(section)' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected CPU/MEM hover details to render tooltip text"
     grep -F 'local title = is_cpu and "CPU" or "内存"' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
@@ -336,10 +344,6 @@ test_status_widgets_use_hover_details_only() {
         fail "expected CPU hover to show details"
     grep -F 'return render_system_details_text("mem")' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected MEM hover to show details"
-    grep -F 'ps -eo pid,comm,%cpu --sort=-%cpu' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected CPU hover details to show only top CPU process columns"
-    grep -F 'ps -eo pid,comm,%mem --sort=-%mem' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
-        fail "expected MEM hover details to show only top memory process columns"
     grep -F 'local summary = is_cpu' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected CPU/MEM hover details to use section-specific summaries"
 
@@ -349,7 +353,7 @@ import sys
 
 text = Path(sys.argv[1]).read_text()
 start = text.index("local function render_system_details_text(section)")
-end = text.index("\n    update_system_details_cache()", start)
+end = text.index("local function refresh_details_on_hover()", start)
 chunk = text[start:end]
 
 assert "system_details_command" not in chunk

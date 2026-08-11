@@ -20,7 +20,7 @@
 - compact 模式只缩短日期，不隐藏状态项；MEM 在任何屏幕尺寸下都保留，避免同一台机器接不同屏时状态项数量来回变化。
 - 状态项配色：标签统一 `overlay1`，正常数值用 `subtext0`，只有告警区间才升到 `yellow` / `red`；图标与数值同色显示。
 - NET 不用图标，直接显示 `↓速率 ↑速率`；NET/CPU/MEM 保持不可点击，只在 hover 显示 detail；VOL 左键静音、滚轮调音量、右键 `pavucontrol`。
-- CPU/MEM hover detail 展示使用率、load average 和 top 进程；top 进程列表由 5 秒后台异步缓存刷新，hover 时只读缓存。
+- CPU/MEM hover detail 展示使用率、load average 和 top 进程；top 进程列表用 Lua 原生读 `/proc`（`/proc/<pid>/stat` utime/stime/starttime + `/proc/<pid>/status` VmRSS）计算，不跑 `ps` 子进程；只在 hover 时（tooltip `mouse::enter`）懒加载刷新，无 5 秒后台轮询。
 - VOL 左键静音后只显示 `󰕾 MUTE`，取消静音后恢复音量值。
 - NET 找不到匹配接口时显示 `N/A`/offline，清掉旧速率计数。
 - 时钟不绑定点击或滚轮动作，只在 hover tooltip 显示完整日期、星期和时间。
