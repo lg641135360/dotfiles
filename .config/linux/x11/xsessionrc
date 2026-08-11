@@ -14,6 +14,13 @@ export WEBKIT_DISABLE_DMABUF_RENDERER=1
 # GTK apps also respect it to ensure consistency across applications
 [ -f "$HOME/.xsessionrc.d/cursor" ] && . "$HOME/.xsessionrc.d/cursor"
 
+# Disable X11 DPMS and screen saver
+# Reason: MediaTek aarch64 mtgpu/mtdisp driver fails to re-light eDP panel
+# after DPMS off→on cycle (external DP monitor recovers, internal eDP does not).
+# Keeping i3lock-only (via xautolock) for screen lock; backlight never powers off.
+xset s off
+xset -dpms
+
 # Merge X resources
 [ -f "$HOME/.Xresources" ] && xrdb -merge "$HOME/.Xresources"
 

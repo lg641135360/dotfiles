@@ -49,6 +49,16 @@ sudo pacman -S fcitx fcitx-chinese-addons
 sudo apt install fcitx fcitx-googlepinyin fcitx-sunpinyin
 ```
 
+## DPMS 禁用说明
+
+`xsessionrc` 中 `xset s off && xset -dpms` 显式关闭 X11 屏保和 DPMS（显示器电源管理）。
+
+**背景**：Ubuntu aarch64（MediaTek SoC）的 `mtgpu`/`mtdisp` 驱动在 DPMS off→on 周期后无法重新点亮 eDP 内屏背光；外接 DP 屏走 DisplayPort 主链路握手可正常恢复，内屏走 SoC panel 控制器会卡死。表现为无操作黑屏后内屏无法唤醒，需重启 X 才能恢复。
+
+**代价**：显示器永不熄屏，背光常亮，耗电增加。用户明确不在意耗电，选择此方案换取稳定性。
+
+**锁屏不受影响**：`xautolock -time 10 -locker ~/.config/scripts/lock` 仍会在 10 分钟无操作时启动 i3lock 锁屏，只是显示器不再自动断电。
+
 ## 加载流程
 
 ```
