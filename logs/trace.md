@@ -16,6 +16,20 @@
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
 
+## 2026-08-13 — waybar CPU/MEM 改 custom 模块，hover 显示 top 5 进程
+
+- 目的：waybar 内置 `cpu`/`memory` 模块的 tooltip 只能显示各核负载/swap，无法显示占用进程；用户希望 hover 时看到利用率与 top 5 进程，对齐 AwesomeWM `widgets/system.lua` 已有的 tooltip 风格。
+- 已做（`repo-change`，未同步 live、未提交）：
+  - 新增 `.config/scripts/waybar-system-tooltip`：POSIX sh 脚本，子命令 `cpu`/`mem`，输出 waybar JSON（`text`+`tooltip`+`percentage`+`class`）。CPU 使用率基于 `/proc/stat` 差值（状态文件 `$XDG_STATE_HOME/dotfiles/waybar-cpu`，首次调用读 0%）；内存基于 `/proc/meminfo` MemAvailable（fallback MemFree+Buffers+Cached）；top 5 进程用 `ps --sort=-pcpu/-rss` 取，过滤 `ps`/`sh` 噪音进程；tooltip 含使用率摘要 + top 5 列表（pid comm value）；`class` 字段驱动 warning/critical 配色（CPU 70/90，MEM 80/95）。
+  - `.config/linux/waybar/config` 和 `config.aarch64`：`cpu`/`memory` 模块替换为 `custom/cpu`/`custom/memory`，`exec` 调脚本，`interval 2`，`returntype json`，`on-click` 拉起 `kitty -- htop -s PERCENT_CPU/PERCENT_MEM`；栏内 format 保持 `󰻠 {}`/`󰍛 {}` 图标+百分比不变。
+  - `.config/linux/waybar/style.css`：`#cpu`/`#memory` 选择器改为 `#custom-cpu`/`#custom-memory`（含 transition/padding/hover/warning/critical 全部同步）。
+  - `install.sh`：`linux_wayland_configs` 数组加 `waybar-system-tooltip` 部署条目。
+  - `.config/scripts/README.md`、`.config/linux/waybar/README.md`：新增脚本与模块说明。
+  - `tests/niri_wayland_config_test.sh`：更新 modules-right 断言、format 断言、新增 custom 模块/exec/on-click/returntype 断言、新增 install.sh 部署条目断言。
+- 验证：`sh -n waybar-system-tooltip` 通过；两份 config `python3 -m json.tool` 校验通过；脚本功能测试 CPU/MEM JSON schema 校验通过；`tests/niri_wayland_config_test.sh` PASS；`tests/repo_docs_test.sh` PASS；`tests/run.sh` 中其余测试（kitty/picom/rofi/starship/tmux/zsh*）均 PASS（既有 `install_zshenv_test.sh` 权限问题与 `browser-wayland` 的 `uname` 桩问题为历史遗留，与本次改动无关）。Sandbox 环境下脚本写 state 文件被限制，live 无此问题。
+- 后续：live 的 `~/.config/scripts/waybar-system-tooltip` 需手动复制并 `chmod +x`；`~/.config/waybar/config`、`style.css` 需手动复制后 `pkill waybar && waybar &` 重启生效。CPU 使用率首次显示为 0%（无前次采样），第二次 interval 起正常。**修复 1**：首次 live 验证发现 hover 无 tooltip，根因是字段名写错（`returntype` → `return-type`，waybar 不识别无连字符版本，把整个 JSON 当纯文本显示）；已在两份 config 改正、测试同步断言。**修复 2**：custom 模块 JSON tooltip 需显式 `"tooltip": true` + `"escape": false`（后者确保 `\n` 渲染为换行）；已在两份 config 补字段、测试同步断言。**优化回退**：性能分析发现原方案 `exec` 每 2s 跑一次 `ps`（单次 ~0.07s，常态 7% CPU），尝试改两段式 `exec`（轻量）+ `tooltip-exec`（hover 跑 ps）；但 live 验证发现 waybar `return-type=json` 时 `tooltip-exec` 被忽略（JSON `tooltip` 字段优先），hover 无 tooltip 弹出；最终回退为单 `exec` JSON（含 tooltip 字段），`interval` 从 2s 改 5s 降低开销（常态约 2-3% CPU）。脚本子命令恢复为 `cpu`/`mem`；config 去掉 `tooltip-exec`；测试与 README 同步。
+
+
 ## 2026-08-13 — zsh 配置优化：random_bars local 修复 + FZF 主题统一 + 清理死代码
 
 - 目的：审阅 zsh 模块（functions/env/options），修复真 bug、统一主题、清理 p10k 时代遗留。

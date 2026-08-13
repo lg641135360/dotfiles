@@ -8,7 +8,7 @@
   "spacing": 2,
   "modules-left": ["niri/workspaces", "custom/separator", "niri/window"],
   "modules-center": ["clock"],
-  "modules-right": ["network", "cpu", "memory", "backlight", "pulseaudio", "battery", "privacy", "tray"],
+  "modules-right": ["network", "custom/cpu", "custom/memory", "backlight", "pulseaudio", "battery", "privacy", "tray"],
   "niri/workspaces": {
     "format": "{icon}",
     "format-icons": {
@@ -116,24 +116,26 @@
       }
     ]
   },
-  "cpu": {
-    "format": "󰻠 {usage}%",
+  "custom/cpu": {
+    "format": "󰻠 {}",
+    "exec": "$HOME/.config/scripts/waybar-system-tooltip cpu",
+    "interval": 5,
+    "return-type": "json",
+    "tooltip": true,
+    "escape": false,
     "min-length": 5,
     "align": 0.5,
-    "tooltip": true,
-    "states": {
-      "warning": 70,
-      "critical": 90
-    }
+    "on-click": "kitty -- htop -s PERCENT_CPU"
   },
-  "memory": {
-    "format": "󰍛 {percentage}%",
+  "custom/memory": {
+    "format": "󰍛 {}",
+    "exec": "$HOME/.config/scripts/waybar-system-tooltip mem",
+    "interval": 5,
+    "return-type": "json",
+    "tooltip": true,
+    "escape": false,
     "min-length": 5,
     "align": 0.5,
-    "tooltip": true,
-    "states": {
-      "warning": 80,
-      "critical": 95
-    }
+    "on-click": "kitty -- htop -s PERCENT_MEM"
   }
 }

@@ -212,7 +212,7 @@ test_waybar_aarch64_has_battery_module() {
     # config.aarch64 variant also exposes a battery module in modules-right.
     assert_file_exists "$WAYBAR_AARCH64_CONFIG"
     assert_contains '"battery"' "$WAYBAR_AARCH64_CONFIG"
-    assert_contains '"modules-right": ["network", "cpu", "memory", "backlight", "pulseaudio", "battery", "privacy", "tray"]' "$WAYBAR_AARCH64_CONFIG"
+    assert_contains '"modules-right": ["network", "custom/cpu", "custom/memory", "backlight", "pulseaudio", "battery", "privacy", "tray"]' "$WAYBAR_AARCH64_CONFIG"
     # Battery styles live in the shared style.css (deployed to both platforms).
     assert_contains '#battery' "$WAYBAR_STYLE"
     assert_contains '#battery.charging' "$WAYBAR_STYLE"
@@ -843,7 +843,7 @@ test_waybar_and_mako_match_niri_trial_contract() {
     assert_not_contains '"3":' "$WAYBAR_CONFIG"
     assert_not_contains '"4":' "$WAYBAR_CONFIG"
     assert_not_contains '"5":' "$WAYBAR_CONFIG"
-    assert_contains '"modules-right": ["network", "cpu", "memory", "pulseaudio", "privacy", "tray"]' "$WAYBAR_CONFIG"
+    assert_contains '"modules-right": ["network", "custom/cpu", "custom/memory", "pulseaudio", "privacy", "tray"]' "$WAYBAR_CONFIG"
     assert_contains '"format-wifi": "󰤨 ↓{bandwidthDownBytes} ↑{bandwidthUpBytes}"' "$WAYBAR_CONFIG"
     assert_contains '"format-ethernet": "󰈀 ↓{bandwidthDownBytes} ↑{bandwidthUpBytes}"' "$WAYBAR_CONFIG"
     assert_not_contains '"format-alt":' "$WAYBAR_CONFIG"
@@ -858,8 +858,23 @@ test_waybar_and_mako_match_niri_trial_contract() {
     assert_contains '"(.*) - Visual Studio Code$": "$1"' "$WAYBAR_CONFIG"
     assert_contains '"(.*) - Google Chrome$": "$1"' "$WAYBAR_CONFIG"
     assert_contains '"(.*) - Alacritty$": "$1"' "$WAYBAR_CONFIG"
-    assert_contains '"format": "󰻠 {usage}%"' "$WAYBAR_CONFIG"
-    assert_contains '"format": "󰍛 {percentage}%"' "$WAYBAR_CONFIG"
+    assert_contains '"format": "󰻠 {}"' "$WAYBAR_CONFIG"
+    assert_contains '"format": "󰍛 {}"' "$WAYBAR_CONFIG"
+    # CPU/MEM moved from built-in modules to custom modules backed by
+    # waybar-system-tooltip. return-type=json means waybar reads tooltip from
+    # the JSON field (tooltip-exec is ignored in json mode), so exec must
+    # compute top processes each interval. Interval=5 keeps steady-state CPU
+    # around 2-3%.
+    assert_contains '"custom/cpu": {' "$WAYBAR_CONFIG"
+    assert_contains '"custom/memory": {' "$WAYBAR_CONFIG"
+    assert_contains '"exec": "$HOME/.config/scripts/waybar-system-tooltip cpu"' "$WAYBAR_CONFIG"
+    assert_contains '"exec": "$HOME/.config/scripts/waybar-system-tooltip mem"' "$WAYBAR_CONFIG"
+    assert_contains '"interval": 5,' "$WAYBAR_CONFIG"
+    assert_contains '"return-type": "json"' "$WAYBAR_CONFIG"
+    assert_contains '"tooltip": true,' "$WAYBAR_CONFIG"
+    assert_contains '"escape": false,' "$WAYBAR_CONFIG"
+    assert_contains '"on-click": "kitty -- htop -s PERCENT_CPU"' "$WAYBAR_CONFIG"
+    assert_contains '"on-click": "kitty -- htop -s PERCENT_MEM"' "$WAYBAR_CONFIG"
     assert_contains '"format": "  {volume}%"' "$WAYBAR_CONFIG"
     assert_contains '"format-muted": "󰝟 静音"' "$WAYBAR_CONFIG"
     assert_contains '"privacy": {' "$WAYBAR_CONFIG"
@@ -916,6 +931,7 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/scripts/screenshot-wayland|~/.config/scripts/screenshot-wayland|Wayland screenshot script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/browser-wayland|~/.config/scripts/browser-wayland|Wayland browser script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/trae-cn-wayland|~/.config/scripts/trae-cn-wayland|Wayland Trae CN script' "$INSTALL_FILE"
+    assert_contains '|.config/scripts/waybar-system-tooltip|~/.config/scripts/waybar-system-tooltip|Waybar CPU/MEM tooltip script' "$INSTALL_FILE"
     assert_contains '|.config/linux/desktop-entries/google-chrome.desktop|~/.local/share/applications/google-chrome.desktop|Google Chrome Wayland desktop entry' "$INSTALL_FILE"
     assert_contains '|.config/linux/desktop-entries/trae-cn.desktop|~/.local/share/applications/trae-cn.desktop|Trae CN Wayland desktop entry' "$INSTALL_FILE"
     # install.sh substitutes the __HOME__ placeholder in desktop entries with $HOME at deploy time.
