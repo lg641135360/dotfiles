@@ -21,6 +21,7 @@ chmod +x install.sh
 | [zoxide](https://github.com/ajeetdsouza/zoxide) | 智能 cd 替换 | `brew install zoxide` / `pacman -S zoxide` |
 | [bat](https://github.com/sharkdp/bat) | cat 替代品（语法高亮） | `brew install bat` / `pacman -S bat` |
 | [lsd](https://github.com/lsd-rs/lsd) | ls 替代品（图标+颜色） | `brew install lsd` / `pacman -S lsd` |
+| [starship](https://starship.rs) | 提示符（替代 p10k） | `cargo install starship` |
 
 ### 可选依赖
 
@@ -34,14 +35,15 @@ chmod +x install.sh
 
 | 插件 | 功能 |
 |------|------|
-| [powerlevel10k](https://github.com/romkatv/powerlevel10k) | 主题提示符（运行 `p10k configure` 自定义） |
 | [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting) | 命令语法高亮 |
 | [zsh-completions](https://github.com/zsh-users/zsh-completions) | 扩展补全 |
 | [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions) | 自动建议（按 → 接受） |
 | [fzf-tab](https://github.com/Aloxaf/fzf-tab) | fzf 风格的补全菜单 |
 | [zsh-vi-mode](https://github.com/jeffreytse/zsh-vi-mode) | Vi 模式（ESC 进入 normal 模式） |
-| [zsh-autopair](https://github.com/hlissner/zsh-autopair) | 括号/引号自动配对 |
-| [zsh-you-should-use](https://github.com/MichaelAquilina/zsh-you-should-use) | 输入长命令时提醒已有别名 |
+| [zsh-autopair](https://github.com/hlissner/zsh-autopair) | 括号/引号自动配对（延迟加载） |
+| [zsh-you-should-use](https://github.com/MichaelAquilina/zsh-you-should-use) | 输入长命令时提醒已有别名（延迟加载） |
+
+> 提示符由 [starship](https://starship.rs) 提供（单一 Rust 二进制，配置见 `~/.config/starship.toml`）。早期用 powerlevel10k，但 aarch64 平台 gitstatus 二进制版本不匹配导致初始化失败，拖慢提示符渲染，故弃用。
 
 ## 快捷键
 
@@ -144,6 +146,7 @@ chmod +x install.sh
 ## 模块结构
 
 ```
+.zshenv             ← 系统级设置（skip_global_compinit=1，见下）
 .zshrc              ← 入口（17 行）
 ├── plugins.zsh     ← zinit + 8 个插件 + compinit
 ├── options.zsh     ← setopt 选项（autocd, correct 等）
@@ -153,12 +156,38 @@ chmod +x install.sh
 ├── history.zsh     ← 历史配置（HISTSIZE, 去重规则）
 ├── aliases.zsh     ← 命令别名（条件加载）
 ├── functions.zsh   ← 工具函数（y, cpp, mkdirg 等）
-└── integrations.zsh← 第三方工具集成（zoxide, conda, p10k）
+└── integrations.zsh← 第三方工具集成（zoxide, conda, starship）
 ```
+
+## 启动提速：跳过全局 compinit
+
+`.zshenv` 中的 `skip_global_compinit=1` 用于跳过 Ubuntu 系统级 `/etc/zsh/zshrc` 里的 `compinit`（该开关是 `/etc/zsh/zshrc` 官方注释指定的退出机制）。
+
+原因：全局 `compinit` 会先用默认 fpath 跑一次，随后 [plugins.zsh](.config/shared/zsh/plugins.zsh) 加载 zinit 改变 fpath 后又跑一次，导致每次启动都全量重建完成缓存（实测约 3.4s 惩罚）。跳过全局那次、只保留 `plugins.zsh` 里 fpath 就绪后的 `compinit`，可使交互式启动从 ~4.7s 降到 ~0.35s。
+
+## 启动提速：compinit 跳过 compaudit + 插件延迟加载
+
+[plugins.zsh](.config/shared/zsh/plugins.zsh) 进一步两项优化，将启动从 ~0.35s 降到 ~0.2s：
+
+1. **`compinit -u` 跳过 compaudit**：compinit 默认跑 compaudit 检查 fpath 目录权限，实测占 ~0.15s（0.20s → 0.05s）。单用户桌面环境下 fpath 目录均由 zinit 管理（用户自己控制），权限检查无实际安全价值。
+2. **zsh-autopair / zsh-you-should-use 延迟加载**：这两个插件合计占 plugins.zsh 约 73% 耗时（autopair ~0.22s, you-should-use ~0.12s），但功能仅在按键时才需要。用 `zinit ice wait lucid` 延迟到首次提示符后异步加载，不阻塞首次提示符渲染。
+
+延迟加载的权衡：autopair 的括号配对、you-should-use 的别名提醒在首次提示符后约 50ms 才激活，极少数场景下首次按键可能未触发配对。实际无感知。
+
+## 启动提速：弃用 p10k 改用 starship
+
+早期用 powerlevel10k，但在 aarch64 平台 gitstatus 二进制版本不匹配（cache 中 2022 年的 v1.5.4 与 p10k 期望版本不一致），导致每次启动报 `gitstatus failed to initialize` 并回退到同步 git 调用，严重拖慢提示符渲染。
+
+改用 [starship](https://starship.rs)（单一 Rust 二进制，无 gitstatus 版本依赖问题）后：
+- 提示符渲染从「p10k 失败回退同步 git」的数百毫秒降到 starship 的几毫秒
+- 配置更简洁（starship.toml ~80 行 vs .p10k.zsh ~2000 行）
+- 跨平台一致（macOS/Linux 共用 `.config/shared/starship.toml`）
+
+starship 通过 `integrations.zsh` 的 `eval "$(starship init zsh)"` 接入，配置部署由 `install.sh` 的 `shared_configs` 完成。
 
 ## 自定义
 
-- **主题**：运行 `p10k configure` 或通过 `~/.config/zsh/.p10k.zsh` 手动编辑
+- **提示符**：编辑 `~/.config/starship.toml`（仓库对应 `.config/shared/starship.toml`），参考 [starship 文档](https://starship.rs/config/)
 - **别名**：编辑 `~/.config/zsh/aliases.zsh`
 - **函数**：编辑 `~/.config/zsh/functions.zsh`
 - **插件**：编辑 `~/.config/zsh/plugins.zsh`，添加 `zinit light` 或 `zinit snippet`

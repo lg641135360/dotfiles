@@ -14,17 +14,16 @@ fi
 # Source zinit
 source "${ZINIT_HOME}/zinit.zsh"
 
-# Theme: Powerlevel10k
-zinit ice depth=1; zinit light romkatv/powerlevel10k
-
 # Plugins
 zinit light zsh-users/zsh-syntax-highlighting
 zinit light zsh-users/zsh-completions
 zinit light zsh-users/zsh-autosuggestions
 zinit light Aloxaf/fzf-tab
 zinit light jeffreytse/zsh-vi-mode
-zinit light hlissner/zsh-autopair
-zinit light MichaelAquilina/zsh-you-should-use
+# 以下两个插件合计占 plugins.zsh 约 73% 耗时（autopair ~0.22s, you-should-use
+# ~0.12s），但功能仅在按键时才需要，用 wait lucid 延迟到首次提示符后异步加载。
+zinit ice wait lucid; zinit light hlissner/zsh-autopair
+zinit ice wait lucid; zinit light MichaelAquilina/zsh-you-should-use
 
 # Snippets (Oh-My-Zsh plugins)
 zinit snippet OMZP::git
@@ -33,7 +32,9 @@ zinit snippet OMZP::docker
 zinit snippet OMZP::command-not-found
 
 # Load completions
-autoload -Uz compinit && compinit
+# -u 跳过 compaudit：单用户桌面 fpath 目录均由 zinit 管理，权限检查无实际
+# 价值，跳过可省约 0.15s（0.20s → 0.05s）。
+autoload -Uz compinit && compinit -u
 
 # Replay deferred completions (MUST be last, after all plugins/snippets)
 zinit cdreplay -q

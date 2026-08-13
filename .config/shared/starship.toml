@@ -1,0 +1,73 @@
+# Starship Prompt — 简洁配置
+# 文档: https://starship.rs/config/
+# 部署: install.sh 复制到 ~/.config/starship.toml
+
+# 提示符整体行为
+format = """
+$directory\
+$git_branch\
+$git_status\
+$git_state\
+$cmd_duration\
+$line_break\
+$character"""
+
+# 在空命令时也渲染提示符（与原 p10k transient prompt 行为一致）
+right_format = ""
+scan_timeout = 30
+command_timeout = 500
+add_newline = false
+
+# 段落样式：用 Nerd Font 图标，色彩克制
+[directory]
+style = "bold blue"
+truncation_length = 3
+truncate_to_repo = true
+format = "[$path]($style)[$read_only]($read_only_style) "
+read_only = " 󰌾"
+read_only_style = "red"
+repo_root_style = "bold cyan"
+home_symbol = "~"
+
+[git_branch]
+style = "mauve"
+symbol = " "
+format = "[$symbol$branch]($style) "
+
+[git_status]
+style = "yellow"
+format = '([$all_status$ahead_behind]($style) )'
+conflicted = "=${count}"
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕${ahead_count}⇣${behind_count}"
+untracked = "?${count}"
+stashed = "$${count}"
+modified = "!${count}"
+staged = "+${count}"
+renamed = "»${count}"
+deleted = "✘${count}"
+
+[git_state]
+style = "yellow"
+format = '\([$state( $progress_current/$progress_total)]($style)\) '
+rebase = "REBASING"
+merge = "MERGING"
+revert = "REVERTING"
+cherry_pick = "CHERRY-PICKING"
+bisect = "BISECTING"
+am = "AM"
+am_or_rebase = "AM/REBASE"
+
+[cmd_duration]
+style = "subtext0"
+format = "[$duration]($style) "
+min_time = 2_000
+show_milliseconds = false
+
+[character]
+success_symbol = "[❯](green)"
+error_symbol = "[❯](red)"
+vimcmd_symbol = "[❮](green)"
+vimcmd_replace_symbol = "[❮](purple)"
+vimcmd_replace_one_symbol = "[❮](purple)"

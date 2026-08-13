@@ -1,5 +1,5 @@
 #######################################################
-# Shell Integrations (zoxide, tmuxifier, p10k, conda)
+# Shell Integrations (zoxide, tmuxifier, starship, conda)
 #######################################################
 
 # zoxide — smart cd replacement
@@ -12,8 +12,11 @@ if command -v tmuxifier &> /dev/null; then
     eval "$(tmuxifier init -)"
 fi
 
-# Powerlevel10k prompt config
-[[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
+# Starship prompt — 单一 Rust 二进制，无 gitstatus 版本依赖
+# 配置：~/.config/starship.toml（由 install.sh 从 .config/shared/starship.toml 部署）
+if command -v starship &> /dev/null; then
+    eval "$(starship init zsh)"
+fi
 
 # Conda (lazy-loaded for faster shell startup)
 # Only activates on first `conda` command invocation
