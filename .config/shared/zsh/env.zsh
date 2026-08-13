@@ -27,27 +27,29 @@ if [[ -x "$(command -v bat)" ]]; then
     export PAGER=bat
 fi
 
-# FZF default options (Tokyo Night colors)
+# FZF default options (Catppuccin Mocha — 与 zsh-syntax-highlighting / starship 主题统一)
 if [[ -x "$(command -v fzf)" ]]; then
     export FZF_DEFAULT_OPTS="$FZF_DEFAULT_OPTS \
       --info=inline-right \
       --ansi \
       --layout=reverse \
       --border=rounded \
-      --color=border:#27a1b9 \
-      --color=fg:#c0caf5 \
-      --color=gutter:#16161e \
-      --color=header:#ff9e64 \
-      --color=hl+:#2ac3de \
-      --color=hl:#2ac3de \
-      --color=info:#545c7e \
-      --color=marker:#ff007c \
-      --color=pointer:#ff007c \
-      --color=prompt:#2ac3de \
-      --color=query:#c0caf5:regular \
-      --color=scrollbar:#27a1b9 \
-      --color=separator:#ff9e64 \
-      --color=spinner:#ff007c \
+      --color=bg:#1e1e2e \
+      --color=bg+:#313244 \
+      --color=fg:#cdd6f4 \
+      --color=fg+:#cdd6f4 \
+      --color=gutter:#1e1e2e \
+      --color=header:#fab387 \
+      --color=hl+:#89dceb \
+      --color=hl:#89dceb \
+      --color=info:#6c7086 \
+      --color=marker:#f38ba8 \
+      --color=pointer:#f38ba8 \
+      --color=prompt:#89dceb \
+      --color=query:#cdd6f4:regular \
+      --color=scrollbar:#89dceb \
+      --color=separator:#fab387 \
+      --color=spinner:#f38ba8 \
     "
 fi
 

@@ -28,6 +28,7 @@ function cpp() {
 }
 
 # Copy and go to the directory
+# 注：函数体内的 cp 走原始 cp（zsh 默认不扩展 alias），不走 aliases.zsh 的 cp -iv。
 function cpg() {
     if [[ -d "$2" ]]; then
         cp "$1" "$2" && cd "$2"
@@ -37,6 +38,7 @@ function cpg() {
 }
 
 # Move and go to the directory
+# 注：函数体内的 mv 走原始 mv（zsh 默认不扩展 alias），不走 aliases.zsh 的 mv -iv。
 function mvg() {
     if [[ -d "$2" ]]; then
         mv "$1" "$2" && cd "$2"
@@ -52,8 +54,9 @@ function mkdirg() {
 
 # Print random height bars (great with lolcat)
 function random_bars() {
-    columns=$(tput cols)
-    chars=(▁ ▂ ▃ ▄ ▅ ▆ ▇ █)
+    local columns=$(tput cols)
+    local chars=(▁ ▂ ▃ ▄ ▅ ▆ ▇ █)
+    local i
     for ((i = 1; i <= $columns; i++))
     do
         echo -n "${chars[RANDOM%${#chars} + 1]}"

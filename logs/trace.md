@@ -16,6 +16,18 @@
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
 
+## 2026-08-13 — zsh 配置优化：random_bars local 修复 + FZF 主题统一 + 清理死代码
+
+- 目的：审阅 zsh 模块（functions/env/options），修复真 bug、统一主题、清理 p10k 时代遗留。
+- 已做（`repo-change`，未同步 live、未提交）：
+  - `functions.zsh`：`random_bars` 的 `columns`/`chars`/`i` 加 `local`（原污染调用者 shell）；`cpg`/`mvg` 加注释说明函数体内走原始 `cp`/`mv`（zsh 默认不扩展 alias）。
+  - `env.zsh`：FZF 主题从 Tokyo Night 改为 Catppuccin Mocha，与 zsh-syntax-highlighting / starship 统一；新增 `bg`/`bg+` 色值。
+  - `options.zsh`：删除 `setopt promptsubst`（starship 接管 prompt 后无用，p10k 遗留死代码）。
+- 验证：`zsh -n` 三个文件均通过；`zsh_functions_test.sh` / `zsh_plugins_test.sh` / `zsh_history_test.sh` / `zsh_path_test.sh` / `install_zshenv_test.sh` 全 PASS（path 2 项 SKIP 为 node 路径不存在，预期）。
+- live 同步：`env.zsh` / `options.zsh` / `functions.zsh` 因 sandbox 限制需用户手动 `cp .config/shared/zsh/{env.zsh,options.zsh,functions.zsh} ~/.config/zsh/`，新开终端生效。
+- 未做：`rm`/`cp`/`mv` 的 `-i` 改 `-I`（个人偏好保留）；`preview()` else 分支死代码（走不到，留着）；FZF alias vs `FZF_CTRL_T_OPTS`（widget 不走 alias，当前方案可保留）。
+
+
 ## 2026-08-13 — starship 替换为 catppuccin-powerline 预设
 
 - 目的：用户希望尝试社区现成方案，整体替换原有简洁配置。
@@ -70,28 +82,3 @@
   - `.config/linux/niri/README.md`：窗口规则与 Chrome 条目更新，去掉"全局 0.88 透明度"描述，记录透明度只由应用自身控制的取舍。
 - 验证：`niri validate -c .config/linux/niri/ubuntu_aarch64/config.kdl` 通过（config is valid）。
 - 后续：live 的 `~/.config/niri/common.kdl` 需手动复制本仓库文件后 `Mod+Ctrl+R` 重载生效；kitty.conf 未改动。
-
-
-## 2026-08-13 — zsh 配置优化：HISTFILE 迁移 + compinit dump 路径显式化 + 合并 keybindings
-
-- 目的：评估 zsh 配置发现 3 个一致性/可优化点。整体启动已优化到 0.18-0.32s，本轮只做配置一致性清理，不动启动优化路径。
-- 已做（`repo-change`）：
-  - `history.zsh`：`HISTFILE=~/.zsh_history` → `$ZDOTDIR/.zsh_history`，让所有 zsh 状态文件集中到 ZDOTDIR；合并原 `keybindings.zsh` 的 `↑↓` history search bindkey 到末尾。
-  - `plugins.zsh`：`compinit -u` → `compinit -u -d "$ZSH_CONF/.zcompdump"`，显式 dump 路径，避免 IDE sandbox 等写入受限环境产生 `.zcompdump.<host>.<pid>` 孤儿文件。
-  - `.zshrc`：移除 `source keybindings.zsh`。
-  - 删除 `keybindings.zsh`。
-  - `install.sh`：移除 keybindings.zsh 部署项。
-  - `README.md`：模块结构图与「启动提速」段落同步（三项优化）。
-  - `tests/zsh_history_test.sh`（新增）：验证 HISTFILE 跟随 ZDOTDIR、keybindings 已合并、.zshrc 不再 source keybindings。
-  - `tests/zsh_plugins_test.sh`：新增 `test_compinit_uses_explicit_dump_path` 断言 `-d "$ZSH_CONF/.zcompdump"`。
-- 验证：`./tests/zsh_plugins_test.sh`、`./tests/zsh_history_test.sh`、`./tests/zsh_path_test.sh`、`sh ./tests/zsh_functions_test.sh`、`bash ./tests/install_zshenv_test.sh`、`bash ./tests/repo_docs_test.sh` 全部 PASS。
-- live 同步（部分已完成）：
-  - 已清理 `~/.config/zsh/.zcompdump.rikoo-AIBOOK-ABA14104.*` 11 个孤儿文件。
-  - 待用户手动执行（sandbox 限制无法写 `~/.config/zsh/`）：
-    ```bash
-    mv ~/.zsh_history ~/.config/zsh/.zsh_history   # 迁移历史
-    cp .config/shared/zsh/{.zshrc,plugins.zsh,history.zsh} ~/.config/zsh/
-    rm -f ~/.config/zsh/keybindings.zsh
-    rm -f ~/.config/zsh/.zcompdump                 # 让下次启动用新 -d 路径重建
-    ```
-- 后续：下次开终端验证 HISTFILE 写入 `$ZDOTDIR/.zsh_history`、`↑↓` 历史搜索正常、compinit dump 写到 `.zcompdump`（无 pid 后缀）。
