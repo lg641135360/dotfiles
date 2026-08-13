@@ -24,7 +24,7 @@
 
 本仓库不负责安装 niri 或其它桌面软件，也不检测显示管理器、desktop entry 或系统服务。`install.sh` 只通过 `command -v` 判断 niri 是否存在，并仅在 Ubuntu x86_64 / aarch64 上部署已维护的平台 KDL；Arch 与 openSUSE 始终保留现有 live Niri 配置，后者由 DMS 管理。Waybar、Mako、Fuzzel 分别在自身命令存在时部署配置。当前是否处于 Wayland 会话不会影响部署。
 
-Wayland 自动色温固定使用 `gammastep`；命令缺失时自启动脚本打印提示并跳过，不回退其它色温程序。
+Wayland 自动色温固定使用 `gammastep`；命令缺失时自启动脚本打印提示并跳过，不回退其它色温程序。aarch64 (MediaTek) 例外：`gammastep` 通过 `wlr-gamma-control` 压低色温/亮度会连带把外接屏压得过暗，因此 aarch64 跳过 `gammastep`，不启用自动色温。
 
 Waybar 亮度模块（`backlight`）仅用于 aarch64（MediaTek 笔记本有背光设备）：共享的 `.config/linux/waybar/config` 不含该模块（x86/桌面无背光不显示），aarch64 专用变体 `.config/linux/waybar/config.aarch64` 在 `modules-right` 加入 `backlight`。`install.sh` 通过 `install_waybar_config_for_platform()` 按 `arch` 选择部署对应版本（其余 `style.css`/`mocha.css`/`README.md` 两平台共用）。
 
@@ -95,7 +95,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `mako`
 - `fcitx5`
 - `swaybg` 随机壁纸（优先 `~/Pictures/wall`，回退系统 `/usr/share/backgrounds`，镜像 Awesome 会话的 `randomize_wallpaper` 来源）
-- `gammastep` 自动色温（`~/.local/state/niri/autostart/gammastep.log`）
+- `gammastep` 自动色温（`~/.local/state/niri/autostart/gammastep.log`；aarch64 禁用，见「配置部署边界」）
 - `swayidle`：空闲 10 分钟锁屏、30 分钟自动挂起；系统主动睡眠前也调用 `lock-wayland`
 - KDE 或 GNOME polkit agent（若存在）
 - `nm-applet`、`blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。

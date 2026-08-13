@@ -171,7 +171,13 @@ else
 fi
 
 if command -v gammastep >/dev/null 2>&1; then
-    start_gammastep
+    # MediaTek aarch64：gammastep 通过 wlr-gamma-control 压低色温/亮度，会连带把
+    # 外接屏压得过暗。aarch64 跳过 gammastep，不启用自动色温。
+    if [ "$(uname -m)" = "aarch64" ]; then
+        warn "跳过 gammastep：aarch64 (MediaTek) 下外接屏会过暗，已禁用自动色温"
+    else
+        start_gammastep
+    fi
 else
     warn "跳过 gammastep：未找到命令 gammastep"
 fi

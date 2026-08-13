@@ -290,6 +290,12 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_contains 'gammastep -m wayland -l 30.6:114.3 -t 6500:4800' "$AUTOSTART_SCRIPT"
     assert_contains 'start_gammastep' "$AUTOSTART_SCRIPT"
     assert_contains 'gammastep.log' "$NIRI_README"
+    # aarch64 (MediaTek) 禁用 gammastep：wlr-gamma-control 压低色温/亮度会连带把
+    # 外接屏压得过暗，脚本需在 aarch64 下跳过自动色温。
+    assert_contains 'uname -m' "$AUTOSTART_SCRIPT"
+    assert_contains 'aarch64' "$AUTOSTART_SCRIPT"
+    assert_contains '跳过 gammastep：aarch64 (MediaTek) 下外接屏会过暗，已禁用自动色温' "$AUTOSTART_SCRIPT"
+    assert_contains 'aarch64 跳过 `gammastep`，不启用自动色温' "$NIRI_README"
     assert_contains "timeout 1800 'systemctl suspend'" "$AUTOSTART_SCRIPT"
     assert_contains 'swayidle -w timeout 600 "$lock_script" timeout 1800 '"'"'systemctl suspend'"'"' before-sleep "$lock_script"' "$AUTOSTART_SCRIPT"
     assert_contains '/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1' "$AUTOSTART_SCRIPT"
