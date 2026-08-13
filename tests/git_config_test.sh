@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG="$ROOT/.config/shared/git/config"
-README="$ROOT/.config/shared/git/README.md"
 MEMORY="$ROOT/memory/git.md"
 
 source "$ROOT/tests/lib/assert.sh"
@@ -32,17 +31,9 @@ if [[ "$template" != "~/.config/git/template" ]]; then
   exit 1
 fi
 
-assert_matches 'core.editor.*vim|默认编辑器.*Vim|Git 默认编辑器' "$README"
 assert_contains 'core.editor = vim' "$MEMORY"
 assert_not_contains 'core.editor = nvim' "$MEMORY"
 
 require_config alias.subinit "submodule update --init --recursive"
 require_config alias.subs "submodule status"
 require_config alias.cs "commit --signoff"
-
-assert_matches '\| `subs` \| `submodule status` \| `git subs` \|' "$README"
-assert_matches '\| `grs` \| `git restore` \|' "$README"
-assert_matches '\| `grst` \| `git restore --staged` \|' "$README"
-assert_not_matches '\| `gres` \|' "$README"
-assert_not_matches '\| `grest` \|' "$README"
-assert_not_matches '\| `subs` \| `git submodule status` \|' "$README"

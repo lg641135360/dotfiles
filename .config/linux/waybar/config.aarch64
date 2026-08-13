@@ -1,0 +1,139 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 36,
+  "margin-top": 6,
+  "margin-left": 8,
+  "margin-right": 8,
+  "spacing": 2,
+  "modules-left": ["niri/workspaces", "custom/separator", "niri/window"],
+  "modules-center": ["clock"],
+  "modules-right": ["network", "cpu", "memory", "backlight", "pulseaudio", "battery", "privacy", "tray"],
+  "niri/workspaces": {
+    "format": "{icon}",
+    "format-icons": {
+      "focused": "",
+      "active": "",
+      "urgent": "",
+      "default": "",
+      "empty": ""
+    }
+  },
+  "niri/window": {
+    "format": "{title}",
+    "max-length": 52,
+    "separate-outputs": true,
+    "rewrite": {
+      "(.*) - Visual Studio Code$": "$1",
+      "(.*) - Google Chrome$": "$1",
+      "(.*) - Alacritty$": "$1"
+    }
+  },
+  "custom/separator": {
+    "format": "│",
+    "tooltip": false
+  },
+  "tray": {
+    "icon-size": 18,
+    "spacing": 6
+  },
+  "clock": {
+    "format": "{:%a %m月%d日 %H:%M}",
+    "tooltip-format": "<tt><small>{calendar}</small></tt>",
+    "calendar": {
+      "mode": "month",
+      "weeks-pos": "left",
+      "iso8601": true,
+      "format": {
+        "months": "<span color='#cba6f7'><b>{}</b></span>",
+        "weeks": "<span color='#6c7086'>W{}</span>",
+        "weekdays": "<span color='#89b4fa'><b>{}</b></span>",
+        "days": "<span color='#cdd6f4'>{}</span>",
+        "today": "<span color='#1e1e2e' bgcolor='#89b4fa'><b>{}</b></span>"
+      }
+    }
+  },
+  "network": {
+    "interval": 2,
+    "format-wifi": "󰤨 ↓{bandwidthDownBytes} ↑{bandwidthUpBytes}",
+    "format-ethernet": "󰈀 ↓{bandwidthDownBytes} ↑{bandwidthUpBytes}",
+    "format-disconnected": "󰤭 N/A",
+    "min-length": 19,
+    "align": 0.5,
+    "tooltip-format-wifi": "Wi-Fi\nSSID：{essid}\n信号：{signalStrength}%\n接口：{ifname}\n地址：{ipaddr}/{cidr}",
+    "tooltip-format-ethernet": "有线网络\n接口：{ifname}\n地址：{ipaddr}/{cidr}",
+    "tooltip-format-disconnected": "网络未连接",
+    "on-click": "nm-connection-editor"
+  },
+  "backlight": {
+    "format": "󰃟 {percent}%",
+    "min-length": 6,
+    "align": 0.5,
+    "tooltip": false,
+    "on-scroll-up": "brightnessctl set 5%+",
+    "on-scroll-down": "brightnessctl set 5%-",
+    "on-click": "brightnessctl set 0%",
+    "on-click-right": "brightnessctl set 100%"
+  },
+  "pulseaudio": {
+    "format": "  {volume}%",
+    "format-muted": "󰝟 静音",
+    "min-length": 5,
+    "align": 0.5,
+    "tooltip": false,
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-click-right": "pavucontrol",
+    "on-scroll-up": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ -l 1.0",
+    "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+  },
+  "battery": {
+    "format": "{icon} {capacity}%",
+    "format-charging": "󰂄 {capacity}%",
+    "format-plugged": "󰂄 {capacity}%",
+    "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+    "min-length": 6,
+    "align": 0.5,
+    "tooltip": false,
+    "states": {
+      "warning": 35,
+      "critical": 15
+    }
+  },
+  "privacy": {
+    "icon-spacing": 4,
+    "icon-size": 18,
+    "transition-duration": 250,
+    "modules": [
+      {
+        "type": "screenshare",
+        "tooltip": true,
+        "tooltip-icon-size": 24
+      },
+      {
+        "type": "audio-in",
+        "tooltip": true,
+        "tooltip-icon-size": 24
+      }
+    ]
+  },
+  "cpu": {
+    "format": "󰻠 {usage}%",
+    "min-length": 5,
+    "align": 0.5,
+    "tooltip": true,
+    "states": {
+      "warning": 70,
+      "critical": 90
+    }
+  },
+  "memory": {
+    "format": "󰍛 {percentage}%",
+    "min-length": 5,
+    "align": 0.5,
+    "tooltip": true,
+    "states": {
+      "warning": 80,
+      "critical": 95
+    }
+  }
+}

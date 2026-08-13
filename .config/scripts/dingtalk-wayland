@@ -111,6 +111,7 @@ if [ -z "$dingtalk_dir" ] || [ ! -x "$dingtalk_dir/com.alibabainc.dingtalk" ]; t
     exit 127
 fi
 
+# Qt 模块（托盘、文件选择器、通知）走 X11：钉钉自带的 Qt 插件依赖 xcb。
 export QT_QPA_PLATFORM=xcb
 export QT_PLUGIN_PATH="$dingtalk_dir"
 export QT_XCB_GL_INTEGRATION=xcb_egl
@@ -128,7 +129,21 @@ export LD_PRELOAD="$preload_libs${LD_PRELOAD:+ $LD_PRELOAD}"
 
 cd "$dingtalk_dir" || exit 1
 
+# 钉钉基于 CEF 109（Chromium 109），默认 ozone=x11 走 XWayland。
+# 曾尝试在 Wayland 会话下切原生 Wayland 后端解决双屏混 DPI 坐标错位，
+# 但实测 CEF 109 Wayland 后端有两个不可接受的缺陷：
+# 1. 搜索功能创建新 webview 时渲染进程必崩（crash dump 在 dump/8.1.1-Release.6020301/），
+#    日志见 CefExecuteProcess exit_code<<0 + active_to_render_terminated
+# 2. 多 output 混 DPI 下 deviceScaleFactor 不动态更新，内屏 scale 2.0 不生效
+# 因此保持 XWayland 模式。坐标错位问题改为通过使用习惯规避（避免窗口跨屏）。
+# aarch64 mtgpu 在缩放输出下 GPU 合成会撕裂，保留 --disable-gpu-compositing（XWayland 下同样有效）。
+gpu_flags=""
+if [ "$(uname -m)" = "aarch64" ]; then
+    gpu_flags="--disable-gpu-compositing"
+fi
+
 nohup ./com.alibabainc.dingtalk \
+    $gpu_flags \
     --enable-gpu-rasterization \
     --enable-zero-copy \
     --ignore-gpu-blocklist \

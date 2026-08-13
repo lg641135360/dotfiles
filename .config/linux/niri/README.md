@@ -6,7 +6,7 @@
 
 - 当前本机已通过上游 flake 重新构建并切到 `niri 26.04 (3819182)`。
 - AwesomeWM 仍是可回退桌面；本目录只提供 niri 试用配置。
-- Niri 配置仅维护 Ubuntu x86_64 平台；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，平台文件只保留 output 段和 `include "../common.kdl"`。检测到 Ubuntu x86_64 的 niri 后，`install.sh` 复制平台 KDL 为 `~/.config/niri/config.kdl`，同时部署 `common.kdl` 并将 include 路径改写成 live 布局使用的 `common.kdl`；不会把 README 或整个平台目录复制到 live。仅 Ubuntu 部署本仓库的 Niri 配置；Arch 保留现有 live 配置，openSUSE 同时保留 DMS 管理的 Niri 与 Alacritty 配置。
+- Niri 配置维护 Ubuntu x86_64 与 aarch64 两个平台；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，平台文件只保留 output 段和 `include "../common.kdl"`。检测到 Ubuntu x86_64 / aarch64 的 niri 后，`install.sh` 复制平台 KDL 为 `~/.config/niri/config.kdl`，同时部署 `common.kdl` 并将 include 路径改写成 live 布局使用的 `common.kdl`；不会把 README 或整个平台目录复制到 live。仅 Ubuntu 部署本仓库的 Niri 配置；Arch 保留现有 live 配置，openSUSE 同时保留 DMS 管理的 Niri 与 Alacritty 配置。
 - Waybar / Mako 第一版沿用 Catppuccin Mocha 色系，便于和现有 Awesome 外观保持接近。
 - Fuzzel 是 niri 会话下的首选 launcher，使用 CJK 字体、fuzzy match 与更清晰的深色主题；Rofi 仅作为 fallback。
 - `picom`、`xrandr`、`xinput`、`feh`、`xautolock` 不进入 niri 配置：Wayland 下分别由 niri/output/input、`swaybg`、`swayidle`/`swaylock` 等替代。
@@ -15,16 +15,18 @@
 - `xwayland-satellite` 已放入 Nix profile；niri 26.04 会在需要运行 X11 应用时按需自动拉起它，因此本仓库不手动 autostart 该进程。
 - Portal 偏好由 `.config/linux/xdg-desktop-portal/niri-portals.conf` 维护，安装到 `~/.local/share/xdg-desktop-portal/niri-portals.conf`；其中 `FileChooser=gtk` 用来避免 GNOME portal 在缺少 Nautilus 时影响文件选择器。
 - **Overview 美化**（Mod+O）：`layout { background-color "transparent" }` 保持日常桌面干净，`overview {}` 使用暗底色 `#1e1e2e` 压暗 overview 背景并加 workspace 卡片阴影。`place-within-backdrop` 经测试在 niri 26.04 上 `load-config-file` 后不生效（含新 surface），待 niri 更新后重新评估 awall 双壁纸方案。
-- **环境变量**：`common.kdl` 顶部的 `environment {}` 块声明 `QT_IM_MODULE`/`XMODIFIERS`/`SDL_IM_MODULE`/`GLFW_IM_MODULE`/`INPUT_METHOD`/`LC_CTYPE`/`XCURSOR_SIZE` 等，niri 直接 spawn 的进程会继承；`wayland-autostart` 仍保留 `export` 与 `dbus-update-activation-environment`/`systemctl --user import-environment` 把这些变量同步到 DBus 和 systemd 用户会话。`GTK_IM_MODULE` 故意不设置，让 Wayland GTK 走 text-input 协议（fcitx5 偏好）。
+- **环境变量**：`common.kdl` 顶部的 `environment {}` 块声明 `QT_IM_MODULE`/`XMODIFIERS`/`SDL_IM_MODULE`/`GLFW_IM_MODULE`/`INPUT_METHOD`/`LC_CTYPE`/`XCURSOR_SIZE`/`ZDOTDIR` 等，niri 直接 spawn 的进程会继承；`wayland-autostart` 仍保留 `export` 与 `dbus-update-activation-environment`/`systemctl --user import-environment` 把这些变量同步到 DBus 和 systemd 用户会话。`GTK_IM_MODULE` 故意不设置，让 Wayland GTK 走 text-input 协议（fcitx5 偏好）。`ZDOTDIR=/home/rikoo/.config/zsh`（niri 的 `environment {}` 不展开 `~`，须用绝对路径）让 niri spawn 的 shell（含 `Mod+Return` 拉起的终端）也走优化后的 zsh 配置：否则 zsh 落到默认 `~/.zshrc` 且没有 `.zshenv` 的 `skip_global_compinit`，会跑 Ubuntu 全局 compinit，交互启动实测 4.2s（优化配置 0.18s）。同时 `environment {}` 强制设置 `XDG_SESSION_TYPE=wayland`、`XDG_CURRENT_DESKTOP=niri`、`XDG_SESSION_DESKTOP=niri`：从 shell 手动启动 niri 时会继承错误的会话环境（`XDG_SESSION_TYPE=tty`、`XDG_CURRENT_DESKTOP=awesome`），会导致应用/toolkit 无法走 text-input-v3 接入 fcitx5、输入法无法输入中文；强制覆盖后会话按纯 Wayland/niri 身份运行。
 - **光标**：`cursor { xcursor-size 32; hide-when-typing }` 让 niri 在 autostart 执行前就使用正确尺寸，并在键盘输入时自动隐藏鼠标；与 `XCURSOR_SIZE=32` 环境变量互补。
 - **焦点环**：`focus-ring` 使用 Catppuccin Mocha 蓝 `#89b4fa`（活动）/灰 `#45475a`（非活动）/红 `#f38ba8`（紧急，用于 IM 闪动等需要注意的窗口）。
 - **动画**：`animations {}` 按 `workspace-switch`/`window-open`/`window-close`/`window-resize` 分别配置 spring 参数（damping-ratio 0.7-0.8、stiffness 700-800），过渡更顺滑。
 
 ## 配置部署边界
 
-本仓库不负责安装 niri 或其它桌面软件，也不检测显示管理器、desktop entry 或系统服务。`install.sh` 只通过 `command -v` 判断 niri 是否存在，并仅在 Ubuntu x86_64 上部署已维护的平台 KDL；Arch 与 openSUSE 始终保留现有 live Niri 配置，后者由 DMS 管理。Waybar、Mako、Fuzzel 分别在自身命令存在时部署配置。当前是否处于 Wayland 会话不会影响部署。
+本仓库不负责安装 niri 或其它桌面软件，也不检测显示管理器、desktop entry 或系统服务。`install.sh` 只通过 `command -v` 判断 niri 是否存在，并仅在 Ubuntu x86_64 / aarch64 上部署已维护的平台 KDL；Arch 与 openSUSE 始终保留现有 live Niri 配置，后者由 DMS 管理。Waybar、Mako、Fuzzel 分别在自身命令存在时部署配置。当前是否处于 Wayland 会话不会影响部署。
 
 Wayland 自动色温固定使用 `gammastep`；命令缺失时自启动脚本打印提示并跳过，不回退其它色温程序。
+
+Waybar 亮度模块（`backlight`）仅用于 aarch64（MediaTek 笔记本有背光设备）：共享的 `.config/linux/waybar/config` 不含该模块（x86/桌面无背光不显示），aarch64 专用变体 `.config/linux/waybar/config.aarch64` 在 `modules-right` 加入 `backlight`。`install.sh` 通过 `install_waybar_config_for_platform()` 按 `arch` 选择部署对应版本（其余 `style.css`/`mocha.css`/`README.md` 两平台共用）。
 
 ## 平台配置
 
@@ -33,6 +35,7 @@ Wayland 自动色温固定使用 `gammastep`；命令缺失时自启动脚本打
 | 平台 key | 仓库路径 | 状态 |
 | --- | --- | --- |
 | `ubuntu_x64` | `.config/linux/niri/ubuntu_x64/config.kdl` | 已落地；Ubuntu x86_64 双 2K 外接屏 |
+| `ubuntu_aarch64` | `.config/linux/niri/ubuntu_aarch64/config.kdl` | 已落地；Ubuntu aarch64 (MediaTek) 内屏 eDP-1 2x + 外接 DP-2 1.25x |
 
 新增平台时先增加对应平台 KDL 与安装器映射，只调整 output 段（接口名/分辨率/scale/位置）；公共行为改动统一在 `common.kdl` 里完成，并用 `niri validate -c <path>` 验证。
 
@@ -71,9 +74,10 @@ niri validate -c ~/.config/niri/config.kdl
 | `Mod+Ctrl+Space` | 切换浮动 |
 | `Mod+f` | 全屏当前窗口 |
 | `Mod+m` | 最大化到屏幕边缘 |
+| `Mod+s` | 截图标注（slurp 选区 → grim → Satty 标注） |
 | `Mod+Shift+q` | 退出 niri，会有确认 |
 
-终端、文件管理器、launcher、锁屏、壁纸切换、overview、退出、截图标注和关闭显示器等一次性动作均禁用按键重复，避免长按时重复启动或连续切换。窗口/ workspace 间垂直切换使用 `Mod+j/k`（优先切窗口，到边界后切 workspace），workspace 间直接跳转用数字键或 `Mod+滚轮`，不再保留 `Page_Up/Page_Down` 及其 Shift 组合；左右切列统一使用 `Mod+h/l`（到边界后切到左/右显示器）或 `Mod+横向滚轮`，不再保留重复的 `Mod+Alt+h/l`；`Mod+a/d` 仍可作为「显式只切显示器」的补充。
+终端、文件管理器、launcher、锁屏、壁纸切换、overview、退出、截图标注等一次性动作均禁用按键重复，避免长按时重复启动或连续切换。窗口/ workspace 间垂直切换使用 `Mod+j/k`（优先切窗口，到边界后切 workspace），workspace 间直接跳转用数字键或 `Mod+滚轮`，不再保留 `Page_Up/Page_Down` 及其 Shift 组合；左右切列统一使用 `Mod+h/l`（到边界后切到左/右显示器）或 `Mod+横向滚轮`，不再保留重复的 `Mod+Alt+h/l`；`Mod+a/d` 仍可作为「显式只切显示器」的补充。
 
 浮动切换、浮动/平铺焦点切换、列标签模式以及窗口并入/移出列等不易从按键直接判断的操作，已在 `Mod+Shift+/` 热键面板中补充中文说明。
 
@@ -90,11 +94,11 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `waybar`
 - `mako`
 - `fcitx5`
-- `swaybg` 随机壁纸（只从 `~/Pictures/wall` 选择）
+- `swaybg` 随机壁纸（优先 `~/Pictures/wall`，回退系统 `/usr/share/backgrounds`，镜像 Awesome 会话的 `randomize_wallpaper` 来源）
 - `gammastep` 自动色温（`~/.local/state/niri/autostart/gammastep.log`）
 - `swayidle`：空闲 10 分钟锁屏、30 分钟自动挂起；系统主动睡眠前也调用 `lock-wayland`
 - KDE 或 GNOME polkit agent（若存在）
-- `nm-applet`、`pasystray`、`blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）
+- `nm-applet`、`blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。
 
 缺依赖不会中断 niri 启动。
 
@@ -104,7 +108,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 
 ```bash
 tail -n 80 ~/.local/state/niri/autostart/gammastep.log
-gammastep -m drm -p -l 30.6:114.3 -t 6500:4000
+gammastep -m drm -p -l 30.6:114.3 -t 6500:4800
 ```
 
 `gammastep` 通过 `wlr-gamma-control` 协议为每个输出注册 gamma 表，但进程启动后不会自动为新接入的输出补注册。`wayland-autostart` 在启动 `gammastep` 时会记录当前 niri 输出数量到 `~/.local/state/niri/autostart/gammastep.outputs`；再次执行时若输出数量变化（热插拔）则自动重启 `gammastep`。热插拔显示器后色温未生效时，手动重新执行 `~/.config/scripts/wayland-autostart` 即可修复。
@@ -119,11 +123,25 @@ session include common-session
 
 ## 终端入口
 
-`Mod+Return` 调用 `~/.config/scripts/terminal-wayland`，优先使用 `~/.nix-profile/bin/alacritty`，其次使用系统 `alacritty`，最后回退 kitty。当前系统 `alacritty 0.17.0` 已可在 niri/Wayland 会话下启动；保持 Alacritty 优先可以复用 shared Alacritty 字体、透明度、快捷键和主题配置。
+`Mod+Return` 调用 `~/.config/scripts/terminal-wayland`：全平台优先使用 `~/.nix-profile/bin/alacritty`，其次使用系统 `alacritty`，最后回退 kitty。保持 Alacritty 优先可以复用 shared Alacritty 字体、透明度、快捷键和主题配置。
+
+曾针对 aarch64 (MediaTek) 让终端优先 `kitty`（foot 兜底）：该平台的 `alacritty 0.18.0-dev` 在 niri 缩放输出（内屏 2x / 1.5x）下 GPU 字形渲染会损坏（1x 正常；内容重绘后文字丢失），而 kitty 与 foot 在 2x 下均渲染正常。现用户以外接屏为主、alacritty 显示正常，已改回 alacritty 全平台默认、移除 aarch64-kitty 分支；内屏 2x 下 alacritty 的字形问题仍未根治，留待后续定位（见 `logs/trace.md`）。
+
+kitty 采用普通冷启动。曾实现「常驻单实例 + `kitty @ launch --type=os-window`」快速开窗（冷启动 ~1.5s → 开窗 ~0.4s），但常驻实例维护成本高（残留 socket 导致 bind 失败的恶性循环、登录需多开一个常驻窗口）价值有限，已整体移除：`kitty.conf` 不再开启 `allow_remote_control`，`wayland-autostart` 不再预启动 daemon，`terminal-wayland` 直接 `exec kitty`（作为兜底）。
+
+## 浏览器入口
+
+Google Chrome 不会自动检测 Wayland，默认走 X11（ozone/x11）平台，在纯 Wayland 会话（无 `$DISPLAY`）里直接运行会报 `Missing X server or $DISPLAY`。用 `~/.config/scripts/browser-wayland` 启动浏览器：Wayland 会话下会自动追加 `--ozone-platform=wayland --enable-wayland-ime` 走原生 Wayland（保留 HiDPI 缩放，`--enable-wayland-ime` 让 Chrome 接入 fcitx5 的 text-input-v3 以支持中文输入），X11 会话下则原样透传、不加这些 flag。脚本自动在 `google-chrome-stable` / `google-chrome` 之间选择可用二进制；两者都缺失时通知并报错。另外，MediaTek mtgpu 驱动在缩放输出下会让 Chrome 合成时整屏横向撕裂，因此 aarch64（`uname -m`）下额外追加 `--disable-gpu-compositing` 关闭 GPU 合成（其它平台保留 GPU 合成以保性能）。
+
+fuzzel（`Mod+c`）走 drun 模式，读的是 desktop 入口而不是直接调包装脚本，因此 `.config/linux/desktop-entries/google-chrome.desktop` 覆盖了系统入口，把 `Exec` 改为调用 `browser-wayland`（含「新建窗口/隐身窗口」子动作），部署到 `~/.local/share/applications/google-chrome.desktop`。这样从 fuzzel 菜单启动的 chrome 同样走原生 Wayland；该覆盖在 X11 Awesome 会话下也会命中，但因为 `browser-wayland` 会按会话透传，X11 下行为不变。`install.sh` 会把脚本与 desktop 入口随其它 Wayland 辅助文件一起部署。
+
+### Trae CN（Electron IDE）
+
+Trae CN 是 Electron 应用，与 Chrome 同类：默认走 X11 平台，纯 Wayland 会话下直接启动报 `Missing X server or $DISPLAY`。`~/.config/scripts/trae-cn-wayland` 包装脚本在 Wayland 会话下追加 `--ozone-platform=wayland --enable-wayland-ime --enable-features=WaylandWindowDecorations`（`--enable-wayland-ime` 提供 Fcitx5/Rime 输入法支持，`WaylandWindowDecorations` 让合成器绘制标题栏），X11 会话原样透传。同样用 `.config/linux/desktop-entries/trae-cn.desktop` 覆盖系统入口，`Exec` 改调 `trae-cn-wayland`，部署到 `~/.local/share/applications/`，fuzzel 菜单即走 Wayland。
 
 ## 窗口规则
 
-- 全局窗口默认启用 0.88 透明度和 niri 背景模糊，并设置 `draw-border-with-background false`，避免半透明窗口聚焦时把蓝色 focus ring 背景透出来。
+- 全局窗口默认启用 0.88 透明度和 niri 背景模糊，并设置 `draw-border-with-background false`，避免半透明窗口聚焦时把蓝色 focus ring 背景透出来。透明由各应用自身透明度（如 alacritty 的 `background_opacity 0.82`）与全局 0.88 叠加。
 - Polkit、`pinentry`、`ssh-askpass` 等认证窗口强制浮动并覆盖为 1.0 不透明度，确保密码提示清晰且边界明确。
 - `layer-rule` 为 waybar 和 fuzzel 启用背景模糊（`background-effect { blur true }`），弹出层视觉焦点集中。
 - 钉钉不再由 niri window-rule 管理；会议窗口、浮动状态和位置交给应用自身或手动切换，避免仓库配置强行干预钉钉行为。
@@ -177,9 +195,20 @@ install -Dm755 /tmp/dingtalk-wayland-screenshare-build/libdingtalkhook.so ~/.loc
 
 脚本会优先使用 `~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so`，把它放在 `LD_PRELOAD` 最前面，同时保留钉钉原本依赖的 `libgbm.so` 和 `plugins/dtwebview/libcef.so` preload；如果 hook 库放在其它位置，可用 `DINGTALK_WAYLAND_HOOK=/path/to/libdingtalkhook.so ~/.config/scripts/dingtalk-wayland` 指定。排障时可查看 `/tmp/dingtalk-wayland-debug.log`，正常路径会看到 `stream state changed from paused to streaming` 以及前几帧的 `process frame type=3` / `mmap frame` 记录。
 
+### 钉钉保持 XWayland 模式
+
+钉钉基于 CEF 109（Chromium 109），默认 ozone=x11，在 niri Wayland 双屏混 DPI（DP-2 scale 1.25、eDP-1 scale 2.0）下走 XWayland 会出现坐标映射错位，表现为鼠标双光标、点击落不到窗口。曾尝试在 Wayland 会话下切原生 Wayland 后端解决该问题，但实测 CEF 109 的 Wayland 后端有两个不可接受的缺陷：
+
+1. **搜索崩溃**：点击搜索创建新 webview 时渲染进程必崩，crash dump 在 `~/.config/DingTalk/dump/8.1.1-Release.6020301/`，日志表现为 `CefExecuteProcess exit_code<<0` + `active_to_render_terminated`。
+2. **缩放不动态更新**：多 output 混 DPI 下 `deviceScaleFactor` 不动态更新，内屏 scale 2.0 不生效，钉钉内容在外屏正常、在内屏过小且 `--force-device-scale-factor` 在 Wayland 下无效。
+
+因此钉钉保持 XWayland 模式（不追加 ozone/wayland 相关 flag），坐标错位问题改为通过使用习惯规避（避免窗口跨屏）。`libdingtalkhook.so` 在 XWayland 下仍可截获 `XGetImage`/`XShmGetImage`，屏幕共享在 niri 会话下继续生效。aarch64 额外保留 `--disable-gpu-compositing`（与 Chrome 一致，规避 mtgpu 缩放输出撕裂，XWayland 下同样有效）。
+
+Qt 模块（系统托盘、文件选择器、通知）保留 `QT_QPA_PLATFORM=xcb`：钉钉自带的 Qt 插件依赖 xcb，切到 wayland 会导致托盘和文件对话框失效。
+
 ## 截图标注
 
-`F1` 调用 `~/.config/scripts/screenshot-wayland`：先用 `slurp` 选取区域，再用 `grim -t ppm` 截图，随后打开 Satty 做涂鸦、箭头、文字等标注，并默认把输出文件名指向 `~/Pictures/Screenshots`。Satty 分支里 `Enter` 保存到文件，复制命令使用 `wl-copy`，文字标注字体显式使用 `Noto Sans CJK SC`，避免 Satty 没有字体 fallback 时中文标注不可见。脚本启动 Satty 前会清掉 `GTK_IM_MODULE`，让 GTK4/Wayland 使用 text-input 输入法路径；不要在这里强制 `GTK_IM_MODULE=fcitx`。Satty 官方 README 说明 IME 已支持，但字体必须覆盖目标字符；如果缺少 `satty`、`grim`、`slurp` 或 `wl-copy`，脚本会直接失败并用通知提示缺少的依赖，不再回退到其它标注工具。`Ctrl+Print` 和 `Alt+Print` 继续保留 niri 原生的整屏/当前窗口截图。
+`Mod+s` 调用 `~/.config/scripts/screenshot-wayland`：先用 `slurp` 选取区域，再用 `grim -t ppm` 截图，随后打开 Satty 做涂鸦、箭头、文字等标注，并默认把输出文件名指向 `~/Pictures/Screenshots`。Satty 分支里 `Enter` 保存到文件，复制命令使用 `wl-copy`，文字标注字体显式使用 `Noto Sans CJK SC`，避免 Satty 没有字体 fallback 时中文标注不可见。脚本启动 Satty 前会清掉 `GTK_IM_MODULE`，让 GTK4/Wayland 使用 text-input 输入法路径；不要在这里强制 `GTK_IM_MODULE=fcitx`。Satty 官方 README 说明 IME 已支持，但字体必须覆盖目标字符；如果缺少 `satty`、`grim`、`slurp` 或 `wl-copy`，脚本会直接失败并用通知提示缺少的依赖，不再回退到其它标注工具。`Ctrl+Print` 和 `Alt+Print` 继续保留 niri 原生的整屏/当前窗口截图。
 
 ## 验证
 

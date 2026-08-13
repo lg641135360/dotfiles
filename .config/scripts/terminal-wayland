@@ -2,6 +2,14 @@
 # Wayland terminal entrypoint for niri. Prefer Alacritty so shared terminal
 # styling stays consistent across X11 and Wayland sessions.
 
+# 全平台默认 Alacritty，以便 X11 与 Wayland 会话复用同一套 shared Alacritty
+# 字体/透明度/快捷键/主题配置。kitty 仅作为最后兜底。
+# 注：aarch64 mtgpu 驱动曾使 alacritty 0.18.0-dev 在内屏 2x 缩放输出下字形损坏，
+# 故此前曾优先 kitty；现用户以外接屏为主、alacritty 显示正常，改回 alacritty 全平台
+# 默认。内屏字形问题仍未根治，见 logs/trace.md 待后续定位。
+# niri spawn 的 PATH 不含 ~/.local/bin（二进制安装的 kitty 所在），补进 PATH 以便兜底分支能找到 kitty
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac
+
 if [ -x "$HOME/.nix-profile/bin/alacritty" ]; then
     exec "$HOME/.nix-profile/bin/alacritty" "$@"
 fi

@@ -1,0 +1,32 @@
+#!/bin/sh
+# Trae CN (Electron) Wayland entrypoint. Like Chrome, Electron apps default to
+# the X11 (ozone/x11) platform and fail under a pure Wayland session with
+# "Missing X server or $DISPLAY". Pass --ozone-platform=wayland plus Wayland
+# IME support under a Wayland session; pass through unchanged under X11.
+
+wayland_session=0
+if [ -n "${WAYLAND_DISPLAY:-}" ] || [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
+    wayland_session=1
+fi
+
+if ! command -v trae-cn >/dev/null 2>&1; then
+    # The niri session PATH is a bare system PATH and does not include
+    # /usr/share/trae-cn/bin, so the `trae-cn` launcher wrapper may not resolve
+    # even though Trae CN is installed. Fall back to the standard install path.
+    if [ -x /usr/share/trae-cn/bin/trae-cn ]; then
+        PATH="/usr/share/trae-cn/bin:$PATH"
+        export PATH
+    else
+        printf '%s\n' 'Trae CN unavailable: install trae-cn.' >&2
+        exit 127
+    fi
+fi
+
+if [ "$wayland_session" = "1" ]; then
+    # --enable-wayland-ime gives Fcitx5/Rime input method support on Wayland;
+    # WaylandWindowDecorations lets the compositor draw the titlebar.
+    exec trae-cn --ozone-platform=wayland --enable-wayland-ime \
+        --enable-features=WaylandWindowDecorations "$@"
+fi
+
+exec trae-cn "$@"

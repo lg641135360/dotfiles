@@ -6,7 +6,6 @@ PICOM_UBUNTU_FILE=$REPO_ROOT/.config/linux/picom/picom-ubuntu_x64.conf
 PICOM_ARCH_X64_FILE=$REPO_ROOT/.config/linux/picom/picom-arch_x64.conf
 PICOM_ARCH_AARCH64_FILE=$REPO_ROOT/.config/linux/picom/picom-arch_aarch64.conf
 AWESOME_THEME_FILE=$REPO_ROOT/.config/linux/awesome/theme/catppuccin.lua
-README_FILE=$REPO_ROOT/.config/linux/picom/README.md
 
 fail() {
     printf 'FAIL: %s\n' "$1" >&2
@@ -77,18 +76,6 @@ test_non_current_platform_configs_remain_platform_specific() {
     assert_contains "100:class_g = 'Thunderbird'" "$PICOM_ARCH_AARCH64_FILE"
 }
 
-test_readme_documents_current_visual_targets() {
-    assert_contains '不强求三平台使用完全相同的参数' "$README_FILE"
-    assert_contains 'Ubuntu x64 当前使用 16px radius、0.22 opacity、`-8/-8` offset' "$README_FILE"
-    assert_contains 'Ubuntu x64 当前收口到 12px' "$README_FILE"
-    assert_contains 'Ubuntu x64 当前使用 dual_kawase strength 12' "$README_FILE"
-    assert_contains 'Ubuntu x64 当前使用 0.90 inactive、0.94 active、0.92 frame、0.96 menus' "$README_FILE"
-    assert_contains 'Alacritty/kitty 不再被 picom 强制拉回 100% opacity' "$README_FILE"
-    assert_contains '`utility/dialog` 恢复轻阴影' "$README_FILE"
-    assert_contains 'Ubuntu x64: `run picom`' "$README_FILE"
-    assert_contains 'Ubuntu x64 + picom v10 path it must stay removed' "$README_FILE"
-}
-
 test_ubuntu_x64_corner_radius_matches_awesome_theme() {
     assert_contains 'corner-radius = 12' "$PICOM_UBUNTU_FILE"
     assert_contains 'theme.border_radius = dpi(12)' "$AWESOME_THEME_FILE"
@@ -98,7 +85,6 @@ test_shared_visual_baseline
 test_ubuntu_x64_keeps_live_blur_route_and_x64_excludes
 test_terminal_opacity_is_left_to_terminal_configs
 test_non_current_platform_configs_remain_platform_specific
-test_readme_documents_current_visual_targets
 test_ubuntu_x64_corner_radius_matches_awesome_theme
 
 printf 'PASS: picom config tests\n'

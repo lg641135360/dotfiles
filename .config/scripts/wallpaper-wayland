@@ -16,8 +16,12 @@ record_current_wallpaper() {
     }
 }
 
+# Wallpaper source mirrors the Awesome session (randomize_wallpaper), which
+# prefers ~/Pictures/wall and falls back to the system background pool.
+# ~/Pictures is intentionally NOT included (it contains only screenshots).
 for dir in \
-    "$HOME/Pictures/wall"; do
+    "$HOME/Pictures/wall" \
+    "/usr/share/backgrounds"; do
     [ -d "$dir" ] || continue
     image=$(find "$dir" -maxdepth 2 -type f \( \
         -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \

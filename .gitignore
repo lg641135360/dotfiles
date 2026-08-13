@@ -1,6 +1,9 @@
 # log
 *.log
 
+# zsh completion dump cache
+*.zcompdump*
+
 .vscode
 .claude
 .codex

@@ -5,9 +5,11 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$REPO_ROOT/tests/lib/assert.sh"
 
 NIRI_CONFIG=$REPO_ROOT/.config/linux/niri/ubuntu_x64/config.kdl
+NIRI_AARCH64_CONFIG=$REPO_ROOT/.config/linux/niri/ubuntu_aarch64/config.kdl
 NIRI_COMMON_CONFIG=$REPO_ROOT/.config/linux/niri/common.kdl
 NIRI_README=$REPO_ROOT/.config/linux/niri/README.md
 WAYBAR_CONFIG=$REPO_ROOT/.config/linux/waybar/config
+WAYBAR_AARCH64_CONFIG=$REPO_ROOT/.config/linux/waybar/config.aarch64
 WAYBAR_STYLE=$REPO_ROOT/.config/linux/waybar/style.css
 WAYBAR_MOCHA=$REPO_ROOT/.config/linux/waybar/mocha.css
 MAKO_CONFIG=$REPO_ROOT/.config/linux/mako/config
@@ -23,6 +25,10 @@ LOCK_SCRIPT=$REPO_ROOT/.config/scripts/lock-wayland
 SCREENSHOT_SCRIPT=$REPO_ROOT/.config/scripts/screenshot-wayland
 WALLPAPER_SCRIPT=$REPO_ROOT/.config/scripts/wallpaper-wayland
 WALLPAPER_NEXT_SCRIPT=$REPO_ROOT/.config/scripts/wallpaper-wayland-next
+BROWSER_SCRIPT=$REPO_ROOT/.config/scripts/browser-wayland
+CHROME_DESKTOP=$REPO_ROOT/.config/linux/desktop-entries/google-chrome.desktop
+TRAE_SCRIPT=$REPO_ROOT/.config/scripts/trae-cn-wayland
+TRAE_DESKTOP=$REPO_ROOT/.config/linux/desktop-entries/trae-cn.desktop
 INSTALL_FILE=$REPO_ROOT/install.sh
 
 test_niri_config_exists_and_validates_when_available() {
@@ -87,21 +93,23 @@ test_niri_config_keeps_awesome_muscle_memory() {
 }
 
 test_niri_config_exposes_multi_monitor_navigation() {
-    assert_contains 'Mod+A { focus-monitor-left; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+D { focus-monitor-right; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+A repeat=false { focus-monitor-left; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+D repeat=false { focus-monitor-right; }' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Shift+A { move-column-to-monitor-left; }' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Shift+D { move-column-to-monitor-right; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+Ctrl+Shift+A { move-workspace-to-monitor-left; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+Ctrl+Shift+D { move-workspace-to-monitor-right; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Ctrl+Shift+A repeat=false { move-workspace-to-monitor-left; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Ctrl+Shift+D repeat=false { move-workspace-to-monitor-right; }' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Page_Up' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Page_Down' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Shift+Page_Up' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Shift+Page_Down' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+Ctrl+Space hotkey-overlay-title="切换窗口浮动" { toggle-window-floating; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+Shift+V hotkey-overlay-title="切换浮动/平铺焦点" { switch-focus-between-floating-and-tiling; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+W hotkey-overlay-title="切换列标签模式" { toggle-column-tabbed-display; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+Comma hotkey-overlay-title="将右侧窗口并入当前列" { consume-window-into-column; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+Period hotkey-overlay-title="将底部窗口移出当前列" { expel-window-from-column; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Ctrl+Space repeat=false hotkey-overlay-title="切换窗口浮动" { toggle-window-floating; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Shift+V repeat=false hotkey-overlay-title="切换浮动/平铺焦点" { switch-focus-between-floating-and-tiling; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+W repeat=false hotkey-overlay-title="切换列标签模式" { toggle-column-tabbed-display; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+BracketLeft repeat=false hotkey-overlay-title="向左并入/移出窗口" { consume-or-expel-window-left; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+BracketRight repeat=false hotkey-overlay-title="向右并入/移出窗口" { consume-or-expel-window-right; }' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Comma' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Period' "$NIRI_COMMON_CONFIG"
 }
 
 test_niri_config_uses_wayland_replacements_not_x11_autostart() {
@@ -122,6 +130,41 @@ test_niri_config_uses_wayland_replacements_not_x11_autostart() {
     assert_contains 'position x=2048 y=0' "$NIRI_CONFIG"
 }
 
+test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal() {
+    # Platform config includes the shared common.kdl like every other platform.
+    assert_file_exists "$NIRI_AARCH64_CONFIG"
+    assert_contains '// Platform: ubuntu_aarch64' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'include "../common.kdl"' "$NIRI_AARCH64_CONFIG"
+
+    # External DP-2 (AOC) at 1.25x on the left, internal eDP-1 at 2x HiDPI on the right.
+    assert_contains 'output "eDP-1" {' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'mode "2880x1800@120"' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'scale 2.0' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'position x=2048 y=0' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'output "DP-2" {' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'mode "2560x1440@100"' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'scale 1.25' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'position x=0 y=0' "$NIRI_AARCH64_CONFIG"
+
+    # 全平台默认 Alacritty：移除 aarch64-kitty 分支后，脚本无条件优先 alacritty，
+    # kitty 仅作最后兜底。alacritty 内屏 2x 字形问题未根治，见 logs/trace.md。
+    assert_not_contains 'uname -m' "$TERMINAL_SCRIPT"
+    assert_not_contains 'exec foot "$@"' "$TERMINAL_SCRIPT"
+    assert_contains 'exec "$HOME/.nix-profile/bin/alacritty" "$@"' "$TERMINAL_SCRIPT"
+    # niri spawn PATH 不含 ~/.local/bin，脚本需补进该目录才能找到二进制安装的 kitty。
+    assert_contains '$HOME/.local/bin' "$TERMINAL_SCRIPT"
+
+    # 常驻单实例快速开窗方案已移除（kitty 冷启动 ~1.5s 改为普通冷启动，避免残留
+    # socket / 登录多一个常驻窗口等维护成本）；不得再出现 socket 控制或远程控制。
+    assert_not_contains 'kitty @ --to' "$TERMINAL_SCRIPT"
+    assert_not_contains '--listen-on' "$TERMINAL_SCRIPT"
+    assert_not_contains 'allow_remote_control' "$REPO_ROOT/.config/linux/kitty/kitty.conf"
+
+    # aarch64 keeps transparency but disables blur: mtgpu blur is invisible.
+    assert_contains 'blur false' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'opacity 0.88' "$NIRI_AARCH64_CONFIG"
+}
+
 test_niri_config_uses_native_environment_cursor_and_animations() {
     # environment {} block: niri spawns inherit these directly.
     assert_contains 'environment {' "$NIRI_COMMON_CONFIG"
@@ -132,6 +175,16 @@ test_niri_config_uses_native_environment_cursor_and_animations() {
     assert_contains 'INPUT_METHOD "fcitx"' "$NIRI_COMMON_CONFIG"
     assert_contains 'LC_CTYPE "zh_CN.UTF-8"' "$NIRI_COMMON_CONFIG"
     assert_contains 'XCURSOR_SIZE "32"' "$NIRI_COMMON_CONFIG"
+    # niri spawn env must set ZDOTDIR so spawned shells use the optimized
+    # ~/.config/zsh; otherwise they fall back to default config + global
+    # compinit (interactive startup 4.2s vs 0.18s measured).
+    assert_contains 'ZDOTDIR "/home/rikoo/.config/zsh"' "$NIRI_COMMON_CONFIG"
+    # Session runs as a proper Wayland/niri session: manual shell launch would
+    # otherwise inherit XDG_SESSION_TYPE=tty / XDG_CURRENT_DESKTOP=awesome and
+    # break text-input-v3 routing for fcitx5.
+    assert_contains 'XDG_SESSION_TYPE "wayland"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'XDG_CURRENT_DESKTOP "niri"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'XDG_SESSION_DESKTOP "niri"' "$NIRI_COMMON_CONFIG"
     # GTK_IM_MODULE intentionally unset for Wayland text-input protocol.
     assert_not_contains 'GTK_IM_MODULE "fcitx"' "$NIRI_COMMON_CONFIG"
 
@@ -148,10 +201,26 @@ test_niri_config_uses_native_environment_cursor_and_animations() {
 }
 
 test_waybar_drops_dead_battery_module_on_desktop_platform() {
-    # Ubuntu x64 target is a desktop without battery; the battery module was
-    # defined but never enabled in modules-right, leaving dead config and CSS.
+    # Ubuntu x64 target is a desktop without battery; the shared config must
+    # not enable a battery module in modules-right. Battery CSS in style.css
+    # is shared with aarch64 (which does use the module) and thus not dead.
     assert_not_contains '"battery"' "$WAYBAR_CONFIG"
-    assert_not_contains '#battery' "$WAYBAR_STYLE"
+}
+
+test_waybar_aarch64_has_battery_module() {
+    # aarch64 is a MediaTek laptop with a battery; the backlight-enabled
+    # config.aarch64 variant also exposes a battery module in modules-right.
+    assert_file_exists "$WAYBAR_AARCH64_CONFIG"
+    assert_contains '"battery"' "$WAYBAR_AARCH64_CONFIG"
+    assert_contains '"modules-right": ["network", "cpu", "memory", "backlight", "pulseaudio", "battery", "privacy", "tray"]' "$WAYBAR_AARCH64_CONFIG"
+    # Battery styles live in the shared style.css (deployed to both platforms).
+    assert_contains '#battery' "$WAYBAR_STYLE"
+    assert_contains '#battery.charging' "$WAYBAR_STYLE"
+    assert_contains '#battery.warning' "$WAYBAR_STYLE"
+    assert_contains '#battery.critical' "$WAYBAR_STYLE"
+    # AwesomeWM convention: charging green, <=35% yellow, <=15% red.
+    assert_contains '"warning": 35' "$WAYBAR_AARCH64_CONFIG"
+    assert_contains '"critical": 15' "$WAYBAR_AARCH64_CONFIG"
 }
 
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
@@ -201,7 +270,9 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_contains "run_once_logged waybar '(^|/)waybar( |$)' waybar" "$AUTOSTART_SCRIPT"
     assert_contains "run_once_logged mako '(^|/)mako( |$)' mako" "$AUTOSTART_SCRIPT"
     assert_contains "run_once_logged nm-applet '(^|/)nm-applet( |$)' nm-applet" "$AUTOSTART_SCRIPT"
-    assert_contains "run_once_logged pasystray '(^|/)pasystray( |$)' pasystray" "$AUTOSTART_SCRIPT"
+    # pasystray 自启已移除：其音量控制能力由 waybar pulseaudio 模块 + pavucontrol
+    # 覆盖，移除后 niri 会话不再有 XWayland 客户端。
+    assert_not_contains "run_once_logged pasystray '(^|/)pasystray( |$)' pasystray" "$AUTOSTART_SCRIPT"
     assert_contains "run_once_logged blueman-applet '(^|/)blueman-applet( |$)' blueman-applet" "$AUTOSTART_SCRIPT"
     assert_not_contains "run_once_logged pot '(^|/)pot( |$)' pot" "$AUTOSTART_SCRIPT"
     assert_contains "run_once_logged udiskie '(^|/)udiskie( |$)' udiskie -t" "$AUTOSTART_SCRIPT"
@@ -216,7 +287,7 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_contains 'export XCURSOR_SIZE=32' "$AUTOSTART_SCRIPT"
     assert_contains 'swaybg' "$AUTOSTART_SCRIPT"
     assert_contains 'wallpaper-wayland-next' "$NIRI_README"
-    assert_contains 'gammastep -m wayland -l 30.6:114.3 -t 6500:4000' "$AUTOSTART_SCRIPT"
+    assert_contains 'gammastep -m wayland -l 30.6:114.3 -t 6500:4800' "$AUTOSTART_SCRIPT"
     assert_contains 'start_gammastep' "$AUTOSTART_SCRIPT"
     assert_contains 'gammastep.log' "$NIRI_README"
     assert_contains "timeout 1800 'systemctl suspend'" "$AUTOSTART_SCRIPT"
@@ -237,6 +308,9 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_contains 'niri 输出数量变化' "$AUTOSTART_SCRIPT"
     assert_not_contains 'start_gammastep_watch' "$AUTOSTART_SCRIPT"
     assert_not_contains 'gammastep-watch.pid' "$AUTOSTART_SCRIPT"
+    # aarch64 kitty 常驻单实例预启动已移除（改回普通冷启动）；不得再预启动 daemon。
+    assert_not_contains 'kitty-daemon' "$AUTOSTART_SCRIPT"
+    assert_not_contains 'kitty --listen-on' "$AUTOSTART_SCRIPT"
 }
 
 test_wayland_autostart_logs_each_app_and_warns_for_missing_commands() {
@@ -320,7 +394,8 @@ test_wayland_wallpaper_helper_covers_current_wallpaper_locations() {
     assert_not_contains '"$HOME/Pictures/Wallpapers"' "$WALLPAPER_SCRIPT"
     assert_not_contains '"$HOME/Pictures/wallpapers"' "$WALLPAPER_SCRIPT"
     assert_not_contains '"$HOME/.config/wallpapers"' "$WALLPAPER_SCRIPT"
-    assert_not_contains '/usr/share/backgrounds' "$WALLPAPER_SCRIPT"
+    # Mirrors the Awesome session's randomize_wallpaper fallback pool.
+    assert_contains '/usr/share/backgrounds' "$WALLPAPER_SCRIPT"
     assert_contains '-maxdepth 2' "$WALLPAPER_SCRIPT"
 }
 
@@ -410,7 +485,13 @@ test_launcher_and_lock_have_wayland_first_fallbacks() {
     assert_contains 'exec "$HOME/.nix-profile/bin/alacritty" "$@"' "$TERMINAL_SCRIPT"
     assert_contains 'exec alacritty "$@"' "$TERMINAL_SCRIPT"
     assert_contains 'exec kitty "$@"' "$TERMINAL_SCRIPT"
-    assert_order 'exec alacritty "$@"' 'exec kitty "$@"' "$TERMINAL_SCRIPT"
+    # 全平台无条件优先 Alacritty，kitty 仅作最后兜底；因此 alacritty 一定在
+    # 最后一个 kitty 兜底之前。
+    alacritty_line=$(grep -nF 'exec alacritty "$@"' "$TERMINAL_SCRIPT" | head -n 1 | cut -d: -f1)
+    last_kitty_line=$(grep -nF 'exec kitty "$@"' "$TERMINAL_SCRIPT" | tail -n 1 | cut -d: -f1)
+    [ -n "$alacritty_line" ] && [ -n "$last_kitty_line" ] &&
+        [ "$alacritty_line" -lt "$last_kitty_line" ] ||
+        fail "expected 'exec alacritty' before the final kitty fallback in $TERMINAL_SCRIPT"
     assert_contains '回退 kitty' "$NIRI_README"
     assert_contains 'export INPUT_METHOD=fcitx' "$LAUNCHER_SCRIPT"
     assert_contains 'fcitx5 -d --replace' "$LAUNCHER_SCRIPT"
@@ -499,11 +580,12 @@ test_wayland_screenshot_uses_selection_and_annotation() {
     assert_contains '--font-family "Noto Sans CJK SC"' "$SCREENSHOT_SCRIPT"
     assert_contains '--actions-on-enter save-to-file' "$SCREENSHOT_SCRIPT"
     assert_contains '--actions-on-escape exit' "$SCREENSHOT_SCRIPT"
-    assert_contains 'F1 repeat=false { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+S repeat=false { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'F1' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Print { spawn "~/.config/scripts/screenshot-wayland"; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Ctrl+Print { screenshot-screen; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Alt+Print { screenshot-window; }' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+Shift+P repeat=false { power-off-monitors; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Ctrl+Print repeat=false { screenshot-screen; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Alt+Print repeat=false { screenshot-window; }' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'power-off-monitors' "$NIRI_COMMON_CONFIG"
 }
 
 test_wayland_screenshot_uses_satty() {
@@ -625,6 +707,16 @@ test_dingtalk_wayland_entrypoint_preserves_preload_contract() {
     assert_contains '~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so' "$NIRI_README"
     assert_contains 'no more input formats' "$NIRI_README"
     assert_contains 'DmaBuf' "$NIRI_README"
+    # 钉钉保持 XWayland 模式：CEF 109 Wayland 后端有搜索崩溃和 scale 不动态更新两个缺陷
+    assert_not_contains '--ozone-platform=wayland' "$DINGTALK_SCRIPT"
+    assert_not_contains '--enable-wayland-ime' "$DINGTALK_SCRIPT"
+    assert_contains 'CEF 109' "$DINGTALK_SCRIPT"
+    assert_contains 'active_to_render_terminated' "$DINGTALK_SCRIPT"
+    assert_contains 'deviceScaleFactor' "$DINGTALK_SCRIPT"
+    # aarch64 mtgpu 缩放输出撕裂，保留 --disable-gpu-compositing
+    assert_contains 'gpu_flags' "$DINGTALK_SCRIPT"
+    assert_contains 'uname -m' "$DINGTALK_SCRIPT"
+    assert_contains '--disable-gpu-compositing' "$DINGTALK_SCRIPT"
 }
 
 test_fuzzel_config_matches_wayland_launcher_contract() {
@@ -632,19 +724,101 @@ test_fuzzel_config_matches_wayland_launcher_contract() {
     assert_contains 'font=Noto Sans CJK SC:size=13' "$FUZZEL_CONFIG"
     assert_contains 'terminal=~/.config/scripts/terminal-wayland' "$FUZZEL_CONFIG"
     assert_contains 'prompt=应用 >' "$FUZZEL_CONFIG"
-    assert_contains 'placeholder=输入应用名或命令' "$FUZZEL_CONFIG"
     assert_contains 'width=58' "$FUZZEL_CONFIG"
     assert_contains 'line-height=28' "$FUZZEL_CONFIG"
-    assert_contains 'match-mode=fuzzy' "$FUZZEL_CONFIG"
     assert_contains 'filter-desktop=yes' "$FUZZEL_CONFIG"
-    assert_contains 'match-counter=yes' "$FUZZEL_CONFIG"
     assert_contains 'background=15161dee' "$FUZZEL_CONFIG"
-    assert_contains 'prompt=94e2d5ff' "$FUZZEL_CONFIG"
-    assert_contains 'input=f5e0dcff' "$FUZZEL_CONFIG"
     assert_contains 'selection=89b4faff' "$FUZZEL_CONFIG"
     assert_contains 'selection-text=1e1e2eff' "$FUZZEL_CONFIG"
     assert_contains 'border=94e2d5ff' "$FUZZEL_CONFIG"
     assert_contains 'icon-theme=Papirus-Dark' "$FUZZEL_CONFIG"
+
+    # Ubuntu Noble ships fuzzel 1.9.2, which predates these options (added in
+    # 1.11: placeholder/use-bold/keyboard-focus/match-mode/match-counter and the
+    # colors.prompt/placeholder/input/counter keys). They must NOT be present or
+    # fuzzel rejects the whole config with "not a valid option".
+    assert_not_contains 'placeholder=输入应用名或命令' "$FUZZEL_CONFIG"
+    assert_not_contains 'use-bold' "$FUZZEL_CONFIG"
+    assert_not_contains 'keyboard-focus' "$FUZZEL_CONFIG"
+    assert_not_contains 'match-mode' "$FUZZEL_CONFIG"
+    assert_not_contains 'match-counter' "$FUZZEL_CONFIG"
+    assert_not_contains 'selection-radius' "$FUZZEL_CONFIG"
+    assert_not_contains 'counter=' "$FUZZEL_CONFIG"
+    assert_not_contains 'input=' "$FUZZEL_CONFIG"
+    assert_not_contains 'prompt=94e2d5ff' "$FUZZEL_CONFIG"
+}
+
+test_browser_wayland_forces_native_wayland_ozone() {
+    assert_executable "$BROWSER_SCRIPT"
+    # Chrome does not auto-detect Wayland; the wrapper must pass the explicit
+    # ozone platform flag under a Wayland session.
+    assert_contains '--ozone-platform=wayland' "$BROWSER_SCRIPT"
+    # Wayland text-input-v3 so fcitx5 can serve Chinese input in Chrome.
+    assert_contains '--enable-wayland-ime' "$BROWSER_SCRIPT"
+    assert_contains 'google-chrome-stable' "$BROWSER_SCRIPT"
+    assert_contains 'WAYLAND_DISPLAY' "$BROWSER_SCRIPT"
+    assert_contains 'XDG_SESSION_TYPE' "$BROWSER_SCRIPT"
+    assert_contains 'exec "$browser" $flags "$@"' "$BROWSER_SCRIPT"
+    assert_contains 'exec "$browser" "$@"' "$BROWSER_SCRIPT"
+    # MediaTek mtgpu tears horizontally when Chrome composites on scaled
+    # outputs; must disable GPU compositing on aarch64 only.
+    assert_contains 'uname -m' "$BROWSER_SCRIPT"
+    assert_contains 'aarch64' "$BROWSER_SCRIPT"
+    assert_contains '--disable-gpu-compositing' "$BROWSER_SCRIPT"
+
+    # fuzzel's drun launches the desktop entry, so its Exec must route Chrome
+    # through the wrapper (the raw binary would use the X11 platform and fail
+    # in a Wayland session).
+    assert_file_exists "$CHROME_DESKTOP"
+    # Repo uses a __HOME__ placeholder; install.sh substitutes $HOME at deploy time
+    # so the entry is portable across machines/users.
+    assert_contains 'Exec=__HOME__/.config/scripts/browser-wayland %U' "$CHROME_DESKTOP"
+    assert_contains 'Exec=__HOME__/.config/scripts/browser-wayland --incognito' "$CHROME_DESKTOP"
+    assert_not_contains 'Exec=/usr/bin/google-chrome-stable' "$CHROME_DESKTOP"
+}
+
+test_browser_wayland_passes_ozone_flag_only_under_wayland() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    chrome_args=$tmpdir/chrome.args
+
+    mkdir -p "$bin_dir"
+    cat >"$bin_dir/google-chrome-stable" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" >"$BROWSER_CHROME_ARGS_LOG"
+EOF
+    chmod +x "$bin_dir/google-chrome-stable"
+
+    # Wayland session: the ozone flag must be present.
+    PATH=$bin_dir WAYLAND_DISPLAY=wayland-1 XDG_SESSION_TYPE=wayland BROWSER_CHROME_ARGS_LOG=$chrome_args \
+        /bin/sh "$BROWSER_SCRIPT" "https://example.org" || fail "browser-wayland should run under Wayland"
+    assert_contains '--ozone-platform=wayland' "$chrome_args"
+    assert_contains '--enable-wayland-ime' "$chrome_args"
+    assert_contains 'https://example.org' "$chrome_args"
+
+    # X11 session: args pass through without the ozone flag.
+    PATH=$bin_dir WAYLAND_DISPLAY= XDG_SESSION_TYPE=x11 BROWSER_CHROME_ARGS_LOG=$chrome_args \
+        /bin/sh "$BROWSER_SCRIPT" "https://example.org" || fail "browser-wayland should run under X11"
+    assert_not_contains '--ozone-platform=wayland' "$chrome_args"
+    assert_not_contains '--enable-wayland-ime' "$chrome_args"
+    assert_contains 'https://example.org' "$chrome_args"
+
+    rm -rf "$tmpdir"
+}
+
+test_trae_cn_forces_wayland_with_ime() {
+    assert_executable "$TRAE_SCRIPT"
+    assert_contains '--ozone-platform=wayland' "$TRAE_SCRIPT"
+    # Fcitx5/Rime needs Wayland IME; must be present.
+    assert_contains '--enable-wayland-ime' "$TRAE_SCRIPT"
+    assert_contains 'WaylandWindowDecorations' "$TRAE_SCRIPT"
+    assert_contains 'exec trae-cn' "$TRAE_SCRIPT"
+
+    # fuzzel launches the desktop entry, so its Exec must route through the wrapper.
+    assert_file_exists "$TRAE_DESKTOP"
+    assert_contains 'Exec=__HOME__/.config/scripts/trae-cn-wayland %F' "$TRAE_DESKTOP"
+    assert_contains 'Exec=__HOME__/.config/scripts/trae-cn-wayland --new-window %F' "$TRAE_DESKTOP"
+    assert_not_contains 'Exec=/usr/share/trae-cn/trae-cn' "$TRAE_DESKTOP"
 }
 
 test_waybar_and_mako_match_niri_trial_contract() {
@@ -734,6 +908,12 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/scripts/launcher-wayland|~/.config/scripts/launcher-wayland|Wayland launcher script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/lock-wayland|~/.config/scripts/lock-wayland|Wayland lock script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/screenshot-wayland|~/.config/scripts/screenshot-wayland|Wayland screenshot script' "$INSTALL_FILE"
+    assert_contains '|.config/scripts/browser-wayland|~/.config/scripts/browser-wayland|Wayland browser script' "$INSTALL_FILE"
+    assert_contains '|.config/scripts/trae-cn-wayland|~/.config/scripts/trae-cn-wayland|Wayland Trae CN script' "$INSTALL_FILE"
+    assert_contains '|.config/linux/desktop-entries/google-chrome.desktop|~/.local/share/applications/google-chrome.desktop|Google Chrome Wayland desktop entry' "$INSTALL_FILE"
+    assert_contains '|.config/linux/desktop-entries/trae-cn.desktop|~/.local/share/applications/trae-cn.desktop|Trae CN Wayland desktop entry' "$INSTALL_FILE"
+    # install.sh substitutes the __HOME__ placeholder in desktop entries with $HOME at deploy time.
+    assert_contains 's#__HOME__#$HOME#g' "$INSTALL_FILE"
     assert_contains '|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/wallpaper-wayland-next|~/.config/scripts/wallpaper-wayland-next|Wayland wallpaper switcher' "$INSTALL_FILE"
     assert_contains '|.config/linux/xdg-desktop-portal/niri-portals.conf|~/.local/share/xdg-desktop-portal/niri-portals.conf|niri desktop portal preferences' "$INSTALL_FILE"
@@ -751,7 +931,9 @@ test_install_deploys_wayland_trial_files() {
     assert_contains 'sed ' "$INSTALL_FILE"
     assert_contains 'include "common.kdl"' "$INSTALL_FILE"
     assert_not_contains 'command -v niri|.config/linux/niri|~/.config/niri|niri' "$INSTALL_FILE"
-    assert_contains 'command -v waybar|.config/linux/waybar|~/.config/waybar|Waybar' "$INSTALL_FILE"
+    assert_contains 'install_waybar_config_for_platform()' "$INSTALL_FILE"
+    assert_contains '"$src_dir/config.aarch64"' "$INSTALL_FILE"
+    assert_contains 'copy_config "$config_src" "$target_dir/config" "waybar config (${arch:-generic})"' "$INSTALL_FILE"
     assert_contains 'command -v mako|.config/linux/mako|~/.config/mako|Mako' "$INSTALL_FILE"
     assert_contains 'command -v fuzzel|.config/linux/fuzzel|~/.config/fuzzel|Fuzzel' "$INSTALL_FILE"
 }
@@ -823,6 +1005,11 @@ test_install_copies_ubuntu_x64_niri_config() {
     assert_not_contains 'include "../common.kdl"' "$home_dir/.config/niri/config.kdl"
     assert_contains 'output "DP-4" {' "$home_dir/.config/niri/config.kdl"
     assert_contains 'scale 1.25' "$home_dir/.config/niri/config.kdl"
+
+    # Desktop entries get the __HOME__ placeholder substituted with the real $HOME.
+    assert_file_exists "$home_dir/.local/share/applications/google-chrome.desktop"
+    assert_contains "Exec=$home_dir/.config/scripts/browser-wayland %U" "$home_dir/.local/share/applications/google-chrome.desktop"
+    assert_not_contains '__HOME__' "$home_dir/.local/share/applications/google-chrome.desktop"
 
     rm -rf "$tmpdir"
 }
@@ -933,8 +1120,10 @@ test_niri_config_exists_and_validates_when_available
 test_niri_config_keeps_awesome_muscle_memory
 test_niri_config_exposes_multi_monitor_navigation
 test_niri_config_uses_wayland_replacements_not_x11_autostart
+test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal
 test_niri_config_uses_native_environment_cursor_and_animations
 test_waybar_drops_dead_battery_module_on_desktop_platform
+test_waybar_aarch64_has_battery_module
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules
 test_niri_overview_beautification
 test_wayland_autostart_checks_apps_and_separates_logs
@@ -950,6 +1139,9 @@ test_wayland_screenshot_uses_selection_and_annotation
 test_wayland_screenshot_uses_satty
 test_dingtalk_wayland_entrypoint_preserves_preload_contract
 test_fuzzel_config_matches_wayland_launcher_contract
+test_browser_wayland_forces_native_wayland_ozone
+test_browser_wayland_passes_ozone_flag_only_under_wayland
+test_trae_cn_forces_wayland_with_ime
 test_waybar_and_mako_match_niri_trial_contract
 test_install_deploys_wayland_trial_files
 test_install_copies_wayland_files_when_niri_exists_outside_wayland_session

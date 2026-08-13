@@ -1,0 +1,33 @@
+[Desktop Entry]
+Version=1.0
+Name=Google Chrome
+Name[zh_CN]=谷歌浏览器
+GenericName=Web Browser
+GenericName[zh_CN]=网页浏览器
+Comment=Access the Internet
+Comment[zh_CN]=访问互联网
+# Run through browser-wayland so the Wayland session adds --ozone-platform=wayland
+# (Chrome does not auto-detect Wayland; otherwise it fails with "Missing X server
+# or $DISPLAY"). The wrapper passes through unchanged under X11, so this entry is
+# safe for both the niri and Awesome sessions.
+# __HOME__ is rewritten to the real $HOME by install.sh at deploy time so the
+# entry is portable across machines/users.
+Exec=__HOME__/.config/scripts/browser-wayland %U
+StartupNotify=true
+StartupWMClass=google-chrome
+Terminal=false
+Icon=google-chrome
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/rss+xml;application/rdf+xml;image/gif;image/jpeg;image/png;image/webp;video/mp4;video/webm;application/pdf;x-scheme-handler/http;x-scheme-handler/https;
+Actions=new-window;new-private-window;
+
+[Desktop Action new-window]
+Name=New Window
+Name[zh_CN]=新建窗口
+Exec=__HOME__/.config/scripts/browser-wayland
+
+[Desktop Action new-private-window]
+Name=New Incognito Window
+Name[zh_CN]=新建隐身窗口
+Exec=__HOME__/.config/scripts/browser-wayland --incognito

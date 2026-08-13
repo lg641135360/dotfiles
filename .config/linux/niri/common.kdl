@@ -14,6 +14,17 @@ environment {
     INPUT_METHOD "fcitx"
     LC_CTYPE "zh_CN.UTF-8"
     XCURSOR_SIZE "32"
+    // niri spawn 环境不设置 ZDOTDIR：否则 zsh 落到默认 ~/.zshrc 且无 .zshenv 的
+    // skip_global_compinit，会跑 Ubuntu 全局 compinit（实测交互启动 4.2s vs 优化
+    // 配置 0.18s）。全局设置使 Mod+Return 拉起的终端也走 ~/.config/zsh 优化配置。
+    // 注意：niri 的 environment {} 不展开 ~，必须用绝对路径。
+    ZDOTDIR "/home/rikoo/.config/zsh"
+    // 以纯 Wayland 会话身份运行：手动从 shell 启动 niri 时这些值会继承错误的
+    // 会话环境（XDG_SESSION_TYPE=tty、XDG_CURRENT_DESKTOP=awesome），导致应用
+    // /toolkit 无法正确走 text-input-v3 接入 fcitx5，表现为无法输入中文。
+    XDG_SESSION_TYPE "wayland"
+    XDG_CURRENT_DESKTOP "niri"
+    XDG_SESSION_DESKTOP "niri"
     // GTK_IM_MODULE intentionally unset: Wayland GTK uses text-input protocol.
 }
 
@@ -146,8 +157,9 @@ layer-rule {
 
 window-rule {
     draw-border-with-background false
+    // 全局窗口默认 0.88 透明度 + niri 背景模糊。透明叠加各应用自身透明度
+    // （如 alacritty 的 background_opacity 0.82 / kitty 的 0.82）。
     opacity 0.88
-
     background-effect {
         blur true
     }
@@ -225,64 +237,62 @@ binds {
     Mod+Shift+H { move-column-left-or-to-monitor-left; }
     Mod+Shift+L { move-column-right-or-to-monitor-right; }
 
-    Mod+A { focus-monitor-left; }
-    Mod+D { focus-monitor-right; }
-    Mod+Ctrl+Shift+A { move-workspace-to-monitor-left; }
-    Mod+Ctrl+Shift+D { move-workspace-to-monitor-right; }
-    Mod+1 { focus-workspace 1; }
-    Mod+2 { focus-workspace 2; }
-    Mod+3 { focus-workspace 3; }
-    Mod+4 { focus-workspace 4; }
-    Mod+5 { focus-workspace 5; }
-    Mod+6 { focus-workspace 6; }
-    Mod+7 { focus-workspace 7; }
-    Mod+8 { focus-workspace 8; }
-    Mod+9 { focus-workspace 9; }
-    Mod+Shift+1 { move-window-to-workspace 1; }
-    Mod+Shift+2 { move-window-to-workspace 2; }
-    Mod+Shift+3 { move-window-to-workspace 3; }
-    Mod+Shift+4 { move-window-to-workspace 4; }
-    Mod+Shift+5 { move-window-to-workspace 5; }
-    Mod+Shift+6 { move-window-to-workspace 6; }
-    Mod+Shift+7 { move-window-to-workspace 7; }
-    Mod+Shift+8 { move-window-to-workspace 8; }
-    Mod+Shift+9 { move-window-to-workspace 9; }
-    Mod+Ctrl+1 { move-column-to-workspace 1; }
-    Mod+Ctrl+2 { move-column-to-workspace 2; }
-    Mod+Ctrl+3 { move-column-to-workspace 3; }
-    Mod+Ctrl+4 { move-column-to-workspace 4; }
-    Mod+Ctrl+5 { move-column-to-workspace 5; }
-    Mod+Ctrl+6 { move-column-to-workspace 6; }
-    Mod+Ctrl+7 { move-column-to-workspace 7; }
-    Mod+Ctrl+8 { move-column-to-workspace 8; }
-    Mod+Ctrl+9 { move-column-to-workspace 9; }
+    Mod+A repeat=false { focus-monitor-left; }
+    Mod+D repeat=false { focus-monitor-right; }
+    Mod+Ctrl+Shift+A repeat=false { move-workspace-to-monitor-left; }
+    Mod+Ctrl+Shift+D repeat=false { move-workspace-to-monitor-right; }
+    Mod+1 repeat=false { focus-workspace 1; }
+    Mod+2 repeat=false { focus-workspace 2; }
+    Mod+3 repeat=false { focus-workspace 3; }
+    Mod+4 repeat=false { focus-workspace 4; }
+    Mod+5 repeat=false { focus-workspace 5; }
+    Mod+6 repeat=false { focus-workspace 6; }
+    Mod+7 repeat=false { focus-workspace 7; }
+    Mod+8 repeat=false { focus-workspace 8; }
+    Mod+9 repeat=false { focus-workspace 9; }
+    Mod+Shift+1 repeat=false { move-window-to-workspace 1; }
+    Mod+Shift+2 repeat=false { move-window-to-workspace 2; }
+    Mod+Shift+3 repeat=false { move-window-to-workspace 3; }
+    Mod+Shift+4 repeat=false { move-window-to-workspace 4; }
+    Mod+Shift+5 repeat=false { move-window-to-workspace 5; }
+    Mod+Shift+6 repeat=false { move-window-to-workspace 6; }
+    Mod+Shift+7 repeat=false { move-window-to-workspace 7; }
+    Mod+Shift+8 repeat=false { move-window-to-workspace 8; }
+    Mod+Shift+9 repeat=false { move-window-to-workspace 9; }
+    Mod+Ctrl+1 repeat=false { move-column-to-workspace 1; }
+    Mod+Ctrl+2 repeat=false { move-column-to-workspace 2; }
+    Mod+Ctrl+3 repeat=false { move-column-to-workspace 3; }
+    Mod+Ctrl+4 repeat=false { move-column-to-workspace 4; }
+    Mod+Ctrl+5 repeat=false { move-column-to-workspace 5; }
+    Mod+Ctrl+6 repeat=false { move-column-to-workspace 6; }
+    Mod+Ctrl+7 repeat=false { move-column-to-workspace 7; }
+    Mod+Ctrl+8 repeat=false { move-column-to-workspace 8; }
+    Mod+Ctrl+9 repeat=false { move-column-to-workspace 9; }
 
-    Mod+Space { switch-preset-column-width; }
-    Mod+Shift+Space { switch-preset-column-width-back; }
-    Mod+F { fullscreen-window; }
-    Mod+M { maximize-window-to-edges; }
-    Mod+Ctrl+M { maximize-column; }
-    Mod+Ctrl+F { expand-column-to-available-width; }
-    Mod+Ctrl+C { center-column; }
-    Mod+Ctrl+Space hotkey-overlay-title="切换窗口浮动" { toggle-window-floating; }
-    Mod+Shift+V hotkey-overlay-title="切换浮动/平铺焦点" { switch-focus-between-floating-and-tiling; }
-    Mod+W hotkey-overlay-title="切换列标签模式" { toggle-column-tabbed-display; }
+    Mod+Space repeat=false { switch-preset-column-width; }
+    Mod+Shift+Space repeat=false { switch-preset-column-width-back; }
+    Mod+F repeat=false { fullscreen-window; }
+    Mod+M repeat=false { maximize-window-to-edges; }
+    Mod+Ctrl+M repeat=false { maximize-column; }
+    Mod+Ctrl+F repeat=false { expand-column-to-available-width; }
+    Mod+Ctrl+C repeat=false { center-column; }
+    Mod+Ctrl+Space repeat=false hotkey-overlay-title="切换窗口浮动" { toggle-window-floating; }
+    Mod+Shift+V repeat=false hotkey-overlay-title="切换浮动/平铺焦点" { switch-focus-between-floating-and-tiling; }
+    Mod+W repeat=false hotkey-overlay-title="切换列标签模式" { toggle-column-tabbed-display; }
 
-    Mod+BracketLeft hotkey-overlay-title="向左并入/移出窗口" { consume-or-expel-window-left; }
-    Mod+BracketRight hotkey-overlay-title="向右并入/移出窗口" { consume-or-expel-window-right; }
-    Mod+Comma hotkey-overlay-title="将右侧窗口并入当前列" { consume-window-into-column; }
-    Mod+Period hotkey-overlay-title="将底部窗口移出当前列" { expel-window-from-column; }
+    Mod+BracketLeft repeat=false hotkey-overlay-title="向左并入/移出窗口" { consume-or-expel-window-left; }
+    Mod+BracketRight repeat=false hotkey-overlay-title="向右并入/移出窗口" { consume-or-expel-window-right; }
 
     Mod+WheelScrollDown cooldown-ms=150 { focus-workspace-down; }
     Mod+WheelScrollUp cooldown-ms=150 { focus-workspace-up; }
     Mod+Ctrl+WheelScrollDown cooldown-ms=150 { move-column-to-workspace-down; }
     Mod+Ctrl+WheelScrollUp cooldown-ms=150 { move-column-to-workspace-up; }
-    Mod+WheelScrollRight { focus-column-or-monitor-right; }
-    Mod+WheelScrollLeft { focus-column-or-monitor-left; }
+    Mod+WheelScrollRight cooldown-ms=150 { focus-column-or-monitor-right; }
+    Mod+WheelScrollLeft cooldown-ms=150 { focus-column-or-monitor-left; }
 
-    F1 repeat=false { spawn "~/.config/scripts/screenshot-wayland"; }
-    Ctrl+Print { screenshot-screen; }
-    Alt+Print { screenshot-window; }
+    Mod+S repeat=false { spawn "~/.config/scripts/screenshot-wayland"; }
+    Ctrl+Print repeat=false { screenshot-screen; }
+    Alt+Print repeat=false { screenshot-window; }
 
     XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+ -l 1.0"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"; }
@@ -295,6 +305,5 @@ binds {
     XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "+10%"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "10%-"; }
 
-    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
-    Mod+Shift+P repeat=false { power-off-monitors; }
+    Mod+Escape repeat=false allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 }

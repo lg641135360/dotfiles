@@ -1,0 +1,24 @@
+[Desktop Entry]
+Name=Trae CN
+Comment=Code Editing. Redefined.
+GenericName=Text Editor
+# Route through trae-cn-wayland so the Wayland session adds --ozone-platform=wayland
+# (Electron apps otherwise fail with "Missing X server or $DISPLAY"). X11 passes
+# through unchanged.
+# __HOME__ is rewritten to the real $HOME by install.sh at deploy time so the
+# entry is portable across machines/users.
+Exec=__HOME__/.config/scripts/trae-cn-wayland %F
+Icon=trae-cn
+Type=Application
+StartupNotify=false
+StartupWMClass=Trae CN
+Categories=TextEditor;Development;IDE;
+MimeType=application/x-trae-cn-workspace;
+Actions=new-empty-window;
+Keywords=trae-cn;
+
+[Desktop Action new-empty-window]
+Name=New Empty Window
+Name[zh_CN]=新建空窗口
+Exec=__HOME__/.config/scripts/trae-cn-wayland --new-window %F
+Icon=trae-cn

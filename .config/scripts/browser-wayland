@@ -1,0 +1,45 @@
+#!/bin/sh
+# Google Chrome Wayland entrypoint. Chrome does not auto-detect Wayland and
+# defaults to the X11 (ozone/x11) platform, so under a Wayland session it fails
+# with "Missing X server or $DISPLAY". Pass --ozone-platform=wayland explicitly
+# to use native Wayland. Under X11 the flag is omitted and args pass through.
+
+wayland_session=0
+if [ -n "${WAYLAND_DISPLAY:-}" ] || [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
+    wayland_session=1
+fi
+
+browser=
+for candidate in google-chrome-stable google-chrome; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+        browser=$candidate
+        break
+    fi
+done
+
+if [ -z "$browser" ]; then
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "Chrome unavailable" "Install google-chrome to launch the browser." || true
+    fi
+    printf '%s\n' 'Chrome unavailable: install google-chrome.' >&2
+    exit 127
+fi
+
+if [ "$wayland_session" = "1" ]; then
+    # --ozone-platform-hint=auto is the modern equivalent but some Chrome
+    # builds only honour the explicit --ozone-platform=wayland flag.
+    flags="--ozone-platform=wayland"
+    # Enable Wayland text-input-v3 so fcitx5 can serve Chinese input. Without
+    # it Chrome (and Electron) default to XIM/empty IM on Wayland and fcitx5
+    # cannot receive key events.
+    flags="$flags --enable-wayland-ime"
+    # MediaTek mtgpu driver tears horizontally when Chrome composites on
+    # scaled (niri) outputs. Disabling GPU compositing fixes it; other
+    # platforms keep GPU compositing for performance.
+    if [ "$(uname -m)" = "aarch64" ]; then
+        flags="$flags --disable-gpu-compositing"
+    fi
+    exec "$browser" $flags "$@"
+fi
+
+exec "$browser" "$@"

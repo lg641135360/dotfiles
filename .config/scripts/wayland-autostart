@@ -75,7 +75,7 @@ run_once_logged() {
 }
 
 start_gammastep() {
-    managed_pattern='(^|/)gammastep -m wayland -l 30\.6[: ]114\.3 -t 6500[: ]4000( |$)'
+    managed_pattern='(^|/)gammastep -m wayland -l 30\.6[: ]114\.3 -t 6500[: ]4800( |$)'
     state_file=$log_dir/gammastep.outputs
     current_count=$(count_niri_outputs)
 
@@ -108,7 +108,7 @@ start_gammastep() {
         printf '%s\n' "$current_count" > "$state_file"
     fi
 
-    run_once_logged gammastep "$managed_pattern" gammastep -m wayland -l 30.6:114.3 -t 6500:4000
+    run_once_logged gammastep "$managed_pattern" gammastep -m wayland -l 30.6:114.3 -t 6500:4800
 }
 
 # export GTK_IM_MODULE=fcitx
@@ -142,14 +142,19 @@ fi
 run_once_logged waybar '(^|/)waybar( |$)' waybar
 run_once_logged mako '(^|/)mako( |$)' mako
 run_once_logged nm-applet '(^|/)nm-applet( |$)' nm-applet
-run_once_logged pasystray '(^|/)pasystray( |$)' pasystray
 run_once_logged blueman-applet '(^|/)blueman-applet( |$)' blueman-applet
 run_once_logged udiskie '(^|/)udiskie( |$)' udiskie -t
 
+# 提前启动 xdg-desktop-portal，让 fcitx5 首次查询 Settings portal 时已就绪，
+# 避免启动早期 `org.freedesktop.appearance` 查询因门户按需激活延迟而返回 NotFound。
+run_once_logged xdg-desktop-portal '(^|/)xdg-desktop-portal( |$)' /usr/libexec/xdg-desktop-portal
+
 if command -v fcitx5 >/dev/null 2>&1; then
-    if ! command -v fcitx5-remote >/dev/null 2>&1 || ! fcitx5-remote --check >/dev/null 2>&1; then
-        run_once_logged fcitx5 '(^|/)fcitx5( |$)' fcitx5 -d --replace
-    fi
+    # 始终在 Wayland 会话拉起 fcitx5 并提供 text-input-v3。fcitx5 走 per-user 的
+    # D-Bus/socket，fcitx5-remote --check 会命中其它会话（如 Awesome X11）残留的
+    # 实例而跳过，导致 Wayland 应用连到无 WAYLAND_DISPLAY 的旧实例、无法输入中文。
+    # --replace 让本会话实例接管，确保提供 Wayland IME。
+    fcitx5 -d --replace
 else
     warn "跳过 fcitx5：未找到命令 fcitx5"
 fi

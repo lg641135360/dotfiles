@@ -25,7 +25,9 @@ window#waybar {
 #workspaces button,
 #clock,
 #network,
+#backlight,
 #pulseaudio,
+#battery,
 #cpu,
 #memory {
   transition: color 0.15s ease, background-color 0.15s ease;
@@ -96,7 +98,9 @@ window#waybar {
 #clock,
 #tray,
 #network,
+#backlight,
 #pulseaudio,
+#battery,
 #cpu,
 #memory {
   padding: 0 7px;
@@ -107,7 +111,9 @@ window#waybar {
 
 #clock:hover,
 #network:hover,
+#backlight:hover,
 #pulseaudio:hover,
+#battery:hover,
 #cpu:hover,
 #memory:hover {
   background-color: alpha(@surface0, 0.58);
@@ -150,11 +156,35 @@ window#waybar {
   color: @red;
 }
 
+#backlight {
+  color: @green;
+}
+
 #pulseaudio {
   color: @yellow;
 }
 
 #pulseaudio.muted {
+  color: @red;
+}
+
+#battery {
+  color: @subtext0;
+}
+
+#battery.charging {
+  color: @green;
+}
+
+#battery.plugged {
+  color: @green;
+}
+
+#battery.warning {
+  color: @yellow;
+}
+
+#battery.critical {
   color: @red;
 }
 

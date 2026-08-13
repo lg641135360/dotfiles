@@ -1,0 +1,48 @@
+// Rikoo niri config for Ubuntu (aarch64 / MediaTek M1000) / Wayland.
+// Platform: ubuntu_aarch64
+// Keep AwesomeWM available; this file only defines the niri session behavior.
+// Common input/layout/blur/window-rule/binds live in ../common.kdl.
+// Validate with: niri validate -c ~/.config/niri/config.kdl
+
+// 内屏 eDP-1: 2880x1800@120，2x 缩放（逻辑 1440x900），放在外接屏右侧。
+// 注意：MediaTek GPU 缩放下 alacritty 0.18.0-dev 的 GPU 字形渲染会损坏
+// （1x 正常、2x/1.5x 内容重绘后文字丢失），foot 正常；terminal-wayland 已按
+// aarch64 优先 foot。若后续换稳定版 alacritty 可复核（见 README）。
+output "eDP-1" {
+    mode "2880x1800@120"
+    scale 2.0
+    position x=2048 y=0
+}
+
+// 外接屏 DP-2 (AOC Q24E11C): 2560x1440@100，1.25x 缩放（逻辑 2048x1152），放在内屏左侧
+output "DP-2" {
+    mode "2560x1440@100"
+    scale 1.25
+    position x=0 y=0
+}
+
+include "../common.kdl"
+
+// ---- aarch64 平台覆盖：mtgpu 驱动的 blur 无明显视觉效果，仅保留透明 ----
+// 后定义的规则会覆盖 common.kdl 中同匹配的 blur true，关闭模糊。
+// 全局窗口透明 opacity 0.88 已在 common.kdl 中定义，此处保留。
+window-rule {
+    opacity 0.90
+    background-effect {
+        blur false
+    }
+}
+
+layer-rule {
+    match namespace="^waybar$"
+    background-effect {
+        blur false
+    }
+}
+
+layer-rule {
+    match namespace="^fuzzel$"
+    background-effect {
+        blur false
+    }
+}

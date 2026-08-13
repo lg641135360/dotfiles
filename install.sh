@@ -205,6 +205,9 @@ niri_platform_key() {
         ubuntu_x86_64|ubuntu_amd64)
             printf 'ubuntu_x64'
             ;;
+        ubuntu_aarch64|ubuntu_arm64)
+            printf 'ubuntu_aarch64'
+            ;;
         *)
             return 1
             ;;
@@ -250,6 +253,32 @@ install_niri_config_for_platform() {
     rm -f "$tmp_config"
 }
 
+# Install waybar config. The shared config (no backlight module) is used on all
+# platforms; only aarch64 (MediaTek laptop with a backlight device) uses the
+# backlight-enabled config.aarch64 variant. Mirrors the niri per-platform split.
+install_waybar_config_for_platform() {
+    command -v waybar >/dev/null 2>&1 || return 0
+
+    local src_dir="$cur_path/.config/linux/waybar"
+    local target_dir="$HOME/.config/waybar"
+    local config_src="$src_dir/config"
+
+    if [ ! -d "$src_dir" ]; then
+        log_warn "No waybar config dir; skipping"
+        return 0
+    fi
+
+    if [ "${arch:-}" = "aarch64" ] && [ -f "$src_dir/config.aarch64" ]; then
+        config_src="$src_dir/config.aarch64"
+    fi
+
+    ensure_dir "$target_dir" || return 1
+    copy_config "$config_src" "$target_dir/config" "waybar config (${arch:-generic})"
+    copy_config "$src_dir/style.css" "$target_dir/style.css" "waybar style"
+    copy_config "$src_dir/mocha.css" "$target_dir/mocha.css" "waybar mocha"
+    copy_config "$src_dir/README.md" "$target_dir/README.md" "waybar README"
+}
+
 # Configuration arrays
 # app name | source path | target path | display name
 shared_configs=(
@@ -257,6 +286,7 @@ shared_configs=(
     "command -v tmux|.config/shared/tmux/tmux-tab-title|~/.config/tmux/tmux-tab-title|Tmux tab title script"
     "command -v alacritty|.config/shared/alacritty/alacritty.toml|~/.config/alacritty/alacritty.toml|Alacritty"
     "command -v ssh|.config/shared/ssh/config|~/.ssh/config.base|SSH base config"
+    "command -v starship|.config/shared/starship.toml|~/.config/starship.toml|Starship prompt"
 )
 
 # Directory configurations
@@ -267,6 +297,7 @@ shared_dir_configs=(
 
 # Zsh module files (all copied to ZDOTDIR)
 zsh_files=(
+    "command -v zsh|.config/shared/zsh/.zshenv|~/.config/zsh/.zshenv|.zshenv"
     "command -v zsh|.config/shared/zsh/.zshrc|~/.config/zsh/.zshrc|.zshrc"
     "command -v zsh|.config/shared/zsh/plugins.zsh|~/.config/zsh/plugins.zsh|zsh plugins"
     "command -v zsh|.config/shared/zsh/options.zsh|~/.config/zsh/options.zsh|zsh options"
@@ -313,6 +344,10 @@ linux_wayland_configs=(
     "|.config/scripts/launcher-wayland|~/.config/scripts/launcher-wayland|Wayland launcher script"
     "|.config/scripts/lock-wayland|~/.config/scripts/lock-wayland|Wayland lock script"
     "|.config/scripts/screenshot-wayland|~/.config/scripts/screenshot-wayland|Wayland screenshot script"
+    "|.config/scripts/browser-wayland|~/.config/scripts/browser-wayland|Wayland browser script"
+    "|.config/scripts/trae-cn-wayland|~/.config/scripts/trae-cn-wayland|Wayland Trae CN script"
+    "|.config/linux/desktop-entries/google-chrome.desktop|~/.local/share/applications/google-chrome.desktop|Google Chrome Wayland desktop entry"
+    "|.config/linux/desktop-entries/trae-cn.desktop|~/.local/share/applications/trae-cn.desktop|Trae CN Wayland desktop entry"
     "|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script"
     "|.config/scripts/wallpaper-wayland-next|~/.config/scripts/wallpaper-wayland-next|Wayland wallpaper switcher"
     "|.config/linux/xdg-desktop-portal/niri-portals.conf|~/.local/share/xdg-desktop-portal/niri-portals.conf|niri desktop portal preferences"
@@ -324,9 +359,9 @@ linux_dir_configs=(
 )
 
 linux_wayland_dir_configs=(
-    "command -v waybar|.config/linux/waybar|~/.config/waybar|Waybar"
     "command -v mako|.config/linux/mako|~/.config/mako|Mako"
     "command -v fuzzel|.config/linux/fuzzel|~/.config/fuzzel|Fuzzel"
+    "command -v kitty|.config/linux/kitty|~/.config/kitty|Kitty"
 )
 
 # Architecture and distro-specific configurations (awesome autostart only)
@@ -508,6 +543,19 @@ main() {
                 IFS='|' read -r check_cmd source target name <<< "$config"
                 process_config "$check_cmd" "$source" "$target" "$name"
             done
+
+            # Desktop entries embed a __HOME__ placeholder so the repo stays
+            # portable across machines/users; substitute the real $HOME at
+            # deploy time (mirrors the niri include-path rewrite above).
+            for _de in \
+                "$HOME/.local/share/applications/google-chrome.desktop" \
+                "$HOME/.local/share/applications/trae-cn.desktop"; do
+                if [ -f "$_de" ] && grep -q '__HOME__' "$_de" 2>/dev/null; then
+                    _de_tmp="$_de.deploy.tmp"
+                    sed "s#__HOME__#$HOME#g" "$_de" >"$_de_tmp" || { rm -f "$_de_tmp"; continue; }
+                    mv "$_de_tmp" "$_de" || rm -f "$_de_tmp"
+                fi
+            done
         else
             log_warn "niri not found, skipping niri and Wayland helper configurations"
         fi
@@ -544,6 +592,7 @@ main() {
                 IFS='|' read -r check_cmd source target name <<< "$config"
                 process_config "$check_cmd" "$source" "$target" "$name"
             done
+            install_waybar_config_for_platform
         fi
 
         # Restore AwesomeWM external dependencies after copying

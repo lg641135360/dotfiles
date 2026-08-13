@@ -10,11 +10,13 @@
 | `rofi-launch` | Rofi 应用启动器包装 |
 | `wayland-autostart` | Wayland 会话自启动；启动前检查应用，日志按应用写入 `~/.local/state/niri/autostart/` |
 | `dingtalk-wayland` | 钉钉 Wayland 屏幕共享（LD_PRELOAD hook）；支持 `restart`（先 kill 再启动）、`usage`（帮助）子命令 |
-| `terminal-wayland` | Wayland 终端启动器 |
+| `terminal-wayland` | Wayland 终端启动器；全平台优先 Alacritty，缺失时回退 kitty |
 | `file-manager-wayland` | Wayland 文件管理器选择器（Dolphin → 系统默认 → 常见文件管理器） |
 | `launcher-wayland` | Wayland 应用启动器 |
 | `screenshot-wayland` | Wayland 截图 |
 | `wallpaper-wayland` | Wayland 壁纸设置 |
+| `browser-wayland` | Google Chrome Wayland 启动器（Wayland 会话加 `--ozone-platform=wayland`，X11 原样透传） |
+| `trae-cn-wayland` | Trae CN (Electron) Wayland 启动器（Wayland 会话加 ozone-wayland + Wayland IME，X11 原样透传） |
 
 ## 临时停止飞连系统服务
 

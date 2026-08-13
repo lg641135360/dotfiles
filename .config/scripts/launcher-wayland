@@ -10,7 +10,20 @@ export GLFW_IM_MODULE=ibus
 export INPUT_METHOD=fcitx
 export LC_CTYPE=${LC_CTYPE:-zh_CN.UTF-8}
 
-if command -v fcitx5 >/dev/null 2>&1 && ! fcitx5-remote --check >/dev/null 2>&1; then
+# 仅当当前没有「Wayland 连接的 fcitx5」时才启动/接管。fcitx5 走 per-user 的
+# D-Bus/socket，fcitx5-remote --check 会命中其它会话（如 Awesome X11）残留的
+# 实例，导致 Wayland 应用连到无 WAYLAND_DISPLAY 的旧实例、无法输入中文；用
+# /proc/<pid>/environ 判断是否带 WAYLAND_DISPLAY 可正确区分。
+fcitx5_wayland_running=0
+if command -v pgrep >/dev/null 2>&1; then
+    for _fcitx5_pid in $(pgrep -x fcitx5 2>/dev/null); do
+        if grep -qa '^WAYLAND_DISPLAY=' "/proc/$_fcitx5_pid/environ" 2>/dev/null; then
+            fcitx5_wayland_running=1
+            break
+        fi
+    done
+fi
+if command -v fcitx5 >/dev/null 2>&1 && [ "$fcitx5_wayland_running" = "0" ]; then
     fcitx5 -d --replace >/dev/null 2>&1 || true
 fi
 
