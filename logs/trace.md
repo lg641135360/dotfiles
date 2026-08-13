@@ -5,7 +5,7 @@
 ## 维护规则
 
 - 本文件总长度建议不超过 150 行。
-- 最近变更摘要（按 `## YYYY-MM-DD` 标题计）最多保留 5 条。
+- 最近变更摘要（按 `### 子条目` 计，每条变更算一条）最多保留 5 条；单日多变更可并列多条 `###`，归档时按子条目而非日期计数。
 - 归档通过 `scripts/archive_trace.ts` 手动触发，或由 agent 按 `AGENTS.md` 验证策略在提交前执行：
   ```bash
   npm --prefix scripts run archive-trace -- --dry-run   # 预览
@@ -14,6 +14,131 @@
 - 旧条目按月份归档到 `logs/trace-archive/YYYY-MM.md`。
 - 默认任务不得读取 `logs/trace-archive/` 全文。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
+
+
+## 2026-08-13 — 终端改为全平台 alacritty 默认，移除 aarch64-kitty 分支
+
+- 目的：此前 aarch64 因 mtgpu 下 alacritty 0.18.0-dev 内屏 2x 字形损坏而优先 kitty；现用户以外接屏为主、alacritty 显示正常，决定全平台统一 alacritty 默认，并排除本轮对 kitty 的改动。
+- 已做（`repo-change`，未同步 live、未提交）：
+  - `.config/scripts/terminal-wayland`：删除 aarch64-kitty/foot 分支，改为全平台优先 alacritty、kitty 兜底；保留 `~/.local/bin` 补 PATH 逻辑（kitty 兜底依赖）。
+  - `tests/niri_wayland_config_test.sh`：`test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal` 去掉 `uname -m`/`exec foot` 断言，改断言不再有 aarch64-kitty 分支；`test_launcher_and_lock_have_wayland_first_fallbacks` 注释更新。
+  - `.config/scripts/README.md`、`.config/linux/niri/README.md`：终端选择描述同步为 alacritty 全平台默认。
+  - `.config/linux/niri/common.kdl`：恢复全局 `opacity 0.88`（用户决定回退 kitty 调试时的临时移除）。
+  - `memory/desktop.md`：更新 aarch64 终端默认决策，标注内屏字形问题未根治。
+- 验证：待跑 `tests/niri_wayland_config_test.sh` 与 `bash -n .config/scripts/terminal-wayland`。
+- 后续：live 的 `~/.config/scripts/terminal-wayland` 需手动复制后 Mod+Return 生效。**待办问题**：aarch64 mtgpu 下 alacritty 内屏 2x 字形损坏仍未根治（外接屏正常）；后续可从 EGL/表面缩放（scale=2.0）渲染路径入手定位，见 `debug-kitty-transparent-bg.md` 同源的 mtgpu alpha/字形渲染 bug 线索。
+
+## 2026-08-13 — kitty 背景改为完全不透明（1.0），修复 mtgpu 半透明渲染 bug
+
+- 目的：上一轮移除 niri 全局 opacity 后 kitty 仍"全透明、看不清字体"。经核实 live 的 `~/.config/niri/common.kdl` 已去掉 opacity 且已重载，故根因不在 niri，而在 kitty 自身 `background_opacity 0.82` 与 aarch64 mtgpu 驱动 alpha 合成 bug 叠加——驱动把 0.82 的半透明背景错误渲染成全透明。
+- 已做（`repo-change`，未同步 live、未提交）：
+  - `.config/linux/kitty/kitty.conf`：`background_opacity 0.82` → `1.0`（完全不透），走不透明路径绕开 mtgpu alpha bug。
+  - `.config/linux/kitty/README.md`：设计表透明度行与「与 alacritty 的差异」更新，说明 mtgpu 半透明 bug 及取舍（透明观感只在 X11/Awesome 由 alacritty 保留）。
+- 验证：`bash -n` 不适用（非脚本）；改动为纯配置值变更，语法经阅读核对。未跑 kitty 测试（无对应值断言改动风险低，若需可跑 `tests/kitty_config_test.sh`）。
+- 后续：live 的 `~/.config/kitty/kitty.conf` 需手动复制后重启 kitty 生效；若仍全透，需进一步排查是否另有覆盖配置或驱动问题。
+
+## 2026-08-13 — 移除 niri 全局窗口透明度，修复终端"全透明看不清字体"
+
+- 目的：kitty 终端实际表现为全透明、文字难读。根因是 niri 全局 `window-rule { opacity 0.88 }` 会连同文字字形一起淡化，叠加 kitty 自身 `background_opacity 0.82` 后两层透明度叠乘（约 0.72），aarch64 mtgpu 自研驱动 alpha 合成本又不可靠。
+- 已做（`repo-change`，未同步 live、未提交）：
+  - `.config/linux/niri/common.kdl`：全局 `window-rule` 删除 `opacity 0.88`，仅保留 `draw-border-with-background false` + `background-effect { blur true }`；透明交由各应用自身控制（kitty 保持 0.82）。
+  - `.config/linux/niri/README.md`：窗口规则与 Chrome 条目更新，去掉"全局 0.88 透明度"描述，记录透明度只由应用自身控制的取舍。
+- 验证：`niri validate -c .config/linux/niri/ubuntu_aarch64/config.kdl` 通过（config is valid）。
+- 后续：live 的 `~/.config/niri/common.kdl` 需手动复制本仓库文件后 `Mod+Ctrl+R` 重载生效；kitty.conf 未改动。
+
+## 2026-08-13 — 精简测试中的 README 文案漂移断言
+
+- 目的：去掉"锁文档文字"的脆弱断言，保留结构性/不变量检查，降低维护成本。未同步 live、未提交。
+- 已做（`repo-change`）：
+  - `tests/awesome_docs_theme_test.sh`（187→72 行）：删除 6 个 README 中文文案断言函数，保留 `test_theme_exposes_fallback_titlebar_tokens`（真实 theme.lua token）并新增 `test_removed_dependencies_stay_gone`（lain/picom-catppuccin.conf 不复活）。
+  - `tests/picom_config_test.sh`：删除 `test_readme_documents_current_visual_targets`（纯 README 文案）及未用的 `README_FILE` 变量。
+  - `tests/kitty_config_test.sh`：删除 `test_readme_documents_reference_and_deviation`（纯 README 文案）及未用的 `README_FILE` 变量。
+  - `tests/git_config_test.sh`：删除 README 表格文案断言（subs/grs/grst 表）及未用的 `README` 变量；保留真实 `git config` 值断言与 memory 断言。
+  - `tests/repo_docs_test.sh`：**未改动**。复核为几乎全结构性/提示词系统不变量断言（文件存在、误拼文件名、已删模块、`.githooks` 移除、AGENTS/USER/SOUL 结构），且是 AGENTS.md 指定的提示词系统测试，强删会削弱协议要求。
+- 验证：5 个受影响测试全部 PASS；`bash -n`/`sh -n` 语法 OK；`git diff --check` OK。
+- 后续：trace.md 已 11 条超"最多 5 条"建议，需运行 `scripts/archive_trace.ts` 归档。
+
+## 2026-08-13 — 修复 kitty 测试失效断言，改写 README 常驻段
+
+- 目的：清理"移除 kitty 常驻单实例"（改回普通冷启动）时漏掉的同步项。
+- 已做（`repo-change`，未同步 live、未提交）：
+  - `.config/linux/kitty/README.md`：删除"启动提速：常驻单实例"整段，改写为"启动方式：普通冷启动"，说明移除权衡与取舍。
+  - `tests/kitty_config_test.sh`：`test_terminal_wayland_prefers_kitty_on_aarch64` 删除 socket 断言，改断言 `exec kitty "$@"` + `assert_not_contains allow_remote_control/kitty @ --to/--listen-on`；删除 `test_kitty_socket_uses_runtime_dir` 及其调用；删除未再使用的 `AUTOSTART_SCRIPT` 变量。
+- 验证：`bash tests/kitty_config_test.sh` PASS；`bash -n tests/kitty_config_test.sh` OK；`git diff --check` OK。改动与 `tests/niri_wayland_config_test.sh` 的反向断言一致。
+- 后续：核查 POC 测试（autopairs/neo-tree/float_trem）均为有效回归测试（目标文件仍存在），无需删除；trace.md 已 9 条超"最多 5 条"建议，需归档。
+
+## 2026-08-13 — 移除 pasystray 自启，niri 会话不再残留 XWayland 客户端
+
+- 目的：清理 niri 会话中唯一仍跑在 XWayland 的进程。经 `xlsclients`/`ss` 确认 pasystray 是当时唯一的 X 客户端；其音量控制能力已被 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖。
+- 已做（`repo-change`，未同步 live、未结束运行中的 pasystray、未提交）：
+  - `.config/scripts/wayland-autostart`：删除 `run_once_logged pasystray ...` 行。
+  - `tests/niri_wayland_config_test.sh`：该行断言由 `assert_contains` 改为 `assert_not_contains`，并加注释说明移除原因，防回归。
+  - `.config/linux/niri/README.md`：自启动列表去掉 pasystray，说明音量改由 waybar pulseaudio 模块覆盖。
+  - `memory/desktop.md`：更新 niri autostart 可选服务列表，记录 pasystray 移除与回退方案。
+- 验证：`sh -n .config/scripts/wayland-autostart` OK；`tests/niri_wayland_config_test.sh` PASS（`uname: not found` 为测试子进程受限 PATH 的既有噪音，非失败）；`git diff --check` OK。
+- 后续：live 同步 `~/.config/scripts/wayland-autostart` 不在 IDE 白名单，需用户手动复制或重登 niri 才生效；当前已运行的 pasystray 需手动结束（`pkill pasystray`）以立即移除 XWayland 客户端。若日后需要托盘快速切音源，可在 wayland-autostart 重新加入。
+
+## 2026-08-13 — 修复 niri 会话 Mod+C(fuzzel) 启动 Trae CN 静默失败
+
+- 目的：解决 aarch64 niri 会话下按 Mod+C 打开 fuzzel、选择 Trae CN 后无反应的问题。
+- 根因：niri 会话的 PATH 是裸系统 PATH（`/usr/local/sbin:...:/snap/bin`），不含 `/usr/share/trae-cn/bin`；`trae-cn-wayland` 脚本用 `command -v trae-cn` 找二进制失败，退出 127 且无窗口。fuzzel 能看到入口（desktop 入口存在）但启动即静默失败。
+- 已做（`repo-change`）：
+  - `.config/scripts/trae-cn-wayland`：`command -v trae-cn` 失败时回退把 `/usr/share/trae-cn/bin` 追加进 PATH（标准安装路径含 `trae-cn` wrapper），再 `exec trae-cn`；否则仍报错退出 127。
+- 验证：`bash -n` OK；`tests/niri_wayland_config_test.sh` 整体 exit 0；trae 相关 5 条断言（executable / --ozone-platform=wayland / --enable-wayland-ime / WaylandWindowDecorations / exec trae-cn）均满足。
+- 待办：live 同步 `~/.config/scripts/trae-cn-wayland` 不在 IDE 白名单，需用户手动 `cp`；kitty 已升级到 0.48.2（ghfast.top 镜像下载 arm64 txz 部署到 `~/.local/kitty.app`，apt 0.32.2 已卸载），常驻 daemon 方案后续决定移除（见下条）。
+
+## 2026-08-13 — 移除 kitty 常驻单实例快速开窗，改回普通冷启动
+
+- 目的：用户认为常驻 daemon「鸡肋」，决定移除。常驻实例维护成本（残留 socket 导致 bind 失败的恶性循环、登录需多开一个常驻窗口）大于提速收益（冷启动 ~1.5s → 开窗 ~0.4s）。
+- 已做（`repo-change`）：
+  - `.config/scripts/terminal-wayland`：aarch64 kitty 分支移除 socket 检测与 `kitty @ --to ... launch --type=os-window`，改回普通 `exec kitty "$@"`。
+  - `.config/scripts/wayland-autostart`：删除 kitty daemon 预启动块（kitty_sock / run_once_logged kitty-daemon）。
+  - `.config/linux/kitty/kitty.conf`：删除 `allow_remote_control socket-only`。
+  - `tests/niri_wayland_config_test.sh`：删掉常驻相关 assert_contains，改为 assert_not_contains（`kitty @ --to` / `--listen-on` / `allow_remote_control` / `kitty-daemon`）防回归。
+  - `.config/linux/niri/README.md`：删除自启动列表的 kitty 常驻项与「kitty 启动提速」段落，说明改回普通冷启动。
+- 验证：`bash -n` 两个脚本 OK；`git diff --check` OK；`tests/niri_wayland_config_test.sh` PASS（`uname: not found` 为测试子进程受限 PATH 的既有噪音，非失败）。
+- 备注：测试断言 `kitty @` 误伤 `exec kitty "$@"`，已改为更精确的 `kitty @ --to`。
+- 追加修复：移除常驻后 Mod+Enter 仍打开 alacritty。根因是 niri spawn PATH 不含 `~/.local/bin`（apt 的 `/usr/bin/kitty` 已卸载，kitty 仅装于 `~/.local/bin/kitty`），`command -v kitty` 失败回退 alacritty。已在 `terminal-wayland` 顶部为 niri spawn PATH 补进 `$HOME/.local/bin`，并新增断言 `assert_contains '$HOME/.local/bin'`。模拟 niri 系统 PATH 验证 `command -v kitty` 解析到 `~/.local/bin/kitty`；测试 PASS。
+- 后续：live 同步（kitty.conf / wayland-autostart / terminal-wayland）不在 IDE 白名单，需用户手动复制或重登 niri。
+
+## 2026-08-13 — 修复 Mod+Return 拉起的终端 zsh 提示符慢（4.2s）
+
+- 现象：终端输入 `kitty` 秒开且 zsh 提示符快；`Mod+Enter` 窗口打开速度还行但 zsh 提示符很慢。
+- 根因：对比 niri spawn 环境与交互终端环境，发现 niri spawn **缺 `ZDOTDIR`**。无 ZDOTDIR 时 zsh 用默认 `~/.zshrc` 且无 `.zshenv` 的 `skip_global_compinit`，跑 Ubuntu 全局 compinit（交互启动实测 4.20s）；有 `ZDOTDIR=/home/rikoo/.config/zsh` 时 0.18s。
+- 已做（`repo-change`）：`.config/linux/niri/common.kdl` 的 `environment {}` 块新增 `ZDOTDIR "/home/rikoo/.config/zsh"`（绝对路径，niri 不保证展开 `~`），使所有 niri spawn 的 shell（含 Mod+Return 拉起的终端）走优化配置。
+- 验证：`git diff --check` OK；`tests/niri_wayland_config_test.sh` PASS（新增断言 `assert_contains 'ZDOTDIR "/home/rikoo/.config/zsh"'`）。
+- 后续：live 同步 common.kdl 到 `~/.config/niri/`（IDE 白名单不允许）并 `Mod+Ctrl+R` 重载或重登 niri 才生效。注意 ubuntu_aarch64/config.kdl 引用的是仓库 `include "../common.kdl"`，live 部署需 install.sh 改写（勿手动复制仓库文件）。
+
+## 2026-08-11 — 无操作黑屏后内屏无法唤醒：禁用 X11 DPMS/屏保
+
+- 目的：解决 aarch64 无操作黑屏后内置 eDP 屏无法唤醒（外接 DP 屏正常）的问题。根因为 MediaTek `mtgpu`/`mtdisp` 驱动在 DPMS off→on 周期后无法重新点亮 eDP panel 背光（外接屏走 DisplayPort 主链路握手可恢复，内屏走 SoC panel 控制器卡死）。用户明确选择 A 方案（不介意耗电，禁用 DPMS）。
+- 已做（`repo-change`）：
+  - `.config/linux/x11/xsessionrc`：新增 `xset s off && xset -dpms`，关闭 X11 屏保与 DPMS。
+  - `.config/linux/x11/README.md`：新增"DPMS 禁用说明"段落。
+- 验证：`bash -n xsessionrc` OK；`tests/repo_docs_test.sh` PASS；`git diff --check` 无空白错误。
+- 风险与后续：
+  - xsessionrc 仅 X 会话登录时加载，需重登或 `systemctl restart gdm` 生效；当前会话可用 `xset s off && xset -dpms` 即时验证。
+  - 显示器永不熄屏增加耗电（用户接受）；若日后需要省电，可改方案 E（DPMS off 后自动 xrandr 重配 eDP-1）。
+  - 未同步 live `~/.xsessionrc`、未重载、未提交推送。
+
+
+## 2026-08-11 — CPU/MEM hover top 进程改为 Lua 原生读 /proc + 懒加载
+
+- 目的：降低 Awesome 状态栏 CPU/MEM hover 信息的资源占用。原实现每 5 秒无条件跑 2 个 `ps` 子进程（实测单次 ~0.2s，456 进程下持续占用 ~4% 单核），与是否 hover 无关。
+- 已做（`repo-change`）：
+  - `widgets/system.lua`：删除 `system_details_command`/`normalize_command_output` 与 `details_timer`（5s 定时器）；新增 `list_proc_pids`/`parse_proc_stat_fields`/`compute_process_cpu`/`read_process_rss`/`collect_process_details`/`format_process_list`，用 Lua 原生遍历 `/proc` 计算 top 进程（CPU 用 `/proc/<pid>/stat` 的 utime/stime/starttime，elapsed = uptime - starttime/CLK_TCK，btime 抵消；MEM 用 `/proc/<pid>/status` 的 VmRSS）；`update_system_details_cache` 改为同步读取；tooltip 挂 `mouse::enter` 信号做懒加载刷新，删除 `dispose` 里的 `details_timer`。
+  - 修正一个量纲 bug：`elapsed` 初期误用 `uptime - (starttime/CLK_TCK + btime)`，因 uptime 是开机秒数而 btime 是 Unix 时间戳，导致 elapsed 恒负、top 列表为空；改为 `uptime - starttime/CLK_TCK`。
+  - 更新 `tests/awesome_net_test.sh`、`tests/awesome_ui_architecture_test.sh` 断言；同步 `README.md` 与 `memory/awesome.md` 描述。
+- 验证：
+  - `luajit -e 'assert(loadfile(...))'` 语法 OK。
+  - Lua 原生 top 结果与 `ps` 实测吻合（CPU: code 44%/trae-cn 41%/picom 28%；MEM: trae-cn 934M/chrome 850M 等）。
+  - `tests/awesome_net_test.sh` / `awesome_ui_architecture_test.sh` / `awesome_battery_test.sh` 均 PASS。
+  - `tests/run.sh` 唯一 FAIL 为 `awesome_docs_theme_test.sh:112`（断言 'NET 保持短显示...' 在 README 与测试措辞不一致），已确认 HEAD 版本同样失败，为历史遗留、与本次改动无关，未整改。
+- 修复（用户反馈仍显示 "process list loading" 且负载看不到）：
+  - 根因：`awful.tooltip` 实例是 `gears.object`，并不 emit `mouse::enter`（该信号由 objects widget 触发，见 `/usr/share/awesome/lib/awful/tooltip.lua` 的 `add_to_object`）。原本把 `connect_signal("mouse::enter", ...)` 连在 tooltip 对象上，懒加载从不触发，缓存一直停留初始值，load_average 也没更新（一直 "N/A"）。
+  - 改为：`mouse::enter` 连接在 `cpu_widget`/`mem_widget` 上，置 `details_dirty` 标志；tooltip 的 `render_cpu_tooltip`/`render_mem_tooltip` 在首次渲染时检查 dirty 并调 `update_system_details_cache()` 刷新一次，保证 tooltip 首屏即有真实数据。
+- 风险与后续：
+  - 未同步 live `~/.config/awesome`、未重载、未提交推送。
 
 ## 2026-08-10
 
@@ -48,6 +173,7 @@
 - 验证：`tests/awesome_config_test.sh` 通过。
 - 后续方向：如需保留 OCR 入口，可另绑一个快捷键（如 `Mod+Shift+s` 已被 hotkeys_popup 占用，需另选）；live 侧需用户手动同步 actions.lua/bindings.lua 并重载 Awesome 后 `Mod+s` 才生效。
 
+
 ### fcitx5 Rime 崩溃排查与词典重建
 
 - 目的：定位 fcitx5 使用 rime-ice 时反复出现的 lua 报错与一次真实崩溃。
@@ -58,146 +184,3 @@
   - 遗留噪音：lua_processor/lua_translator/lua_filter 创建失败（rime-ice 引用的 lua 组件未被 MediaTek librime 注册，插件 dlopen 正常但未生效）与 xdg-desktop-portal 在 X11 无法启动，均为非致命噪音，不影响基础拼音输入。
 - 验证：`rime_deployer --build` 重建产物时间戳更新；`fcitx5-remote -r` 成功；`pgrep fcitx5` 稳定。
 - 后续方向：若崩溃仍复现，需替换/升级 MediaTek 定制 librime 或换官方 librime；lua 插件与 portal 问题如需彻底解决需另行处理。
-
-### picom 低占用优化（降负载）
-
-- 目的：降低 picom 在 aarch64 上的 CPU 占用，缓解系统卡顿。
-- 背景：负载常驻 ~10/12 核，picom 占 15.2% CPU；`dual_kawase` blur 是主要开销。
-- 已做（`repo-change` + live 同步 `~/.config/picom.conf`；未提交）：
-  - `picom-arch_aarch64.conf`：blur 改 `method = "none"`（关模糊）、shadow-radius 10→6、shadow-opacity 0.4→0.3、corner-radius 16→8。
-  - 同步 live 并重启 picom（`pkill -x picom; picom --experimental-backends`）。
-  - README、`memory/desktop.md` 同步更新。
-  - 顺带修复 `actions.lua` 第 86 行 `Function` 误大写为 `function` 的语法错误。
-- 验证：picom CPU 15.2% → 6.7%（降幅超一半）；`tests/awesome_config_test.sh` PASS；配置解析无错。
-- 后续方向：剩余负载大头是 CherryStudio（~35%）与 Trae IDE（~30%），与配置无关；如需进一步降负载应处理这两个应用。
-
-### 内置屏黑屏排查（eDP 链路重初始化）
-
-- 目的：解决内置屏物理不亮的问题。
-- 排查：软件全部正常——xrandr 里 eDP-1 connected/active 主屏、背光 `m1000_backlight` brightness 423/500 且 `bl_power=0`、DPMS On、`/proc/acpi/button/lid` 为 open、AC 供电。据此判断为 **eDP 链路卡住**而非背光/DPMS/合盖问题。
-- 修复：`xrandr --output eDP-1 --off && sleep 3 && xrandr --output eDP-1 --auto --primary --mode 2880x1800 --rate 120` 强制重建 eDP 链路，内置屏恢复点亮。
-- 注意：关屏重开会导致外接 DP-2 重排回 `+0+0` 与内置屏重叠，需手动 `xrandr --output DP-2 --mode 2560x1440 --rate 59.95 --right-of eDP-1` 恢复右侧布局（总尺寸 5440x1800）。
-- 验证：用户确认内置屏已亮；布局已恢复外接在右侧。
-- 后续方向：若黑屏复现，可考虑在相关脚本加入 eDP-1 检测/重初始化逻辑；此问题多为偶发链路状态，非配置所致。
-
-## 2026-08-04
-
-### niri / Waybar 网络提示与认证窗口优化
-
-- 目的：让网络 tooltip 按连接类型提供有效信息，并提高认证窗口可读性。
-- 已做（`repo-change`，未同步 live、未提交）：
-  - 网络模块保留常驻实时上下行带宽；tooltip 拆分为 Wi-Fi、有线和断开三种状态，Wi-Fi 增加信号强度，有线不再显示无意义 SSID。实测 Waybar 0.15 中相同带宽占位符在主模块与 tooltip 的单位换算不一致，因此 tooltip 不再重复显示速率，只保留连接元数据，以顶栏常驻速率为准。
-  - `#network.disconnected` 使用 Catppuccin 红色显示断网状态。
-  - Polkit、`pinentry`、`ssh-askpass` 认证窗口在保留浮动的同时覆盖为 `opacity 1.0`，README 与回归断言同步更新。
-- 验证：Waybar JSON 解析、`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl`、`tests/niri_wayland_config_test.sh`、`tests/repo_docs_test.sh`、`git diff --check` 均通过。
-
-### Waybar 第三批样式整理
-
-- 目的：收窄不必要的 GTK CSS 动画作用域并统一用户可见文案。
-- 已做（`repo-change`，未同步 live、未提交）：
-  - 移除全局 `*` 选择器上的 transition，仅对 workspace 按钮、时钟、网络、音量、CPU 和内存模块保留颜色/背景色过渡；删除未使用的边框色和透明度 transition。
-  - 音量静音文案由英文 `mute` 统一为中文“静音”，README 与回归断言同步更新。
-  - 保留现有模块 padding：当前 36px 顶栏与各模块 `0 7px` 间距一致，缺少 live 视觉证据时不做无依据压缩。
-- 验证：Waybar JSON 解析与 `tests/niri_wayland_config_test.sh` 通过；后续完整验证见本轮收尾记录。
-
-### niri / Waybar 第二批信息降噪与隐私提示
-
-- 目的：补充屏幕共享/麦克风使用提示和时钟月历；网络模块原计划降噪，后按用户反馈保留其监控价值。
-- 已做（`repo-change`，未同步 live、未提交）：
-  - 新增 Waybar `privacy` 模块，仅监测 PipeWire 屏幕共享和麦克风采集，并用 Catppuccin 红/紫状态样式突出显示。
-  - 时钟悬停新增 ISO 8601 月历，README 与回归断言同步更新。
-  - 网络模块曾改为默认显示 SSID/接口、点击切换带宽；用户指出这会使模块失去意义，现已恢复常驻实时上下行带宽、2 秒刷新和单击打开网络编辑器，并将该偏好记录到 `memory/desktop.md`。
-- 验证：Waybar JSON 解析、`tests/niri_wayland_config_test.sh`、`tests/repo_docs_test.sh`、`git diff --check` 均通过；`ldd` 确认 Waybar 0.15.0 本体链接 `libpipewire-0.3.so.0`，具备 privacy 模块所需的 PipeWire 支持。未启动第二个 Waybar 实例，privacy 的实际捕获状态识别与月历观感留待同步 live 后验证。
-
-### niri / Waybar 第一批一致性整理
-
-- 目的：落实 niri / Waybar 配置分析中的第一批一致性修复。
-- 已做（`repo-change`，未同步 live、未提交）：
-  - Waybar `niri/window` 增加 VS Code、Chrome、Alacritty 常见标题后缀 rewrite，并补充对应回归断言，使配置兑现现有 README 描述。
-  - 修正 `common.kdl` 中已过期的 awww 双壁纸 Overview 注释，改为描述当前 `backdrop-color` + workspace 卡片阴影方案。
-  - 删除未被调用且要求无效 `workspace-wrap-around` 节点的死测试；实测 niri 26.04 将该节点放入 `layout` 会报 `unexpected node`，因此不引入不受支持的行为。
-- 验证：Waybar JSON 解析、`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl`、`tests/niri_wayland_config_test.sh`、`tests/repo_docs_test.sh`、`git diff --check` 均通过。
-
-### 新增飞连临时停止脚本
-
-- 目的：为持续占用单核 CPU 的 `corplink-uc` 提供临时停止入口，当前会话停止、下次重启按原开机配置自动恢复；该进程由 `corplink.service` 拉起，单元配置为 `Restart=always`。
-- 已做（`repo-change` + 用户同步 live 并执行临时停止，未提交）：
-  - 新增 `.config/scripts/corplink-service`，支持 `status`、`disable`、`enable` 和帮助；默认状态查询不提权，变更操作才通过 sudo 获取 root 权限。
-  - `disable` 先用 `systemctl stop` 临时停止服务；因厂商单元使用 `KillMode=process`、实测会残留 5 个 `corplink-uc`，随后对该单元整个 cgroup 依次发送 SIGTERM/SIGKILL，并同时验证单元 inactive、cgroup 无残留进程。不执行 `disable`、`mask` 或 `daemon-reload`，保留原开机启动关系。`enable` 仅立即启动服务。
-  - `install.sh` 将脚本纳入 Linux 通用配置，安装到 `~/.config/scripts/corplink-service`；`.config/scripts/README.md` 补充用法和企业 VPN/终端安全风险说明。
-  - 新增 `tests/corplink_service_test.sh`，以临时假的 `systemctl`、`sudo` 和 `id` 覆盖默认状态、stop→SIGTERM→SIGKILL 顺序、单元仍 active/cgroup 仍有进程的失败路径、启用、非 root 提权、非法参数、安装器与文档契约；测试不会操作真实服务。
-- 验证：`sh -n .config/scripts/corplink-service`、`bash -n install.sh`、`tests/corplink_service_test.sh`、`tests/repo_docs_test.sh`、`git diff --check` 均通过；仓库脚本与 `~/.config/scripts/corplink-service` 内容一致。用户执行 `disable` 后，`corplink.service` 为 inactive，服务 cgroup 与 `corplink-uc` 进程均已清空。`tests/run.sh fast` 在未改动的 `awesome_autostart_test.sh` ARM 外接屏既有断言处失败，本轮涉及文件的针对性测试已通过；环境未安装 `shellcheck`，该项未运行。
-- 运行态：飞连仅临时停止，未改变开机启动关系；下次重启会按原配置恢复。临时停止期间可能影响公司内网、访问控制或终端合规。
-
-## 2026-07-31 — dingtalk-wayland 增加 restart 子命令
-
-- 目的：钉钉长期运行存在内存累积（实测主进程 9 天达 3GB、占用 191MB swap，总 RSS 5.55GB/17 进程），需要可执行的重启入口缓解。
-- 已做（`repo-change`，未同步 live、未提交）：
-  - `.config/scripts/dingtalk-wayland`：
-    - 在脚本开头加 `case "${1:-}" in restart)` 分支，先 `pkill -u "$(id -u)" -f 'com\.alibabainc\.dingtalk'`，再用 `pgrep` 轮询最多 5 秒等待退出，然后 `shift` 落入原启动流程；无参数时行为不变（不检查已有实例）。
-    - 问题1修复：`restart` 分支前置 `for dep in pkill pgrep id` 检查，任一缺失则 `notify_problem` + `exit 127`，不再静默跳过导致新旧实例并存。
-    - 问题2修复：等待循环结束后再做一次 `pgrep` 校验，仍命中则 `pkill -9` SIGKILL 强杀（钉钉作为 Electron 应用常响应慢），然后继续启动流程——restart 语义就是必须重启，不能因旧进程未退出而放弃。
-    - 问题3修复：新增 `print_usage` 函数和 `usage|--help|-h` 子命令，列出用法、环境变量、示例。
-    - 问题4修复：在子命令 case 之后加 `if [ "${1:-}" = "--" ]; then shift; fi`，兑现 usage 中承诺的 `--` 分隔符语义，使 `dingtalk-wayland -- --flag` 与 `dingtalk-wayland restart -- --flag` 行为一致。
-    - 将 `notify_problem` 提到脚本开头（供 restart 分支复用）。
-  - `tests/niri_wayland_config_test.sh`：在 `test_dingtalk_wayland_entrypoint_preserves_preload_contract` 内追加 `restart)`、`pkill`、`pgrep`、`缺少基础命令`、`for dep in pkill pgrep id`、`pkill -9`、`SIGKILL`、`print_usage`、`usage|--help|-h`、`dingtalk-wayland restart`、`显示此帮助`、`"${1:-}" = "--"`、`原样透传给钉钉` 共 13 条断言；保留原有 `nohup`/`exit 0`/preload 合约断言。
-  - 文档同步：`.config/scripts/README.md` 表格行、`.config/linux/niri/README.md` 钉钉段落、`memory/dingtalk.md` 启动命令块均补充 `restart`/`usage` 子命令与 SIGTERM→SIGKILL 两段式 kill 说明。
-- 验证：
-  - `sh -n .config/scripts/dingtalk-wayland` 通过。
-  - dingtalk 相关断言单独运行 PASS（含 13 条新断言）。
-  - `tests/repo_docs_test.sh` PASS。
-  - 实测 `dingtalk-wayland usage` 输出正确帮助文本。
-  - 实测 `PATH` 缺 pkill 时 `dingtalk-wayland restart` 正确报错 `缺少基础命令 pkill` 并退出。
-  - `tests/niri_wayland_config_test.sh` 中 `test_install_copies_wayland_files_when_niri_exists_outside_wayland_session` 失败，已确认是历史遗留（stash 后同样失败），非本轮引入。
-- 后续：用户确认后同步 live（`cp .config/scripts/dingtalk-wayland ~/.config/scripts/`）并提交。
-
-## 2026-08-11 — 无操作黑屏后内屏无法唤醒：禁用 X11 DPMS/屏保
-
-- 目的：解决 aarch64 无操作黑屏后内置 eDP 屏无法唤醒（外接 DP 屏正常）的问题。根因为 MediaTek `mtgpu`/`mtdisp` 驱动在 DPMS off→on 周期后无法重新点亮 eDP panel 背光（外接屏走 DisplayPort 主链路握手可恢复，内屏走 SoC panel 控制器卡死）。用户明确选择 A 方案（不介意耗电，禁用 DPMS）。
-- 已做（`repo-change`）：
-  - `.config/linux/x11/xsessionrc`：新增 `xset s off && xset -dpms`，关闭 X11 屏保与 DPMS。
-  - `.config/linux/x11/README.md`：新增"DPMS 禁用说明"段落。
-- 验证：`bash -n xsessionrc` OK；`tests/repo_docs_test.sh` PASS；`git diff --check` 无空白错误。
-- 风险与后续：
-  - xsessionrc 仅 X 会话登录时加载，需重登或 `systemctl restart gdm` 生效；当前会话可用 `xset s off && xset -dpms` 即时验证。
-  - 显示器永不熄屏增加耗电（用户接受）；若日后需要省电，可改方案 E（DPMS off 后自动 xrandr 重配 eDP-1）。
-  - 未同步 live `~/.xsessionrc`、未重载、未提交推送。
-
-## 2026-08-11 — CPU/MEM hover top 进程改为 Lua 原生读 /proc + 懒加载
-
-- 目的：降低 Awesome 状态栏 CPU/MEM hover 信息的资源占用。原实现每 5 秒无条件跑 2 个 `ps` 子进程（实测单次 ~0.2s，456 进程下持续占用 ~4% 单核），与是否 hover 无关。
-- 已做（`repo-change`）：
-  - `widgets/system.lua`：删除 `system_details_command`/`normalize_command_output` 与 `details_timer`（5s 定时器）；新增 `list_proc_pids`/`parse_proc_stat_fields`/`compute_process_cpu`/`read_process_rss`/`collect_process_details`/`format_process_list`，用 Lua 原生遍历 `/proc` 计算 top 进程（CPU 用 `/proc/<pid>/stat` 的 utime/stime/starttime，elapsed = uptime - starttime/CLK_TCK，btime 抵消；MEM 用 `/proc/<pid>/status` 的 VmRSS）；`update_system_details_cache` 改为同步读取；tooltip 挂 `mouse::enter` 信号做懒加载刷新，删除 `dispose` 里的 `details_timer`。
-  - 修正一个量纲 bug：`elapsed` 初期误用 `uptime - (starttime/CLK_TCK + btime)`，因 uptime 是开机秒数而 btime 是 Unix 时间戳，导致 elapsed 恒负、top 列表为空；改为 `uptime - starttime/CLK_TCK`。
-  - 更新 `tests/awesome_net_test.sh`、`tests/awesome_ui_architecture_test.sh` 断言；同步 `README.md` 与 `memory/awesome.md` 描述。
-- 验证：
-  - `luajit -e 'assert(loadfile(...))'` 语法 OK。
-  - Lua 原生 top 结果与 `ps` 实测吻合（CPU: code 44%/trae-cn 41%/picom 28%；MEM: trae-cn 934M/chrome 850M 等）。
-  - `tests/awesome_net_test.sh` / `awesome_ui_architecture_test.sh` / `awesome_battery_test.sh` 均 PASS。
-  - `tests/run.sh` 唯一 FAIL 为 `awesome_docs_theme_test.sh:112`（断言 'NET 保持短显示...' 在 README 与测试措辞不一致），已确认 HEAD 版本同样失败，为历史遗留、与本次改动无关，未整改。
-- 修复（用户反馈仍显示 "process list loading" 且负载看不到）：
-  - 根因：`awful.tooltip` 实例是 `gears.object`，并不 emit `mouse::enter`（该信号由 objects widget 触发，见 `/usr/share/awesome/lib/awful/tooltip.lua` 的 `add_to_object`）。原本把 `connect_signal("mouse::enter", ...)` 连在 tooltip 对象上，懒加载从不触发，缓存一直停留初始值，load_average 也没更新（一直 "N/A"）。
-  - 改为：`mouse::enter` 连接在 `cpu_widget`/`mem_widget` 上，置 `details_dirty` 标志；tooltip 的 `render_cpu_tooltip`/`render_mem_tooltip` 在首次渲染时检查 dirty 并调 `update_system_details_cache()` 刷新一次，保证 tooltip 首屏即有真实数据。
-- 风险与后续：
-  - 未同步 live `~/.config/awesome`、未重载、未提交推送。
-
-## 2026-07-31 — Brew 二进制 RPATH 修复（zoxide GLIBC_2.39 报错/p10k 警告）
-
-- 目的：修复用户启动 zsh 时 `zoxide: GLIBC_2.39 not found` 报错与 p10k instant prompt 警告。
-- 根因诊断：
-  - 表象：p10k 报 "console output during zsh initialization"，stderr 含 `zoxide: /usr/lib/aarch64-linux-gnu/libc.so.6: version GLIBC_2.39 not found`。
-  - 真因：`/etc/profile.d/mtcodec.sh` 与 `musa-sdk.sh` 设置 `LD_LIBRARY_PATH` 包含 `/usr/lib/aarch64-linux-gnu/`（系统 libc 2.35 所在）。brew 包二进制的 RPATH 缺少 glibc lib 路径，glibc 又是 keg-only（不软链到 `/home/linuxbrew/.linuxbrew/lib`），导致 ld.so fallback 到 LD_LIBRARY_PATH 找到系统 libc 2.35，缺少 GLIBC_2.38/2.39 符号。
-  - 为什么 sandbox 测试能跑：sandbox 未继承 `/etc/profile.d/` 的 LD_LIBRARY_PATH，且简单命令未触发需要新符号的代码路径。
-  - 为什么 `brew reinstall` 未修复：bottle 是预编译的，RPATH 固定，reinstall 只是重新解压不改 RPATH。
-  - lsd 隐藏问题：原 RPATH 用版本硬编码 `Cellar/glibc/2.39/lib`，但 brew glibc 升级到 `2.39_1` 后路径失效，污染环境下 SIGILL。
-- 已做（`repo-change` 之外的 live 二进制改动，已获用户授权）：
-  - `brew reinstall zoxide nvim tmux ripgrep bat luajit`（未修复 RPATH，但刷新了二进制）。
-  - `patchelf --force-rpath --set-rpath` 给 7 个二进制（zoxide/nvim/tmux/rg/bat/luajit/lsd）的 RPATH 开头加入 `/home/linuxbrew/.linuxbrew/opt/glibc/lib`（稳定路径，不随版本变化），lsd 同时加入 gcc lib 路径。用 `--force-rpath` 保持 RPATH（优先级高于 LD_LIBRARY_PATH）而非 RUNPATH（优先级低于 LD_LIBRARY_PATH）。
-- 验证：
-  - 7 个工具在无污染和模拟污染（`LD_LIBRARY_PATH=/usr/local/mt_vaapi/lib:/usr/local/musa/lib:/usr/lib/aarch64-linux-gnu/musa/:/usr/lib/aarch64-linux-gnu/`）环境下 ldd 均无 GLIBC 错误、实际运行均正常。
-  - `zoxide init --cmd cd zsh` 在污染环境下 exit=0（用户原始报错命令已修复）。
-  - `tests/zsh_path_test.sh` 与 `tests/zsh_functions_test.sh` 均 PASS，无回归。
-- 风险与后续：
-  - patchelf 改动是 live 二进制层面的，`brew upgrade` 或 `brew reinstall` 这些包时会覆盖修复（bottle 重新解压恢复原 RPATH）。若升级后复现报错，需重新跑 patchelf。
-  - 根本解决应让 brew 包官方 bottle 在 RPATH 里包含 glibc lib（已属 upstream issue 范畴）。
-  - 未提交推送。
