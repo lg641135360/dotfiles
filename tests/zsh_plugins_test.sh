@@ -15,6 +15,13 @@ test_compinit_skips_compaudit() {
     assert_not_matches 'compinit[[:space:]]*$' "$PLUGINS_FILE"
 }
 
+# compinit 默认把 dump 写到 $ZDOTDIR/.zcompdump，但在写入受限环境（IDE sandbox）
+# 或 ZDOTDIR 不一致时会生成 .zcompdump.<host>.<pid> 孤儿文件。显式 -d 指定路径
+# 可避免此问题，并让 dump 路径可控。
+test_compinit_uses_explicit_dump_path() {
+    assert_contains 'compinit -u -d "$ZSH_CONF/.zcompdump"' "$PLUGINS_FILE"
+}
+
 # zsh-autopair 与 zsh-you-should-use 是 plugins.zsh 中最慢的两个插件
 # （分别约 0.22s / 0.12s，合计占 plugins.zsh 73%）。两者功能均在按键时
 # 才需要，不参与首次提示符渲染，用 `zinit ice wait lucid` 延迟到首次
@@ -51,6 +58,7 @@ test_compinit_order_before_cdreplay() {
 }
 
 test_compinit_skips_compaudit
+test_compinit_uses_explicit_dump_path
 test_autopair_is_deferred
 test_you_should_use_is_deferred
 test_critical_plugins_load_immediately

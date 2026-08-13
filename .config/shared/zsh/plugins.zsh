@@ -34,7 +34,9 @@ zinit snippet OMZP::command-not-found
 # Load completions
 # -u 跳过 compaudit：单用户桌面 fpath 目录均由 zinit 管理，权限检查无实际
 # 价值，跳过可省约 0.15s（0.20s → 0.05s）。
-autoload -Uz compinit && compinit -u
+# -d 显式指定 dump 路径，避免不同 ZDOTDIR / 写入受限环境生成 .zcompdump.<host>.<pid>
+# 孤儿文件。
+autoload -Uz compinit && compinit -u -d "$ZSH_CONF/.zcompdump"
 
 # Replay deferred completions (MUST be last, after all plugins/snippets)
 zinit cdreplay -q

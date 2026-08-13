@@ -147,13 +147,12 @@ chmod +x install.sh
 
 ```
 .zshenv             ← 系统级设置（skip_global_compinit=1，见下）
-.zshrc              ← 入口（17 行）
-├── plugins.zsh     ← zinit + 8 个插件 + compinit
+.zshrc              ← 入口
+├── plugins.zsh     ← zinit + 8 个插件 + compinit（-u -d $ZSH_CONF/.zcompdump）
 ├── options.zsh     ← setopt 选项（autocd, correct 等）
 ├── path.zsh        ← PATH 管理（pathappend/prepend）
 ├── env.zsh         ← 环境变量（EDITOR, FZF_OPTS, PAGER）
-├── keybindings.zsh ← 历史搜索绑定（↑↓ 键）
-├── history.zsh     ← 历史配置（HISTSIZE, 去重规则）
+├── history.zsh     ← 历史配置（HISTSIZE, 去重规则, HISTFILE=$ZDOTDIR/.zsh_history）+ ↑↓ 历史搜索绑定
 ├── aliases.zsh     ← 命令别名（条件加载）
 ├── functions.zsh   ← 工具函数（y, cpp, mkdirg 等）
 └── integrations.zsh← 第三方工具集成（zoxide, conda, starship）
@@ -167,10 +166,11 @@ chmod +x install.sh
 
 ## 启动提速：compinit 跳过 compaudit + 插件延迟加载
 
-[plugins.zsh](.config/shared/zsh/plugins.zsh) 进一步两项优化，将启动从 ~0.35s 降到 ~0.2s：
+[plugins.zsh](.config/shared/zsh/plugins.zsh) 进一步三项优化，将启动从 ~0.35s 降到 ~0.2s：
 
 1. **`compinit -u` 跳过 compaudit**：compinit 默认跑 compaudit 检查 fpath 目录权限，实测占 ~0.15s（0.20s → 0.05s）。单用户桌面环境下 fpath 目录均由 zinit 管理（用户自己控制），权限检查无实际安全价值。
-2. **zsh-autopair / zsh-you-should-use 延迟加载**：这两个插件合计占 plugins.zsh 约 73% 耗时（autopair ~0.22s, you-should-use ~0.12s），但功能仅在按键时才需要。用 `zinit ice wait lucid` 延迟到首次提示符后异步加载，不阻塞首次提示符渲染。
+2. **`compinit -d` 显式 dump 路径**：dump 写到 `$ZSH_CONF/.zcompdump`，避免不同 ZDOTDIR 调用或写入受限环境（如 IDE sandbox）产生 `.zcompdump.<host>.<pid>` 孤儿文件。
+3. **zsh-autopair / zsh-you-should-use 延迟加载**：这两个插件合计占 plugins.zsh 约 73% 耗时（autopair ~0.22s, you-should-use ~0.12s），但功能仅在按键时才需要。用 `zinit ice wait lucid` 延迟到首次提示符后异步加载，不阻塞首次提示符渲染。
 
 延迟加载的权衡：autopair 的括号配对、you-should-use 的别名提醒在首次提示符后约 50ms 才激活，极少数场景下首次按键可能未触发配对。实际无感知。
 

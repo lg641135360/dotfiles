@@ -303,7 +303,6 @@ zsh_files=(
     "command -v zsh|.config/shared/zsh/options.zsh|~/.config/zsh/options.zsh|zsh options"
     "command -v zsh|.config/shared/zsh/env.zsh|~/.config/zsh/env.zsh|zsh env"
     "command -v zsh|.config/shared/zsh/path.zsh|~/.config/zsh/path.zsh|zsh path"
-    "command -v zsh|.config/shared/zsh/keybindings.zsh|~/.config/zsh/keybindings.zsh|zsh keybindings"
     "command -v zsh|.config/shared/zsh/history.zsh|~/.config/zsh/history.zsh|zsh history"
     "command -v zsh|.config/shared/zsh/aliases.zsh|~/.config/zsh/aliases.zsh|zsh aliases"
     "command -v zsh|.config/shared/zsh/functions.zsh|~/.config/zsh/functions.zsh|zsh functions"
