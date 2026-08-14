@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, statSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 export type ParsedArgs = Record<string, string | boolean>;
@@ -8,7 +8,16 @@ export function parseArgs(argv: string[]): ParsedArgs {
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i];
     if (!token.startsWith("--")) continue;
-    const name = token.slice(2);
+    const body = token.slice(2);
+    // Support --flag=value syntax.
+    const eq = body.indexOf("=");
+    if (eq >= 0) {
+      const name = body.slice(0, eq);
+      const value = body.slice(eq + 1);
+      args[name] = value;
+      continue;
+    }
+    const name = body;
     const next = argv[i + 1];
     if (next && !next.startsWith("--")) {
       args[name] = next;

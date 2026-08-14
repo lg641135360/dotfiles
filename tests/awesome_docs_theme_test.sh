@@ -2,32 +2,10 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 README_FILE=$REPO_ROOT/.config/linux/awesome/README.md
 THEME_FILE=$REPO_ROOT/.config/linux/awesome/theme/catppuccin.lua
 THEME_README_FILE=$REPO_ROOT/.config/linux/awesome/theme/README.md
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
-
-assert_contains() {
-    needle=$1
-    file=$2
-
-    if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "expected '$needle' in $file"
-    fi
-}
-
-assert_not_contains() {
-    needle=$1
-    file=$2
-
-    if grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "did not expect '$needle' in $file"
-    fi
-}
 
 test_theme_exposes_fallback_titlebar_tokens() {
     assert_contains 'theme.titlebar_size = dpi(24)' "$THEME_FILE"

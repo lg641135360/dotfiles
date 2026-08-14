@@ -2,33 +2,13 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 KITTY_FILE=$REPO_ROOT/.config/linux/kitty/kitty.conf
 ALACRITTY_MAIN=$REPO_ROOT/.config/shared/alacritty/alacritty.toml
 ALACRITTY_WINDOW=$REPO_ROOT/.config/shared/alacritty/window.linux.toml
 ALACRITTY_KEYS=$REPO_ROOT/.config/shared/alacritty/keys.linux.toml
 INSTALL_FILE=$REPO_ROOT/install.sh
 TERMINAL_SCRIPT=$REPO_ROOT/.config/scripts/terminal-wayland
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
-
-assert_contains() {
-    needle=$1
-    file=$2
-    if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "expected '$needle' in $file"
-    fi
-}
-
-assert_not_contains() {
-    needle=$1
-    file=$2
-    if grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "did not expect '$needle' in $file"
-    fi
-}
 
 test_font_matches_alacritty() {
     assert_contains 'MesloLGS Nerd Font Mono' "$KITTY_FILE"

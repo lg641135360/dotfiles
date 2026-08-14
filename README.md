@@ -13,11 +13,15 @@
 │   │   ├── git/         # git 别名和模板
 │   │   ├── nvim/        # Neovim 配置（submodule → lg641135360/neovim）
 │   │   ├── ssh/         # SSH base 配置
+│   │   ├── starship.toml # 跨平台 shell 提示符
 │   │   ├── tmux/        # tmux 配置和 tab 标题脚本
 │   │   └── zsh/         # zsh 模块化配置（.zshrc / aliases / path / env 等）
 │   ├── linux/           # Linux 桌面环境配置
 │   │   ├── awesome/     # AwesomeWM 窗口管理器
+│   │   ├── Brewfile     # Linux brew 依赖清单
+│   │   ├── desktop-entries/ # 覆盖系统 desktop entry（fuzzel 菜单走 Wayland 包装脚本）
 │   │   ├── fuzzel/      # Wayland 启动器
+│   │   ├── kitty/       # kitty 终端模拟器配置
 │   │   ├── mako/        # Wayland 通知守护进程
 │   │   ├── niri/        # Wayland 合成器（平行试用）
 │   │   ├── picom/       # X11 合成器
@@ -27,7 +31,8 @@
 │   │   └── xdg-desktop-portal/ # 桌面门户配置
 │   ├── macos/           # macOS 桌面环境配置
 │   │   ├── aerospace/   # 窗口管理器
-│   │   ├── rift/        # 窗口管理器
+│   │   ├── Brewfile     # macOS brew 依赖清单
+│   │   ├── defaults.sh  # macOS 系统默认值（键重复 / Dock 等）
 │   │   └── ssh/         # SSH 配置（macOS 覆盖）
 │   └── scripts/         # 辅助脚本
 │       ├── lock/              # X11 锁屏
@@ -45,12 +50,13 @@
 │       ├── browser-wayland/   # Wayland Chrome 启动器
 │       ├── trae-cn-wayland/   # Wayland Trae CN 启动器
 │       └── waybar-system-tooltip/ # Waybar CPU/MEM tooltip 后端
-├── tests/           # 回归测试
-│   ├── run.sh       # 测试运行器
-│   └── lib/         # 测试工具库
-├── tools/           # 构建工具源码（钉钉 Wayland 屏幕共享 hook）
-├── memory/          # 长期偏好和模块特化记录
-└── logs/            # 操作日志
+├── scripts/          # TypeScript 工具（trace 归档等）
+├── tests/            # 回归测试
+│   ├── run.sh        # 测试运行器
+│   └── lib/          # 测试工具库（assert.sh / sandbox.sh）
+├── tools/            # 构建工具源码（钉钉 Wayland 屏幕共享 hook）
+├── memory/           # 长期偏好和模块特化记录
+└── logs/             # 操作日志
 ```
 
 ## 提示词系统

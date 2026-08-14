@@ -2,12 +2,8 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 COMMON_FILE=$REPO_ROOT/.config/linux/awesome/lib/common.lua
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
 
 [ -f "$COMMON_FILE" ] || fail "expected common helper module to exist"
 

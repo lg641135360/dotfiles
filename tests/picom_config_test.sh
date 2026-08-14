@@ -2,24 +2,11 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 PICOM_UBUNTU_FILE=$REPO_ROOT/.config/linux/picom/picom-ubuntu_x64.conf
 PICOM_ARCH_X64_FILE=$REPO_ROOT/.config/linux/picom/picom-arch_x64.conf
 PICOM_ARCH_AARCH64_FILE=$REPO_ROOT/.config/linux/picom/picom-arch_aarch64.conf
 AWESOME_THEME_FILE=$REPO_ROOT/.config/linux/awesome/theme/catppuccin.lua
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
-
-assert_contains() {
-    needle=$1
-    file=$2
-
-    if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "expected '$needle' in $file"
-    fi
-}
 
 test_shared_visual_baseline() {
     assert_contains 'shadow-radius = 16' "$PICOM_UBUNTU_FILE"
@@ -71,9 +58,22 @@ test_non_current_platform_configs_remain_platform_specific() {
 
     assert_contains 'strength = 4;' "$PICOM_ARCH_AARCH64_FILE"
     assert_contains 'inactive-opacity = 0.87' "$PICOM_ARCH_AARCH64_FILE"
-    assert_contains 'corner-radius = 16' "$PICOM_ARCH_AARCH64_FILE"
+    assert_contains 'corner-radius = 8' "$PICOM_ARCH_AARCH64_FILE"
     assert_contains "100:class_g = 'firefox'" "$PICOM_ARCH_AARCH64_FILE"
     assert_contains "100:class_g = 'Thunderbird'" "$PICOM_ARCH_AARCH64_FILE"
+}
+
+# Guard against the aarch64 corner-radius drift bug: the top-level value
+# and every wintypes entry must agree (aarch64 was previously 8 at top-level
+# but 16 inside wintypes).
+test_wintypes_corner_radius_matches_top_level() {
+    for file in "$PICOM_UBUNTU_FILE" "$PICOM_ARCH_X64_FILE" "$PICOM_ARCH_AARCH64_FILE"; do
+        top_level=$(grep -E '^corner-radius = [0-9]+' "$file" | head -1 | grep -oE '[0-9]+')
+        [ -n "$top_level" ] || fail "missing top-level corner-radius in $file"
+        # Every wintypes corner-radius must equal the top-level value.
+        mismatch=$(grep -oE 'corner-radius = [0-9]+' "$file" | grep -oE '[0-9]+' | grep -vx "$top_level" || true)
+        [ -z "$mismatch" ] || fail "wintypes corner-radius ($mismatch) != top-level ($top_level) in $file"
+    done
 }
 
 test_ubuntu_x64_corner_radius_matches_awesome_theme() {
@@ -85,6 +85,7 @@ test_shared_visual_baseline
 test_ubuntu_x64_keeps_live_blur_route_and_x64_excludes
 test_terminal_opacity_is_left_to_terminal_configs
 test_non_current_platform_configs_remain_platform_specific
+test_wintypes_corner_radius_matches_top_level
 test_ubuntu_x64_corner_radius_matches_awesome_theme
 
 printf 'PASS: picom config tests\n'

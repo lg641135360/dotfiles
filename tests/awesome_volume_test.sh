@@ -2,21 +2,8 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 VOLUME_FILE=$REPO_ROOT/.config/linux/awesome/widgets/volume.lua
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
-
-assert_contains() {
-    needle=$1
-    file=$2
-
-    if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "expected '$needle' in $file"
-    fi
-}
 
 test_volume_widget_queries_mute_state() {
     assert_contains 'pactl get-sink-mute @DEFAULT_SINK@' "$VOLUME_FILE"

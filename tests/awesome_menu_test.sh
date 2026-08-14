@@ -2,31 +2,9 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 CONFIG_FILE=$REPO_ROOT/.config/linux/awesome/config.lua
 MENU_FILE=$REPO_ROOT/.config/linux/awesome/menu.lua
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
-
-assert_contains() {
-    needle=$1
-    file=$2
-
-    if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "expected '$needle' in $file"
-    fi
-}
-
-assert_not_contains() {
-    needle=$1
-    file=$2
-
-    if grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "did not expect '$needle' in $file"
-    fi
-}
 
 test_menu_style_defaults_to_auto_detection() {
     assert_contains 'menu_style = "auto",' "$CONFIG_FILE"

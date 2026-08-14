@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$ROOT/tests/lib/assert.sh"
 CONFIG="$ROOT/.config/macos/aerospace/aerospace.toml"
 README="$ROOT/.config/macos/aerospace/README.md"
 
@@ -27,12 +28,5 @@ if bindings.get("alt-enter") != "exec-and-forget alacritty":
     raise SystemExit("alt-enter terminal binding should remain unchanged")
 PY
 
-grep -q '`Mod+q` | 关闭当前窗口' "$README" || {
-  echo "AeroSpace README should document Mod+q close-window behavior"
-  exit 1
-}
-
-grep -q '`close --quit-if-last-window`' "$README" || {
-  echo "AeroSpace README should document the optional app-quit variant"
-  exit 1
-}
+assert_contains '`Mod+q` | 关闭当前窗口' "$README"
+assert_contains '`close --quit-if-last-window`' "$README"

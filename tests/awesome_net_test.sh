@@ -2,17 +2,13 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 CONFIG_FILE=$REPO_ROOT/.config/linux/awesome/config.lua
 SYSTEM_WIDGETS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/system.lua
 VOLUME_FILE=$REPO_ROOT/.config/linux/awesome/widgets/volume.lua
 BRIGHTNESS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/brightness.lua
 WIBAR_FILE=$REPO_ROOT/.config/linux/awesome/ui/wibar.lua
 STATUS_AREA_FILE=$REPO_ROOT/.config/linux/awesome/ui/status_area.lua
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
 
 test_net_pattern_includes_wlp_interfaces() {
     grep -F 'net_interfaces = "wlan0|eth0|enp|wlp",' "$CONFIG_FILE" >/dev/null 2>&1 ||

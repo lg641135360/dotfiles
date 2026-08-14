@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e  # Exit on error
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
 
 # Script configuration
 os=${DOTFILES_OS:-$(uname -s)}
@@ -15,7 +15,11 @@ script_dir="$(cd -- "$script_parent" >/dev/null 2>&1 && pwd -P)" || {
 }
 cur_path=$script_dir
 backup_limit=3
-timestamp=$(date +%Y%m%d_%H%M%S)
+# Include nanoseconds + PID to avoid same-second backup collisions on re-runs.
+timestamp=$(date +%Y%m%d_%H%M%S)_$$
+
+# Registry of temporary paths cleaned up on EXIT/INT/TERM.
+temp_paths=()
 
 # Detect Linux distribution
 if [[ "$os" == "Linux" ]]; then
@@ -37,21 +41,39 @@ is_repo_niri_platform() {
     [[ "$os" == "Linux" && "${distro:-}" == "ubuntu" ]]
 }
 
-# Logging functions
+# Logging functions (printf for cross-shell safety)
 log_info() {
-    echo -e "\033[0;32m[INFO]\033[0m $1"
+    printf '\033[0;32m[INFO]\033[0m %s\n' "$1"
 }
 
 log_warn() {
-    echo -e "\033[0;33m[WARN]\033[0m $1"
+    printf '\033[0;33m[WARN]\033[0m %s\n' "$1"
 }
 
 log_error() {
-    echo -e "\033[0;31m[ERROR]\033[0m $1" >&2
+    printf '\033[0;31m[ERROR]\033[0m %s\n' "$1" >&2
 }
 
-# Error handling
-trap 'log_error "An error occurred at line $LINENO. Exiting..."; exit 1' ERR
+# Register a temp path for cleanup on exit.
+register_temp() {
+    temp_paths+=("$1")
+}
+
+# Cleanup registered temp paths. Safe to call multiple times; missing paths
+# are silently ignored (rm -rf on a non-existent path is a no-op).
+cleanup_temp() {
+    local p
+    for p in "${temp_paths[@]:-}"; do
+        [ -n "$p" ] && rm -rf "$p" 2>/dev/null || true
+    done
+    temp_paths=()
+}
+
+# Error handling: log line on ERR, always cleanup on EXIT/INT/TERM.
+trap 'log_error "An error occurred at line $LINENO. Exiting..."; cleanup_temp; exit 1' ERR
+trap 'cleanup_temp' EXIT
+trap 'cleanup_temp; exit 130' INT
+trap 'cleanup_temp; exit 143' TERM
 
 # Check if required commands are available
 check_dependencies() {
@@ -83,21 +105,25 @@ ensure_dir() {
 # Clean old backup files/directories (keep only latest N)
 clean_old_backups() {
     local target="$1"
-    local dir backup_items count removed=0
+    local dir
     dir="$(dirname "$target")"
     [ ! -d "$dir" ] && return 0
 
-    # Find all backup items for this target (files or directories)
-    backup_items=$(find "$dir" -maxdepth 1 -name "$(basename "$target").backup.*" | sort -r)
-    
-    count=$(echo "$backup_items" | grep -c . || true)
-    if [ "$count" -gt "$backup_limit" ]; then
-        while read -r item; do
-            rm -rf "$item" && removed=$((removed + 1))
-        done <<< "$(echo "$backup_items" | tail -n +"$((backup_limit + 1))")"
-        if [ $removed -gt 0 ]; then
-            log_info "Cleaned $removed old backups for $(basename "$target")"
-        fi
+    # Find all backup items for this target (files or directories), newest first.
+    local -a items=()
+    mapfile -t items < <(find "$dir" -maxdepth 1 -name "$(basename "$target").backup.*" 2>/dev/null | sort -r)
+
+    local count=${#items[@]}
+    if [ "$count" -le "$backup_limit" ]; then
+        return 0
+    fi
+
+    local i removed=0
+    for ((i = backup_limit; i < count; i++)); do
+        rm -rf "${items[$i]}" 2>/dev/null && removed=$((removed + 1))
+    done
+    if [ "$removed" -gt 0 ]; then
+        log_info "Cleaned $removed old backups for $(basename "$target")"
     fi
 }
 
@@ -108,6 +134,13 @@ copy_config() {
     # Validate input
     if [ ! -e "$source" ]; then
         log_error "Source not found: $source"
+        return 1
+    fi
+
+    # Refuse to copy an empty source directory: this would clobber the target
+    # with nothing (e.g. an uninitialized git submodule such as nvim).
+    if [ -d "$source" ] && [ -z "$(ls -A "$source")" ]; then
+        log_error "Source directory is empty (possible uninitialized submodule): $source"
         return 1
     fi
 
@@ -141,21 +174,15 @@ copy_config() {
         clean_old_backups "$target"
     fi
 
-    # Copy file or directory
-    if [ -d "$source" ]; then
-        if cp -a "$source" "$target"; then
-            log_info "Successfully copied directory $name -> $target"
-        else
-            log_error "Failed to copy directory $name"
-            return 1
-        fi
+    # Copy file or directory. cp -a handles both uniformly (preserves mode,
+    # timestamps, and recursively copies directories).
+    local kind=file
+    [ -d "$source" ] && kind=directory
+    if cp -a "$source" "$target"; then
+        log_info "Successfully copied $kind $name -> $target"
     else
-        if cp -p "$source" "$target"; then
-            log_info "Successfully copied file $name -> $target"
-        else
-            log_error "Failed to copy file $name"
-            return 1
-        fi
+        log_error "Failed to copy $kind $name"
+        return 1
     fi
 }
 
@@ -185,13 +212,16 @@ process_config() {
 }
 
 # Iterate a `check_cmd|source|target|name` array and dispatch each entry to process_config.
+# A single entry's deployment failure is logged as a warning but does not abort
+# the whole installation (README promises "skip on missing, continue").
 # Usage: process_configs shared_configs / linux_configs / ...
 process_configs() {
     local -n _configs_ref="$1"
     local config check_cmd source target name
     for config in "${_configs_ref[@]}"; do
         IFS='|' read -r check_cmd source target name <<< "$config"
-        process_config "$check_cmd" "$source" "$target" "$name"
+        process_config "$check_cmd" "$source" "$target" "$name" ||
+            log_warn "Failed to deploy $name; continuing with remaining configurations"
     done
 }
 
@@ -256,6 +286,7 @@ install_niri_config_for_platform() {
     copy_config "$common_source" "$target_dir/common.kdl" "niri common config"
 
     local tmp_config="$target_dir/.config.kdl.tmp"
+    register_temp "$tmp_config"
     sed 's#include "\.\./common\.kdl"#include "common.kdl"#' "$source" >"$tmp_config" || {
         rm -f "$tmp_config"
         return 1
@@ -328,7 +359,6 @@ zshrc_pre_files=(
 
 macos_configs=(
     "command -v aerospace|.config/macos/aerospace/aerospace.toml|~/.config/aerospace/aerospace.toml|Aerospace"
-    "command -v rift|.config/macos/rift/config.toml|~/.config/rift/config.toml|Rift"
     "command -v alacritty|.config/shared/alacritty/keys.macos.toml|~/.config/alacritty/keys.toml|Alacritty keys"
     "command -v alacritty|.config/shared/alacritty/window.macos.toml|~/.config/alacritty/window.toml|Alacritty window"
     "command -v ssh|.config/macos/ssh/config|~/.ssh/config|SSH config (macOS)"
@@ -419,6 +449,7 @@ configure_claude_code_statusline() {
 
     statusline_command="$script_target"
     temp_file=$(mktemp)
+    register_temp "$temp_file"
 
     if [ -f "$settings_file" ]; then
         if ! jq --arg cmd "$statusline_command" '.statusLine = {type: "command", command: $cmd}' "$settings_file" > "$temp_file"; then
@@ -454,8 +485,30 @@ configure_claude_code_statusline() {
 # Main installation function
 main() {
     local start_time=$(date +%s)
-    # Check for required dependencies
+    # Check for required core dependencies. Branch-specific tools (git, jq,
+    # cmp, chmod, sed, awk) are checked at their call sites; mapfile is a
+    # bash builtin. Failing branch-specific commands degrade gracefully via
+    # process_configs' error handling.
     check_dependencies find cp mv diff date dirname basename sort grep tail
+
+    # Ensure the nvim submodule is initialized; an empty source dir would
+    # otherwise clobber the user's existing ~/.config/nvim with nothing.
+    if [ -f "$cur_path/.gitmodules" ] && command -v git >/dev/null 2>&1; then
+        local _sub_status
+        if _sub_status=$(git -C "$cur_path" submodule status .config/shared/nvim 2>/dev/null); then
+            # Submodule line starts with '-' when not initialized.
+            if [[ "$_sub_status" == -* ]]; then
+                log_info "Initializing nvim submodule..."
+                git -C "$cur_path" submodule update --init --recursive .config/shared/nvim ||
+                    { log_error "Failed to initialize nvim submodule"; exit 1; }
+            fi
+        fi
+        # Final guard: refuse to proceed if the submodule dir is still empty.
+        if [ -d "$cur_path/.config/shared/nvim" ] && [ -z "$(ls -A "$cur_path/.config/shared/nvim" 2>/dev/null)" ]; then
+            log_error "nvim submodule is empty. Run: git -C \"$cur_path\" submodule update --init --recursive .config/shared/nvim"
+            exit 1
+        fi
+    fi
 
     log_info "Starting configuration installation (Copy Mode)..."
     log_info "Operating System: $os"
@@ -470,7 +523,7 @@ main() {
 
     # Check and install TPM (Tmux Plugin Manager)
     if command -v tmux >/dev/null 2>&1; then
-        tpm_dir="$HOME/.tmux/plugins/tpm"
+        local tpm_dir="$HOME/.tmux/plugins/tpm"
         if [ ! -d "$tpm_dir" ]; then
             log_info "Installing TPM (Tmux Plugin Manager)"
             if command -v git >/dev/null 2>&1; then
@@ -536,14 +589,18 @@ main() {
             # Desktop entries embed a __HOME__ placeholder so the repo stays
             # portable across machines/users; substitute the real $HOME at
             # deploy time (mirrors the niri include-path rewrite above).
-            for _de in \
-                "$HOME/.local/share/applications/google-chrome.desktop" \
-                "$HOME/.local/share/applications/trae-cn.desktop"; do
-                if [ -f "$_de" ] && grep -q '__HOME__' "$_de" 2>/dev/null; then
-                    _de_tmp="$_de.deploy.tmp"
-                    sed "s#__HOME__#$HOME#g" "$_de" >"$_de_tmp" || { rm -f "$_de_tmp"; continue; }
-                    mv "$_de_tmp" "$_de" || rm -f "$_de_tmp"
-                fi
+            # Walk any deployed *.desktop under ~/.local/share/applications/
+            # rather than hardcoding names, so new entries are picked up
+            # automatically from linux_wayland_configs.
+            local _de _de_tmp _de_content
+            for _de in "$HOME"/.local/share/applications/*.desktop; do
+                [ -f "$_de" ] || continue
+                grep -q '__HOME__' "$_de" 2>/dev/null || continue
+                # Use bash builtin string replacement to avoid sed/awk
+                # metacharacter issues with $HOME (e.g. '&', '#', '\').
+                _de_content=$(< "$_de")
+                _de_content=${_de_content//__HOME__/$HOME}
+                printf '%s' "$_de_content" >"$_de"
             done
         else
             log_warn "niri not found, skipping niri and Wayland helper configurations"
@@ -551,16 +608,25 @@ main() {
 
         # Save AwesomeWM external dependencies before copying
         # (copy_config backs up the entire dir, which would overwrite freshly cloned deps)
-        awesome_external_deps=(collision)
-        awesome_deps=()
-        awesome_deps_save_dir="/tmp/awesome_deps_$$"
+        local awesome_external_deps=(collision)
+        local -a awesome_deps=()
+        local awesome_deps_save_dir=""
+        local awesome_config_dir
         if command -v awesome >/dev/null 2>&1; then
             awesome_config_dir="$HOME/.config/awesome"
             if [ -d "$awesome_config_dir" ]; then
+                # Create temp dir lazily (only when there's something to save).
+                if command -v mktemp >/dev/null 2>&1; then
+                    awesome_deps_save_dir=$(mktemp -d)
+                else
+                    awesome_deps_save_dir="/tmp/awesome_deps_$$"
+                    mkdir -p "$awesome_deps_save_dir"
+                fi
+                register_temp "$awesome_deps_save_dir"
+                local dep
                 for dep in "${awesome_external_deps[@]}"; do
                     if [ -d "$awesome_config_dir/$dep" ]; then
                         log_info "Saving AwesomeWM dependency: $dep"
-                        mkdir -p "$awesome_deps_save_dir"
                         cp -a "$awesome_config_dir/$dep" "$awesome_deps_save_dir/$dep"
                         awesome_deps+=("$dep")
                     fi
@@ -582,6 +648,7 @@ main() {
         # Restore AwesomeWM external dependencies after copying
         if [ ${#awesome_deps[@]} -gt 0 ] && [ -d "$awesome_deps_save_dir" ]; then
             awesome_config_dir="$HOME/.config/awesome"
+            local dep
             for dep in "${awesome_deps[@]}"; do
                 if [ -d "$awesome_deps_save_dir/$dep" ]; then
                     log_info "Restoring AwesomeWM dependency: $dep"
@@ -593,13 +660,14 @@ main() {
 
         # Check and install Alacritty themes
         if command -v alacritty >/dev/null 2>&1; then
-            alacritty_config_dir="$HOME/.config/alacritty"
-            alacritty_themes_dir="$alacritty_config_dir/themes"
+            local alacritty_config_dir="$HOME/.config/alacritty"
+            local alacritty_themes_dir="$alacritty_config_dir/themes"
 
             if [ ! -d "$alacritty_themes_dir" ]; then
                 log_info "Installing Alacritty themes"
                 if command -v git >/dev/null 2>&1; then
-                    git clone --depth 1 git@github.com:alacritty/alacritty-theme.git "$alacritty_themes_dir" || \
+                    # HTTPS for parity with TPM clone (no SSH key required).
+                    git clone --depth 1 https://github.com/alacritty/alacritty-theme.git "$alacritty_themes_dir" || \
                         log_warn "Failed to clone alacritty-themes, please install it manually"
                 else
                     log_warn "git not found, cannot install alacritty-themes automatically"
@@ -608,19 +676,19 @@ main() {
         fi
 
         # Process architecture and distro-specific configurations
-        if [[ "$distro" == "arch" ]]; then
+        if [[ "${distro:-}" == "arch" ]]; then
             log_info "Processing Arch Linux configurations..."
             process_configs arch_x86_64_configs
-        elif [[ "$distro" == "ubuntu" ]]; then
+        elif [[ "${distro:-}" == "ubuntu" ]]; then
             # Warn when the Ubuntu system package is missing, but do not install it automatically.
             if command -v dpkg >/dev/null 2>&1 && ! dpkg -l redshift 2>/dev/null | grep -q '^ii'; then
                 log_warn "redshift is not installed; skipping redshift-dependent behavior"
             fi
 
-            if [[ "$arch" == "aarch64" ]]; then
+            if [[ "${arch:-}" == "aarch64" ]]; then
                 log_info "Processing Ubuntu ARM64 configurations..."
                 process_configs ubuntu_aarch64_configs
-            elif [[ "$arch" == "x86_64" ]]; then
+            elif [[ "${arch:-}" == "x86_64" ]]; then
                 log_info "Processing Ubuntu AMD64 configurations..."
                 process_configs ubuntu_amd64_configs
             fi

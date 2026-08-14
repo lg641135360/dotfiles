@@ -2,12 +2,8 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 SYSTEM_WIDGETS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/system.lua
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
 
 test_system_widgets_detect_battery_devices() {
     grep -F 'local function find_battery_paths()' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||

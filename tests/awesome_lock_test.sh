@@ -2,39 +2,8 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
-
-assert_file_exists() {
-    [ -e "$1" ] || fail "expected file to exist: $1"
-}
-
-assert_not_contains() {
-    needle=$1
-    file=$2
-
-    if grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "did not expect '$needle' in $file"
-    fi
-}
-
-assert_contains() {
-    needle=$1
-    file=$2
-
-    if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "expected '$needle' in $file"
-    fi
-}
-
-link_cmd() {
-    cmd=$1
-    target_dir=$2
-    ln -s "$(command -v "$cmd")" "$target_dir/$cmd"
-}
+. "$REPO_ROOT/tests/lib/assert.sh"
+. "$REPO_ROOT/tests/lib/sandbox.sh"
 
 test_install_copies_lock_script_without_i3lock() {
     tmpdir=$(mktemp -d)

@@ -2,6 +2,7 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 RC_FILE=$REPO_ROOT/.config/linux/awesome/rc.lua
 BINDINGS_FILE=$REPO_ROOT/.config/linux/awesome/bindings.lua
 WIBAR_FILE=$REPO_ROOT/.config/linux/awesome/ui/wibar.lua
@@ -19,29 +20,6 @@ CLIENT_POLICIES_FILE=$REPO_ROOT/.config/linux/awesome/client/policies.lua
 CLIENT_RULES_FILE=$REPO_ROOT/.config/linux/awesome/client/rules.lua
 CLIENT_DECORATIONS_FILE=$REPO_ROOT/.config/linux/awesome/client/decorations.lua
 README_FILE=$REPO_ROOT/.config/linux/awesome/README.md
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
-
-assert_contains() {
-    needle=$1
-    file=$2
-
-    if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "expected '$needle' in $file"
-    fi
-}
-
-assert_not_contains() {
-    needle=$1
-    file=$2
-
-    if grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "did not expect '$needle' in $file"
-    fi
-}
 
 assert_line_before() {
     first=$1

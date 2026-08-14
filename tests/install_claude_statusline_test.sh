@@ -2,34 +2,12 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
+. "$REPO_ROOT/tests/lib/sandbox.sh"
 INSTALL_FILE=$REPO_ROOT/install.sh
 STATUSLINE_FILE=$REPO_ROOT/.config/shared/cc/statusline.sh
 README_FILE=$REPO_ROOT/README.md
 CC_README_FILE=$REPO_ROOT/.config/shared/cc/README.md
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
-
-assert_file_exists() {
-    [ -e "$1" ] || fail "expected file to exist: $1"
-}
-
-assert_contains() {
-    needle=$1
-    file=$2
-
-    if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
-        fail "expected '$needle' in $file"
-    fi
-}
-
-link_cmd() {
-    cmd=$1
-    target_dir=$2
-    ln -s "$(command -v "$cmd")" "$target_dir/$cmd"
-}
 
 test_statusline_script_renders_claude_payload() {
     if ! command -v jq >/dev/null 2>&1; then

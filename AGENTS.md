@@ -40,7 +40,7 @@
 
 ## 操作前约束
 
-- 必须读取项目中的 `memory/` 相关文件，了解格式规范、整理偏好和长期个人偏好。默认先读 `memory/organizing_preferences.md`，再按任务路径或关键词读取对应模块（`awesome.md` / `nvim.md` / `tmux.md` / `rofi.md` / `alacritty.md` / `desktop.md` / `git.md`）；默认不要全量读取所有模块 memory。只有跨模块评估、证据不足、用户明确要求完整背景，或当前任务确实会同时影响多个模块时，才扩大读取范围。
+- 必须读取项目中的 `memory/` 相关文件，了解格式规范、整理偏好和长期个人偏好。默认先读 `memory/organizing_preferences.md`，再按任务路径或关键词读取对应模块（`awesome.md` / `nvim.md` / `tmux.md` / `rofi.md` / `alacritty.md` / `desktop.md` / `niri.md` / `waybar.md` / `git.md` / `codex.md` / `dingtalk.md`）；默认不要全量读取所有模块 memory。只有跨模块评估、证据不足、用户明确要求完整背景，或当前任务确实会同时影响多个模块时，才扩大读取范围。
 - 操作前先读取 `USER.md`（用户偏好）和 `SOUL.md`（人格与沟通风格），了解服务对象的基本信息。
 - `logs/trace.md` 默认按当前任务关键词、相近主题或最近记录读取最相关的约 10 条历史；只有用户明确要求完整历史、任务依赖全局时间线、局部检索证据不足，或更高优先级指令明确要求时，才扩大读取范围。只读评估不更新 `logs/trace.md`。
 - 开始修改前先确认当前任务范围：只读分析、仓库文件修改、live 配置同步、桌面/运行态重载、提交推送分别视为不同副作用层级。
@@ -102,8 +102,22 @@
 | Awesome 配置 | `tests/awesome_*_test.sh` 相关测试 |
 | nvim 配置 | `tests/nvim_*_test.sh` 相关测试 |
 | tmux 配置 | `tests/tmux_*_test.sh` 相关测试 |
+| niri / Wayland 桌面 | `tests/niri_config_test.sh` + `tests/waybar_config_test.sh` + `tests/wayland_scripts_test.sh` + `tests/install_wayland_test.sh` |
+| mako | `tests/mako_config_test.sh` |
+| fuzzel | `tests/fuzzel_config_test.sh` |
+| aerospace (macOS) | `tests/aerospace_config_test.sh` |
+| alacritty / kitty / picom / rofi / starship | 各自 `tests/*_config_test.sh` |
+| zsh | `tests/zsh_*_test.sh` |
+| git 配置 | `tests/git_config_test.sh` |
+| x11 | `tests/x11_config_test.sh` |
+| ssh 配置 | `tests/ssh_config_test.sh` |
+| dingtalk / corplink | `tests/dingtalk_hook_test.sh` / `tests/corplink_service_test.sh` |
+| install.sh | `tests/install_*_test.sh` |
+| archive_trace | `tests/archive_trace_test.sh` + `npm --prefix scripts run typecheck` |
 | 跨模块改动 | `tests/run.sh` 或涉及模块的全部测试 |
 | 提示词系统 | `tests/repo_docs_test.sh` |
+
+`./tests/run.sh fast` 聚合运行除 `nvim_*_test.sh` 外的全部测试（nvim 启动开销大，日常迭代用 fast；CI 或全量回归用 `./tests/run.sh full`）。`./tests/run.sh list` 列出将运行的文件，`--dry-run` 仅打印不执行。
 
 ### 验证失败处理
 

@@ -27,8 +27,6 @@ test_exported_xshm_attach_initializes_and_delegates() {
     fi
 }
 
-test_exported_xshm_attach_initializes_and_delegates
-
 test_launcher_defaults_to_native_wayland_capture_with_opt_in_x11_hook() {
     launcher=$REPO_ROOT/.config/scripts/dingtalk-wayland
     payload=$REPO_ROOT/tools/dingtalk-wayland-screenshare/payload.hpp
@@ -43,8 +41,6 @@ test_launcher_defaults_to_native_wayland_capture_with_opt_in_x11_hook() {
     assert_contains 'native Wayland/PipeWire capture' "$launcher"
 }
 
-test_launcher_defaults_to_native_wayland_capture_with_opt_in_x11_hook
-
 test_portal_async_calls_use_the_global_main_context_without_forced_thread_default() {
     payload_hpp=$REPO_ROOT/tools/dingtalk-wayland-screenshare/payload.hpp
     payload_cpp=$REPO_ROOT/tools/dingtalk-wayland-screenshare/payload.cpp
@@ -53,8 +49,6 @@ test_portal_async_calls_use_the_global_main_context_without_forced_thread_defaul
         fail 'libportal 0.7 calls must not force the process-global context as thread-default'
     fi
 }
-
-test_portal_async_calls_use_the_global_main_context_without_forced_thread_default
 
 test_restart_cleans_dingtalk_and_tblive_processes() {
     launcher=$REPO_ROOT/.config/scripts/dingtalk-wayland
@@ -69,8 +63,6 @@ test_restart_cleans_dingtalk_and_tblive_processes() {
     assert_not_contains 'pgrep -f' "$launcher"
 }
 
-test_restart_cleans_dingtalk_and_tblive_processes
-
 test_launcher_waits_for_portal_without_managing_services() {
     launcher=$REPO_ROOT/.config/scripts/dingtalk-wayland
     assert_contains 'portal_backend_has_screencast()' "$launcher"
@@ -82,8 +74,6 @@ test_launcher_waits_for_portal_without_managing_services() {
     assert_not_contains 'Screen sharing through the DingTalk Wayland hook needs PipeWire' "$launcher"
     assert_not_contains 'systemctl --user restart' "$launcher"
 }
-
-test_launcher_waits_for_portal_without_managing_services
 
 test_portal_create_failure_cancels_without_hanging_tblive() {
     payload_hpp=$REPO_ROOT/tools/dingtalk-wayland-screenshare/payload.hpp
@@ -100,5 +90,11 @@ test_portal_create_failure_cancels_without_hanging_tblive() {
     assert_contains 'niri --session' "$REPO_ROOT/.config/linux/niri/README.md"
 }
 
+test_exported_xshm_attach_initializes_and_delegates
+test_launcher_defaults_to_native_wayland_capture_with_opt_in_x11_hook
+test_portal_async_calls_use_the_global_main_context_without_forced_thread_default
+test_restart_cleans_dingtalk_and_tblive_processes
+test_launcher_waits_for_portal_without_managing_services
 test_portal_create_failure_cancels_without_hanging_tblive
+
 printf 'PASS: dingtalk hook tests\n'

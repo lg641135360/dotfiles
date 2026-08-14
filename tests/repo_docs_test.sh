@@ -21,6 +21,14 @@ assert_contains '├── .config/' "$ROOT_README"
 assert_contains '│   │   ├── nvim/' "$ROOT_README"
 assert_contains '│   │   ├── awesome/' "$ROOT_README"
 assert_contains '│   │   ├── niri/' "$ROOT_README"
+# Structure tree must list entries added in Batch G sync.
+assert_contains 'starship.toml' "$ROOT_README"
+assert_contains 'Brewfile' "$ROOT_README"
+assert_contains 'desktop-entries/' "$ROOT_README"
+assert_contains 'kitty/' "$ROOT_README"
+assert_contains 'defaults.sh' "$ROOT_README"
+assert_contains '├── scripts/' "$ROOT_README"
+assert_contains 'TypeScript 工具' "$ROOT_README"
 assert_contains '├── tests/' "$ROOT_README"
 assert_not_contains '│   ├── tests/' "$ROOT_README"
 assert_not_contains '- kitty' "$ROOT_README"
@@ -104,5 +112,25 @@ assert_contains 'dingtalk-wayland' "$REPO_ROOT/.config/scripts/README.md"
 # Git memory
 assert_contains 'core.editor = vim' "$GIT_MEMORY"
 assert_not_contains 'core.editor = nvim' "$GIT_MEMORY"
+
+# AGENTS.md memory index must match the actual memory/*.md set (excluding
+# organizing_preferences.md which is the entry point, not a module file).
+# Drift here means new modules are silently unreadable because the agent
+# doesn't know to read them.
+agents_index=$(grep -oE 'awesome\.md|nvim\.md|tmux\.md|rofi\.md|alacritty\.md|desktop\.md|niri\.md|waybar\.md|git\.md|codex\.md|dingtalk\.md' "$AGENTS_DOC" | sort -u)
+actual_modules=$(ls "$REPO_ROOT"/memory/*.md 2>/dev/null | xargs -n1 basename | grep -vx 'organizing_preferences.md' | sort -u)
+[ "$agents_index" = "$actual_modules" ] ||
+    fail "AGENTS.md memory index drifts from memory/*.md: expected [$actual_modules], got [$agents_index]"
+
+# organizing_preferences.md must list the same module set as AGENTS.md.
+org_index=$(grep -oE 'awesome\.md|nvim\.md|tmux\.md|rofi\.md|alacritty\.md|desktop\.md|niri\.md|waybar\.md|git\.md|codex\.md|dingtalk\.md' "$REPO_ROOT/memory/organizing_preferences.md" | sort -u)
+[ "$org_index" = "$actual_modules" ] ||
+    fail "organizing_preferences.md memory index drifts from memory/*.md: expected [$actual_modules], got [$org_index]"
+
+# G5/G6: README files for tooling directories.
+assert_file_exists "$REPO_ROOT/scripts/README.md"
+assert_contains 'archive_trace' "$REPO_ROOT/scripts/README.md"
+assert_file_exists "$REPO_ROOT/.config/linux/desktop-entries/README.md"
+assert_contains 'browser-wayland' "$REPO_ROOT/.config/linux/desktop-entries/README.md"
 
 printf 'PASS: repo docs tests\n'

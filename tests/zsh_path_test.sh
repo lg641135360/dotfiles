@@ -2,14 +2,10 @@
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$REPO_ROOT/tests/lib/assert.sh"
 PATH_FILE=$REPO_ROOT/.config/shared/zsh/path.zsh
 ENV_FILE=$REPO_ROOT/.config/shared/zsh/env.zsh
 ZSH_BIN=$(command -v zsh || true)
-
-fail() {
-    printf 'FAIL: %s\n' "$1" >&2
-    exit 1
-}
 
 assert_path_contains() {
     needle=$1

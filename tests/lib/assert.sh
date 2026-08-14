@@ -1,4 +1,12 @@
 # Shared shell assertions for repository tests.
+#
+# POSIX-only subset. Sourced by tests that use `#!/bin/sh` and tests
+# that use `#!/bin/bash` alike. Functions exit with status 1 on hard
+# failures; skip helpers emit SKIP markers and return the runner's
+# SKIP_EXIT_CODE (default 77) so tests/run.sh can count them.
+
+# Honor a caller-provided SKIP_EXIT_CODE so tests can override it if needed.
+SKIP_EXIT_CODE=${SKIP_EXIT_CODE:-77}
 
 fail() {
     printf 'FAIL: %s\n' "$1" >&2
@@ -89,4 +97,54 @@ assert_output_not_contains() {
     if printf '%s\n' "$value" | grep -F -- "$needle" >/dev/null 2>&1; then
         fail "did not expect output '$value' to contain '$needle'"
     fi
+}
+
+assert_exit_code() {
+    expected=$1
+    actual=$2
+    label=${3:-command}
+
+    [ "$expected" = "$actual" ] ||
+        fail "expected $label to exit with $expected, got $actual"
+}
+
+# Accepts an octal mode (e.g. 755) and a path. stat -c '%a' is GNU stat;
+# BSD stat uses -f '%Lp' — fall back to it for macOS / BSD test runs.
+assert_file_mode() {
+    expected_mode=$1
+    path=$2
+
+    if stat -c '%a' "$path" >/dev/null 2>&1; then
+        actual_mode=$(stat -c '%a' "$path")
+    else
+        actual_mode=$(stat -f '%Lp' "$path" 2>/dev/null) ||
+            fail "cannot stat mode of $path"
+    fi
+
+    [ "$actual_mode" = "$expected_mode" ] ||
+        fail "expected $path mode $expected_mode, got $actual_mode"
+}
+
+# skip_unless <cmd>
+# Prints a SKIP marker and returns SKIP_EXIT_CODE when the command is
+# unavailable. The caller is expected to forward the return value:
+#
+#   skip_unless jq || return $?
+#   ...uses jq...
+skip_unless() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        printf 'SKIP: %s not available\n' "$1" >&2
+        return "$SKIP_EXIT_CODE"
+    fi
+    return 0
+}
+
+# skip_unless_platform <os>
+# Compares against uname -s.
+skip_unless_platform() {
+    if [ "$(uname -s)" != "$1" ]; then
+        printf 'SKIP: requires %s, got %s\n' "$1" "$(uname -s)" >&2
+        return "$SKIP_EXIT_CODE"
+    fi
+    return 0
 }

@@ -42,13 +42,12 @@ interface SubEntry {
  * 格式 2 是 `## YYYY-MM-DD — 标题\n\n正文`（重写 trace.md 时按日期分组避免重复 ## 行）。
  */
 export function splitEntries(text: string): { header: string; subEntries: SubEntry[] } {
-  const firstDayMatch = [...text.matchAll(DAY_RE)][0];
-  if (!firstDayMatch) {
+  const dayMatches = [...text.matchAll(DAY_RE)];
+  if (dayMatches.length === 0) {
     return { header: text, subEntries: [] };
   }
-  const header = text.slice(0, firstDayMatch.index ?? 0).trimEnd();
+  const header = text.slice(0, dayMatches[0].index ?? 0).trimEnd();
 
-  const dayMatches = [...text.matchAll(DAY_RE)];
   const subEntries: SubEntry[] = [];
 
   for (let i = 0; i < dayMatches.length; i++) {
@@ -60,7 +59,7 @@ export function splitEntries(text: string): { header: string; subEntries: SubEnt
     const month = `${m[1]}-${m[2]}`;
     const fullTitleLine = dayBlock.split(/\r?\n/, 1)[0]; // 完整 ## 行
     const restLines = dayBlock.split(/\r?\n/).slice(1);
-    const attachedTitle = m[0]?.replace(/^## \d{4}-\d{2}-\d{2}\s*/, "").replace(/^[—\-]\s*/, "").trim() ?? "";
+    const attachedTitle = m[0].replace(/^## \d{4}-\d{2}-\d{2}\s*/, "").replace(/^[—\-]\s*/, "").trim();
 
     if (attachedTitle) {
       // 格式 2：## YYYY-MM-DD — 变更标题 + 正文，整段是一条子条目
@@ -75,7 +74,9 @@ export function splitEntries(text: string): { header: string; subEntries: SubEnt
       }
     } else {
       // 格式 1：## YYYY-MM-DD + 一个或多个 ### 子条目
+      // 日期标题与首个 ### 之间的导言段落附加到首个子条目（避免静默丢弃）。
       let currentSub: string[] | null = null;
+      let preamble: string[] = [];
       for (const line of restLines) {
         if (/^### .+/.test(line)) {
           if (currentSub !== null) {
@@ -86,9 +87,20 @@ export function splitEntries(text: string): { header: string; subEntries: SubEnt
               month,
             });
           }
-          currentSub = [line];
+          // Prepend any preamble to this sub-entry's rawText.
+          if (preamble.length > 0 && currentSub === null) {
+            currentSub = [line, ...preamble, ""];
+            preamble = [];
+          } else {
+            currentSub = [line];
+          }
         } else if (currentSub !== null) {
           currentSub.push(line);
+        } else {
+          // Lines before the first ### are collected as preamble.
+          if (line.trim() !== "") {
+            preamble.push(line);
+          }
         }
       }
       if (currentSub !== null) {
@@ -98,15 +110,22 @@ export function splitEntries(text: string): { header: string; subEntries: SubEnt
           day,
           month,
         });
+      } else if (preamble.length > 0) {
+        // Date heading with preamble but no ### subsections: treat as a single entry.
+        const body = preamble.join("\n").trim();
+        if (body) {
+          subEntries.push({
+            rawText: `${fullTitleLine}\n\n${body}\n`,
+            heading: fullTitleLine,
+            day,
+            month,
+          });
+        }
       }
     }
   }
 
   return { header, subEntries };
-}
-
-export function entryMonth(entry: SubEntry): string {
-  return entry.month;
 }
 
 /**
@@ -126,10 +145,17 @@ function archiveHeader(month: string): string {
 
 export function main(argv = process.argv.slice(2)): number {
   const args = parseArgs(argv);
-  const keep = Number(args.keep ?? 5);
   const root = repoRoot();
   const tracePath = path.join(root, "logs", "trace.md");
   const archiveDir = path.join(root, "logs", "trace-archive");
+
+  // Validate --keep: must be a non-negative integer.
+  const keepRaw = args.keep ?? 5;
+  const keep = Number(keepRaw);
+  if (!Number.isInteger(keep) || keep < 0 || keep > 1000) {
+    console.error(`Invalid --keep value: ${String(keepRaw)} (expected integer in [0, 1000])`);
+    return 2;
+  }
 
   if (!isFile(tracePath)) {
     console.error(`Trace file not found: ${tracePath}`);
@@ -187,12 +213,19 @@ export function main(argv = process.argv.slice(2)): number {
     try {
       existing = readText(archivePath);
     } catch {
+      existing = "";
+    }
+    // Ensure archive header exists (file may exist but be empty or lack header).
+    if (!existing.includes("# Trace Archive")) {
       existing = archiveHeader(month);
     }
+    // Deduplicate by exact full-line match of the entry's first line.
+    const existingLines = new Set(existing.split(/\r?\n/));
     for (const entry of monthEntries) {
       const firstLine = entry.rawText.split(/\r?\n/)[0];
-      if (!existing.includes(firstLine)) {
+      if (!existingLines.has(firstLine)) {
         existing = existing.trimEnd() + "\n\n" + entry.rawText.trim() + "\n";
+        existingLines.add(firstLine);
       }
     }
     writeText(archivePath, existing);

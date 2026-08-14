@@ -3,12 +3,7 @@ set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$REPO_ROOT/tests/lib/assert.sh"
-
-link_cmd() {
-    cmd=$1
-    target_dir=$2
-    ln -s "$(command -v "$cmd")" "$target_dir/$cmd"
-}
+. "$REPO_ROOT/tests/lib/sandbox.sh"
 
 test_install_warns_when_redshift_missing_on_ubuntu() {
     if [ ! -f /etc/os-release ] || ! grep -q '^ID=ubuntu$' /etc/os-release; then

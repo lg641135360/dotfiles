@@ -22,6 +22,7 @@ docs/superpowers/
 
 # Local build outputs
 tools/dingtalk-wayland-screenshare/build/
+/build/
 
 # OMX runtime state
 .omx/
