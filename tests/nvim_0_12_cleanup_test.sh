@@ -1345,7 +1345,7 @@ require_pattern 'diagnostics = \{ globals = \{ "vim" \} \}' "$NVIM/lua/plugins/l
 require_pattern 'checkThirdParty = false' "$NVIM/lua/plugins/lsp.lua" "lua_ls workspace checkThirdParty setting must remain"
 require_pattern 'library = vim\.api\.nvim_get_runtime_file\("", true\)' "$NVIM/lua/plugins/lsp.lua" "lua_ls should explicitly expose Neovim runtime files without neodev"
 require_pattern 'telemetry = \{ enable = false \}' "$NVIM/lua/plugins/lsp.lua" "lua_ls telemetry settings must remain"
-require_pattern '--compile-commands-dir=build' "$NVIM/lua/plugins/lsp.lua" "clangd compile commands flag must remain"
+reject_pattern '--compile-commands-dir=build' "$NVIM/lua/plugins/lsp.lua" "shared clangd config should not hardcode the build directory"
 require_pattern '--clang-tidy' "$NVIM/lua/plugins/lsp.lua" "clangd clang-tidy flag must remain"
 require_pattern 'CMakeLists.txt' "$NVIM/lua/plugins/lsp.lua" "clangd should use CMakeLists.txt as a root marker for non-git CMake projects"
 require_pattern 'CMakePresets.json' "$NVIM/lua/plugins/lsp.lua" "clangd should use CMakePresets.json as a root marker for preset-driven CMake projects"

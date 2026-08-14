@@ -100,6 +100,15 @@
 - 提交推送：未提交、未推送。
 
 
+## 2026-08-14 — CMake 编译数据库改为项目根目录软链接
+
+- 目的：移除共享 clangd 配置对 `build` 目录的硬编码，让不同项目自行决定编译数据库位置。
+- 已做：在 nvim 子模块新增 `:CMakeCompileCommands`；检查 `build/compile_commands.json` 后创建相对软链接 `compile_commands.json -> build/compile_commands.json`；`:CMakeConfigure` 成功后自动调用；缺失数据库、已有普通文件或指向其他位置的链接均拒绝覆盖；移除 clangd 的 `--compile-commands-dir=build`。
+- 验证：全部 `tests/nvim_*_test.sh` 通过；新增测试覆盖数据库缺失、相对链接创建、幂等、普通文件拒绝覆盖和错误链接保留；Lua 语法检查、父仓库/子模块 `git diff --check` 与 `tests/repo_docs_test.sh` 均通过。
+- live 同步：未同步。
+- 提交推送：Neovim 子模块已提交 `7275065`，父仓库同步提交子模块指针、测试与 trace；未推送。
+
+
 ## 2026-08-13 — starship 替换为 catppuccin-powerline 预设
 
 - 目的：用户希望尝试社区现成方案，整体替换原有简洁配置。
