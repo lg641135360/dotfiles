@@ -109,6 +109,17 @@ export function entryMonth(entry: SubEntry): string {
   return entry.month;
 }
 
+/**
+ * 日期新的条目优先；同一天没有更细粒度时间戳时，以文档中后出现的条目为新。
+ * trace.md 采用追加写入，因此同日必须反转原始顺序，不能依赖稳定排序保留最早项。
+ */
+export function sortEntriesNewestFirst(entries: SubEntry[]): SubEntry[] {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => b.entry.day.localeCompare(a.entry.day) || b.index - a.index)
+    .map(({ entry }) => entry);
+}
+
 function archiveHeader(month: string): string {
   return `# Trace Archive ${month}\n\n> 本文件为按月归档的历史 trace。默认任务不读取本文件；只有用户明确要求或任务依赖历史背景时才按需查看。\n\n`;
 }
@@ -140,7 +151,7 @@ export function main(argv = process.argv.slice(2)): number {
 
   // 按日期降序排序（最新在前），保留前 keep 条，其余归档。
   // trace.md 文档内的 ## YYYY-MM-DD 标题顺序未必是时间序，必须显式按日期排序。
-  const sorted = [...subEntries].sort((a, b) => b.day.localeCompare(a.day));
+  const sorted = sortEntriesNewestFirst(subEntries);
   const keepEntries = sorted.slice(0, keep);
   const archiveEntries = sorted.slice(keep);
 
