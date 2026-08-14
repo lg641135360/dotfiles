@@ -829,7 +829,8 @@ test_readme_documents_ubuntu_x64_snipaste_candidates() {
 test_install_keeps_lain_removed_from_awesome_dependencies() {
     assert_not_contains 'for dep in lain collision; do' "$INSTALL_FILE"
     assert_not_contains 'https://github.com/lcpz/lain.git' "$INSTALL_FILE"
-    assert_contains 'for dep in collision; do' "$INSTALL_FILE"
+    assert_contains 'awesome_external_deps=(collision)' "$INSTALL_FILE"
+    assert_contains 'for dep in "${awesome_external_deps[@]}"' "$INSTALL_FILE"
 }
 
 test_install_does_not_overwrite_root_wrapper_with_platform_script() {

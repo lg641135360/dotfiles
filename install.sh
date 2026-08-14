@@ -184,6 +184,17 @@ process_config() {
     copy_config "$source" "$target" "$name"
 }
 
+# Iterate a `check_cmd|source|target|name` array and dispatch each entry to process_config.
+# Usage: process_configs shared_configs / linux_configs / ...
+process_configs() {
+    local -n _configs_ref="$1"
+    local config check_cmd source target name
+    for config in "${_configs_ref[@]}"; do
+        IFS='|' read -r check_cmd source target name <<< "$config"
+        process_config "$check_cmd" "$source" "$target" "$name"
+    done
+}
+
 ensure_zdotdir() {
     local zshenv="$HOME/.zshenv"
     local export_line='export ZDOTDIR=$HOME/.config/zsh'
@@ -324,7 +335,6 @@ macos_configs=(
 )
 
 linux_configs=(
-    # "command -v i3|.config/linux/i3/config|~/.config/i3/config|i3wm"
     "command -v alacritty|.config/shared/alacritty/keys.linux.toml|~/.config/alacritty/keys.toml|Alacritty keys"
     "command -v alacritty|.config/shared/alacritty/window.linux.toml|~/.config/alacritty/window.toml|Alacritty window"
     "command -v rofi|.config/linux/rofi/config.rasi|~/.config/rofi/config.rasi|Rofi"
@@ -456,10 +466,7 @@ main() {
 
     # Process shared configurations
     log_info "Processing shared configurations..."
-    for config in "${shared_configs[@]}"; do
-        IFS='|' read -r check_cmd source target name <<< "$config"
-        process_config "$check_cmd" "$source" "$target" "$name"
-    done
+    process_configs shared_configs
 
     # Check and install TPM (Tmux Plugin Manager)
     if command -v tmux >/dev/null 2>&1; then
@@ -477,28 +484,19 @@ main() {
 
     # Process directory configurations
     log_info "Processing directory configurations..."
-    for config in "${shared_dir_configs[@]}"; do
-        IFS='|' read -r check_cmd source target name <<< "$config"
-        process_config "$check_cmd" "$source" "$target" "$name"
-    done
+    process_configs shared_dir_configs
 
     # Process Zsh file configurations
     log_info "Processing Zsh file configurations..."
     if command -v zsh >/dev/null 2>&1; then
         ensure_zdotdir
     fi
-    for config in "${zsh_files[@]}"; do
-        IFS='|' read -r check_cmd source target name <<< "$config"
-        process_config "$check_cmd" "$source" "$target" "$name"
-    done
+    process_configs zsh_files
 
     # Process .zshrc.pre only if grml-zsh is installed
     if [[ -f /etc/zsh/zshrc ]] && grep -q "grml" /etc/zsh/zshrc 2>/dev/null; then
         log_info "Detected grml-zsh, installing .zshrc.pre..."
-        for config in "${zshrc_pre_files[@]}"; do
-            IFS='|' read -r check_cmd source target name <<< "$config"
-            process_config "$check_cmd" "$source" "$target" "$name"
-        done
+        process_configs zshrc_pre_files
     else
         log_info "grml-zsh not detected, skipping .zshrc.pre"
     fi
@@ -506,10 +504,7 @@ main() {
     # Process OS-specific configurations
     if [[ "$os" == "Darwin" ]]; then
         log_info "Processing macOS configurations..."
-        for config in "${macos_configs[@]}"; do
-            IFS='|' read -r check_cmd source target name <<< "$config"
-            process_config "$check_cmd" "$source" "$target" "$name"
-        done
+        process_configs macos_configs
 
         # Check optional macOS dependencies
         if ! command -v borders &> /dev/null; then
@@ -532,17 +527,11 @@ main() {
             log_info "Linux Brewfile found — run: brew bundle --file $cur_path/.config/linux/Brewfile"
         fi
 
-        for config in "${linux_configs[@]}"; do
-            IFS='|' read -r check_cmd source target name <<< "$config"
-            process_config "$check_cmd" "$source" "$target" "$name"
-        done
+        process_configs linux_configs
 
         if command -v niri >/dev/null 2>&1; then
             log_info "niri found, processing Wayland configurations..."
-            for config in "${linux_wayland_configs[@]}"; do
-                IFS='|' read -r check_cmd source target name <<< "$config"
-                process_config "$check_cmd" "$source" "$target" "$name"
-            done
+            process_configs linux_wayland_configs
 
             # Desktop entries embed a __HOME__ placeholder so the repo stays
             # portable across machines/users; substitute the real $HOME at
@@ -562,12 +551,13 @@ main() {
 
         # Save AwesomeWM external dependencies before copying
         # (copy_config backs up the entire dir, which would overwrite freshly cloned deps)
+        awesome_external_deps=(collision)
         awesome_deps=()
         awesome_deps_save_dir="/tmp/awesome_deps_$$"
         if command -v awesome >/dev/null 2>&1; then
             awesome_config_dir="$HOME/.config/awesome"
             if [ -d "$awesome_config_dir" ]; then
-                for dep in collision; do
+                for dep in "${awesome_external_deps[@]}"; do
                     if [ -d "$awesome_config_dir/$dep" ]; then
                         log_info "Saving AwesomeWM dependency: $dep"
                         mkdir -p "$awesome_deps_save_dir"
@@ -580,18 +570,12 @@ main() {
 
         # Process Linux directory configurations
         log_info "Processing Linux directory configurations..."
-        for config in "${linux_dir_configs[@]}"; do
-            IFS='|' read -r check_cmd source target name <<< "$config"
-            process_config "$check_cmd" "$source" "$target" "$name"
-        done
+        process_configs linux_dir_configs
 
         if command -v niri >/dev/null 2>&1; then
             log_info "Processing Wayland directory configurations..."
             install_niri_config_for_platform
-            for config in "${linux_wayland_dir_configs[@]}"; do
-                IFS='|' read -r check_cmd source target name <<< "$config"
-                process_config "$check_cmd" "$source" "$target" "$name"
-            done
+            process_configs linux_wayland_dir_configs
             install_waybar_config_for_platform
         fi
 
@@ -626,10 +610,7 @@ main() {
         # Process architecture and distro-specific configurations
         if [[ "$distro" == "arch" ]]; then
             log_info "Processing Arch Linux configurations..."
-            for config in "${arch_x86_64_configs[@]}"; do
-                IFS='|' read -r check_cmd source target name <<< "$config"
-                process_config "$check_cmd" "$source" "$target" "$name"
-            done
+            process_configs arch_x86_64_configs
         elif [[ "$distro" == "ubuntu" ]]; then
             # Warn when the Ubuntu system package is missing, but do not install it automatically.
             if command -v dpkg >/dev/null 2>&1 && ! dpkg -l redshift 2>/dev/null | grep -q '^ii'; then
@@ -638,16 +619,10 @@ main() {
 
             if [[ "$arch" == "aarch64" ]]; then
                 log_info "Processing Ubuntu ARM64 configurations..."
-                for config in "${ubuntu_aarch64_configs[@]}"; do
-                    IFS='|' read -r check_cmd source target name <<< "$config"
-                    process_config "$check_cmd" "$source" "$target" "$name"
-                done
+                process_configs ubuntu_aarch64_configs
             elif [[ "$arch" == "x86_64" ]]; then
                 log_info "Processing Ubuntu AMD64 configurations..."
-                for config in "${ubuntu_amd64_configs[@]}"; do
-                    IFS='|' read -r check_cmd source target name <<< "$config"
-                    process_config "$check_cmd" "$source" "$target" "$name"
-                done
+                process_configs ubuntu_amd64_configs
             fi
         fi
     else

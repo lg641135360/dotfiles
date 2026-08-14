@@ -32,6 +32,7 @@
 │   └── scripts/         # 辅助脚本
 │       ├── lock/              # X11 锁屏
 │       ├── lock-wayland/      # Wayland 锁屏
+│       ├── corplink-service/  # 飞连服务临时管理
 │       ├── rofi-launch/       # Rofi 启动脚本
 │       ├── wayland-autostart/ # Wayland 自启动
 │       ├── dingtalk-wayland/  # 钉钉 Wayland 屏幕共享
@@ -39,7 +40,11 @@
 │       ├── file-manager-wayland/ # Wayland 文件管理器选择
 │       ├── launcher-wayland/  # Wayland 启动器
 │       ├── screenshot-wayland/ # Wayland 截图
-│       └── wallpaper-wayland/ # Wayland 壁纸
+│       ├── wallpaper-wayland/ # Wayland 壁纸
+│       ├── wallpaper-wayland-next/ # Wayland 壁纸（下一张）
+│       ├── browser-wayland/   # Wayland Chrome 启动器
+│       ├── trae-cn-wayland/   # Wayland Trae CN 启动器
+│       └── waybar-system-tooltip/ # Waybar CPU/MEM tooltip 后端
 ├── tests/           # 回归测试
 │   ├── run.sh       # 测试运行器
 │   └── lib/         # 测试工具库

@@ -50,10 +50,6 @@ if [[ -x "$(command -v fzf)" ]]; then
         function preview() {
             open "$(fzf --info=inline --query="${@}")"
         }
-    else
-        function preview() {
-            edit "$(fzf --info=inline --query="${@}")"
-        }
     fi
 fi
 
