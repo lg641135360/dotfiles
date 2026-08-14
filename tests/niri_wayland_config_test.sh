@@ -237,10 +237,9 @@ test_waybar_aarch64_has_battery_module() {
     assert_contains '#backlight' "$WAYBAR_STYLE"
 }
 
-test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
+test_niri_config_has_dingtalk_and_app_window_rules() {
     assert_not_contains 'com\.alibabainc\.dingtalk' "$NIRI_CONFIG"
     assert_not_contains 'tblive' "$NIRI_CONFIG"
-    assert_contains '钉钉不再由 niri window-rule 管理' "$NIRI_README"
     # Window rules and blur live in the shared common.kdl.
     assert_contains 'blur {' "$NIRI_COMMON_CONFIG"
     assert_contains 'passes 3' "$NIRI_COMMON_CONFIG"
@@ -259,6 +258,12 @@ test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
     assert_contains 'match app-id=r#"^CherryStudio$"#' "$NIRI_COMMON_CONFIG"
     assert_contains 'default-column-width { proportion 0.66667; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'match app-id=r#"^google-chrome$"#' "$NIRI_COMMON_CONFIG"
+    assert_contains 'match app-id=r#"^com\.alibabainc\.dingtalk$"#' "$NIRI_COMMON_CONFIG"
+    assert_contains '钉钉主窗口默认使用 2/3 列宽并覆盖为 1.0 不透明度' "$NIRI_README"
+    # ubuntu_aarch64/config.kdl 在 include common.kdl 后还有全局透明规则，
+    # 必须再次覆盖钉钉，确保最终生效的是 1.0。
+    assert_contains 'match app-id=r#"^com\.alibabainc\.dingtalk$"#' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'opacity 1.0' "$NIRI_AARCH64_CONFIG"
     assert_not_contains 'opacity 0.72' "$NIRI_COMMON_CONFIG"
     assert_contains 'match app-id=r#"^code$"#' "$NIRI_COMMON_CONFIG"
     assert_contains 'match app-id=r#"^trae-cn$"#' "$NIRI_COMMON_CONFIG"
@@ -297,6 +302,13 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_contains 'export INPUT_METHOD=fcitx' "$AUTOSTART_SCRIPT"
     assert_contains 'dbus-update-activation-environment --systemd' "$AUTOSTART_SCRIPT"
     assert_contains 'systemctl --user import-environment' "$AUTOSTART_SCRIPT"
+    assert_contains 'start_portal_after_niri' "$AUTOSTART_SCRIPT"
+    assert_contains 'org.gnome.Mutter.ScreenCast' "$AUTOSTART_SCRIPT"
+    assert_contains 'xdg-desktop-portal-gnome.service' "$AUTOSTART_SCRIPT"
+    assert_contains 'xdg-desktop-portal.service' "$AUTOSTART_SCRIPT"
+    assert_contains 'portal.niri-session' "$AUTOSTART_SCRIPT"
+    assert_not_contains 'run_once_logged xdg-desktop-portal' "$AUTOSTART_SCRIPT"
+    assert_contains '等待 `org.gnome.Mutter.ScreenCast`' "$NIRI_README"
     assert_contains 'fcitx5 -d --replace' "$AUTOSTART_SCRIPT"
     assert_contains 'export XCURSOR_SIZE=32' "$AUTOSTART_SCRIPT"
     assert_contains 'swaybg' "$AUTOSTART_SCRIPT"
@@ -691,7 +703,9 @@ test_dingtalk_wayland_entrypoint_preserves_preload_contract() {
     assert_contains 'libdingtalkhook.so' "$DINGTALK_SCRIPT"
     assert_contains 'PipeWire is not running' "$DINGTALK_SCRIPT"
     assert_contains 'export QT_QPA_PLATFORM=xcb' "$DINGTALK_SCRIPT"
-    assert_contains 'preload_libs="$hook_lib $preload_libs ./plugins/dtwebview/libcef.so"' "$DINGTALK_SCRIPT"
+    assert_contains 'DINGTALK_FORCE_X11_CAPTURE' "$DINGTALK_SCRIPT"
+    assert_contains 'preload_libs="$hook_lib $preload_libs"' "$DINGTALK_SCRIPT"
+    assert_contains 'preload_libs="$preload_libs ./plugins/dtwebview/libcef.so"' "$DINGTALK_SCRIPT"
     assert_contains 'export LD_PRELOAD="$preload_libs${LD_PRELOAD:+ $LD_PRELOAD}"' "$DINGTALK_SCRIPT"
     assert_contains 'DINGTALK_WAYLAND_LOG' "$DINGTALK_SCRIPT"
     assert_contains '/tmp/dingtalk-wayland.log' "$DINGTALK_SCRIPT"
@@ -700,13 +714,17 @@ test_dingtalk_wayland_entrypoint_preserves_preload_contract() {
     assert_contains 'exit 0' "$DINGTALK_SCRIPT"
     # restart 子命令：先终止当前用户名下钉钉进程，再继续走启动流程
     assert_contains 'restart)' "$DINGTALK_SCRIPT"
-    assert_contains 'pkill -u "$(id -u)" -f' "$DINGTALK_SCRIPT"
-    assert_contains 'pgrep -u "$(id -u)" -f' "$DINGTALK_SCRIPT"
-    # 问题1：pkill/pgrep/id 缺失时不得静默跳过（必须 notify+exit）
+    assert_contains 'is_owned_dingtalk_process()' "$DINGTALK_SCRIPT"
+    assert_contains 'readlink "$proc_dir/exe"' "$DINGTALK_SCRIPT"
+    assert_contains 'kill -TERM "$pid"' "$DINGTALK_SCRIPT"
+    assert_contains 'kill -KILL "$pid"' "$DINGTALK_SCRIPT"
+    assert_not_contains 'pkill -f' "$DINGTALK_SCRIPT"
+    assert_not_contains 'pgrep -f' "$DINGTALK_SCRIPT"
+    assert_contains '通过 `/proc/<pid>/exe` 精确查找' "$NIRI_README"
+    # 问题1：id/readlink 缺失时不得静默跳过（必须 notify+exit）
     assert_contains '缺少基础命令' "$DINGTALK_SCRIPT"
-    assert_contains 'for dep in pkill pgrep id' "$DINGTALK_SCRIPT"
+    assert_contains 'for dep in id readlink' "$DINGTALK_SCRIPT"
     # 问题2：SIGTERM 5 秒未退出则 SIGKILL 兜底（restart 语义是必须重启）
-    assert_contains 'pkill -9' "$DINGTALK_SCRIPT"
     assert_contains 'SIGKILL' "$DINGTALK_SCRIPT"
     # 问题3：提供 usage 帮助
     assert_contains 'print_usage' "$DINGTALK_SCRIPT"
@@ -724,6 +742,9 @@ test_dingtalk_wayland_entrypoint_preserves_preload_contract() {
     assert_contains 'mmap(nullptr, mapped_size, PROT_READ, MAP_SHARED, pw_data.fd, pw_data.mapoffset)' "$DINGTALK_SOURCE/payload.hpp"
     assert_contains 'dingtalk_debug_log' "$DINGTALK_SOURCE/helpers.hpp"
     assert_contains 'tools/dingtalk-wayland-screenshare' "$NIRI_README"
+    assert_contains 'Mod+C' "$NIRI_README"
+    assert_contains 'Elevator.sh' "$NIRI_README"
+    assert_contains '维护与兼容入口' "$NIRI_README"
     assert_contains '~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so' "$NIRI_README"
     assert_contains 'no more input formats' "$NIRI_README"
     assert_contains 'DmaBuf' "$NIRI_README"
@@ -927,6 +948,7 @@ test_waybar_and_mako_match_niri_trial_contract() {
     assert_contains 'border-color=#89b4fa' "$MAKO_CONFIG"
     assert_contains 'font=Maple Mono NF CN 11' "$MAKO_CONFIG"
     assert_contains 'border-radius=10' "$MAKO_CONFIG"
+    assert_not_contains 'icon-border-radius' "$MAKO_CONFIG"
     assert_contains '[urgency=critical]' "$MAKO_CONFIG"
 
     assert_contains '"$HOME/Pictures/wall"' "$WALLPAPER_SCRIPT"
@@ -1169,7 +1191,7 @@ test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal
 test_niri_config_uses_native_environment_cursor_and_animations
 test_waybar_drops_dead_battery_module_on_desktop_platform
 test_waybar_aarch64_has_battery_module
-test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules
+test_niri_config_has_dingtalk_and_app_window_rules
 test_niri_overview_beautification
 test_wayland_autostart_checks_apps_and_separates_logs
 test_wayland_autostart_logs_each_app_and_warns_for_missing_commands

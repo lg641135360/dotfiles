@@ -14,7 +14,6 @@ max-visible=5
 anchor=top-right
 icons=1
 max-icon-size=48
-icon-border-radius=8
 markup=1
 actions=1
 layer=overlay

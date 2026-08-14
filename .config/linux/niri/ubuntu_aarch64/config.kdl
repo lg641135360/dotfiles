@@ -33,6 +33,13 @@ window-rule {
     }
 }
 
+// common.kdl 已定义钉钉 2/3 列宽与不透明规则；这里位于平台级全局透明
+// 规则之后再次覆盖 opacity，确保 mtgpu/XWayland 下最终保持完全不透明。
+window-rule {
+    match app-id=r#"^com\.alibabainc\.dingtalk$"#
+    opacity 1.0
+}
+
 layer-rule {
     match namespace="^waybar$"
     background-effect {

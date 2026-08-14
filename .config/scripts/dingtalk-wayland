@@ -1,7 +1,7 @@
 #!/bin/sh
-# DingTalk Wayland entrypoint with the PipeWire/X11 screenshot hook preloaded.
-# 支持 `dingtalk-wayland restart`：先终止当前用户名下所有钉钉进程（用于缓解长期
-# 运行导致的内存累积），再走启动流程。无参数时仅启动，不检查已有实例。
+# DingTalk/niri 维护与兼容入口。aarch64 日常启动使用系统 desktop entry 的
+# Elevator.sh；本脚本保留 portal 检查、安全 restart、日志和显式 hook 回退。
+# `restart` 会先终止当前用户名下所有钉钉进程，再走兼容启动流程。
 
 notify_problem() {
     title=$1
@@ -12,16 +12,87 @@ notify_problem() {
     printf '%s: %s\n' "$title" "$body" >&2
 }
 
+is_owned_dingtalk_process() {
+    pid=$1
+    proc_dir=/proc/$pid
+    process_uid=
+
+    [ -r "$proc_dir/status" ] || return 1
+    while IFS=: read -r field value; do
+        if [ "$field" = Uid ]; then
+            set -- $value
+            process_uid=${1:-}
+            break
+        fi
+    done < "$proc_dir/status"
+    [ "$process_uid" = "$dingtalk_user_uid" ] || return 1
+
+    executable=$(readlink "$proc_dir/exe" 2>/dev/null) || return 1
+    case ${executable##*/} in
+        com.alibabainc.dingtalk|tblive)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+dingtalk_processes_running() {
+    for proc_dir in /proc/[0-9]*; do
+        pid=${proc_dir##*/}
+        if is_owned_dingtalk_process "$pid"; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+signal_dingtalk_processes() {
+    signal=$1
+    for proc_dir in /proc/[0-9]*; do
+        pid=${proc_dir##*/}
+        is_owned_dingtalk_process "$pid" || continue
+        case $signal in
+            TERM) kill -TERM "$pid" 2>/dev/null || true ;;
+            KILL) kill -KILL "$pid" 2>/dev/null || true ;;
+        esac
+    done
+}
+
+portal_backend_has_screencast() {
+    busctl --user introspect \
+        org.freedesktop.impl.portal.desktop.gnome \
+        /org/freedesktop/portal/desktop 2>/dev/null |
+        grep -F 'org.freedesktop.impl.portal.ScreenCast' >/dev/null 2>&1
+}
+
+wait_for_portal_screencast() {
+    [ "${XDG_SESSION_TYPE:-}" = wayland ] || return 0
+    command -v busctl >/dev/null 2>&1 || return 0
+
+    attempt=0
+    while [ "$attempt" -lt 50 ]; do
+        portal_backend_has_screencast && return 0
+        sleep 0.1
+        attempt=$((attempt + 1))
+    done
+
+    notify_problem \
+        "DingTalk screen sharing unavailable" \
+        "等待 ScreenCast portal 就绪超时；钉钉仍会启动，但本次屏幕共享可能不可用。"
+    return 0
+}
+
 print_usage() {
     cat <<'EOF'
 用法: dingtalk-wayland [子命令] [-- 钉钉参数...]
-  (无参数)      启动钉钉（不检查已有实例）
-  restart       先终止当前用户名下钉钉进程，再启动
+  (无参数)      使用兼容入口启动钉钉（aarch64 日常使用 Mod+C 即可）
+  restart       精确清理钉钉/tblive 后，通过兼容入口重新启动
   usage|--help  显示此帮助
 
 环境变量:
   DINGTALK_WAYLAND_HOOK  hook 库路径（默认从 ~/.local/lib/... 查找）
   DINGTALK_WAYLAND_LOG   日志路径（默认 /tmp/dingtalk-wayland.log）
+  DINGTALK_FORCE_X11_CAPTURE=1  强制启用旧 X11 LD_PRELOAD 抓屏回退
   DINGTALK_BASE          钉钉安装根（默认 /opt/apps/com.alibabainc.dingtalk/files）
   DINGTALK_DIR           钉钉版本目录（默认自动查找 *Release）
 
@@ -38,26 +109,30 @@ case "${1:-}" in
         exit 0
         ;;
     restart)
-        # 问题1：pkill/pgrep/id 缺失时不得静默跳过，否则会变成"不 kill 直接启动新实例"
-        for dep in pkill pgrep id; do
+        # 通过 /proc/<pid>/exe 精确匹配可执行文件，避免按完整命令行匹配时把
+        # 恰好包含钉钉路径的 shell、测试或诊断工具一起终止。
+        for dep in id readlink; do
             if ! command -v "$dep" >/dev/null 2>&1; then
                 notify_problem \
                     "DingTalk restart unavailable" \
-                    "缺少基础命令 $dep，无法安全重启钉钉。请安装 procps 包后重试。"
+                    "缺少基础命令 $dep，无法安全重启钉钉。"
                 exit 127
             fi
         done
-        pkill -u "$(id -u)" -f 'com\.alibabainc\.dingtalk' >/dev/null 2>&1 || true
+        dingtalk_user_uid=$(id -u)
+        # tblive 的 PPID 会在主进程退出后变成 1，因此每轮都重新扫描当前用户的
+        # com.alibabainc.dingtalk 与 tblive，而不是依赖父子关系。
+        signal_dingtalk_processes TERM
         # 最多等待 5 秒让进程响应 SIGTERM 退出，避免新实例与旧实例同时持有 Wayland 资源
         i=0
         while [ "$i" -lt 5 ]; do
-            pgrep -u "$(id -u)" -f 'com\.alibabainc\.dingtalk' >/dev/null 2>&1 || break
+            dingtalk_processes_running || break
             sleep 1
             i=$((i + 1))
         done
         # SIGTERM 5 秒后仍未退出则 SIGKILL 强杀（钉钉作为 Electron 应用常响应慢）
-        if pgrep -u "$(id -u)" -f 'com\.alibabainc\.dingtalk' >/dev/null 2>&1; then
-            pkill -9 -u "$(id -u)" -f 'com\.alibabainc\.dingtalk' >/dev/null 2>&1 || true
+        if dingtalk_processes_running; then
+            signal_dingtalk_processes KILL
             sleep 1
         fi
         shift
@@ -69,35 +144,42 @@ if [ "${1:-}" = "--" ]; then
     shift
 fi
 
+force_x11_capture=${DINGTALK_FORCE_X11_CAPTURE:-0}
 hook_lib=${DINGTALK_WAYLAND_HOOK:-}
 log_file=${DINGTALK_WAYLAND_LOG:-/tmp/dingtalk-wayland.log}
 
-if [ -z "$hook_lib" ]; then
-    for candidate in \
-        "$HOME/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so" \
-        "$HOME/.local/lib/dingtalk-wayland-screenshare/libdingtalkhook.so" \
-        "/opt/dingtalk/release/libdingtalkhook.so"; do
-        if [ -r "$candidate" ]; then
-            hook_lib=$candidate
-            break
-        fi
-    done
-fi
+if [ "$force_x11_capture" = 1 ]; then
+    if [ -z "$hook_lib" ]; then
+        for candidate in \
+            "$HOME/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so" \
+            "$HOME/.local/lib/dingtalk-wayland-screenshare/libdingtalkhook.so" \
+            "/opt/dingtalk/release/libdingtalkhook.so"; do
+            if [ -r "$candidate" ]; then
+                hook_lib=$candidate
+                break
+            fi
+        done
+    fi
 
-if [ -z "$hook_lib" ] || [ ! -r "$hook_lib" ]; then
-    notify_problem \
-        "DingTalk Wayland hook unavailable" \
-        "Build dingtalk-wayland-screenshare and set DINGTALK_WAYLAND_HOOK or install libdingtalkhook.so under ~/.local/lib/dingtalk-wayland-screenshare/."
-    exit 127
+    if [ -z "$hook_lib" ] || [ ! -r "$hook_lib" ]; then
+        notify_problem \
+            "DingTalk Wayland hook unavailable" \
+            "Build dingtalk-wayland-screenshare and set DINGTALK_WAYLAND_HOOK or install libdingtalkhook.so under ~/.local/lib/dingtalk-wayland-screenshare/."
+        exit 127
+    fi
 fi
 
 if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] && [ -n "${XDG_RUNTIME_DIR:-}" ]; then
     if [ ! -S "$XDG_RUNTIME_DIR/pipewire-0" ] && ! pgrep -u "$(id -u)" -x pipewire >/dev/null 2>&1; then
         notify_problem \
             "PipeWire is not running" \
-            "Screen sharing through the DingTalk Wayland hook needs PipeWire, WirePlumber, and xdg-desktop-portal."
+            "DingTalk screen sharing needs PipeWire, WirePlumber, and xdg-desktop-portal."
     fi
 fi
+
+# wayland-autostart 负责按 niri ScreenCast → portal backend/frontend 的顺序
+# 修复服务；启动器只等待并告警，避免应用级脚本擅自重启桌面会话服务。
+wait_for_portal_screencast
 
 dingtalk_base=${DINGTALK_BASE:-/opt/apps/com.alibabainc.dingtalk/files}
 dingtalk_dir=${DINGTALK_DIR:-}
@@ -111,7 +193,16 @@ if [ -z "$dingtalk_dir" ] || [ ! -x "$dingtalk_dir/com.alibabainc.dingtalk" ]; t
     exit 127
 fi
 
-# Qt 模块（托盘、文件选择器、通知）走 X11：钉钉自带的 Qt 插件依赖 xcb。
+# Qt/CEF 界面仍通过 xcb/XWayland 运行；屏幕捕获默认保留真实 Wayland
+# 会话环境，让 DingTalk 8.1.1 使用自身的 native Wayland/PipeWire capture。
+# 内嵌 tblive 与 libportal hook 的 GLib main context 不兼容，因此旧 hook
+# 仅作为显式排障回退，不再作为默认路径。
+if [ "$force_x11_capture" = 1 ] && [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
+    export DINGTALK_WAYLAND_SESSION_TYPE=wayland
+    export XDG_SESSION_TYPE=x11
+    unset WAYLAND_DISPLAY
+fi
+
 export QT_QPA_PLATFORM=xcb
 export QT_PLUGIN_PATH="$dingtalk_dir"
 export QT_XCB_GL_INTEGRATION=xcb_egl
@@ -123,7 +214,10 @@ preload_libs="./libgbm.so"
 if [ -n "$libc_minor" ] && [ "$libc_minor" -lt 28 ] 2>/dev/null; then
     preload_libs="./envlib.so ./libharfbuzz.so.0.20301.0 ./libgbm.so ./libidn2.so.0 ./libunistring.so.2 ./libz.so.1"
 fi
-preload_libs="$hook_lib $preload_libs ./plugins/dtwebview/libcef.so"
+if [ "$force_x11_capture" = 1 ]; then
+    preload_libs="$hook_lib $preload_libs"
+fi
+preload_libs="$preload_libs ./plugins/dtwebview/libcef.so"
 
 export LD_PRELOAD="$preload_libs${LD_PRELOAD:+ $LD_PRELOAD}"
 

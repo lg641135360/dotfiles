@@ -61,8 +61,13 @@ enum class SessionType {
 };
 
 inline SessionType get_current_session_type(){
-  // get the current session type using envvar "XDG_SESSION_TYPE"
-  char* xdg_session_type = std::getenv("XDG_SESSION_TYPE");
+  // DingTalk's WebRTC capturer must see an X11 session so it uses the X11
+  // functions intercepted by this hook. Keep the real compositor session in
+  // a hook-specific variable so portal/PipeWire handling still uses Wayland.
+  char* xdg_session_type = std::getenv("DINGTALK_WAYLAND_SESSION_TYPE");
+  if (xdg_session_type == nullptr) {
+    xdg_session_type = std::getenv("XDG_SESSION_TYPE");
+  }
   if (xdg_session_type == nullptr) {
     return SessionType::Unknown;
   }
@@ -85,7 +90,13 @@ struct XdpScreencastPortal {
   using THIS_CLASS = XdpScreencastPortal;
 
   XdpScreencastPortal() {
+    // libportal 0.7 dispatches through GLib's process-global default context.
+    // Creating the loop before the async request is sufficient; forcing that
+    // context via push_thread_default prevents callbacks in tblive.
+    gio_mainloop = g_main_loop_new(NULL, FALSE);
     portal = xdp_portal_new();
+    create_cancellable = g_cancellable_new();
+
     XdpOutputType output_type = (XdpOutputType)(XdpOutputType::XDP_OUTPUT_MONITOR | XdpOutputType::XDP_OUTPUT_WINDOW);
     XdpScreencastFlags cast_flags = XdpScreencastFlags::XDP_SCREENCAST_FLAG_NONE;
     XdpCursorMode cursor_mode = get_current_session_type() == SessionType::Wayland ? 
@@ -105,17 +116,17 @@ struct XdpScreencastPortal {
       cursor_mode,
       persist_mode,
       NULL,
-      NULL,
+      create_cancellable,
       THIS_CLASS::screencast_session_create_cb,
       this
     );
-    gio_mainloop = g_main_loop_new(NULL, FALSE);
   }
 
 
   ~XdpScreencastPortal() {
     if (session) xdp_session_close(session);
     if (session) g_object_unref(session);
+    if (create_cancellable) g_object_unref(create_cancellable);
     if (portal) g_object_unref(portal);
     if (gio_mainloop) g_main_loop_unref(gio_mainloop);
   }
@@ -123,6 +134,7 @@ struct XdpScreencastPortal {
 
   GMainLoop* gio_mainloop{nullptr};
   XdpPortal* portal{nullptr};
+  GCancellable* create_cancellable{nullptr};
   std::atomic<XdpSession*> session{nullptr};
   std::atomic<int> pipewire_fd{-1};
   std::atomic<XdpScreencastPortalStatus> status{XdpScreencastPortalStatus::kInit};
@@ -141,9 +153,14 @@ struct XdpScreencastPortal {
       &error
     );
     if (!this_ptr->session) {
-      g_print("Failed to create screencast session: %s\n", error->message);
-      return; //TODO: handle error
+      std::string error_message = error ? error->message : "unknown error";
+      g_print("Failed to create screencast session: %s\n", error_message.c_str());
+      dingtalk_debug_log("portal create failed: " + error_message);
+      this_ptr->status.store(XdpScreencastPortalStatus::kCancelled, std::memory_order_release);
+      g_main_loop_quit(this_ptr->gio_mainloop);
+      return;
     }
+    dingtalk_debug_log("portal session created");
 
   }
 
@@ -155,13 +172,16 @@ struct XdpScreencastPortal {
     [[maybe_unused]] auto* this_ptr = reinterpret_cast<THIS_CLASS*>(user_data);
     GError *error = nullptr;
     if (!xdp_session_start_finish(XDP_SESSION(source_object), result, &error)) {
-        g_warning("Failed to start screencast session: %s", error->message);
-        g_error_free(error);
+        std::string error_message = error ? error->message : "unknown error";
+        g_warning("Failed to start screencast session: %s", error_message.c_str());
+        dingtalk_debug_log("portal start failed: " + error_message);
+        if (error) g_error_free(error);
         this_ptr->status = XdpScreencastPortalStatus::kCancelled;
         return;
     }
     this_ptr->status.store(XdpScreencastPortalStatus::kRunning, std::memory_order_release);
     this_ptr->pipewire_fd = xdp_session_open_pipewire_remote(XDP_SESSION(source_object));
+    dingtalk_debug_log("portal started pipewire fd: " + std::to_string(this_ptr->pipewire_fd.load()));
 
     // get pipewire node ids
     // there is only one id as XDP_SCREENCAST_FLAG_NONE is chosen

@@ -230,6 +230,8 @@ void x11_sanitizer_main()
 
 
 
+constexpr auto kPortalCreateTimeout = std::chrono::seconds(60);
+
 std::thread payload_start_portal_gio_mainloop_thread(){
   auto& interface_singleton = InterfaceSingleton::getSingleton();
   auto* portal_handle = interface_singleton.portal_handle.load();
@@ -239,14 +241,27 @@ std::thread payload_start_portal_gio_mainloop_thread(){
       g_main_loop_run(portal_handle->gio_mainloop);
     }
   );
-  // wait until xdpsession is up
-  // TODO: this CAN actually fail and trap the program...
-  // TODO: but i think it's relatively safe to assume that the session will be up for now
-  // TODO: eventually need to deal with this
-  while(!portal_handle->session.load()){
+
+  const auto deadline = std::chrono::steady_clock::now() + kPortalCreateTimeout;
+  while(!portal_handle->session.load() &&
+        portal_handle->status.load() == XdpScreencastPortalStatus::kInit &&
+        std::chrono::steady_clock::now() < deadline){
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
-  return std::move(portal_gio_mainloop_thread);
+
+  if (!portal_handle->session.load() &&
+      portal_handle->status.load() == XdpScreencastPortalStatus::kInit) {
+    dingtalk_debug_log("portal create timed out; cancelling request");
+    g_cancellable_cancel(portal_handle->create_cancellable);
+    // Do not free the portal while its async callback still owns user_data.
+    // Cancellation completes through that callback, which changes status and
+    // quits the loop. A success racing with cancellation is also accepted.
+    while (!portal_handle->session.load() &&
+           portal_handle->status.load() == XdpScreencastPortalStatus::kInit) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+  }
+  return portal_gio_mainloop_thread;
 }
 
 constexpr float PW_MAX_CALLRATE = 60.0;
@@ -283,6 +298,11 @@ void payload_main(){
 
   // start the gio mainloop thread
   std::thread portal_gio_mainloop_thread = payload_start_portal_gio_mainloop_thread();
+  if (!portal_handle->session.load() ||
+      portal_handle->status.load() == XdpScreencastPortalStatus::kCancelled) {
+    portal_gio_mainloop_thread.join();
+    return;
+  }
 
   // start x11 sanitizer thread
   std::thread x11_sanitizer_thread = std::thread(x11_sanitizer_main);

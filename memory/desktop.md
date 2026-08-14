@@ -8,14 +8,10 @@
 - Ubuntu aarch64 为降负载已走低占用方案：关 blur（`method = "none"`）、阴影 radius 6/opacity 0.3、圆角 8px；经实测 picom CPU 从 15.2% 降到 6.7%。
 
 ## 锁屏
-- 锁屏脚本优先 `i3lock-color`/带 `--blur` 的 `i3lock`；不硬编码 `--screen 1`。
-- 普通 `i3lock` fallback：Python 生成缓存的 Catppuccin Mocha 静态 PNG 背景，按 `xrandr --current` 每个输出画居中卡片/锁图标；生成失败时退纯色 `i3lock -n -e -f -c 11111b`。
-- 自动锁屏由 autostart 用 `xautolock -time 10 -locker ~/.config/scripts/lock -detectsleep` 启动，缺依赖时静默跳过。
+- AwesomeWM（X11）锁屏脚本与自动锁屏细节见 `memory/awesome.md`；niri/Wayland 锁屏使用 `swaylock`，相关偏好见下文「niri / Wayland 试用」章节。
 
 ## Snipaste
-- 在 `~/Applications/Snipaste-*.AppImage`、`~/Downloads/Snipaste-*.AppImage` 和 `~/Documents/Snipaste-*.AppImage` 等候选里按版本号选择最新可执行 AppImage。
-- Snipaste 裸 `F1` 截图由 Snipaste 自己注册全局热键；Awesome 不绑定裸 `F1`。
-- KDE `kglobalaccel5`/`~/.config/kglobalshortcutsrc` 中 `[org.flameshot.Flameshot.desktop] Capture` 为 `F1` 时应改为 `none,none,进行截图`。
+- Snipaste 候选路径、裸 `F1` 热键、KDE kglobalshortcutsrc 修复等与 Awesome 桌面强相关的细节见 `memory/awesome.md`。
 
 ## Ubuntu aarch64 外接屏
 - 内屏 `2880x1800@120Hz` 主屏；外接屏在 Ubuntu aarch64 上默认显式固定为 `2560x1440@59.95Hz` 放笔记本右侧，避免误落到 `3840x2160@30` 或 `1920x2160` 这类特殊模式。
@@ -23,10 +19,7 @@
 - 外接屏方案不要改 Awesome per-screen DPI 或 rofi focused-screen `ROFI_SCALE`。
 
 ## 其它
-- `install.sh` 里的 `redshift` 保留缺失检查；缺失时只提示手动安装，不自动提权安装。
-- Ubuntu aarch64 上 X11-sensitive 桌面工具优先用系统二进制（尤其是 `redshift`）。
-- Linuxbrew 包遮蔽工作系统二进制且不需要时，优先删除包而不是加防御逻辑。
-- scripts/ 目录下的 helper 优先始终安装并保留可执行位，即使 runtime backend 未安装。
+- redshift 处理、Ubuntu aarch64 系统二进制优先、Linuxbrew 遮蔽处理、scripts/ helper 部署等通用工作流与环境偏好见 `memory/organizing_preferences.md`。
 
 ## fcitx / GTK_IM_MODULE 排查
 - fcitx "建议取消设置 GTK_IM_MODULE" 警告的原因是 Wayland 下 GTK 自带 text-input 协议，不需要 `GTK_IM_MODULE=fcitx`
@@ -78,5 +71,5 @@
 - Waybar 视觉偏好：niri 主线状态栏优先做整条连续顶栏，避免左/中/右三段独立胶囊导致一体感不足；配色使用 Catppuccin Mocha GTK CSS token，模块内部只用弱分隔、hover 和少量图标化文字降噪。
 - Waybar 网络模块应常驻显示实时上下行带宽；只显示 SSID 或接口名会失去监控价值，不要把带宽隐藏到点击切换的 `format-alt`。
 - Waybar 版本约束：Ubuntu Noble 仓库的 waybar 0.9.24 不支持 `niri/workspaces`、`niri/window`、`niri/language`、`privacy` 模块（启动报 `Unknown module`）；niri 模块在 waybar 0.11.0 才合入主分支，0.13.0 补全 empty icon + urgency，0.15.0 为当前推荐稳定版。Ubuntu 上需源码编译安装到 `/usr/local`（`meson setup build --prefix=/usr/local --buildtype=release && ninja -C build && sudo ninja -C build install`），并 `apt remove waybar` 防止 apt 版覆盖。升级路径：`cd ~/src/waybar && git fetch --tags && git checkout <new-tag> && ninja -C build && sudo ninja -C build install`。构建依赖在 Noble 仓库均齐全（meson/ninja-build/pkgconf/scdoc + libdbusmenu-gtk3-dev/libfmt-dev/libgtk-layer-shell-dev/libgtkmm-3.0-dev/libhowardhinnant-date-dev/libinput-dev/libjack-jackd2-dev/libjsoncpp-dev/libmpdclient-dev/libnl-3-dev/libnl-genl-3-dev/libplayerctl-dev/libpulse-dev/libsigc++-2.0-dev/libsndio-dev/libspdlog-dev/libupower-glib-dev/libwayland-dev/libwireplumber-0.4-dev/libwlroots-dev/libxkbregistry-dev）。源码保留在 `~/src/waybar/`。`Waybar has been built without rfkill support.` 警告可忽略（未使用 bluetooth 模块）。`Item '': No icon name or pixmap given.` 是 tray 内 StatusNotifierItem 应用侧问题，不影响 niri 模块。
-- aarch64 niri 终端默认 alacritty（2026-08-13 起全平台统一）：曾因 MediaTek mtgpu 下 alacritty 0.18.0-dev 在缩放输出（内屏 2x）字形渲染损坏（文字丢失）而让 aarch64 优先 kitty；现用户以外接屏为主、alacritty 显示正常，已移除 `terminal-wayland` 的 aarch64-kitty 分支，全平台优先 alacritty、kitty 兜底。内屏 2x 下 alacritty 的字形问题未根治，留待后续定位（见 logs/trace.md）。kitty 配置 `.config/linux/kitty/kitty.conf` 仍镜像 `.config/shared/alacritty` 观感（MesloLGS Nerd Font Mono 13、Catppuccin Mocha 内嵌 palette、无边框、padding 12、opacity 0.82、Beam 闪烁光标、滚动 50000、Alt 导航键），并由 install.sh 的 `linux_wayland_dir_configs` 复制到 `~/.config/kitty/`。
+- aarch64 niri 终端默认 alacritty（2026-08-13 起全平台统一）：曾因 MediaTek mtgpu 下 alacritty 0.18.0-dev 在缩放输出（内屏 2x）字形渲染损坏（文字丢失）而让 aarch64 优先 kitty；现用户以外接屏为主、alacritty 显示正常，已移除 `terminal-wayland` 的 aarch64-kitty 分支，全平台优先 alacritty、kitty 兜底。内屏 2x 下 alacritty 的字形问题未根治，留待后续定位（见 logs/trace.md）。kitty 配置 `.config/linux/kitty/kitty.conf` 仍镜像 `.config/shared/alacritty` 观感（MesloLGS Nerd Font Mono 13、Catppuccin Mocha 内嵌 palette、无边框、padding 12、opacity 1.0、Beam 闪烁光标、滚动 50000、Alt 导航键），并由 install.sh 的 `linux_wayland_dir_configs` 复制到 `~/.config/kitty/`；aarch64 mtgpu 驱动对半透明背景 alpha 合成有 bug，故 kitty 走完全不透路径绕开。
 - Waybar 亮度模块（backlight）仅用于 aarch64（MediaTek 笔记本有背光设备），x86/桌面不显示。waybar 配置按 arch 拆分：共享 `.config/linux/waybar/config` 不含 backlight 模块，aarch64 变体 `.config/linux/waybar/config.aarch64` 在 `modules-right` 加入 backlight（滚轮 ±5%、左键 0%、右键 100%）；`install.sh` 用 `install_waybar_config_for_platform()` 按 `arch` 选择部署对应版本，`style.css`/`mocha.css`/`README.md` 两平台共用。

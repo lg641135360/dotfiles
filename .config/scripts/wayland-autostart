@@ -111,6 +111,69 @@ start_gammastep() {
     run_once_logged gammastep "$managed_pattern" gammastep -m wayland -l 30.6:114.3 -t 6500:4800
 }
 
+portal_backend_has_screencast() {
+    command -v busctl >/dev/null 2>&1 || return 1
+    busctl --user introspect \
+        org.freedesktop.impl.portal.desktop.gnome \
+        /org/freedesktop/portal/desktop 2>/dev/null |
+        grep -F 'org.freedesktop.impl.portal.ScreenCast' >/dev/null 2>&1
+}
+
+portal_after_niri_worker() {
+    attempt=0
+    while [ "$attempt" -lt 150 ]; do
+        if busctl --user status org.gnome.Mutter.ScreenCast >/dev/null 2>&1; then
+            warn "niri ScreenCast 已就绪，重启 portal backend/frontend"
+            systemctl --user restart xdg-desktop-portal-gnome.service || {
+                warn "重启 xdg-desktop-portal-gnome 失败"
+                return 1
+            }
+            systemctl --user restart xdg-desktop-portal.service || {
+                warn "重启 xdg-desktop-portal 失败"
+                return 1
+            }
+
+            if portal_backend_has_screencast; then
+                printf '%s\n' "$portal_session_key" > "$portal_session_file"
+                warn "portal ScreenCast 接口已就绪"
+                return 0
+            fi
+
+            warn "portal 重启后仍未提供 ScreenCast 接口"
+            return 1
+        fi
+        sleep 0.1
+        attempt=$((attempt + 1))
+    done
+
+    warn "等待 niri ScreenCast 服务超时，未重启 portal"
+    return 1
+}
+
+start_portal_after_niri() {
+    if ! command -v busctl >/dev/null 2>&1; then
+        warn "跳过 portal 时序修复：未找到命令 busctl"
+        return 0
+    fi
+    if ! command -v systemctl >/dev/null 2>&1; then
+        warn "跳过 portal 时序修复：未找到命令 systemctl"
+        return 0
+    fi
+
+    portal_session_file=$log_dir/portal.niri-session
+    portal_session_key=${NIRI_SOCKET:-${WAYLAND_DISPLAY:-unknown}}
+    recorded_session=$(cat "$portal_session_file" 2>/dev/null || true)
+    if [ "$recorded_session" = "$portal_session_key" ] && portal_backend_has_screencast; then
+        return 0
+    fi
+
+    if [ "$logging_available" -eq 1 ]; then
+        portal_after_niri_worker > "$log_dir/portal.log" 2>&1 &
+    else
+        portal_after_niri_worker >&2 2>&1 &
+    fi
+}
+
 # export GTK_IM_MODULE=fcitx
 unset GTK_IM_MODULE
 export QT_IM_MODULE=fcitx
@@ -139,15 +202,13 @@ else
     warn "跳过 systemd 用户环境同步：未找到命令 systemctl"
 fi
 
+start_portal_after_niri
+
 run_once_logged waybar '(^|/)waybar( |$)' waybar
 run_once_logged mako '(^|/)mako( |$)' mako
 run_once_logged nm-applet '(^|/)nm-applet( |$)' nm-applet
 run_once_logged blueman-applet '(^|/)blueman-applet( |$)' blueman-applet
 run_once_logged udiskie '(^|/)udiskie( |$)' udiskie -t
-
-# 提前启动 xdg-desktop-portal，让 fcitx5 首次查询 Settings portal 时已就绪，
-# 避免启动早期 `org.freedesktop.appearance` 查询因门户按需激活延迟而返回 NotFound。
-run_once_logged xdg-desktop-portal '(^|/)xdg-desktop-portal( |$)' /usr/libexec/xdg-desktop-portal
 
 if command -v fcitx5 >/dev/null 2>&1; then
     # 始终在 Wayland 会话拉起 fcitx5 并提供 text-input-v3。fcitx5 走 per-user 的

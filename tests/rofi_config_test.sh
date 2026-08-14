@@ -72,6 +72,12 @@ printf 'Xft.dpi:\t192\n'
 EOF
     chmod +x "$tmpdir/bin/xrdb"
 
+    cat >"$tmpdir/bin/rofi" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+    chmod +x "$tmpdir/bin/rofi"
+
     PATH="$tmpdir/bin:$PATH" \
     XDG_CONFIG_HOME="$tmpdir/config" \
     XDG_CACHE_HOME="$tmpdir/cache" \
