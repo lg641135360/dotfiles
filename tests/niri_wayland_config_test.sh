@@ -221,6 +221,20 @@ test_waybar_aarch64_has_battery_module() {
     # AwesomeWM convention: charging green, <=35% yellow, <=15% red.
     assert_contains '"warning": 35' "$WAYBAR_AARCH64_CONFIG"
     assert_contains '"critical": 15' "$WAYBAR_AARCH64_CONFIG"
+    # 背光回退到 waybar 内置 backlight 模块（最简实现）：on-scroll/on-click 直接调
+    # brightnessctl，waybar 事件驱动 dp.emit() 立即重读 sysfs 刷新，不再需要 custom
+    # 脚本 + 信号/watcher 的冗余方案（曾因 sandbox 里 brightnessctl 被拦截误判为
+    # "无法实时更新" 而引入，实测 live 无此问题）。
+    assert_contains '"backlight": {' "$WAYBAR_AARCH64_CONFIG"
+    assert_contains '{percent}%' "$WAYBAR_AARCH64_CONFIG"
+    assert_not_contains '"custom/backlight"' "$WAYBAR_AARCH64_CONFIG"
+    assert_not_contains 'waybar-backlight' "$WAYBAR_AARCH64_CONFIG"
+    assert_contains '"on-scroll-up": "brightnessctl set 5%+"' "$WAYBAR_AARCH64_CONFIG"
+    assert_contains '"on-scroll-down": "brightnessctl set 5%-"' "$WAYBAR_AARCH64_CONFIG"
+    # MediaTek m1000_backlight 不发出 uevent，内置模块只能靠 interval 轮询兜底；
+    # 默认轮询 2s（waybar ALabel 构造参数），interval 0.1 缩到 ~100ms 贴近 vol 跟手。
+    assert_contains '"interval": 0.1,' "$WAYBAR_AARCH64_CONFIG"
+    assert_contains '#backlight' "$WAYBAR_STYLE"
 }
 
 test_niri_config_keeps_dingtalk_unmanaged_and_has_app_window_rules() {
@@ -875,8 +889,15 @@ test_waybar_and_mako_match_niri_trial_contract() {
     assert_contains '"escape": false,' "$WAYBAR_CONFIG"
     assert_contains '"on-click": "kitty -- htop -s PERCENT_CPU"' "$WAYBAR_CONFIG"
     assert_contains '"on-click": "kitty -- htop -s PERCENT_MEM"' "$WAYBAR_CONFIG"
-    assert_contains '"format": "  {volume}%"' "$WAYBAR_CONFIG"
+    # POSIX sh: 用 printf 八进制转义构造 Nerd Font 音量图标 U+F028（UTF-8 EF 80 A8），
+    # 避免 bash 专属的 ANSI-C quoting（$'...'）在 dash 下解析失败。
+    vol_icon=$(printf '\357\200\250')
+    assert_contains "\"format\": \"$vol_icon  {volume}%\"" "$WAYBAR_CONFIG"
     assert_contains '"format-muted": "󰝟 静音"' "$WAYBAR_CONFIG"
+    # pulseaudio uses on-scroll + external wpctl; interval 1 keeps display fresh
+    assert_contains '"on-scroll-up": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ -l 1.0"' "$WAYBAR_CONFIG"
+    assert_contains '"on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"' "$WAYBAR_CONFIG"
+    assert_contains '"interval": 1,' "$WAYBAR_CONFIG"
     assert_contains '"privacy": {' "$WAYBAR_CONFIG"
     assert_contains '"type": "screenshare"' "$WAYBAR_CONFIG"
     assert_contains '"type": "audio-in"' "$WAYBAR_CONFIG"
@@ -932,6 +953,8 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/scripts/browser-wayland|~/.config/scripts/browser-wayland|Wayland browser script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/trae-cn-wayland|~/.config/scripts/trae-cn-wayland|Wayland Trae CN script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/waybar-system-tooltip|~/.config/scripts/waybar-system-tooltip|Waybar CPU/MEM tooltip script' "$INSTALL_FILE"
+    # backlight 用 waybar 内置模块，不再部署独立 watcher 脚本。
+    assert_not_contains 'waybar-backlight' "$INSTALL_FILE"
     assert_contains '|.config/linux/desktop-entries/google-chrome.desktop|~/.local/share/applications/google-chrome.desktop|Google Chrome Wayland desktop entry' "$INSTALL_FILE"
     assert_contains '|.config/linux/desktop-entries/trae-cn.desktop|~/.local/share/applications/trae-cn.desktop|Trae CN Wayland desktop entry' "$INSTALL_FILE"
     # install.sh substitutes the __HOME__ placeholder in desktop entries with $HOME at deploy time.

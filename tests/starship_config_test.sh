@@ -44,6 +44,13 @@ test_starship_config_has_core_modules() {
     assert_contains '[git_branch]' "$STARSHIP_FILE"
     assert_contains '[git_status]' "$STARSHIP_FILE"
     assert_contains '[character]' "$STARSHIP_FILE"
+    assert_contains '$nodejs' "$STARSHIP_FILE"
+    assert_contains '$bun' "$STARSHIP_FILE"
+    assert_contains '$docker_context' "$STARSHIP_FILE"
+    assert_contains 'right_format = """$time$cmd_duration"""' "$STARSHIP_FILE"
+    assert_contains 'ignore_base = true' "$STARSHIP_FILE"
+    assert_contains "error_symbol = '[✗](bold fg:red)'" "$STARSHIP_FILE"
+    assert_not_contains 'bg:' "$STARSHIP_FILE"
 }
 
 # starship.toml 用 Nerd Font 图标（与 kitty/alacritty 字体配置一致）

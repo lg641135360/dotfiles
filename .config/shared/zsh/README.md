@@ -183,7 +183,7 @@ chmod +x install.sh
 - 配置更简洁（starship.toml ~80 行 vs .p10k.zsh ~2000 行）
 - 跨平台一致（macOS/Linux 共用 `.config/shared/starship.toml`）
 
-starship 通过 `integrations.zsh` 的 `eval "$(starship init zsh)"` 接入，配置部署由 `install.sh` 的 `shared_configs` 完成。
+starship 通过 `integrations.zsh` 的 `eval "$(starship init zsh)"` 接入，配置部署由 `install.sh` 的 `shared_configs` 完成。当前提示符采用统一透明底色的 Catppuccin 极简 Powerline 风格：左侧显示系统、目录、Git 和常用开发环境（C/Rust/Python/Node/Bun/Docker），只用前景色区分信息类型，右侧显示时间与命令耗时；Conda `base` 环境默认隐藏，仅显示具体环境。
 
 ## 自定义
 

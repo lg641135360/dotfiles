@@ -16,6 +16,46 @@
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
 
+## 2026-08-14 — 修正 Waybar 回归测试音量图标编码
+
+- 目的：修复 `tests/niri_wayland_config_test.sh` 因音量图标 UTF-8 八进制转义写错导致的测试失败。
+- 已做：将 U+F028 音量图标的转义从 `\357\202\250`（`EF 82 A8`）改为 `\357\200\250`（`EF 80 A8`），并同步更正注释。
+- 验证：`sh -n tests/niri_wayland_config_test.sh`、`./tests/niri_wayland_config_test.sh`、两份 Waybar JSON 解析和 `git diff --check` 均通过；测试仍输出已有的 `uname: not found` 非阻断提示。
+- live 同步：未同步。
+- 提交推送：未提交、未推送。
+
+
+## 2026-08-14 — waybar backlight 回退到内置模块（最终方案），interval 0.1 近实时
+
+- 目的：多轮实验（scroll-step → on-scroll+interval → custom/backlight+RTMIN 信号 → 自循环 watcher）后用户反馈"冗余且仍不实时"，要求回到第一次引入时最简的实现。
+- 根因（对照 git 首次引入 73f3c38）：最初实现就是 waybar 内置 `backlight` 模块（on-scroll/on-click 直接调 `brightnessctl`，无脚本无信号）。后续"顺滑度对齐 vol"的实验全部失败：① MediaTek `m1000_backlight` 亮度变化不发 udev uevent（udevadm monitor 实测 8s 无事件），内置模块 udev 事件后端不生效；② watcher 自循环脚本误读 sysfs `brightness`（该值恒为 max=500 → 百分比恒 100%，strace 佐证），应读 `actual_brightness`（内置模块正是读它，故回退后正常）；③ RTMIN 信号方案有信号合并 + 每格滚轮两次进程派生。
+- 改动：删除 `.config/scripts/waybar-backlight` 脚本；config.aarch64 的 `custom/backlight` 回退为内置 `backlight` 模块并加 `interval: 0.1`（内置模块默认轮询 2s，来自 ALabel 构造参数；0.1s 轮询兜底实现 ~100ms 近实时，无需脚本）；style.css `#custom-backlight` → `#backlight`；install.sh 移除脚本部署；tests/README 同步。
+- 验证：两份 config `python3 -m json.tool` 通过；`tests/niri_wayland_config_test.sh` PASS；顺带修复该测试里 bash 专属的 `$'\uf028'` ANSI-C quoting（dash 下解析失败），改用 `printf '\357\200\250'` 八进制转义构造图标字节。
+- 后续：live `~/.config/waybar/config`（aarch64 用 config.aarch64 覆盖）需手动复制后 `pkill waybar && waybar &` 重启生效。滚轮跟手接近 vol（vol 是 DBus 事件瞬时，backlight 物理上限是轮询粒度 ~100ms）。
+
+
+## 2026-08-14 — waybar backlight 改自循环 watcher，顺滑度对齐 vol
+
+- 目的：用户反馈 backlight 滚轮调亮度时数值变化不如 vol（pulseaudio）模块顺滑。
+- 根因（分层验证）：① vol 是 DBus 订阅 WirePlumber 事件，每格滚轮事件驱动即时刷新；backlight 无事件源，只能靠轮询/信号。② 实测 `udevadm monitor --subsystem-match=backlight` 下触发 `brightnessctl set`，8 秒无任何 uevent —— MediaTek `m1000_backlight` 驱动亮度变化不发内核事件，因此 waybar 0.15.0 内置 backlight 模块的 udev 事件驱动后端（`util/backlight_backend.cpp`，epoll 监听 udev netlink）在这台机器上同样不生效，内置模块 + scroll-step 救不了顺滑度。③ 原 `custom/backlight` + `pkill -RTMIN+10 waybar` 信号方案：每格滚轮要"外部命令改亮度 + 信号往返 + 再起脚本重读"两次进程派生，且实时信号会合并（标准信号 pending 集合合并），快速滚动时显示跳变滞后。
+- 改动：`waybar-backlight` 由一次性脚本改为**自循环 watcher**（每 ~100ms 轮询 sysfs `brightness`/`max_brightness`、仅在数值变化时输出 `N%`，纯 shell 内建 read + 算术，循环内仅 `$( )` 子 shell + `sleep` 两次 fork）；config.aarch64 的 `custom/backlight` 去掉 `interval`/`signal`（waybar 0.15.0 文档：不设 interval/signal 视为"脚本自行循环、每行输出即时刷新"），`on-scroll`/`on-click` 简化为纯 `brightnessctl`（不再 pkill）。watcher 每格滚轮 ≤100ms 内刷新、无信号合并、CPU 可忽略。
+- 验证：`bash -n`（实际 sh 语法检查）通过；`tests/niri_wayland_config_test.sh` 断言改为 `assert_not_contains '"signal":'` / `'pkill -RTMIN'` + 纯 brightnessctl on-scroll，全部通过。
+- 后续：live `~/.config/waybar/config` 与 `~/.config/scripts/waybar-backlight` 需手动复制后 `pkill waybar && waybar &` 重启生效；若 watcher 出现显示不同步，优先检查脚本是否存活（waybar 停止时管道关闭触发 SIGPIPE 自动退出，无孤儿）。
+
+
+## 2026-08-13 — waybar backlight/pulseaudio 滚轮改 scroll-step 实时刷新
+
+- 目的：用户反馈在 status bar 上用滚轮调节背光/音量时，数值不实时更新（要等下次 poll 才刷新）。
+- 根因：`on-scroll-up`/`on-scroll-down` 调外部命令（`brightnessctl`/`wpctl set-volume`），waybar 要等事件回调或下次 interval 才刷新显示。
+- 改动：`backlight`（仅 aarch64）和 `pulseaudio`（两份 config）去掉 `on-scroll-up/down`，改用 waybar 内置 `scroll-step: 5`；保留 `on-click`/`on-click-right`（0%/100% 和静音/pavucontrol）。
+- **修复**：首次 live 验证发现 pulseaudio 图标消失，根因是 Edit 工具替换 `on-scroll` 行时把原 format 里的 Nerd Font 音量图标（U+F028）误替换成空格；用 Python 脚本按字节恢复 `"\uf028  {volume}%"`，避免 Edit 工具处理不可见字符的歧义。测试断言改用 `$'\uf028'` ANSI-C quoting 匹配图标字节。
+- 验证：JSON 合法；`tests/niri_wayland_config_test.sh` 中 `scroll-step`/`on-scroll`/format 断言全部通过；pre-existing failure（install_copies_wayland_files...）与本次改动无关。
+- 后续：live `~/.config/waybar/config` 需手动复制后 `pkill waybar && waybar &` 重启生效。scroll-step 在 waybar 0.15.0 的 pulseaudio/backlight 模块上理论有效（社区多个样例验证），若 live 重启后仍不实时，需回退到 `on-scroll` + `pkill -RTMIN+<n> waybar` 信号刷新方案。
+- **补充**：用户反馈 scroll 后数字更新仍慢，根因是 backlight/pulseaudio 模块未设 `interval`，走 waybar 默认值（几秒级）；两份 config 的 backlight（仅 aarch64）和 pulseaudio 都加 `interval: 1`。修复 interval 时 Edit 工具再次把 x86 config 的 pulseaudio format 图标（U+F028）替换成空格，用 Python 脚本按字节恢复。教训：涉及 Nerd Font 不可见字符的行，优先用 Python 脚本按字节操作，避免 Edit 工具的字符歧义。
+- **二次回退**：用户反馈 `scroll-step` 仍然不跟手（最多 1s 延迟），且 live 图标又丢失。根因：`scroll-step` 是 waybar 内部调外部命令后等下次 interval poll 才刷新，本质有 interval 延迟；`on-scroll` 是事件驱动，执行完 waybar 会立即触发模块更新。最终方案：回退到 `on-scroll-up/down` 调 `brightnessctl`/`wpctl`，保留 `interval: 1` 作为兜底刷新。`scroll-step` 方案放弃。
+- **backlight 信号驱动即时刷新**：用户反馈 backlight 滚轮仍不跟手。根因：pulseaudio 模块订阅 DBus 事件可即时刷新，但 backlight 模块读 sysfs `/sys/class/backlight/.../brightness`，sysfs 不支持 inotify，waybar 只能靠 `interval` 轮询，即使 `on-scroll` 调完 brightnessctl 也要等下次 1s poll。解决方案：backlight 改为 `custom/backlight` 模块，新增脚本 `waybar-backlight` 读 `brightnessctl -m info` 输出百分比；config 里 `on-scroll-up/down`/`on-click`/`on-click-right` 调完 `brightnessctl` 后 `pkill -RTMIN+10 waybar` 发信号，waybar 收到信号立即触发 `custom/backlight` 模块的 `exec` 重读。
+- **信号编号修正**：strace 验证发现 `pkill -RTMIN+10 waybar` 实际发送的是信号 45（strace 命名为 SIGRT_12），而非 44。根因：pkill 的 `-RTMIN+N` 语义是 1-based（RTMIN+1 = SIGRT_1 = 信号 34），所以 `-RTMIN+10` = SIGRT_10 = 信号 43... 实测 strace 显示收到 45 = SIGRTMIN+11。waybar 源码 `if (sig == SIGRTMIN + config_["signal"])` 是 0-based（signal: 10 → SIGRTMIN+10 = 44）。两者差 1，导致信号不匹配。修正：waybar config `signal: 11`（匹配 pkill 实际发送的 45 = SIGRTMIN+11）。zsh 内建 `kill` 不支持 `RTMIN+N` 语法（报 unknown signal），必须用 `/bin/kill` 或 `pkill`。
+
 ## 2026-08-13 — waybar CPU/MEM 改 custom 模块，hover 显示 top 5 进程
 
 - 目的：waybar 内置 `cpu`/`memory` 模块的 tooltip 只能显示各核负载/swap，无法显示占用进程；用户希望 hover 时看到利用率与 top 5 进程，对齐 AwesomeWM `widgets/system.lua` 已有的 tooltip 风格。
@@ -40,6 +80,24 @@
 - 验证：`zsh -n` 三个文件均通过；`zsh_functions_test.sh` / `zsh_plugins_test.sh` / `zsh_history_test.sh` / `zsh_path_test.sh` / `install_zshenv_test.sh` 全 PASS（path 2 项 SKIP 为 node 路径不存在，预期）。
 - live 同步：`env.zsh` / `options.zsh` / `functions.zsh` 因 sandbox 限制需用户手动 `cp .config/shared/zsh/{env.zsh,options.zsh,functions.zsh} ~/.config/zsh/`，新开终端生效。
 - 未做：`rm`/`cp`/`mv` 的 `-i` 改 `-I`（个人偏好保留）；`preview()` else 分支死代码（走不到，留着）；FZF alias vs `FZF_CTRL_T_OPTS`（widget 不走 alias，当前方案可保留）。
+
+
+## 2026-08-14 — 收敛 Starship Powerline 信息层级
+
+- 目的：在保留 Catppuccin Powerline 风格的前提下，减少左侧噪音并补齐常用开发环境信息。
+- 已做：启用 Node/Bun/Docker 模块；将时间和命令耗时移到 `right_format`；隐藏 Conda `base`；错误提示符改为 `✗`；命令耗时改用 Nerd Font 图标；同步 Starship 测试与 Zsh README。
+- 验证：`sh -n tests/starship_config_test.sh`、`./tests/starship_config_test.sh`、`STARSHIP_CONFIG=.config/shared/starship.toml starship prompt` 和 `git diff --check` 均通过。
+- live 同步：未同步。
+- 提交推送：未提交、未推送。
+
+
+## 2026-08-14 — Starship 改为统一透明底色
+
+- 目的：解决多段 Catppuccin 背景色连续切换造成的提示符割裂感。
+- 已做：移除 OS/目录/Git/语言/环境/时间模块的背景色块，统一使用前景色语义；保留 Node/Bun/Docker、右侧时间与耗时、Conda base 隐藏和失败符号 `✗`；测试增加无 `bg:` 样式约束，README 同步。
+- 验证：`sh -n tests/starship_config_test.sh`、`./tests/starship_config_test.sh`、`STARSHIP_CONFIG=.config/shared/starship.toml starship prompt` 和 `git diff --check` 均通过。
+- live 同步：未同步。
+- 提交推送：未提交、未推送。
 
 
 ## 2026-08-13 — starship 替换为 catppuccin-powerline 预设
