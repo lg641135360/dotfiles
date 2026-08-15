@@ -21,7 +21,7 @@
 │   │   ├── Brewfile     # Linux brew 依赖清单
 │   │   ├── desktop-entries/ # 覆盖系统 desktop entry（fuzzel 菜单走 Wayland 包装脚本）
 │   │   ├── fuzzel/      # Wayland 启动器
-│   │   ├── kitty/       # kitty 终端模拟器配置
+│   │   ├── foot/        # foot 终端模拟器配置（Alacritty 的 Wayland 兜底）
 │   │   ├── mako/        # Wayland 通知守护进程
 │   │   ├── niri/        # Wayland 合成器（平行试用）
 │   │   ├── picom/       # X11 合成器

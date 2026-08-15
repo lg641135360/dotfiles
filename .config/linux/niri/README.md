@@ -53,7 +53,7 @@ niri validate -c ~/.config/niri/config.kdl
 
 | Awesome 习惯 | niri 动作 |
 | --- | --- |
-| `Mod+Return` | 打开终端：优先 Alacritty，缺失时回退 kitty |
+| `Mod+Return` | 打开终端：优先 Alacritty，缺失时回退 foot |
 | `Mod+e` | 打开文件管理器：Dolphin → 系统默认 → Nautilus/Thunar/PCManFM → Yazi |
 | `Mod+c` | 启动 launcher：优先 `fuzzel`，缺失时回退 `rofi-launch` |
 | `Mod+q` | 关闭当前窗口 |
@@ -123,11 +123,16 @@ session include common-session
 
 ## 终端入口
 
-`Mod+Return` 调用 `~/.config/scripts/terminal-wayland`：全平台优先使用 `~/.nix-profile/bin/alacritty`，其次使用系统 `alacritty`，最后回退 kitty。保持 Alacritty 优先可以复用 shared Alacritty 字体、透明度、快捷键和主题配置。
+`Mod+Return` 调用 `~/.config/scripts/terminal-wayland`：
 
-曾针对 aarch64 (MediaTek) 让终端优先 `kitty`（foot 兜底）：该平台的 `alacritty 0.18.0-dev` 在 niri 缩放输出（内屏 2x / 1.5x）下 GPU 字形渲染会损坏（1x 正常；内容重绘后文字丢失），而 kitty 与 foot 在 2x 下均渲染正常。现用户以外接屏为主、alacritty 显示正常，已改回 alacritty 全平台默认、移除 aarch64-kitty 分支；内屏 2x 下 alacritty 的字形问题仍未根治，留待后续定位（见 `logs/trace.md`）。
+- **aarch64 + Wayland** — 优先使用 `foot`（mtgpu 下 alacritty 0.18.0-dev 在缩放输出内屏 2x 字形损坏，foot 渲染正常）；foot 不可用时回退到下面的通用顺序
+- **其他平台（x86_64 / X11）** — 优先使用 `~/.nix-profile/bin/alacritty`，其次系统 `alacritty`，最后回退 `foot`
 
-kitty 采用普通冷启动。曾实现「常驻单实例 + `kitty @ launch --type=os-window`」快速开窗（冷启动 ~1.5s → 开窗 ~0.4s），但常驻实例维护成本高（残留 socket 导致 bind 失败的恶性循环、登录需多开一个常驻窗口）价值有限，已整体移除：`kitty.conf` 不再开启 `allow_remote_control`，`wayland-autostart` 不再预启动 daemon，`terminal-wayland` 直接 `exec kitty`（作为兜底）。
+非 aarch64+Wayland 场景保持 Alacritty 优先可以复用 shared Alacritty 字体、透明度、快捷键和主题配置。
+
+历史上 aarch64 终端优先级历经多次调整：曾因 mtgpu 字形问题优先 `kitty`（foot 兜底），后因用户以外接屏为主、alacritty 显示正常而改回 alacritty 全平台默认；现因 foot 字体配置已对齐 alacritty 观感、且 foot 在该硬件上渲染更稳定，恢复 aarch64+Wayland 优先 foot。
+
+兜底终端采用 foot（普通冷启动，Wayland-only）。历史上曾用 kitty 作兜底，并实现「常驻单实例 + `kitty @ launch --type=os-window`」快速开窗（冷启动 ~1.5s → 开窗 ~0.4s），但常驻实例维护成本高（残留 socket 导致 bind 失败的恶性循环、登录需多开一个常驻窗口）价值有限，已整体移除 kitty 改回 foot 兜底：`terminal-wayland` 直接 `exec foot`。
 
 ## 浏览器入口
 

@@ -1,15 +1,18 @@
 #!/bin/sh
-# Wayland terminal entrypoint for niri. Prefer Alacritty so shared terminal
-# styling stays consistent across X11 and Wayland sessions.
+# Wayland terminal entrypoint for niri.
 
-# 全平台默认 Alacritty，以便 X11 与 Wayland 会话复用同一套 shared Alacritty
-# 字体/透明度/快捷键/主题配置。kitty 仅作为最后兜底。
-# 注：aarch64 mtgpu 驱动曾使 alacritty 0.18.0-dev 在内屏 2x 缩放输出下字形损坏，
-# 故此前曾优先 kitty；现用户以外接屏为主、alacritty 显示正常，改回 alacritty 全平台
-# 默认。内屏字形问题仍未根治，见 logs/trace.md 待后续定位。
-# niri spawn 的 PATH 不含 ~/.local/bin（二进制安装的 kitty 所在），补进 PATH 以便兜底分支能找到 kitty
-case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac
+# aarch64 + Wayland 优先 foot：该平台 alacritty 0.18.0-dev 在 mtgpu 缩放输出
+# （内屏 2x）下字形渲染会损坏（文字丢失），而 foot 渲染正常。详见
+# logs/trace.md 与 memory/foot.md。
+# x86_64 / macOS 等其他平台继续优先 alacritty，foot 仅作最后兜底。
+if [ "$(uname -m)" = "aarch64" ] && [ -n "$WAYLAND_DISPLAY" ]; then
+    if command -v foot >/dev/null 2>&1; then
+        exec foot "$@"
+    fi
+fi
 
+# 非 aarch64+Wayland：全平台优先 Alacritty，以便 X11 与 Wayland 会话复用
+# 同一套 shared Alacritty 字体/透明度/快捷键/主题配置。foot 仅作为最后兜底（Wayland-only）。
 if [ -x "$HOME/.nix-profile/bin/alacritty" ]; then
     exec "$HOME/.nix-profile/bin/alacritty" "$@"
 fi
@@ -18,13 +21,13 @@ if command -v alacritty >/dev/null 2>&1; then
     exec alacritty "$@"
 fi
 
-if command -v kitty >/dev/null 2>&1; then
-    exec kitty "$@"
+if command -v foot >/dev/null 2>&1; then
+    exec foot "$@"
 fi
 
 if command -v notify-send >/dev/null 2>&1; then
-    notify-send "Terminal unavailable" "Install Alacritty or kitty to enable Mod+Return in niri." || true
+    notify-send "Terminal unavailable" "Install Alacritty or foot to enable Mod+Return in niri." || true
 fi
 
-printf '%s\n' 'Terminal unavailable: install Alacritty or kitty.' >&2
+printf '%s\n' 'Terminal unavailable: install Alacritty or foot.' >&2
 exit 127

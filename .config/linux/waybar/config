@@ -103,7 +103,7 @@
     "escape": false,
     "min-length": 5,
     "align": 0.5,
-    "on-click": "kitty -- htop -s PERCENT_CPU"
+    "on-click": "foot -- htop -s PERCENT_CPU"
   },
   "custom/memory": {
     "format": "󰍛 {}",
@@ -114,6 +114,6 @@
     "escape": false,
     "min-length": 5,
     "align": 0.5,
-    "on-click": "kitty -- htop -s PERCENT_MEM"
+    "on-click": "foot -- htop -s PERCENT_MEM"
   }
 }

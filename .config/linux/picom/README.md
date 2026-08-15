@@ -16,7 +16,7 @@ Three platform-specific configs, deployed by `install.sh` to `~/.config/picom.co
 - **Blur**: Ubuntu x64 当前使用 dual_kawase strength 12，并保留背景和窗口 frame 模糊；其它平台仍按各自原始基线。**aarch64** 为降负载已改 `method = "none"`（关 blur，dual_kawase 是主要 CPU 开销）
 - **Shadows**: Ubuntu x64 当前使用 16px radius、0.22 opacity、`-8/-8` offset，并让 `utility/dialog` 恢复轻阴影同时排除 `tblive`；其它平台继续保留各自原始策略。**aarch64** 已收口到 radius 6、opacity 0.3
 - **Rounded corners**: Ubuntu x64 当前收口到 12px，与 Awesome 窗口 `border_radius = 12` 对齐；其它平台仍保持原始半径。**aarch64** 已降到 8px
-- **Opacity**: Ubuntu x64 当前使用 0.90 inactive、0.94 active、0.92 frame、0.96 menus；Alacritty/kitty 不再被 picom 强制拉回 100% opacity，而是交回终端自己的透明度设置
+- **Opacity**: Ubuntu x64 当前使用 0.90 inactive、0.94 active、0.92 frame、0.96 menus；Alacritty/foot 不再被 picom 强制拉回 100% opacity，而是交回终端自己的透明度设置
 - **Fading**: 0.03 step in/out with 5ms delta
 
 ## Autostart

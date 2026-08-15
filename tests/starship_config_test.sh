@@ -53,7 +53,7 @@ test_starship_config_has_core_modules() {
     assert_not_contains 'bg:' "$STARSHIP_FILE"
 }
 
-# starship.toml 用 Nerd Font 图标（与 kitty/alacritty 字体配置一致）
+# starship.toml 用 Nerd Font 图标（与 foot/alacritty 字体配置一致）
 test_starship_uses_nerd_font_icons() {
     assert_contains 'symbol = ' "$STARSHIP_FILE"
 }

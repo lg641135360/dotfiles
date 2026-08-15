@@ -43,8 +43,8 @@ test_terminal_opacity_is_left_to_terminal_configs() {
     if grep -F "100:class_g = 'Alacritty'" "$PICOM_UBUNTU_FILE" >/dev/null 2>&1; then
         fail "did not expect picom to force Alacritty opacity in Ubuntu x64 config"
     fi
-    if grep -F "100:class_g = 'kitty'" "$PICOM_UBUNTU_FILE" >/dev/null 2>&1; then
-        fail "did not expect picom to force kitty opacity in Ubuntu x64 config"
+    if grep -F "100:class_g = 'foot'" "$PICOM_UBUNTU_FILE" >/dev/null 2>&1; then
+        fail "did not expect picom to force foot opacity in Ubuntu x64 config"
     fi
     assert_contains "100:class_g = 'firefox'" "$PICOM_UBUNTU_FILE"
     assert_contains "100:class_g = 'Thunderbird'" "$PICOM_UBUNTU_FILE"

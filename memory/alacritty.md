@@ -9,4 +9,4 @@
 
 ## 字体
 - 当前 Alacritty 主字体继续使用 `MesloLGS Nerd Font Mono`；Linux 当前系统可精确匹配的样式为 `Regular`、`Bold`、`Italic`、`Bold Italic`，不要再配置未安装的 `Heavy` / `Medium Italic` / `Heavy Italic`，避免 fontconfig 回退到 Regular 导致粗体/斜体显示异常。
-- niri / Wayland 的终端入口也优先调用 Alacritty；否则 `Mod+Return` 可能回退到 kitty，导致 shared Alacritty 字体/主题改动看起来“没有变化”。
+- niri / Wayland 的终端入口在非 aarch64 平台优先调用 Alacritty；aarch64 + Wayland 因 mtgpu 字形问题改为优先 foot。否则 `Mod+Return` 可能回退到 foot，导致 shared Alacritty 字体/主题改动看起来“没有变化”。

@@ -92,3 +92,21 @@
 - 验证：`tests/starship_config_test.sh` PASS；`git diff --check` 无告警；`starship explain` 能正常解析配置。
 - live 同步与运行态：未同步 live `~/.config/starship.toml`，未重载 shell；未提交、未推送。
 - 后续可能方向：`[git_status]` 各状态仍共用 `fg:yellow` 未按严重度分色、模块间空格叠加导致视觉松散、语言模块在非项目目录也会渲染 symbol。
+
+
+## 2026-08-15 — 兜底终端由 kitty 切换为 foot
+
+- 目的：用户希望 Wayland 兜底终端由 foot 接替 kitty，并把 foot 配置做成与 alacritty 一致的观感。
+- 改动：
+  - 新增 `.config/linux/foot/foot.ini` 与 `.config/linux/foot/README.md`：镜像 `.config/shared/alacritty`（MesloLGS Nerd Font Mono 13、Catppuccin Mocha 内嵌 palette、`csd.preferred=none`、`pad=12x12`、`colors.alpha=0.82`、Beam+blink、`hide-when-typing=yes`、`scrollback.lines=50000`、`multiplier=3.0`、`term=xterm-256color`、`[text-bindings]` 镜像 Alt+hjkl/方向键/Shift+Alt 上下）；透明度采用 0.82（不再沿用 kitty 因 mtgpu alpha bug 走的 1.0）。foot 的 `[text-bindings]` 要求 modifier 用 XKB 名称，`Alt` 必须写成 `Mod1`（实测 `Alt`/`Alt_L` 都会被 `foot --check-config` 拒绝），已在配置与 README、memory 中标注。
+  - 新增 `memory/foot.md`，记录 foot 作为 alacritty Wayland 兜底的定位、与 alacritty 的差异（主题内嵌、OSC52 默认行为、cursor color、窗口模糊）和透明度取舍。
+  - 新增 `tests/foot_config_test.sh`，覆盖字体/窗口/鼠标/光标/TERM/滚动/Catppuccin palette/text-bindings 镜像 alacritty，并断言 `terminal-wayland` 兜底为 foot。
+  - 删除 `.config/linux/kitty/kitty.conf`、`.config/linux/kitty/README.md`、`tests/kitty_config_test.sh` 及空目录。
+  - `.config/scripts/terminal-wayland`：kitty 兜底分支改为 `exec foot "$@"`；移除为 kitty 补 PATH 的 `~/.local/bin` 段（foot 走系统包 `/usr/bin/foot`，无需）；notify 文案改为 "Alacritty or foot"。
+  - `install.sh`：`linux_wayland_dir_configs` 的 kitty 行改为 foot 行。
+  - `.config/linux/waybar/{config,config.aarch64,README.md}`：CPU/MEM 模块 `on-click` 从 `kitty -- htop` 改为 `foot -- htop`。
+  - `.config/linux/niri/{README.md,common.kdl}`：终端入口描述与透明度注释从 kitty 改为 foot。
+  - `.config/linux/{awesome/theme/README.md,picom/README.md}`、`README.md`、`AGENTS.md`、`memory/{alacritty,desktop,niri,organizing_preferences}.md`、`tests/{picom,repo_docs,starship,waybar,wayland_scripts,niri}_config_test.sh` 中 kitty 相关引用同步替换为 foot；`AGENTS.md` memory 索引与 `repo_docs_test.sh` 正则新增 `foot.md`；`starship_config_test.sh` 注释更新。
+- 验证：`./tests/run.sh fast` 全绿（含新增 `foot_config_test.sh` 与更新后的 picom/repo_docs/starship/waybar/wayland_scripts/niri 测试）；`foot --check-config` exit=0；`git diff --check` 无告警。
+- live 同步与运行态：已通过 `./install.sh` 同步 live `~/.config/{foot,niri,waybar,scripts}`；foot.ini 后续又手动同步一次（见下方修复）。
+- 后续可能方向：aarch64 内屏 2x 下若复现 mtgpu 对 foot 0.82 alpha 合成的 bug，再单独评估是否在该硬件上降回不透明。

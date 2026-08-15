@@ -79,7 +79,7 @@ theme.useless_gap = dpi(8)  -- 改为 0-16 之间的值
 ## 截图
 
 Catppuccin 主题配合以下工具效果更佳：
-- 终端：Alacritty / Kitty (Catppuccin 主题)
+- 终端：Alacritty / Foot (Catppuccin 主题)
 - Shell：Zsh (Starship Catppuccin 主题)
 - 编辑器：Neovim (Catppuccin 主题)
 - 应用启动器：Rofi (Catppuccin 主题)

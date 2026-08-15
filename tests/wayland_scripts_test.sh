@@ -79,9 +79,11 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_contains 'niri 输出数量变化' "$AUTOSTART_SCRIPT"
     assert_not_contains 'start_gammastep_watch' "$AUTOSTART_SCRIPT"
     assert_not_contains 'gammastep-watch.pid' "$AUTOSTART_SCRIPT"
-    # aarch64 kitty 常驻单实例预启动已移除（改回普通冷启动）；不得再预启动 daemon。
+    # kitty 常驻单实例预启动已随 kitty 一并移除；不得再预启动任何终端 daemon。
     assert_not_contains 'kitty-daemon' "$AUTOSTART_SCRIPT"
     assert_not_contains 'kitty --listen-on' "$AUTOSTART_SCRIPT"
+    assert_not_contains 'foot-daemon' "$AUTOSTART_SCRIPT"
+    assert_not_contains 'foot --listen-on' "$AUTOSTART_SCRIPT"
 }
 
 test_wayland_autostart_logs_each_app_and_warns_for_missing_commands() {
@@ -255,15 +257,22 @@ test_launcher_and_lock_have_wayland_first_fallbacks() {
     assert_executable "$LOCK_SCRIPT"
     assert_contains 'exec "$HOME/.nix-profile/bin/alacritty" "$@"' "$TERMINAL_SCRIPT"
     assert_contains 'exec alacritty "$@"' "$TERMINAL_SCRIPT"
-    assert_contains 'exec kitty "$@"' "$TERMINAL_SCRIPT"
-    # 全平台无条件优先 Alacritty，kitty 仅作最后兜底；因此 alacritty 一定在
-    # 最后一个 kitty 兜底之前。
+    assert_contains 'exec foot "$@"' "$TERMINAL_SCRIPT"
+    assert_not_contains 'exec kitty "$@"' "$TERMINAL_SCRIPT"
+    # aarch64 + Wayland 优先 foot 分支必须在 alacritty 之前；其他平台 alacritty 在
+    # 最后一个 foot 兜底之前。
+    assert_contains 'uname -m' "$TERMINAL_SCRIPT"
+    assert_contains 'WAYLAND_DISPLAY' "$TERMINAL_SCRIPT"
+    aarch64_foot_line=$(grep -nF 'exec foot "$@"' "$TERMINAL_SCRIPT" | head -n 1 | cut -d: -f1)
     alacritty_line=$(grep -nF 'exec alacritty "$@"' "$TERMINAL_SCRIPT" | head -n 1 | cut -d: -f1)
-    last_kitty_line=$(grep -nF 'exec kitty "$@"' "$TERMINAL_SCRIPT" | tail -n 1 | cut -d: -f1)
-    [ -n "$alacritty_line" ] && [ -n "$last_kitty_line" ] &&
-        [ "$alacritty_line" -lt "$last_kitty_line" ] ||
-        fail "expected 'exec alacritty' before the final kitty fallback in $TERMINAL_SCRIPT"
-    assert_contains '回退 kitty' "$NIRI_README"
+    last_foot_line=$(grep -nF 'exec foot "$@"' "$TERMINAL_SCRIPT" | tail -n 1 | cut -d: -f1)
+    [ -n "$aarch64_foot_line" ] && [ -n "$alacritty_line" ] &&
+        [ "$aarch64_foot_line" -lt "$alacritty_line" ] ||
+        fail "expected aarch64+Wayland foot branch before alacritty in $TERMINAL_SCRIPT"
+    [ -n "$alacritty_line" ] && [ -n "$last_foot_line" ] &&
+        [ "$alacritty_line" -lt "$last_foot_line" ] ||
+        fail "expected 'exec alacritty' before the final foot fallback in $TERMINAL_SCRIPT"
+    assert_contains '回退 foot' "$NIRI_README"
     assert_contains 'export INPUT_METHOD=fcitx' "$LAUNCHER_SCRIPT"
     assert_contains 'fcitx5 -d --replace' "$LAUNCHER_SCRIPT"
     assert_contains 'exec fuzzel "$@"' "$LAUNCHER_SCRIPT"

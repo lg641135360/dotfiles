@@ -125,19 +125,19 @@ test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal() {
     assert_contains 'scale 1.25' "$NIRI_AARCH64_CONFIG"
     assert_contains 'position x=0 y=0' "$NIRI_AARCH64_CONFIG"
 
-    # 全平台默认 Alacritty：移除 aarch64-kitty 分支后，脚本无条件优先 alacritty，
-    # kitty 仅作最后兜底。alacritty 内屏 2x 字形问题未根治，见 logs/trace.md。
-    assert_not_contains 'uname -m' "$TERMINAL_SCRIPT"
-    assert_not_contains 'exec foot "$@"' "$TERMINAL_SCRIPT"
+    # aarch64 + Wayland 优先 foot：alacritty 0.18.0-dev 在 mtgpu 内屏 2x 字形损坏，
+    # foot 渲染正常。其他平台仍优先 alacritty，foot 作最后兜底。
+    assert_contains 'uname -m' "$TERMINAL_SCRIPT"
+    assert_contains 'WAYLAND_DISPLAY' "$TERMINAL_SCRIPT"
+    assert_not_contains 'exec kitty "$@"' "$TERMINAL_SCRIPT"
     assert_contains 'exec "$HOME/.nix-profile/bin/alacritty" "$@"' "$TERMINAL_SCRIPT"
-    # niri spawn PATH 不含 ~/.local/bin，脚本需补进该目录才能找到二进制安装的 kitty。
-    assert_contains '$HOME/.local/bin' "$TERMINAL_SCRIPT"
+    assert_contains 'exec foot "$@"' "$TERMINAL_SCRIPT"
 
-    # 常驻单实例快速开窗方案已移除（kitty 冷启动 ~1.5s 改为普通冷启动，避免残留
-    # socket / 登录多一个常驻窗口等维护成本）；不得再出现 socket 控制或远程控制。
+    # 常驻单实例快速开窗方案已随 kitty 一并移除（避免残留 socket / 登录多一个常驻
+    # 窗口等维护成本）；不得再出现 socket 控制或远程控制。
     assert_not_contains 'kitty @ --to' "$TERMINAL_SCRIPT"
     assert_not_contains '--listen-on' "$TERMINAL_SCRIPT"
-    assert_not_contains 'allow_remote_control' "$REPO_ROOT/.config/linux/kitty/kitty.conf"
+    assert_not_contains 'allow_remote_control' "$REPO_ROOT/.config/linux/foot/foot.ini"
 
     # aarch64 keeps transparency but disables blur: mtgpu blur is invisible.
     assert_contains 'blur false' "$NIRI_AARCH64_CONFIG"

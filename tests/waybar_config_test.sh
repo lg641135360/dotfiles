@@ -110,8 +110,8 @@ test_waybar_matches_niri_trial_contract() {
     assert_contains '"return-type": "json"' "$WAYBAR_CONFIG"
     assert_contains '"tooltip": true,' "$WAYBAR_CONFIG"
     assert_contains '"escape": false,' "$WAYBAR_CONFIG"
-    assert_contains '"on-click": "kitty -- htop -s PERCENT_CPU"' "$WAYBAR_CONFIG"
-    assert_contains '"on-click": "kitty -- htop -s PERCENT_MEM"' "$WAYBAR_CONFIG"
+    assert_contains '"on-click": "foot -- htop -s PERCENT_CPU"' "$WAYBAR_CONFIG"
+    assert_contains '"on-click": "foot -- htop -s PERCENT_MEM"' "$WAYBAR_CONFIG"
     # POSIX sh: 用 printf 八进制转义构造 Nerd Font 音量图标 U+F028（UTF-8 EF 80 A8），
     # 避免 bash 专属的 ANSI-C quoting（$'...'）在 dash 下解析失败。
     vol_icon=$(printf '\357\200\250')

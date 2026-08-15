@@ -401,7 +401,7 @@ linux_dir_configs=(
 linux_wayland_dir_configs=(
     "command -v mako|.config/linux/mako|~/.config/mako|Mako"
     "command -v fuzzel|.config/linux/fuzzel|~/.config/fuzzel|Fuzzel"
-    "command -v kitty|.config/linux/kitty|~/.config/kitty|Kitty"
+    "command -v foot|.config/linux/foot|~/.config/foot|Foot"
 )
 
 # Architecture and distro-specific configurations (awesome autostart only)

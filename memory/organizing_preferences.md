@@ -1,7 +1,7 @@
 # Organizing Preferences
 
 > 通用/跨模块偏好与环境经验。本文件不定义通用硬约束；通用强制规则以 `AGENTS.md` 为准。模块特定偏好请参见对应分类文件：
-> `awesome.md` / `nvim.md` / `tmux.md` / `rofi.md` / `alacritty.md` / `desktop.md` / `niri.md` / `waybar.md` / `git.md` / `codex.md` / `dingtalk.md`
+> `awesome.md` / `nvim.md` / `tmux.md` / `rofi.md` / `alacritty.md` / `desktop.md` / `niri.md` / `waybar.md` / `git.md` / `codex.md` / `dingtalk.md` / `foot.md`
 
 ## 通用工作流
 - 当用户要求把当前桌面配置改动提交到 GitHub 时，通常优先先复跑轻量回归测试，并确认仓库文件与 live `~/.config` 已同步，再执行提交和推送。

@@ -158,7 +158,7 @@ layer-rule {
 window-rule {
     draw-border-with-background false
     // 全局窗口默认 0.88 透明度 + niri 背景模糊。透明叠加各应用自身透明度
-    // （如 alacritty 的 background_opacity 0.82 / kitty 的 0.82）。
+    // （如 alacritty 的 background_opacity 0.82 / foot 的 colors.alpha 0.82）。
     opacity 0.88
     background-effect {
         blur true
