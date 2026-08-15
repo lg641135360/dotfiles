@@ -5,6 +5,10 @@
 
 "$schema" = 'https://starship.rs/config-schema.json'
 
+# 禁用 starship 默认在提示符前插入的空行（add_newline 默认 true）。
+# 之前依赖 format 三引号开头换行的猜测是错的；空行实际来自此默认行为。
+add_newline = false
+
 format = """
 $os\
 $directory\

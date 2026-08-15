@@ -110,3 +110,10 @@
 - 验证：`./tests/run.sh fast` 全绿（含新增 `foot_config_test.sh` 与更新后的 picom/repo_docs/starship/waybar/wayland_scripts/niri 测试）；`foot --check-config` exit=0；`git diff --check` 无告警。
 - live 同步与运行态：已通过 `./install.sh` 同步 live `~/.config/{foot,niri,waybar,scripts}`；foot.ini 后续又手动同步一次（见下方修复）。
 - 后续可能方向：aarch64 内屏 2x 下若复现 mtgpu 对 foot 0.82 alpha 合成的 bug，再单独评估是否在该硬件上降回不透明。
+
+### 2026-08-15 — 修复 starship 提示符前的空行
+- 现象：foot 打开后提示符前有一空行。
+- 排查：先误判为 `format` 三引号开头换行被渲染，改动后无效；用 `starship prompt | od -c` 抓到输出首字符即 `\n`，且 `grep add_newline` 为空（starship 默认 `add_newline = true`，会在每次提示符前插入 `\n`）。
+- 改动：`.config/shared/starship.toml` 顶部加 `add_newline = false`，并回滚 `format` 三引号的猜测性改动。
+- 验证：`STARSHIP_CONFIG=~/.config/starship.toml starship prompt | od -c` 首字符不再是 `\n`；`./tests/starship_config_test.sh` PASS；用户重启 foot 后空行消失。
+- live 同步：手动 `cp` 同步 `~/.config/starship.toml`。未提交推送。
