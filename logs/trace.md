@@ -117,3 +117,10 @@
 - 改动：`.config/shared/starship.toml` 顶部加 `add_newline = false`，并回滚 `format` 三引号的猜测性改动。
 - 验证：`STARSHIP_CONFIG=~/.config/starship.toml starship prompt | od -c` 首字符不再是 `\n`；`./tests/starship_config_test.sh` PASS；用户重启 foot 后空行消失。
 - live 同步：手动 `cp` 同步 `~/.config/starship.toml`。未提交推送。
+
+### 2026-08-15 — foot 字号从 13 调到 12
+- 目的：用户反馈 aarch64 内屏 2x HiDPI 下 13 偏大。
+- 改动：`.config/linux/foot/foot.ini` 的 `font` / `font-bold` / `font-italic` / `font-bold-italic` 的 `:size=13` 全部改为 `:size=12`；`tests/foot_config_test.sh` 断言同步更新；注释说明 aarch64 HiDPI 下 12 比 13 更紧凑。
+- 验证：`foot --check-config` exit=0；`./tests/foot_config_test.sh` PASS。
+- live 同步：手动 `cp` 同步 `~/.config/foot/foot.ini`。未提交推送。
+- 备注：alacritty 仍保持 size=13，未对齐；foot 作为 aarch64 Wayland 主终端，字号独立调整。

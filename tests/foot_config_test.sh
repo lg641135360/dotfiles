@@ -11,11 +11,12 @@ INSTALL_FILE=$REPO_ROOT/install.sh
 TERMINAL_SCRIPT=$REPO_ROOT/.config/scripts/terminal-wayland
 
 test_font_matches_alacritty() {
-    # foot 与 alacritty 都用 size=13。font-* 必须显式带 :size，foot 不继承 font 的 size。
-    assert_contains 'MesloLGS Nerd Font Mono:size=13' "$FOOT_FILE"
-    assert_contains 'font-bold=MesloLGS Nerd Font Mono:weight=bold:size=13' "$FOOT_FILE"
-    assert_contains 'font-italic=MesloLGS Nerd Font Mono:slant=italic:size=13' "$FOOT_FILE"
-    assert_contains 'font-bold-italic=MesloLGS Nerd Font Mono:weight=bold:slant=italic:size=13' "$FOOT_FILE"
+    # foot 在 aarch64 HiDPI 内屏 2x 下用 12（比 alacritty 的 13 略小，更紧凑）；
+    # 其他平台 alacritty 仍用 13。font-* 必须显式带 :size，foot 不继承 font 的 size。
+    assert_contains 'MesloLGS Nerd Font Mono:size=12' "$FOOT_FILE"
+    assert_contains 'font-bold=MesloLGS Nerd Font Mono:weight=bold:size=12' "$FOOT_FILE"
+    assert_contains 'font-italic=MesloLGS Nerd Font Mono:slant=italic:size=12' "$FOOT_FILE"
+    assert_contains 'font-bold-italic=MesloLGS Nerd Font Mono:weight=bold:slant=italic:size=12' "$FOOT_FILE"
     assert_contains 'size = 13' "$ALACRITTY_MAIN"
 }
 
