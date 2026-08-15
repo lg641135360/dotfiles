@@ -56,3 +56,39 @@
 - 根因：17:16 niri 会话重启后，`xdg-desktop-portal-gnome` 在 17:16:14 先启动，此时 niri 尚未在 17:16:19 注册 `org.gnome.Mutter.ScreenCast`；backend 因此打印 `Non-compatible display server, exposing settings only` 并持续只有 Settings。钉钉请求实际到达 frontend，但 frontend 报 ScreenCast backend 接口不存在。
 - 运行态修复：待 niri 已就绪后，按顺序停止 portal frontend/backend，再启动 GNOME backend 与 frontend。当前 GNOME backend 已恢复 ScreenCast 的 `CreateSession`、`SelectSources`、`Start` 接口；最小 libportal probe 返回 `CREATE_OK`。
 - 未修改仓库文件；未同步 live 配置；未提交、未推送。
+
+
+## 2026-08-15 — 清理 starship 配置死代码并修复 os/directory 双空格
+
+- 目的：删除 starship.toml 中永远不会渲染的模块与未使用的 palette，并修复 `[os]` 与 `[directory]` 之间因 directory 前导空格叠加 os 默认 format 产生的双空格。
+- 改动：`.config/shared/starship.toml` 删除 `[golang]`/`[php]`/`[java]`/`[kotlin]`/`[haskell]` 五个未在 `format` 中引用的模块；删除 `catppuccin_frappe`/`latte`/`macchiato` 三个未使用的 palette（保留 `catppuccin_mocha`）；删除 `[os.symbols]` 中默认空字符串的条目（Windows/SUSE/Manjaro/Alpine/Amazon/Android/AOSC/CentOS）；为 `[os]` 增加 `format = '[ $symbol]($style)'`，使 os 与 directory 之间只保留 directory 自身的一个前导空格。
+- 验证：`tests/starship_config_test.sh` PASS；`git diff --check` 无告警；`starship config` 与 `starship explain` 能正常解析配置，输出中 os 图标与 directory 之间不再出现双空格。
+- live 同步与运行态：未同步 live `~/.config/starship.toml`，未重载 shell；未提交、未推送。
+- 后续可能方向：`[directory]` 仍使用 emoji 默认 `read_only` 图标，与 Nerd Font 主题不一致；`[git_branch]` 无 `truncation_length`，长分支名会顶宽；`[character]` 的 success/error 符号来自不同图标族。如需统一可再开一轮 `repo-change`。
+
+
+## 2026-08-15 — starship 美化 git_status 符号、语言配色与 character 错误态
+
+- 目的：统一 git_status 状态符号视觉族、为语言模块按品牌色分配独立色、让 character 错误态与成功态使用同字符靠颜色区分。
+- 改动：`.config/shared/starship.toml` 中 `[git_status]` 显式设置 ahead/behind/diverged/untracked/stashed/modified/staged/renamed/deleted 为 `↑ ↓ ↕ ? $ ! + » ✘`；`[nodejs]`/`[bun]`/`[c]`/`[rust]`/`[python]` 的 style 从统一 `fg:teal` 改为 `fg:green`/`fg:sky`/`fg:blue`/`fg:peach`/`fg:yellow`；`[character]` 的 `error_symbol` 从 `✗` 改为 `❯`，与 `success_symbol` 同字符靠颜色区分。同步更新 `tests/starship_config_test.sh` 中写死的 `error_symbol` 断言。
+- 验证：`tests/starship_config_test.sh` PASS；`git diff --check` 无告警；`starship explain` 能正常解析配置。
+- live 同步与运行态：未同步 live `~/.config/starship.toml`，未重载 shell；未提交、未推送。
+- 后续可能方向：`[directory]` 默认 emoji `read_only` 图标、`[git_branch]` 无 `truncation_length`、`[git_status]` 各状态仍共用 `fg:yellow` 未按严重度分色。
+
+
+## 2026-08-15 — starship 增加 git_branch 截断、directory read_only 图标与清理 cmd_duration 死配置
+
+- 目的：防止长分支名顶宽、统一 directory 只读图标为 Nerd Font 主题、清理 cmd_duration 中因 `show_notifications = false` 而永不生效的 `min_time_to_notify`。
+- 改动：`.config/shared/starship.toml` 中 `[git_branch]` 增加 `truncation_length = 20` + `truncation_symbol = "…"`；`[directory]` 增加 `read_only = " 󰌾"` + `read_only_style = "fg:red"`，替换默认 emoji `🔒`；`[cmd_duration]` 删除 `min_time_to_notify = 45000`。
+- 验证：`tests/starship_config_test.sh` PASS；`git diff --check` 无告警；`starship explain` 能正常解析配置。
+- live 同步与运行态：未同步 live `~/.config/starship.toml`，未重载 shell；未提交、未推送。
+- 后续可能方向：`[directory]` 无 `repo_root_style` 突出仓库根、`[git_status]` 各状态仍共用 `fg:yellow`、模块间空格叠加导致视觉松散。
+
+
+## 2026-08-15 — starship 增加 directory repo_root_style、home_symbol 与 cmd_duration min_time
+
+- 目的：在 git 仓库内突出仓库根目录、统一 home 目录图标为 Nerd Font、减少短命令耗时噪音。
+- 改动：`.config/shared/starship.toml` 中 `[directory]` 增加 `repo_root_style = "fg:peach bold"` 和 `home_symbol = "󰋜"`；`[cmd_duration]` 增加 `min_time = 5000`，只显示 5 秒以上命令的耗时。
+- 验证：`tests/starship_config_test.sh` PASS；`git diff --check` 无告警；`starship explain` 能正常解析配置。
+- live 同步与运行态：未同步 live `~/.config/starship.toml`，未重载 shell；未提交、未推送。
+- 后续可能方向：`[git_status]` 各状态仍共用 `fg:yellow` 未按严重度分色、模块间空格叠加导致视觉松散、语言模块在非项目目录也会渲染 symbol。
