@@ -21,7 +21,7 @@ test_waybar_aarch64_has_battery_module() {
     # config.aarch64 variant also exposes a battery module in modules-right.
     assert_file_exists "$WAYBAR_AARCH64_CONFIG"
     assert_contains '"battery"' "$WAYBAR_AARCH64_CONFIG"
-    assert_contains '"modules-right": ["network", "custom/cpu", "custom/memory", "backlight", "pulseaudio", "battery", "privacy", "tray"]' "$WAYBAR_AARCH64_CONFIG"
+    assert_contains '"modules-right": ["network", "cpu", "memory", "backlight", "pulseaudio", "battery", "privacy", "tray"]' "$WAYBAR_AARCH64_CONFIG"
     # Battery styles live in the shared style.css (deployed to both platforms).
     assert_contains '#battery' "$WAYBAR_STYLE"
     assert_contains '#battery.charging' "$WAYBAR_STYLE"
@@ -71,7 +71,7 @@ test_waybar_matches_niri_trial_contract() {
     assert_not_contains '"3":' "$WAYBAR_CONFIG"
     assert_not_contains '"4":' "$WAYBAR_CONFIG"
     assert_not_contains '"5":' "$WAYBAR_CONFIG"
-    assert_contains '"modules-right": ["network", "custom/cpu", "custom/memory", "pulseaudio", "privacy", "tray"]' "$WAYBAR_CONFIG"
+    assert_contains '"modules-right": ["network", "cpu", "memory", "pulseaudio", "privacy", "tray"]' "$WAYBAR_CONFIG"
     # Nerd Font / Unicode glyphs (UTF-8 bytes via printf to survive editors
     # that strip unrenderable glyphs). Mirrors how the config file itself is
     # authored.
@@ -95,21 +95,27 @@ test_waybar_matches_niri_trial_contract() {
     assert_contains '"(.*) - Alacritty$": "$1"' "$WAYBAR_CONFIG"
     cpu_icon=$(printf '\363\260\273\240')
     mem_icon=$(printf '\363\260\215\233')
-    assert_contains "\"format\": \"$cpu_icon {}\"" "$WAYBAR_CONFIG"
-    assert_contains "\"format\": \"$mem_icon {}\"" "$WAYBAR_CONFIG"
-    # CPU/MEM moved from built-in modules to custom modules backed by
-    # waybar-system-tooltip. return-type=json means waybar reads tooltip from
-    # the JSON field (tooltip-exec is ignored in json mode), so exec must
-    # compute top processes each interval. Interval=5 keeps steady-state CPU
-    # around 2-3%.
-    assert_contains '"custom/cpu": {' "$WAYBAR_CONFIG"
-    assert_contains '"custom/memory": {' "$WAYBAR_CONFIG"
-    assert_contains '"exec": "$HOME/.config/scripts/waybar-system-tooltip cpu"' "$WAYBAR_CONFIG"
-    assert_contains '"exec": "$HOME/.config/scripts/waybar-system-tooltip mem"' "$WAYBAR_CONFIG"
+    assert_contains "\"format\": \"$cpu_icon {usage}%\"" "$WAYBAR_CONFIG"
+    assert_contains "\"format\": \"$mem_icon {percentage}%\"" "$WAYBAR_CONFIG"
+    # states drive warning/critical colors (CPU 70/90, MEM 80/95).
+    assert_contains '"warning": 70' "$WAYBAR_CONFIG"
+    assert_contains '"critical": 90' "$WAYBAR_CONFIG"
+    assert_contains '"warning": 80' "$WAYBAR_CONFIG"
+    assert_contains '"critical": 95' "$WAYBAR_CONFIG"
+    assert_contains '#cpu.warning' "$WAYBAR_STYLE"
+    assert_contains '#cpu.critical' "$WAYBAR_STYLE"
+    assert_contains '#memory.warning' "$WAYBAR_STYLE"
+    assert_contains '#memory.critical' "$WAYBAR_STYLE"
+    # CPU/MEM use waybar built-in modules (kernel-level sampling, per-module
+    # state — immune to the multi-bar baseline race that plagued the custom
+    # script). tooltip via tooltip-format; states drive warning/critical CSS.
+    assert_contains '"cpu": {' "$WAYBAR_CONFIG"
+    assert_contains '"memory": {' "$WAYBAR_CONFIG"
+    assert_not_contains 'custom/cpu' "$WAYBAR_CONFIG"
+    assert_not_contains 'custom/memory' "$WAYBAR_CONFIG"
+    assert_contains '"tooltip-format": "CPU 使用率：{usage}%\n负载：{load}"' "$WAYBAR_CONFIG"
+    assert_contains '"tooltip-format": "内存：{used} / {total}（{percentage}%）\n可用：{available}"' "$WAYBAR_CONFIG"
     assert_contains '"interval": 5,' "$WAYBAR_CONFIG"
-    assert_contains '"return-type": "json"' "$WAYBAR_CONFIG"
-    assert_contains '"tooltip": true,' "$WAYBAR_CONFIG"
-    assert_contains '"escape": false,' "$WAYBAR_CONFIG"
     assert_contains '"on-click": "foot -- htop -s PERCENT_CPU"' "$WAYBAR_CONFIG"
     assert_contains '"on-click": "foot -- htop -s PERCENT_MEM"' "$WAYBAR_CONFIG"
     # POSIX sh: 用 printf 八进制转义构造 Nerd Font 音量图标 U+F028（UTF-8 EF 80 A8），
@@ -173,7 +179,7 @@ with open(sys.argv[1]) as f: x64 = json.load(f)
 with open(sys.argv[2]) as f: aarch = json.load(f)
 
 # modules-right: aarch64 must add exactly backlight + battery, in order,
-# between custom/memory and pulseaudio (laptop brightness/volume ergonomics).
+# between memory and pulseaudio (laptop brightness/volume ergonomics).
 x64_right = x64["modules-right"]
 aarch_right = aarch["modules-right"]
 extra = [m for m in aarch_right if m not in x64_right]

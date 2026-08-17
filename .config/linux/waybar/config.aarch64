@@ -8,7 +8,7 @@
   "spacing": 2,
   "modules-left": ["niri/workspaces", "custom/separator", "niri/window"],
   "modules-center": ["clock"],
-  "modules-right": ["network", "custom/cpu", "custom/memory", "backlight", "pulseaudio", "battery", "privacy", "tray"],
+  "modules-right": ["network", "cpu", "memory", "backlight", "pulseaudio", "battery", "privacy", "tray"],
   "niri/workspaces": {
     "format": "{icon}",
     "format-icons": {
@@ -118,26 +118,24 @@
       }
     ]
   },
-  "custom/cpu": {
-    "format": "󰻠 {}",
-    "exec": "$HOME/.config/scripts/waybar-system-tooltip cpu",
+  "cpu": {
+    "format": "󰻠 {usage}%",
     "interval": 5,
-    "return-type": "json",
-    "tooltip": true,
-    "escape": false,
-    "min-length": 5,
-    "align": 0.5,
+    "states": {
+      "warning": 70,
+      "critical": 90
+    },
+    "tooltip-format": "CPU 使用率：{usage}%\n负载：{load}",
     "on-click": "foot -- htop -s PERCENT_CPU"
   },
-  "custom/memory": {
-    "format": "󰍛 {}",
-    "exec": "$HOME/.config/scripts/waybar-system-tooltip mem",
+  "memory": {
+    "format": "󰍛 {percentage}%",
     "interval": 5,
-    "return-type": "json",
-    "tooltip": true,
-    "escape": false,
-    "min-length": 5,
-    "align": 0.5,
+    "states": {
+      "warning": 80,
+      "critical": 95
+    },
+    "tooltip-format": "内存：{used} / {total}（{percentage}%）\n可用：{available}",
     "on-click": "foot -- htop -s PERCENT_MEM"
   }
 }
