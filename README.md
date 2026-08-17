@@ -49,6 +49,7 @@
 │       ├── wallpaper-wayland-next/ # Wayland 壁纸（下一张）
 │       ├── browser-wayland/   # Wayland Chrome 启动器
 │       ├── trae-cn-wayland/   # Wayland Trae CN 启动器
+│       ├── waybar-system-tooltip/  # Waybar CPU/MEM tooltip 脚本
 ├── scripts/          # TypeScript 工具（trace 归档等）
 ├── tests/            # 回归测试
 │   ├── run.sh        # 测试运行器

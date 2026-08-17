@@ -385,6 +385,7 @@ linux_wayland_configs=(
     "|.config/scripts/screenshot-wayland|~/.config/scripts/screenshot-wayland|Wayland screenshot script"
     "|.config/scripts/browser-wayland|~/.config/scripts/browser-wayland|Wayland browser script"
     "|.config/scripts/trae-cn-wayland|~/.config/scripts/trae-cn-wayland|Wayland Trae CN script"
+    "|.config/scripts/waybar-system-tooltip|~/.config/scripts/waybar-system-tooltip|Waybar CPU/MEM tooltip script"
     "|.config/linux/desktop-entries/google-chrome.desktop|~/.local/share/applications/google-chrome.desktop|Google Chrome Wayland desktop entry"
     "|.config/linux/desktop-entries/trae-cn.desktop|~/.local/share/applications/trae-cn.desktop|Trae CN Wayland desktop entry"
     "|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script"

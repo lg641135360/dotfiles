@@ -1,0 +1,255 @@
+#!/bin/sh
+# Waybar custom CPU/MEM module: emits JSON with usage and top-5 processes.
+#
+# Output schema (return-type=json):
+#   {"text":"42%","tooltip":"CPU\n使用率：42%\n负载：0.5\n\nTop CPU 进程\n...","percentage":42,"class":"warning"}
+#
+# CPU usage and top processes are both computed from two samples taken
+# within a single invocation (sleep 1 between samples). Top processes use
+# /proc/<pid>/stat utime+stime delta (instantaneous %CPU over the 1s window),
+# NOT ps %CPU (which is lifetime-average — long-running processes like chrome
+# get diluted, new processes get inflated). Top % aligns with the bar's 1s
+# average usage, eliminating the prior inconsistency. The sleep 1 window is
+# shared between /proc/stat and /proc/<pid>/stat sampling, no extra blocking.
+#
+# This avoids the prior state-file approach which was racy under multi-bar
+# concurrent exec or waybar reload (the second call could read a baseline
+# just written by the first call and emit 0%). Trade-off: each exec blocks
+# ~1s (waybar custom modules run asynchronously, so the UI is not blocked)
+# and the measurement window shrinks from 5s to 1s.
+#
+# Memory usage reads /proc/meminfo MemAvailable directly (no delta needed).
+#
+# Tooltip format aligns with AwesomeWM widgets/system.lua: first line is the
+# module title ("CPU" or "内存"), then a summary ("使用率：XX%" + "负载：X.X"
+# for CPU), then a "Top CPU 进程" / "Top 内存进程" section listing the top 5
+# processes as "pid  comm  value" (two-space separator, no padding).
+#
+# Note: waybar's return-type=json takes the tooltip from the JSON "tooltip"
+# field; tooltip-exec is ignored in json mode, so we must compute top
+# processes on every interval. Interval is set to 5s in the config to keep
+# steady-state CPU cost around 2-3%.
+
+set -eu
+
+json_escape() {
+    # Strip control characters (NUL, BS, \r, etc.) before escaping, then
+    # escape backslash, double-quote, newline, tab for JSON string.
+    tr -d '\000-\010\013\014\016-\037' \
+        | sed -e 's/\\/\\\\/g' \
+              -e 's/"/\\"/g' \
+              -e ':a' -e 'N' -e '$!ba' -e 's/\n/\\n/g' \
+              -e 's/\t/\\t/g'
+}
+
+emit_class() {
+    # $1 usage (0-100), $2 warning threshold, $3 critical threshold
+    usage=$1
+    warn=$2
+    crit=$3
+    if [ "$usage" -ge "$crit" ]; then
+        printf 'critical'
+    elif [ "$usage" -ge "$warn" ]; then
+        printf 'warning'
+    else
+        printf ''
+    fi
+}
+
+format_mem_value() {
+    # $1 value in KB
+    kb=$1
+    if [ "$kb" -ge 1048576 ]; then
+        awk -v k="$kb" 'BEGIN { printf "%.1fG", k / 1048576 }'
+    elif [ "$kb" -ge 1024 ]; then
+        awk -v k="$kb" 'BEGIN { printf "%.0fM", k / 1024 }'
+    else
+        printf '%sK' "$kb"
+    fi
+}
+
+sample_proc_cpu() {
+    # One /proc walk: output "pid utime stime" per line, excluding own pid $$.
+    # Field layout: after stripping "pid (comm)" the rest starts at field 3
+    # (state), so utime(14)=rest[12], stime(15)=rest[13]. Stripping the
+    # parenthesized comm avoids skewing field positions when comm has spaces.
+    for stat_file in /proc/[0-9]*/stat; do
+        [ -r "$stat_file" ] || continue
+        pid=${stat_file#/proc/}
+        pid=${pid%/stat}
+        [ "$pid" = "$$" ] && continue
+        awk -v pid="$pid" '
+            {
+                close_pos = index($0, ")")
+                if (close_pos == 0) next
+                rest = substr($0, close_pos + 2)
+                n = split(rest, f, " ")
+                if (n < 13) next
+                print pid, f[12], f[13]
+            }
+        ' "$stat_file" 2>/dev/null
+    done
+}
+
+compute_top_cpu() {
+    # $1 sample1, $2 sample2, $3 delta_total jiffies (from /proc/stat delta)
+    # Output: top 5 "pid  comm  NN.N%" lines with instantaneous %CPU = delta
+    # jiffies * 100 / delta_total. One decimal avoids truncating sub-1%
+    # processes to 0% (common in the 1s window). May exceed 100% on multi-core
+    # saturation, matching ps %CPU / AwesomeWM semantics.
+    awk -v s1="$1" -v s2="$2" -v delta_total="$3" '
+        BEGIN {
+            n1 = split(s1, a1, "\n")
+            for (i = 1; i <= n1; i++) {
+                nf = split(a1[i], f, " ")
+                if (nf < 3) continue
+                utime1[f[1]] = f[2]
+                stime1[f[1]] = f[3]
+            }
+            n2 = split(s2, a2, "\n")
+            for (i = 1; i <= n2; i++) {
+                nf = split(a2[i], f, " ")
+                if (nf < 3) continue
+                pid = f[1]
+                if (pid in utime1) {
+                    delta = (f[2] - utime1[pid]) + (f[3] - stime1[pid])
+                    if (delta > 0 && delta_total > 0) {
+                        cpu[pid] = delta * 100 / delta_total
+                        pids[++n] = pid
+                    }
+                }
+            }
+            # Selection sort top-5 (O(n*5), better than full sort for n ~ hundreds)
+            m = (n < 5 ? n : 5)
+            for (i = 1; i <= m; i++) {
+                max = i
+                for (j = i + 1; j <= n; j++) {
+                    if (cpu[pids[j]] > cpu[pids[max]]) max = j
+                }
+                tmp = pids[i]; pids[i] = pids[max]; pids[max] = tmp
+                printf "%s %.1f\n", pids[i], cpu[pids[i]]
+            }
+        }
+    ' | while read -r pid cpu; do
+        [ -n "$pid" ] || continue
+        comm=$(cat "/proc/$pid/comm" 2>/dev/null || printf '?')
+        printf '%s  %s  %.1f%%\n' "$pid" "$comm" "$cpu"
+    done
+}
+
+read_cpu_usage_and_top() {
+    # Single sleep 1 window shared between /proc/stat (for usage) and
+    # /proc/<pid>/stat (for top processes). Output: line 1 = usage percent,
+    # subsequent lines = top process list (empty if usage is 0).
+    cpu_sample1=$(awk '/^cpu /{print $2,$3,$4,$5,$6,$7,$8,$9}' /proc/stat 2>/dev/null || true)
+    proc_sample1=$(sample_proc_cpu)
+    [ -n "$cpu_sample1" ] || { echo 0; return; }
+    sleep 1
+    cpu_sample2=$(awk '/^cpu /{print $2,$3,$4,$5,$6,$7,$8,$9}' /proc/stat 2>/dev/null || true)
+    proc_sample2=$(sample_proc_cpu)
+    [ -n "$cpu_sample2" ] || { echo 0; return; }
+
+    # Compute usage and delta_total; eval is safe because awk %d forces int.
+    eval "$(awk -v cur="$cpu_sample2" -v prev="$cpu_sample1" '
+        BEGIN {
+            n1 = split(cur, c, " ")
+            n2 = split(prev, p, " ")
+            busy = 0; prev_busy = 0; idle = 0; prev_idle = 0
+            for (i = 1; i <= n1 && i <= 8; i++) {
+                if (i == 4 || i == 5) {
+                    idle += c[i]
+                    prev_idle += (i <= n2) ? p[i] : 0
+                } else {
+                    busy += c[i]
+                    prev_busy += (i <= n2) ? p[i] : 0
+                }
+            }
+            total = busy + idle
+            prev_total = prev_busy + prev_idle
+            delta_total = total - prev_total
+            delta_busy = busy - prev_busy
+            if (delta_total <= 0) { print "usage=0 delta_total=1"; exit }
+            printf "usage=%d delta_total=%d\n", (delta_busy * 100) / delta_total, delta_total
+        }
+    ')"
+
+    echo "$usage"
+    [ "$usage" = 0 ] && return
+    compute_top_cpu "$proc_sample1" "$proc_sample2" "$delta_total"
+}
+
+read_load_average() {
+    # /proc/loadavg first field is the 1-minute load average.
+    awk '{print $1; exit}' /proc/loadavg 2>/dev/null || printf '0'
+}
+
+read_mem_usage() {
+    # Outputs: usage_percent used_kb total_kb
+    awk '
+        /^MemTotal:/      { total = $2 }
+        /^MemAvailable:/  { avail = $2 }
+        /^MemFree:/       { free = $2 }
+        /^Buffers:/       { buffers = $2 }
+        /^Cached:/        { cached = $2 }
+        END {
+            if (total == 0) { print "0 0 0"; exit }
+            if (avail == 0) { avail = free + buffers + cached }
+            used = total - avail
+            if (used < 0) used = 0
+            printf "%d %d %d", (used * 100) / total, used, total
+        }
+    ' /proc/meminfo 2>/dev/null || echo "0 0 0"
+}
+
+top_mem_processes() {
+    ps --sort=-rss -eo pid,comm,rss --no-headers 2>/dev/null \
+        | awk -v self=$$ '$1 != self && $2 != "ps" { print; if (++n >= 5) exit }' \
+        | while read -r pid comm rss; do
+            [ -n "$rss" ] || continue
+            printf '%s  %s  %s\n' "$pid" "$comm" "$(format_mem_value "$rss")"
+        done
+}
+
+emit_cpu() {
+    output=$(read_cpu_usage_and_top)
+    usage=$(printf '%s\n' "$output" | head -1)
+    top=$(printf '%s\n' "$output" | tail -n +2)
+    load=$(read_load_average)
+    class=$(emit_class "$usage" 70 90)
+    [ -z "$top" ] && top="（无进程）"
+    tooltip=$(printf 'CPU\n使用率：%s%%\n负载：%s\n\nTop CPU 进程\n%s' "$usage" "$load" "$top" | json_escape)
+    cat <<EOF
+{"text":"${usage}%","tooltip":"${tooltip}","percentage":${usage:-0},"class":"${class}"}
+EOF
+}
+
+emit_mem() {
+    set -- $(read_mem_usage)
+    usage=$1
+    used=$2
+    total=$3
+    class=$(emit_class "$usage" 85 95)
+    top=$(top_mem_processes)
+    [ -z "$top" ] && top="（无进程）"
+    summary=$(printf '使用率：%s%%' "$usage")
+    if [ "$total" -gt 0 ] 2>/dev/null; then
+        summary=$(printf '使用率：%s%%\n已用：%s / %s' "$usage" "$(format_mem_value "$used")" "$(format_mem_value "$total")")
+    fi
+    tooltip=$(printf '内存\n%s\n\nTop 内存进程\n%s' "$summary" "$top" | json_escape)
+    cat <<EOF
+{"text":"${usage}%","tooltip":"${tooltip}","percentage":${usage:-0},"class":"${class}"}
+EOF
+}
+
+case "${1:-}" in
+    cpu)
+        emit_cpu
+        ;;
+    mem)
+        emit_mem
+        ;;
+    *)
+        echo "Usage: $0 {cpu|mem}" >&2
+        exit 2
+        ;;
+esac
