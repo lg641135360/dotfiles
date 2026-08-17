@@ -88,6 +88,7 @@
 
 - 目的：消除 x86_64 hook（6月4日版本基线）中三处无限忙等（session 创建、pipewire_fd 获取）导致 payload 线程可能永久卡死的问题，并修复取消路径 join sanitizer 前未置 stop_flag 的死锁隐患。
 - 改动：`tools/dingtalk-wayland-screenshare/payload.cpp` 引入 `PORTAL_WAIT_TIMEOUT_MS`（60s 计数式超时，非 GCancellable，不违反 6月4日版本契约）；session 等待与 pipewire_fd 等待均改为有界轮询，超时后退出并清理线程；`payload_main` 新增 session 为 null 的早退分支；两处 `x11_sanitizer_thread.join()` 前均先 `x11_sanitizer_stop_flag.store(true)`。`tests/dingtalk_hook_test.sh` 先行新增 `test_portal_waits_are_bounded_with_polling_timeouts` 断言。
-- 验证：`tests/dingtalk_hook_test.sh` PASS；`cmake -S tools/dingtalk-wayland-screenshare -B /tmp/... && cmake --build` 编译链接成功。用户将做运行时验证（安装 .so + `dingtalk-wayland restart` + 实际共享屏幕）。
-- live 同步与运行态：未同步 live `~/.local/lib/dingtalk-wayland-screenshare/`，未重启钉钉；未提交、未推送。
+- 验证：`tests/dingtalk_hook_test.sh` PASS；`cmake -S tools/dingtalk-wayland-screenshare -B /tmp/... && cmake --build` 编译链接成功。用户运行时实测共享屏幕正常（"OK，可以用"）。
+- live 同步与运行态：用户自行安装 .so 并实测通过；未由 agent 同步 live。
+- 提交推送：随 `f787a48`（fix(dingtalk): x86_64 hook 回退稳定版本并加等待超时与取消路径修复，共 12 文件 +265/-176）一并提交并推送至 origin/main。
 - 后续可能方向：PipeWire 线程忙轮询（`pw_loop_iterate` + sleep）可改为事件驱动；`XdpScreencastPortalStatus` 可增加 kError 状态区分创建失败与用户取消。
