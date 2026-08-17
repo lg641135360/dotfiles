@@ -16,6 +16,24 @@
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
 
+## 2026-08-17 — niri 触摸板补 scroll-factor 1.5
+
+- 目的：原 `touchpad` 段已覆盖 tap/natural-scroll/dwt/click-method/scroll-method/accel-speed，但缺少 `scroll-factor`。aarch64 内屏 2880x1800@120 + scale 2.0 下默认 `1.0` 滚动偏慢，影响触摸板体验；x86_64 桌面无触摸板不受影响。
+- 改动：① `.config/linux/niri/common.kdl` `touchpad {}` 末尾加 `scroll-factor 1.5`，并加注释说明动机（高分屏默认滚动偏慢，x86_64 桌面无触摸板时无副作用）。② `tests/niri_config_test.sh` `test_niri_config_uses_native_environment_cursor_and_animations` 增加 touchpad 段断言（`touchpad {`、`tap`、`natural-scroll`、`dwt`、`click-method "clickfinger"`、`scroll-method "two-finger"`、`accel-speed 0.3`、`scroll-factor 1.5`）。③ `.config/linux/niri/README.md` 在「光标」条目后新增「触摸板」条目，说明各选项作用与 `scroll-factor 1.5` 的来源。
+- 验证：`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 与 `ubuntu_aarch64/config.kdl` 均 `config is valid`；`sh tests/niri_config_test.sh` PASS。
+- live 同步与运行态：未同步 live `~/.config/niri/`，未重载 niri；未提交、未推送。
+- 后续可能方向：`scroll-factor 1.5` 是经验值，同步到 aarch64 后实测是否合适；如需按平台区分（x86_64 无触摸板、aarch64 高分屏），可将 touchpad 段从 `common.kdl` 拆到平台文件，或在 aarch64 平台文件覆盖 `scroll-factor`；niri 25.08 起支持 `scroll-factor horizontal=.. vertical=..` 分轴设置，当前未用。
+
+
+## 2026-08-17 — niri 触摸板补 drag-lock
+
+- 目的：tap-and-drag 时短暂抬指会立即掉拖动，跨屏拖窗口/选区文本时手指累了没法短暂抬起调整姿势，体验受阻。
+- 改动：① `.config/linux/niri/common.kdl` `touchpad {}` 末尾加 `drag-lock`，附注释说明动机。② `tests/niri_config_test.sh` 同一测试函数追加 `assert_contains 'drag-lock'`。③ `.config/linux/niri/README.md` 「触摸板」条目追加 `drag-lock` 说明。
+- 验证：`niri validate` 通过；`sh tests/niri_config_test.sh` PASS。
+- live 同步与运行态：已同步 `~/.config/niri/common.kdl`（无备份，因内容不同直接覆盖；旧版备份已在上一条 trace 时生成）；未重载 niri；未提交、未推送。
+- 后续可能方向：drag-lock 默认行为是短时间抬指保持拖动，若觉得释放延迟过长可评估是否关闭；目前 niri 26.04 未提供 drag-lock 超时配置项。
+
+
 ## 2026-08-17 — waybar CPU/内存改回内置模块，删除 waybar-system-tooltip 脚本
 
 - 目的：前两步迭代（脚本自差分、JSON escape 加固）仍属对 custom 脚本方案的修补；waybar 内置 `cpu`/`memory` 模块在 kernel 级采样、每个模块独立持有基线，从根本上根除多 bar 并发 / waybar 重载时 custom 脚本共享 state 文件被覆盖导致偶发 0% 的问题。脚本仅服务 cpu/mem 两个子命令，改回内置后彻底失去调用方，一并删除避免死代码。

@@ -48,6 +48,11 @@ input {
         click-method "clickfinger"
         scroll-method "two-finger"
         accel-speed 0.3
+        // 高分屏（aarch64 内屏 2880x1800@120 + scale 2.0）下默认 1.0 滚动偏慢，
+        // 整体提速到 1.5；x86_64 桌面无触摸板时此项无副作用。
+        scroll-factor 1.5
+        // tap-and-drag 时短暂抬指不掉拖动，便于跨屏拖窗口/选区文本。
+        drag-lock
     }
 
     mouse {

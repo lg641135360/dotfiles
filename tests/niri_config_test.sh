@@ -171,6 +171,18 @@ test_niri_config_uses_native_environment_cursor_and_animations() {
     assert_contains 'cursor {' "$NIRI_COMMON_CONFIG"
     assert_contains 'xcursor-size 32' "$NIRI_COMMON_CONFIG"
 
+    # touchpad: tap / natural-scroll / dwt / clickfinger / two-finger / accel,
+    # 并为高分屏（aarch64 内屏 2x）显式提升 scroll-factor 至 1.5。
+    assert_contains 'touchpad {' "$NIRI_COMMON_CONFIG"
+    assert_contains 'tap' "$NIRI_COMMON_CONFIG"
+    assert_contains 'natural-scroll' "$NIRI_COMMON_CONFIG"
+    assert_contains 'dwt' "$NIRI_COMMON_CONFIG"
+    assert_contains 'click-method "clickfinger"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'scroll-method "two-finger"' "$NIRI_COMMON_CONFIG"
+    assert_contains 'accel-speed 0.3' "$NIRI_COMMON_CONFIG"
+    assert_contains 'scroll-factor 1.5' "$NIRI_COMMON_CONFIG"
+    assert_contains 'drag-lock' "$NIRI_COMMON_CONFIG"
+
     # animations {} refined with per-action spring settings.
     assert_contains 'workspace-switch {' "$NIRI_COMMON_CONFIG"
     assert_contains 'window-open {' "$NIRI_COMMON_CONFIG"
