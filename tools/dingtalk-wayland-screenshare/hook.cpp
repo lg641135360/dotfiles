@@ -328,8 +328,7 @@ extern "C" {
 
 Bool XShmAttach(Display* dpy, XShmSegmentInfo* shminfo){
   dingtalk_debug_log("export XShmAttach called");
-  XShmAttachHook();
-  return XShmAttachFunc(dpy, shminfo);
+  return false;
 }
 
 Bool XShmGetImage(Display* dpy, Drawable d, XImage* image, int x, int y, unsigned long plane_mask){

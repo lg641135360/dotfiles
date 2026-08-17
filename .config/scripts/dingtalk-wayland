@@ -92,7 +92,8 @@ print_usage() {
 环境变量:
   DINGTALK_WAYLAND_HOOK  hook 库路径（默认从 ~/.local/lib/... 查找）
   DINGTALK_WAYLAND_LOG   日志路径（默认 /tmp/dingtalk-wayland.log）
-  DINGTALK_FORCE_X11_CAPTURE=1  强制启用旧 X11 LD_PRELOAD 抓屏回退
+  DINGTALK_FORCE_X11_CAPTURE  0/1 切换 X11 LD_PRELOAD 抓屏回退；x86_64 默认 1，
+                              其它架构默认 0；显式设置优先于架构默认
   DINGTALK_BASE          钉钉安装根（默认 /opt/apps/com.alibabainc.dingtalk/files）
   DINGTALK_DIR           钉钉版本目录（默认自动查找 *Release）
 
@@ -144,7 +145,16 @@ if [ "${1:-}" = "--" ]; then
     shift
 fi
 
-force_x11_capture=${DINGTALK_FORCE_X11_CAPTURE:-0}
+# x86_64 + 钉钉 8.1.0 的 libmeeting_sdk.so 只编译了 X11 capturer，原生
+# Wayland 捕获路径不可用，默认走 hook 回退；aarch64 + 8.1.1 原生捕获已
+# 验证可用，默认不走 hook。显式设置 DINGTALK_FORCE_X11_CAPTURE 优先级最高。
+if [ -n "${DINGTALK_FORCE_X11_CAPTURE:-}" ]; then
+    force_x11_capture=$DINGTALK_FORCE_X11_CAPTURE
+elif [ "$(uname -m)" = "x86_64" ]; then
+    force_x11_capture=1
+else
+    force_x11_capture=0
+fi
 hook_lib=${DINGTALK_WAYLAND_HOOK:-}
 log_file=${DINGTALK_WAYLAND_LOG:-/tmp/dingtalk-wayland.log}
 
@@ -193,12 +203,11 @@ if [ -z "$dingtalk_dir" ] || [ ! -x "$dingtalk_dir/com.alibabainc.dingtalk" ]; t
     exit 127
 fi
 
-# Qt/CEF 界面仍通过 xcb/XWayland 运行；屏幕捕获默认保留真实 Wayland
-# 会话环境，让 DingTalk 8.1.1 使用自身的 native Wayland/PipeWire capture。
-# 内嵌 tblive 与 libportal hook 的 GLib main context 不兼容，因此旧 hook
-# 仅作为显式排障回退，不再作为默认路径。
+# Qt/CEF 界面通过 xcb/XWayland 运行。hook 回退路径把 XDG_SESSION_TYPE 伪装为
+# x11，强制钉钉会议 SDK 使用 X11 capturer；x86_64 + 8.1.0 的 libmeeting_sdk.so
+# 只编译了 X11 后端，native Wayland/PipeWire capture 不可用，因此 x86_64 默认
+# 走该回退，其它架构默认保留真实 Wayland 环境走 native Wayland/PipeWire capture。
 if [ "$force_x11_capture" = 1 ] && [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
-    export DINGTALK_WAYLAND_SESSION_TYPE=wayland
     export XDG_SESSION_TYPE=x11
     unset WAYLAND_DISPLAY
 fi

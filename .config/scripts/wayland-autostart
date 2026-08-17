@@ -198,6 +198,12 @@ if command -v systemctl >/dev/null 2>&1; then
         WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE \
         QT_IM_MODULE XMODIFIERS SDL_IM_MODULE GLFW_IM_MODULE INPUT_METHOD LC_CTYPE \
         >/dev/null 2>&1 || warn "systemd 用户环境同步失败"
+    # sddm/niri-session 会把 im-config 注入的 GTK_IM_MODULE=fcitx 导入 systemd 用户
+    # 会话；Wayland GTK 应走 text-input-v3，显式从 systemd 用户环境清除该变量，
+    # 否则 fcitx5 会持续弹出"建议取消设置 GTK_IM_MODULE"的 Wayland 检测提示。
+    # 第 178 行的 `unset GTK_IM_MODULE` 只影响本脚本 fork 的子进程，systemd
+    # 用户环境是独立存储，必须用 unset-environment 单独清。
+    systemctl --user unset-environment GTK_IM_MODULE >/dev/null 2>&1 || true
 else
     warn "跳过 systemd 用户环境同步：未找到命令 systemctl"
 fi

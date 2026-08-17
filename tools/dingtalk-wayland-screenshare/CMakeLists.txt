@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(dingtalk-wayland-screenshare LANGUAGES C CXX)
+project(dingtalk-wayland-screencast LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Find PkgConfig
 find_package(PkgConfig REQUIRED)
@@ -70,3 +69,4 @@ endfunction()
 add_library(dingtalkhook SHARED hook.cpp payload.cpp)
 set_property(TARGET dingtalkhook PROPERTY POSITION_INDEPENDENT_CODE ON)
 add_compile_options_for(dingtalkhook)
+install(TARGETS dingtalkhook DESTINATION /opt/dingtalk/release/)

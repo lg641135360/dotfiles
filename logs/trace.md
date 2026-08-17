@@ -16,55 +16,45 @@
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
 
-## 2026-08-14 — 整理工作区并校正钉钉默认入口与 trace 归档顺序
+## 2026-08-17 — 根治 fcitx5 Wayland 检测提示：清除 systemd 用户会话的 GTK_IM_MODULE
 
-- 目的：把已验证的 aarch64 钉钉路径与仓库说明对齐，并恢复 trace“只保留最近 5 条”的维护约束。
-- 改动：niri/scripts README、`memory/dingtalk.md` 与 `dingtalk-wayland` 帮助统一说明 aarch64 日常通过 Mod+C 调用官方 `Elevator.sh`，仓库脚本仅作 portal 检查、安全 restart、日志和 hook 回退；修复 `archive_trace.ts` 在同一天多条记录时错误保留最早条目的排序，以文档后出现者作为更新记录，并新增回归测试。
-- 验证：为 rofi 运行时主题测试补充假 `rofi`，隔离真实显示服务依赖；`./tests/run.sh` 全量通过，归档排序、dingtalk/niri、rofi 等回归均通过；启动器 `sh -n`、aarch64/x86_64 两份 `niri validate` 与 `git diff --check` 通过。niri 测试仍有既存的 `browser-wayland: uname: not found` 非阻断提示。
-- live 同步与运行态：未同步 live，未重载 niri，未重启钉钉；未提交、未推送。
-
-
-## 2026-08-14 — 收敛钉钉与 niri 的窗口、portal 和重启行为
-
-- 目的：在不改变“界面走 XWayland、aarch64 共享走原生 portal/PipeWire”架构的前提下，降低 mtgpu 透明合成、登录后 portal 竞态和宽泛进程匹配带来的风险。
-- 改动：niri 为钉钉设置 2/3 默认列宽和 1.0 不透明度，aarch64 在平台级 0.90 全局规则之后再次覆盖；`dingtalk-wayland` 启动前最多等待 5 秒确认 ScreenCast backend，超时只告警、不重启服务；PipeWire 告警改为不依赖 hook 的通用文本；`restart` 改为读取 `/proc/<pid>/status` 与 `/proc/<pid>/exe`，只向当前用户的 `com.alibabainc.dingtalk`/`tblive` 发送 TERM/KILL。同步更新 niri/scripts README、dingtalk memory 和回归测试。
-- 验证：先确认新增测试在实现前失败；实现后 `sh -n`、aarch64/x86_64 两份 `niri validate`、真实钉钉 PID 与当前 shell 的 `/proc/exe` 分类探针、portal backend 探针、shellcheck（可用时）、dingtalk/niri 回归测试和 `git diff --check` 均通过。niri 测试仍有既存的 `browser-wayland: uname: not found` 非阻断提示。
-- live 同步与运行态：未同步 live，未重载 niri，未重启钉钉；未提交、未推送。
-
-
-## 2026-08-14 — 修复 mako 1.8 配置解析失败
-
-- 目的：恢复 niri 会话的标准通知服务；mako 因不支持 `icon-border-radius` 而启动失败，`notify-send` 无法取得 `org.freedesktop.Notifications`。
-- 改动：从 mako 配置删除不兼容的图标圆角选项，在模块 README 记录 Ubuntu 24.04 / mako 1.8 的兼容边界，并增加回归断言。
-- 验证：使用仓库配置启动 mako 时不再报告解析错误；`tests/niri_wayland_config_test.sh` 与 `git diff --check` 通过。
-- live 同步与运行态：用户通过 `./install.sh` 完成同步，repo/live 配置 SHA-256 均为 `95c02e60c63f9a44576e1f1543abd099787f4c94a8ba5fe9e43e73aaca4249d9`。原重启命令因当前终端持有旧 `NIRI_SOCKET` 而未执行；改用当前 niri socket 启动 mako 后，PID 303482 已持有 `org.freedesktop.Notifications`，`notify-send` 返回 0。未提交、未推送。
-
-
-## 2026-08-14 — 在 niri autostart 中固化 portal ScreenCast 启动时序
-
-- 目的：避免 niri 新会话中 GNOME portal 抢先启动、永久停留在 Settings-only，导致钉钉无选择器且黑屏。
-- 改动：`wayland-autostart` 新增 `start_portal_after_niri`：先等待 `org.gnome.Mutter.ScreenCast` D-Bus 名称（最多 15 秒），再依次重启 GNOME backend 与 portal frontend，并验证 backend 暴露 `org.freedesktop.impl.portal.ScreenCast`。以 `NIRI_SOCKET` 写入 `portal.niri-session`，同会话且接口健康时不重复重启；日志写入 `portal.log`。删除原先仅按进程存在性直接启动 portal 的 `run_once_logged` 路径。同步更新 niri/scripts README、dingtalk memory 和回归测试。
-- live 同步与运行态：已同步 `~/.config/scripts/wayland-autostart`，repo/live SHA-256 均为 `83e9769b1e0ef5f05abc75dbc0227b62fb2cb4a12802744999642568eb91c2e2`；使用当前 niri 会话环境执行后，日志显示 ScreenCast 已就绪并成功重启 portal，marker 记录当前 `NIRI_SOCKET`。
-- 验证：GNOME backend 的 ScreenCast/CreateSession/SelectSources/Start 接口齐全，libportal probe `CREATE_OK`；同一会话第二次执行前后 backend/frontend MainPID 不变，证明不会重复重启；niri/dingtalk 测试、两脚本语法和 `git diff --check` 通过。niri 测试仍有既存的 `uname: not found` 非阻断提示。
-- 后续实测结论：aarch64 上钉钉 8.1.1 在不加载 `libdingtalkhook.so` 的情况下已成功共享；运行进程保持 `XDG_SESSION_TYPE=wayland` / `WAYLAND_DISPLAY`，自定义 hook 不在 `LD_PRELOAD` 中。该结论已同步到 niri/scripts README 与 `memory/dingtalk.md`，并明确不外推到尚未验证的 x86_64。
+- 目的：fcitx5 弹出"建议取消设置 GTK_IM_MODULE"的 Wayland 检测提示，且环境曾出现无法输入中文（fcitx5 被中途 `--replace` 重启后 niri 不重发 text_input.enter，所有 wayland_v2 IC focus:0）。
+- 诊断证据：
+  - `common.kdl:28` 与 `wayland-autostart:178` 已故意不设/`unset GTK_IM_MODULE`，但 `systemctl --user show-environment` 仍显示 `GTK_IM_MODULE=fcitx`。
+  - 来源链：`~/.xinputrc` → `run_im fcitx5`（im-config 注入登录环境）→ sddm 传递 → `niri-session:36` 的 `systemctl --user import-environment`（无参数，导入全部登录环境）→ systemd 用户会话带 `GTK_IM_MODULE=fcitx`。
+  - `wayland-autostart` 的 `unset GTK_IM_MODULE` 只影响 fork 的子进程，不影响已导入 systemd 的独立环境存储。
+  - fcitx5 Wayland 检测逻辑会读 systemd 用户环境 / 自身进程环境，发现 `GTK_IM_MODULE=fcitx` 即弹提示。
+  - `dbus-update-activation-environment` 不支持 `--remove`，只能加变量；DBus 激活环境实际由 `dbus-daemon` 维护，无法用该命令删（但 fcitx5 检测主要看 systemd 用户环境 + 进程自身环境，DBus 那边不影响）。
+- 改动：`.config/scripts/wayland-autostart` 在 `systemctl --user import-environment` 之后新增 `systemctl --user unset-environment GTK_IM_MODULE`；`tests/wayland_scripts_test.sh` 加 2 条断言（`unset GTK_IM_MODULE` + `systemctl --user unset-environment GTK_IM_MODULE`）；`.config/linux/niri/README.md` 环境变量段补一句说明 sddm/niri-session 导入路径与 unset-environment 的必要性。
+- 验证：`sh -n .config/scripts/wayland-autostart` 通过；`./tests/wayland_scripts_test.sh` PASS；手动 `systemctl --user unset-environment GTK_IM_MODULE` 后从 `unset GTK_IM_MODULE` 的 shell 重启 fcitx5，新进程环境与 systemd 用户环境均无 `GTK_IM_MODULE`，启动日志无 Wayland 检测/GTK_IM_MODULE 警告，rime addon 正常加载。
+- live 同步与运行态：已同步 `wayland-autostart` 到 `~/.config/scripts/wayland-autostart`（diff 一致）；已手动执行 `systemctl --user unset-environment GTK_IM_MODULE` 并重启 fcitx5 验证；未重载 niri，未重启桌面会话（下次登录 sddm/niri-session 会重新导入，但 `wayland-autostart` 会自动清掉）。
 - 提交推送：未提交、未推送。
+- 后续可能方向：fcitx5 被中途 `--replace` 重启后 niri 不重发 text_input.enter 导致所有 wayland_v2 IC focus:0 的问题本次靠重启 fcitx5 绕过；若复发，可考虑在 `wayland-autostart` 里加 focus 重新触发的兜底，或上游反馈 niri。
 
 
-## 2026-08-14 — 修复 niri 重启后 portal 过早启动导致选择器消失
+## 2026-08-17 — 修复 x86_64 钉钉共享黑屏：回滚 hook 源码到 6 月 4 日版本
 
-- 目的：原生钉钉路径无选择器且黑屏，确认 portal 后端状态。
-- 根因：17:16 niri 会话重启后，`xdg-desktop-portal-gnome` 在 17:16:14 先启动，此时 niri 尚未在 17:16:19 注册 `org.gnome.Mutter.ScreenCast`；backend 因此打印 `Non-compatible display server, exposing settings only` 并持续只有 Settings。钉钉请求实际到达 frontend，但 frontend 报 ScreenCast backend 接口不存在。
-- 运行态修复：待 niri 已就绪后，按顺序停止 portal frontend/backend，再启动 GNOME backend 与 frontend。当前 GNOME backend 已恢复 ScreenCast 的 `CreateSession`、`SelectSources`、`Start` 接口；最小 libportal probe 返回 `CREATE_OK`。
-- 未修改仓库文件；未同步 live 配置；未提交、未推送。
+- 目的：x86_64 + 钉钉 8.1.0-Release.6021101 上共享屏幕黑屏只有鼠标；用户确认此前 6 月 4 日 hook 版本能工作，8 月 14 日 commit `3323b5e` 改动后不可用。
+- 诊断证据：
+  - 原生 Wayland 路径：`libmeeting_sdk.so` 只编译 X11 capturer（`ldd` 无 wayland/portal/pipewire 依赖，`nm -D` 无 `wl_display`/`pw_main`/`xdp_session`）；`dbus-monitor` 抓包期间 ScreenCast method call 0 次；`pw-top` 无 video 节点；tblive fd 无 wayland/portal 句柄。
+  - 8 月 14 日 hook 路径：tblive 触发 `XShmAttachHook` 后 `portal create timed out; cancelling request`（60 秒超时），共享对话框卡死。
+  - 6 月 4 日 hook 路径：用户实测可用，debug log 显示 `framebuffer=2560x1440` + `processed frame count: 40`，帧正常处理。
+  - 8 月 14 日 hook 源码在 x86_64 上导致钉钉启动即崩（`CefExecuteProcess exit_code<<0`，hook 未触发，debug log 全空）；全量回滚到 6 月 4 日版本后启动成功。
+- 改动：`tools/dingtalk-wayland-screenshare/` 4 个文件（`hook.cpp`/`payload.cpp`/`payload.hpp`/`CMakeLists.txt`）checkout 回 commit `13537e2`（6 月 4 日版本）；`tests/dingtalk_hook_test.sh` 调整断言匹配 6 月 4 日契约（XShmAttach `return false`、无 `create_cancellable`、无 `kPortalCreateTimeout`、portal init 由内部 `XShmAttachInner` 触发）；`memory/dingtalk.md` 和 `niri/README.md` 记录 x86_64 必须走 hook 回退、必须用 6 月 4 日 hook 版本的约束，以及 8 月 14 日改动的具体差异和失败模式。
+- 验证：`./tests/dingtalk_hook_test.sh` PASS；`./tests/run.sh fast` 全部 PASS（43 PASS / 0 FAIL / 0 SKIP）；`git diff --check` 通过；重新编译 `libdingtalkhook.so`（SHA-256 `744821ac0dabd7fd787e0093dea299ce6e8590b5fd0567bf7460fb03cafbc519`）并部署到 `~/.local/lib/dingtalk-wayland-screenshare/build/`；用户实测 `DINGTALK_FORCE_X11_CAPTURE=1 ~/.config/scripts/dingtalk-wayland restart` 后共享正常工作。
+- live 同步与运行态：已同步 hook .so 到 live（repo/live SHA-256 一致）；已用 hook 路径重启钉钉并实测共享成功；未重载 niri，未同步其它 live 配置（脚本本身未改动）。
+- 提交推送：未提交、未推送。
+- 后续可能方向：aarch64 与 x86_64 的 hook 源码约束目前冲突（aarch64 需要 8 月 14 日版本的 cancellable/超时逻辑避免 tblive 卡死，x86_64 必须用 6 月 4 日版本否则启动即崩）。若要统一源码，需在 hook 内按架构或运行时探测分支处理；当前以 x86_64 实测可用为准，aarch64 走原生捕获不需要 hook。
 
 
-## 2026-08-15 — 清理 starship 配置死代码并修复 os/directory 双空格
+## 2026-08-17 — dingtalk-wayland 脚本按架构自动默认 hook 路径
 
-- 目的：删除 starship.toml 中永远不会渲染的模块与未使用的 palette，并修复 `[os]` 与 `[directory]` 之间因 directory 前导空格叠加 os 默认 format 产生的双空格。
-- 改动：`.config/shared/starship.toml` 删除 `[golang]`/`[php]`/`[java]`/`[kotlin]`/`[haskell]` 五个未在 `format` 中引用的模块；删除 `catppuccin_frappe`/`latte`/`macchiato` 三个未使用的 palette（保留 `catppuccin_mocha`）；删除 `[os.symbols]` 中默认空字符串的条目（Windows/SUSE/Manjaro/Alpine/Amazon/Android/AOSC/CentOS）；为 `[os]` 增加 `format = '[ $symbol]($style)'`，使 os 与 directory 之间只保留 directory 自身的一个前导空格。
-- 验证：`tests/starship_config_test.sh` PASS；`git diff --check` 无告警；`starship config` 与 `starship explain` 能正常解析配置，输出中 os 图标与 directory 之间不再出现双空格。
-- live 同步与运行态：未同步 live `~/.config/starship.toml`，未重载 shell；未提交、未推送。
-- 后续可能方向：`[directory]` 仍使用 emoji 默认 `read_only` 图标，与 Nerd Font 主题不一致；`[git_branch]` 无 `truncation_length`，长分支名会顶宽；`[character]` 的 success/error 符号来自不同图标族。如需统一可再开一轮 `repo-change`。
+- 目的：x86_64 上不想每次手动输入 `DINGTALK_FORCE_X11_CAPTURE=1`；脚本应基于架构自动判断默认值。
+- 改动：`.config/scripts/dingtalk-wayland` 的 `force_x11_capture` 赋值改为按 `uname -m` 判断 —— x86_64 默认 1（hook 回退），其它架构默认 0（原生捕获）；显式 `DINGTALK_FORCE_X11_CAPTURE=0/1` 优先级最高。同步更新 `print_usage` 帮助文本、`tests/dingtalk_hook_test.sh` 断言、`memory/dingtalk.md` 和 `niri/README.md` 的启动命令描述。
+- 验证：`sh -n` 脚本和测试语法通过；`./tests/dingtalk_hook_test.sh` PASS；`git diff --check` 无告警；`sh .config/scripts/dingtalk-wayland usage` 输出正确；live 同步后 `diff` repo/live 一致。
+- live 同步与运行态：已同步脚本到 `~/.config/scripts/dingtalk-wayland`（repo/live SHA-256 一）；未重启钉钉（用户当前钉钉已在运行，下次 restart 即生效）；未重载 niri。
+- 提交推送：未提交、未推送。
+- 后续可能方向：若 aarch64 也需要用脚本启动且原生路径不可用，可扩展架构判断逻辑；当前 aarch64 日常走 Mod+C 系统入口，不依赖此脚本。
 
 
 ## 2026-08-15 — starship 美化 git_status 符号、语言配色与 character 错误态
@@ -94,33 +84,10 @@
 - 后续可能方向：`[git_status]` 各状态仍共用 `fg:yellow` 未按严重度分色、模块间空格叠加导致视觉松散、语言模块在非项目目录也会渲染 symbol。
 
 
-## 2026-08-15 — 兜底终端由 kitty 切换为 foot
+## 2026-08-17 — 钉钉 hook 等待循环加超时上限并修复取消路径死锁风险
 
-- 目的：用户希望 Wayland 兜底终端由 foot 接替 kitty，并把 foot 配置做成与 alacritty 一致的观感。
-- 改动：
-  - 新增 `.config/linux/foot/foot.ini` 与 `.config/linux/foot/README.md`：镜像 `.config/shared/alacritty`（MesloLGS Nerd Font Mono 13、Catppuccin Mocha 内嵌 palette、`csd.preferred=none`、`pad=12x12`、`colors.alpha=0.82`、Beam+blink、`hide-when-typing=yes`、`scrollback.lines=50000`、`multiplier=3.0`、`term=xterm-256color`、`[text-bindings]` 镜像 Alt+hjkl/方向键/Shift+Alt 上下）；透明度采用 0.82（不再沿用 kitty 因 mtgpu alpha bug 走的 1.0）。foot 的 `[text-bindings]` 要求 modifier 用 XKB 名称，`Alt` 必须写成 `Mod1`（实测 `Alt`/`Alt_L` 都会被 `foot --check-config` 拒绝），已在配置与 README、memory 中标注。
-  - 新增 `memory/foot.md`，记录 foot 作为 alacritty Wayland 兜底的定位、与 alacritty 的差异（主题内嵌、OSC52 默认行为、cursor color、窗口模糊）和透明度取舍。
-  - 新增 `tests/foot_config_test.sh`，覆盖字体/窗口/鼠标/光标/TERM/滚动/Catppuccin palette/text-bindings 镜像 alacritty，并断言 `terminal-wayland` 兜底为 foot。
-  - 删除 `.config/linux/kitty/kitty.conf`、`.config/linux/kitty/README.md`、`tests/kitty_config_test.sh` 及空目录。
-  - `.config/scripts/terminal-wayland`：kitty 兜底分支改为 `exec foot "$@"`；移除为 kitty 补 PATH 的 `~/.local/bin` 段（foot 走系统包 `/usr/bin/foot`，无需）；notify 文案改为 "Alacritty or foot"。
-  - `install.sh`：`linux_wayland_dir_configs` 的 kitty 行改为 foot 行。
-  - `.config/linux/waybar/{config,config.aarch64,README.md}`：CPU/MEM 模块 `on-click` 从 `kitty -- htop` 改为 `foot -- htop`。
-  - `.config/linux/niri/{README.md,common.kdl}`：终端入口描述与透明度注释从 kitty 改为 foot。
-  - `.config/linux/{awesome/theme/README.md,picom/README.md}`、`README.md`、`AGENTS.md`、`memory/{alacritty,desktop,niri,organizing_preferences}.md`、`tests/{picom,repo_docs,starship,waybar,wayland_scripts,niri}_config_test.sh` 中 kitty 相关引用同步替换为 foot；`AGENTS.md` memory 索引与 `repo_docs_test.sh` 正则新增 `foot.md`；`starship_config_test.sh` 注释更新。
-- 验证：`./tests/run.sh fast` 全绿（含新增 `foot_config_test.sh` 与更新后的 picom/repo_docs/starship/waybar/wayland_scripts/niri 测试）；`foot --check-config` exit=0；`git diff --check` 无告警。
-- live 同步与运行态：已通过 `./install.sh` 同步 live `~/.config/{foot,niri,waybar,scripts}`；foot.ini 后续又手动同步一次（见下方修复）。
-- 后续可能方向：aarch64 内屏 2x 下若复现 mtgpu 对 foot 0.82 alpha 合成的 bug，再单独评估是否在该硬件上降回不透明。
-
-### 2026-08-15 — 修复 starship 提示符前的空行
-- 现象：foot 打开后提示符前有一空行。
-- 排查：先误判为 `format` 三引号开头换行被渲染，改动后无效；用 `starship prompt | od -c` 抓到输出首字符即 `\n`，且 `grep add_newline` 为空（starship 默认 `add_newline = true`，会在每次提示符前插入 `\n`）。
-- 改动：`.config/shared/starship.toml` 顶部加 `add_newline = false`，并回滚 `format` 三引号的猜测性改动。
-- 验证：`STARSHIP_CONFIG=~/.config/starship.toml starship prompt | od -c` 首字符不再是 `\n`；`./tests/starship_config_test.sh` PASS；用户重启 foot 后空行消失。
-- live 同步：手动 `cp` 同步 `~/.config/starship.toml`。未提交推送。
-
-### 2026-08-15 — foot 字号从 13 调到 12
-- 目的：用户反馈 aarch64 内屏 2x HiDPI 下 13 偏大。
-- 改动：`.config/linux/foot/foot.ini` 的 `font` / `font-bold` / `font-italic` / `font-bold-italic` 的 `:size=13` 全部改为 `:size=12`；`tests/foot_config_test.sh` 断言同步更新；注释说明 aarch64 HiDPI 下 12 比 13 更紧凑。
-- 验证：`foot --check-config` exit=0；`./tests/foot_config_test.sh` PASS。
-- live 同步：手动 `cp` 同步 `~/.config/foot/foot.ini`。未提交推送。
-- 备注：alacritty 仍保持 size=13，未对齐；foot 作为 aarch64 Wayland 主终端，字号独立调整。
+- 目的：消除 x86_64 hook（6月4日版本基线）中三处无限忙等（session 创建、pipewire_fd 获取）导致 payload 线程可能永久卡死的问题，并修复取消路径 join sanitizer 前未置 stop_flag 的死锁隐患。
+- 改动：`tools/dingtalk-wayland-screenshare/payload.cpp` 引入 `PORTAL_WAIT_TIMEOUT_MS`（60s 计数式超时，非 GCancellable，不违反 6月4日版本契约）；session 等待与 pipewire_fd 等待均改为有界轮询，超时后退出并清理线程；`payload_main` 新增 session 为 null 的早退分支；两处 `x11_sanitizer_thread.join()` 前均先 `x11_sanitizer_stop_flag.store(true)`。`tests/dingtalk_hook_test.sh` 先行新增 `test_portal_waits_are_bounded_with_polling_timeouts` 断言。
+- 验证：`tests/dingtalk_hook_test.sh` PASS；`cmake -S tools/dingtalk-wayland-screenshare -B /tmp/... && cmake --build` 编译链接成功。用户将做运行时验证（安装 .so + `dingtalk-wayland restart` + 实际共享屏幕）。
+- live 同步与运行态：未同步 live `~/.local/lib/dingtalk-wayland-screenshare/`，未重启钉钉；未提交、未推送。
+- 后续可能方向：PipeWire 线程忙轮询（`pw_loop_iterate` + sleep）可改为事件驱动；`XdpScreencastPortalStatus` 可增加 kError 状态区分创建失败与用户取消。

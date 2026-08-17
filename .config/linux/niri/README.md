@@ -15,7 +15,7 @@
 - `xwayland-satellite` 已放入 Nix profile；niri 26.04 会在需要运行 X11 应用时按需自动拉起它，因此本仓库不手动 autostart 该进程。
 - Portal 偏好由 `.config/linux/xdg-desktop-portal/niri-portals.conf` 维护，安装到 `~/.local/share/xdg-desktop-portal/niri-portals.conf`；其中 `FileChooser=gtk` 用来避免 GNOME portal 在缺少 Nautilus 时影响文件选择器。
 - **Overview 美化**（Mod+O）：`layout { background-color "transparent" }` 保持日常桌面干净，`overview {}` 使用暗底色 `#1e1e2e` 压暗 overview 背景并加 workspace 卡片阴影。`place-within-backdrop` 经测试在 niri 26.04 上 `load-config-file` 后不生效（含新 surface），待 niri 更新后重新评估 awall 双壁纸方案。
-- **环境变量**：`common.kdl` 顶部的 `environment {}` 块声明 `QT_IM_MODULE`/`XMODIFIERS`/`SDL_IM_MODULE`/`GLFW_IM_MODULE`/`INPUT_METHOD`/`LC_CTYPE`/`XCURSOR_SIZE`/`ZDOTDIR` 等，niri 直接 spawn 的进程会继承；`wayland-autostart` 仍保留 `export` 与 `dbus-update-activation-environment`/`systemctl --user import-environment` 把这些变量同步到 DBus 和 systemd 用户会话。`GTK_IM_MODULE` 故意不设置，让 Wayland GTK 走 text-input 协议（fcitx5 偏好）。`ZDOTDIR=/home/rikoo/.config/zsh`（niri 的 `environment {}` 不展开 `~`，须用绝对路径）让 niri spawn 的 shell（含 `Mod+Return` 拉起的终端）也走优化后的 zsh 配置：否则 zsh 落到默认 `~/.zshrc` 且没有 `.zshenv` 的 `skip_global_compinit`，会跑 Ubuntu 全局 compinit，交互启动实测 4.2s（优化配置 0.18s）。同时 `environment {}` 强制设置 `XDG_SESSION_TYPE=wayland`、`XDG_CURRENT_DESKTOP=niri`、`XDG_SESSION_DESKTOP=niri`：从 shell 手动启动 niri 时会继承错误的会话环境（`XDG_SESSION_TYPE=tty`、`XDG_CURRENT_DESKTOP=awesome`），会导致应用/toolkit 无法走 text-input-v3 接入 fcitx5、输入法无法输入中文；强制覆盖后会话按纯 Wayland/niri 身份运行。
+- **环境变量**：`common.kdl` 顶部的 `environment {}` 块声明 `QT_IM_MODULE`/`XMODIFIERS`/`SDL_IM_MODULE`/`GLFW_IM_MODULE`/`INPUT_METHOD`/`LC_CTYPE`/`XCURSOR_SIZE`/`ZDOTDIR` 等，niri 直接 spawn 的进程会继承；`wayland-autostart` 仍保留 `export` 与 `dbus-update-activation-environment`/`systemctl --user import-environment` 把这些变量同步到 DBus 和 systemd 用户会话。`GTK_IM_MODULE` 故意不设置，让 Wayland GTK 走 text-input 协议（fcitx5 偏好）；但 sddm/niri-session 的 `systemctl --user import-environment`（无参数）会把 im-config 在登录环境注入的 `GTK_IM_MODULE=fcitx` 导入 systemd 用户会话，因此 `wayland-autostart` 在 import 之后显式 `systemctl --user unset-environment GTK_IM_MODULE` 把它单独清掉，否则 fcitx5 会持续弹出"建议取消设置 GTK_IM_MODULE"的 Wayland 检测提示。`ZDOTDIR=/home/rikoo/.config/zsh`（niri 的 `environment {}` 不展开 `~`，须用绝对路径）让 niri spawn 的 shell（含 `Mod+Return` 拉起的终端）也走优化后的 zsh 配置：否则 zsh 落到默认 `~/.zshrc` 且没有 `.zshenv` 的 `skip_global_compinit`，会跑 Ubuntu 全局 compinit，交互启动实测 4.2s（优化配置 0.18s）。同时 `environment {}` 强制设置 `XDG_SESSION_TYPE=wayland`、`XDG_CURRENT_DESKTOP=niri`、`XDG_SESSION_DESKTOP=niri`：从 shell 手动启动 niri 时会继承错误的会话环境（`XDG_SESSION_TYPE=tty`、`XDG_CURRENT_DESKTOP=awesome`），会导致应用/toolkit 无法走 text-input-v3 接入 fcitx5、输入法无法输入中文；强制覆盖后会话按纯 Wayland/niri 身份运行。
 - **光标**：`cursor { xcursor-size 32; hide-when-typing }` 让 niri 在 autostart 执行前就使用正确尺寸，并在键盘输入时自动隐藏鼠标；与 `XCURSOR_SIZE=32` 环境变量互补。
 - **焦点环**：`focus-ring` 使用 Catppuccin Mocha 蓝 `#89b4fa`（活动）/灰 `#45475a`（非活动）/红 `#f38ba8`（紧急，用于 IM 闪动等需要注意的窗口）。
 - **动画**：`animations {}` 按 `workspace-switch`/`window-open`/`window-close`/`window-resize` 分别配置 spring 参数（damping-ratio 0.7-0.8、stiffness 700-800），过渡更顺滑。
@@ -176,9 +176,18 @@ org.freedesktop.impl.portal.FileChooser=gtk;
 
 ## 钉钉屏幕共享
 
-Wayland 下钉钉会议共享只显示鼠标、画面全黑时，优先确认 PipeWire / WirePlumber / xdg-desktop-portal 正常运行。钉钉 8.1.1 的会议 SDK 同时内置 X11 和原生 Wayland/PipeWire 捕获后端；当前 `dingtalk-wayland` 默认保留真实 `XDG_SESSION_TYPE=wayland` 与 `WAYLAND_DISPLAY`，让会议 SDK 直接使用原生 portal/PipeWire 捕获。该路径已在 **aarch64** 上完成实际屏幕共享验证，不需要注入 `libdingtalkhook.so`；x86_64 是否同样可用仍需单独验证。Qt/CEF 界面仍由 `QT_QPA_PLATFORM=xcb` 和默认 ozone=x11 保持在 XWayland，不会切换 CEF 的原生 Wayland 后端。
+Wayland 下钉钉会议共享只显示鼠标、画面全黑时，优先确认 PipeWire / WirePlumber / xdg-desktop-portal 正常运行。两条共享路径在不同架构上可用性不同：
 
-旧 `libdingtalkhook.so` 路径仅作为显式排障回退：设置 `DINGTALK_FORCE_X11_CAPTURE=1` 后，脚本才会伪装 X11 会话、清除 `WAYLAND_DISPLAY` 并注入 hook。对已验证的 aarch64 环境，不要把该回退作为默认共享路径；其他架构应先验证原生捕获，再决定是否启用 hook。
+- **aarch64 + 钉钉 8.1.1**：会议 SDK `libmeeting_sdk.so` 同时内置 X11 和原生 Wayland/PipeWire 捕获后端。`dingtalk-wayland` 默认保留真实 `XDG_SESSION_TYPE=wayland` 与 `WAYLAND_DISPLAY`，让会议 SDK 直接使用原生 portal/PipeWire 捕获。该路径已实测通过，不需要注入 `libdingtalkhook.so`。
+- **x86_64 + 钉钉 8.1.0**：会议 SDK `libmeeting_sdk.so` 只编译了 X11 capturer（`ldd` 无 wayland/portal/pipewire 依赖），原生 Wayland 捕获路径不可用（tblive 不发 portal CreateSession，pipewire 无 video 节点，共享黑屏只有鼠标）。脚本在 x86_64 上默认就走 hook 回退路径（基于 `uname -m` 判断），直接 `~/.config/scripts/dingtalk-wayland restart` 即可，无需显式设置 `DINGTALK_FORCE_X11_CAPTURE=1`。
+
+Qt/CEF 界面在两种架构下都由 `QT_QPA_PLATFORM=xcb` 和默认 ozone=x11 保持在 XWayland，不会切换 CEF 的原生 Wayland 后端。
+
+旧 `libdingtalkhook.so` 路径在 x86_64 + 8.1.0 是默认且唯一可用共享路径（脚本基于 `uname -m` 自动启用），在 aarch64 + 8.1.1 仅作显式排障回退（`DINGTALK_FORCE_X11_CAPTURE=1`）。可用 `DINGTALK_FORCE_X11_CAPTURE=0/1` 显式覆盖架构默认。
+
+### hook 源码版本约束（x86_64 关键）
+
+x86_64 + 钉钉 8.1.0 必须使用 6 月 4 日 hook 源码版本（commit `13537e2`）。8 月 14 日 commit `3323b5e` 为解决 aarch64 tblive 内嵌 GLib main context 问题改动了 hook 源码（XShmAttach 从 `return false` 改为委托真实函数、mainloop 创建时序调整、引入 cancellable 和 60 秒超时），但在 x86_64 上会导致钉钉启动即崩（`CefExecuteProcess exit_code<<0`，hook 未触发）。详细差异和约束见 `memory/dingtalk.md`。
 
 本仓库在 `tools/dingtalk-wayland-screenshare` 保留了一份最小化、已修好的 hook 源码。它不随 `install.sh` 复制到 niri 配置目录，也不在仓库里保留 build 目录；需要更新 hook 时，从 dotfiles 根目录一次性编译并安装到 `~/.local/lib`：
 

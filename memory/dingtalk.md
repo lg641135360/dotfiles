@@ -15,11 +15,23 @@
 - aarch64 日常通过 `Mod+C` 选择钉钉，使用系统 desktop entry 的官方 `Elevator.sh`；该路径已验证无需仓库启动脚本和 hook
 - `~/.config/scripts/dingtalk-wayland` 仅作为维护/兼容入口，用于 portal 检查、集中日志、安全 restart 和显式 hook 回退，不是 aarch64 可用性基线
 - **aarch64 已实测通过**：保留真实 Wayland 会话环境后，钉钉 8.1.1 会议 SDK 可以直接使用原生 Wayland/PipeWire 捕获，无需注入 `libdingtalkhook.so`；Qt/CEF 界面仍以 `QT_QPA_PLATFORM=xcb` / ozone=x11 运行在 XWayland
+- **x86_64 已实测：原生捕获路径不可用，必须走 hook 回退**：钉钉 8.1.0-Release.6021101 的 `libmeeting_sdk.so` 只编译了 X11 capturer（`ldd` 无 wayland/portal/pipewire 依赖，`nm -D` 无 `wl_display`/`pw_main`/`xdp_session` 符号），保留 `XDG_SESSION_TYPE=wayland` 时 tblive 不发 portal CreateSession、pipewire 无 video 节点，共享黑屏只有鼠标；脚本在 x86_64 上默认就走 hook 路径（`uname -m` 判断），无需显式设置 `DINGTALK_FORCE_X11_CAPTURE=1`，直接 `~/.config/scripts/dingtalk-wayland restart` 即可
 - aarch64 的可用性关键是 niri 启动后由 `wayland-autostart` 等待 ScreenCast D-Bus 服务，再按顺序重启 portal backend/frontend；仅启动钉钉或仅保证 portal 进程存在不足以解决黑屏
 - 启动器本身只等待最多 5 秒并检查 ScreenCast 接口，超时告警后继续启动；不要让应用启动器重启 portal，服务生命周期统一由 `wayland-autostart` 管理
-- 默认只 preload 钉钉自带的 `libgbm.so` 和 `plugins/dtwebview/libcef.so`
-- `DINGTALK_FORCE_X11_CAPTURE=1` 才注入 hook、伪装 `XDG_SESSION_TYPE=x11` 并清除 `WAYLAND_DISPLAY`；该路径仅用于排障
-- 上述“无需 hook”结论目前只在 aarch64 环境完成实际共享验证，不外推到 x86_64；其他架构应单独验证后再决定是否保留 hook
+- 默认只 preload 钉钉自带的 `libgbm.so` 和 `plugins/dtwebview/libcef.so`；x86_64 上 8.1.0 包未附带 `libgbm.so`，`ld.so` 报 `cannot be preloaded ... ignored` 属无害告警（官方 `Elevator.sh` 同样会报）
+- hook 路径会伪装 `XDG_SESSION_TYPE=x11` 并清除 `WAYLAND_DISPLAY`；x86_64 上脚本默认启用 hook（基于 `uname -m` 判断），aarch64 上默认不启用；可用 `DINGTALK_FORCE_X11_CAPTURE=0/1` 显式覆盖架构默认（优先级最高）
+
+## hook 源码版本约束（x86_64 关键）
+- x86_64 + 钉钉 8.1.0 必须使用 6 月 4 日 hook 源码版本（commit `13537e2`，`tools/dingtalk-wayland-screenshare/` 全部 4 个文件）
+- 8 月 14 日 commit `3323b5e` 为解决 aarch64 tblive 内嵌 GLib main context 问题改动了 hook 源码，但在 x86_64 上会导致钉钉启动即崩（`CefExecuteProcess exit_code<<0`，hook 未触发，debug log 全空），不可用
+- 两版本关键差异（6 月 4 日 → 8 月 14 日）：
+  - `hook.cpp` 导出 `XShmAttach`：`return false;` → `XShmAttachHook(); return XShmAttachFunc(dpy, shminfo);`
+  - `payload.hpp` mainloop 时序：`create_screencast_session` **之后** `g_main_loop_new` → **之前** `g_main_loop_new`
+  - `payload.hpp` 引入 `create_cancellable` + 失败时 `g_main_loop_quit`
+  - `payload.cpp` 引入 `kPortalCreateTimeout = 60s` + 超时 `g_cancellable_cancel`
+- 6 月 4 日版本机制：导出 `XShmAttach` 返回 false 让钉钉 XShm 初始化失败、回退到 `XGetImage`/`XShmGetImage` hook；portal 初始化由内部 `XShmAttachInner` 在 XShmGetImage 的线程上下文中触发
+- live .so SHA-256（6 月 4 日版本）：`744821ac0dabd7fd787e0093dea299ce6e8590b5fd0567bf7460fb03cafbc519`
+- 重新编译部署：见上方"构建 hook"，从 dotfiles 根目录一次性 `cmake -S ... -B /tmp/... && cmake --build ... && install ...`
 
 ## 排障日志
 - 查看 `/tmp/dingtalk-wayland-debug.log`

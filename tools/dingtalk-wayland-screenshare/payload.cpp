@@ -230,7 +230,10 @@ void x11_sanitizer_main()
 
 
 
-constexpr auto kPortalCreateTimeout = std::chrono::seconds(60);
+// bounded polling wait for portal events (simple counter-based timeout, no GCancellable)
+constexpr int PORTAL_WAIT_POLL_MS = 20;
+constexpr int PORTAL_WAIT_TIMEOUT_MS = 60000; // 60s upper bound, matches typical portal dialog patience
+constexpr int PORTAL_WAIT_MAX_POLLS = PORTAL_WAIT_TIMEOUT_MS / PORTAL_WAIT_POLL_MS;
 
 std::thread payload_start_portal_gio_mainloop_thread(){
   auto& interface_singleton = InterfaceSingleton::getSingleton();
@@ -241,27 +244,16 @@ std::thread payload_start_portal_gio_mainloop_thread(){
       g_main_loop_run(portal_handle->gio_mainloop);
     }
   );
-
-  const auto deadline = std::chrono::steady_clock::now() + kPortalCreateTimeout;
-  while(!portal_handle->session.load() &&
-        portal_handle->status.load() == XdpScreencastPortalStatus::kInit &&
-        std::chrono::steady_clock::now() < deadline){
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  }
-
-  if (!portal_handle->session.load() &&
-      portal_handle->status.load() == XdpScreencastPortalStatus::kInit) {
-    dingtalk_debug_log("portal create timed out; cancelling request");
-    g_cancellable_cancel(portal_handle->create_cancellable);
-    // Do not free the portal while its async callback still owns user_data.
-    // Cancellation completes through that callback, which changes status and
-    // quits the loop. A success racing with cancellation is also accepted.
-    while (!portal_handle->session.load() &&
-           portal_handle->status.load() == XdpScreencastPortalStatus::kInit) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  // wait until xdpsession is up, with a bounded timeout so that a failed
+  // portal create (session stays null) cannot trap the payload thread forever
+  for (int polls = 0; !portal_handle->session.load(); ++polls) {
+    if (polls >= PORTAL_WAIT_MAX_POLLS) {
+      fprintf(stderr, "%s", red_text("[payload] portal wait timeout: session not created within " + std::to_string(PORTAL_WAIT_TIMEOUT_MS) + " ms. giving up. \n").c_str());
+      break;
     }
+    std::this_thread::sleep_for(std::chrono::milliseconds(PORTAL_WAIT_POLL_MS));
   }
-  return portal_gio_mainloop_thread;
+  return std::move(portal_gio_mainloop_thread);
 }
 
 constexpr float PW_MAX_CALLRATE = 60.0;
@@ -298,14 +290,20 @@ void payload_main(){
 
   // start the gio mainloop thread
   std::thread portal_gio_mainloop_thread = payload_start_portal_gio_mainloop_thread();
-  if (!portal_handle->session.load() ||
-      portal_handle->status.load() == XdpScreencastPortalStatus::kCancelled) {
-    portal_gio_mainloop_thread.join();
-    return;
-  }
 
   // start x11 sanitizer thread
   std::thread x11_sanitizer_thread = std::thread(x11_sanitizer_main);
+
+  // portal create failed or timed out: session is null, nothing to start.
+  // stop the gio mainloop, signal the sanitizer stop flag, then join both threads.
+  if (!portal_handle->session.load()) {
+    fprintf(stderr, "%s", red_text("[payload] no portal session. stop gio and join threads. \n").c_str());
+    g_main_loop_quit(portal_handle->gio_mainloop);
+    interface_singleton.interface_handle.load()->x11_sanitizer_stop_flag.store(true, std::memory_order_seq_cst);
+    x11_sanitizer_thread.join();
+    portal_gio_mainloop_thread.join();
+    return;
+  }
 
   // start screencast session
   // this will get the pipewire fd into the portal object
@@ -314,23 +312,28 @@ void payload_main(){
     XdpScreencastPortal::screencast_session_start_cb,
     portal_handle
   );
-  
-  // wait until pipewire_fd is up
-  while(portal_handle->status.load() == XdpScreencastPortalStatus::kInit ) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  };
+
+  // wait until pipewire_fd is up, with a bounded timeout so an edge-case
+  // failure (status stuck, fd never set) cannot trap the payload thread forever
+  for (int polls = 0; portal_handle->pipewire_fd.load() == -1; ++polls) {
+    if (portal_handle->status.load() == XdpScreencastPortalStatus::kCancelled) {
+      break;
+    }
+    if (polls >= PORTAL_WAIT_MAX_POLLS) {
+      fprintf(stderr, "%s", red_text("[payload] pipewire_fd wait timeout: fd not acquired within " + std::to_string(PORTAL_WAIT_TIMEOUT_MS) + " ms. giving up. \n").c_str());
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(PORTAL_WAIT_POLL_MS));
+  }
 
   // screencast cancelled. we stop the gio mainloop and join the gio mainloop thread
-  if (portal_handle->status.load() == XdpScreencastPortalStatus::kCancelled) {
+  if (portal_handle->status.load() == XdpScreencastPortalStatus::kCancelled || portal_handle->pipewire_fd.load() == -1) {
     fprintf(stderr, "%s", red_text("[payload] screencast cancelled. stop gio and join gio thread. \n").c_str());
     g_main_loop_quit(portal_handle->gio_mainloop);
+    interface_singleton.interface_handle.load()->x11_sanitizer_stop_flag.store(true, std::memory_order_seq_cst);
     x11_sanitizer_thread.join();
     portal_gio_mainloop_thread.join();
     return;
-  }
-
-  while(portal_handle->pipewire_fd.load() == -1){
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
   fprintf(stderr, "%s", green_text("[payload SYNC] pipewire_fd acquired: " + std::to_string(portal_handle->pipewire_fd.load()) + "\n").c_str());
   dingtalk_debug_log("payload pipewire fd acquired: " + std::to_string(portal_handle->pipewire_fd.load()));
