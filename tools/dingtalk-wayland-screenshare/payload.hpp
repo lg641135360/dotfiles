@@ -78,6 +78,7 @@ enum class XdpScreencastPortalStatus {
   kInit,
   kRunning,
   kCancelled,
+  kError, // portal/session create failed (distinct from user cancel)
 };
 
 struct XdpScreencastPortal {
@@ -142,7 +143,8 @@ struct XdpScreencastPortal {
     );
     if (!this_ptr->session) {
       g_print("Failed to create screencast session: %s\n", error ? error->message : "unknown error");
-      return; //TODO: handle error
+      this_ptr->status.store(XdpScreencastPortalStatus::kError, std::memory_order_release);
+      return;
     }
 
   }

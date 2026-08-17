@@ -95,6 +95,31 @@ test_portal_waits_are_bounded_with_polling_timeouts() {
         fail 'join x11_sanitizer_thread must be preceded by setting x11_sanitizer_stop_flag'
 }
 
+test_pipewire_thread_is_event_driven_without_busy_polling() {
+    # PipeWire 线程必须阻塞在 pw_loop_iterate(-1)（事件驱动），不得用
+    # iterate(0) + sleep 忙轮询；hook 停止侧置 pw_stop_flag 后必须调用
+    # pw_main_loop_quit 唤醒阻塞的 iterate。
+    payload_cpp=$REPO_ROOT/tools/dingtalk-wayland-screenshare/payload.cpp
+    hook_cpp=$REPO_ROOT/tools/dingtalk-wayland-screenshare/hook.cpp
+    assert_contains 'pw_loop_iterate(pw_main_loop_get_loop(pipewire_handle->pw_mainloop), -1)' "$payload_cpp"
+    if grep -F 'PW_MIN_CALLTIME_MS' "$payload_cpp" >/dev/null; then
+        fail 'pipewire thread must not busy-poll with PW_MIN_CALLTIME_MS sleep'
+    fi
+    grep -A3 'pw_stop_flag.store' "$hook_cpp" | grep -F 'pw_main_loop_quit' >/dev/null ||
+        fail 'hook stop path must call pw_main_loop_quit to wake the blocked pw_loop_iterate'
+}
+
+test_portal_status_distinguishes_error_from_cancel() {
+    # XdpScreencastPortalStatus 需有 kError 区分创建失败与用户取消；
+    # create 失败回调置 kError；等待与失败分支同时识别两种终态。
+    payload_hpp=$REPO_ROOT/tools/dingtalk-wayland-screenshare/payload.hpp
+    payload_cpp=$REPO_ROOT/tools/dingtalk-wayland-screenshare/payload.cpp
+    assert_contains 'kError' "$payload_hpp"
+    grep -A8 'Failed to create screencast session' "$payload_hpp" | grep -F 'kError' >/dev/null ||
+        fail 'create failure callback must set kError status'
+    assert_contains '== XdpScreencastPortalStatus::kError' "$payload_cpp"
+}
+
 test_portal_create_fails_legacy_without_cancellable() {
     # 6 月 4 日 hook 版本：portal create 不带 cancellable，失败时只打印日志
     # 并返回；不强制超时取消。该路径已在 x86_64 + 8.1.0 实测可用。
@@ -117,6 +142,8 @@ test_restart_cleans_dingtalk_and_tblive_processes
 test_launcher_waits_for_portal_without_managing_services
 
 test_portal_waits_are_bounded_with_polling_timeouts
+test_pipewire_thread_is_event_driven_without_busy_polling
+test_portal_status_distinguishes_error_from_cancel
 test_portal_create_fails_legacy_without_cancellable
 
 printf 'PASS: dingtalk hook tests\n'

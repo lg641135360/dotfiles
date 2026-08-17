@@ -63,8 +63,9 @@ void XShmAttachHook(){
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
   };
   auto payload_status = interface_singleton.portal_handle.load()->status.load(std::memory_order_seq_cst);
-  std::string payload_status_str = 
+  std::string payload_status_str =
     payload_status == XdpScreencastPortalStatus::kCancelled ? "cancelled" :
+    payload_status == XdpScreencastPortalStatus::kError ? "error" :
     payload_status == XdpScreencastPortalStatus::kRunning ? "running" :
     "unknown";
   if (payload_status == XdpScreencastPortalStatus::kRunning) {
@@ -234,6 +235,9 @@ void XShmDetachStopPWLoop(){
   auto& interface_singleton = InterfaceSingleton::getSingleton();
   fprintf(stderr, "%s", green_text("[hook] signal pw stop.\n").c_str());
   interface_singleton.interface_handle.load()->pw_stop_flag.store(true, std::memory_order_seq_cst);
+  // wake the pipewire thread in case it is blocked in pw_loop_iterate(-1)
+  auto* pw_mainloop = interface_singleton.pipewire_handle.load()->pw_mainloop.load();
+  if (pw_mainloop) pw_main_loop_quit(pw_mainloop);
   while(!interface_singleton.interface_handle.load()->payload_pw_stop_confirm.load(std::memory_order_seq_cst)){
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }

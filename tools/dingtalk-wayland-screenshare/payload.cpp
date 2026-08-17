@@ -247,6 +247,10 @@ std::thread payload_start_portal_gio_mainloop_thread(){
   // wait until xdpsession is up, with a bounded timeout so that a failed
   // portal create (session stays null) cannot trap the payload thread forever
   for (int polls = 0; !portal_handle->session.load(); ++polls) {
+    if (portal_handle->status.load() == XdpScreencastPortalStatus::kError) {
+      fprintf(stderr, "%s", red_text("[payload] portal session create failed (kError). giving up. \n").c_str());
+      break;
+    }
     if (polls >= PORTAL_WAIT_MAX_POLLS) {
       fprintf(stderr, "%s", red_text("[payload] portal wait timeout: session not created within " + std::to_string(PORTAL_WAIT_TIMEOUT_MS) + " ms. giving up. \n").c_str());
       break;
@@ -257,7 +261,6 @@ std::thread payload_start_portal_gio_mainloop_thread(){
 }
 
 constexpr float PW_MAX_CALLRATE = 60.0;
-constexpr int PW_MIN_CALLTIME_MS = 1000 / PW_MAX_CALLRATE;
 
 std::thread payload_start_pipewire_thread(){
   auto& interface_singleton = InterfaceSingleton::getSingleton();
@@ -268,8 +271,9 @@ std::thread payload_start_pipewire_thread(){
       auto& interface_singleton = InterfaceSingleton::getSingleton();
       while (interface_singleton.interface_handle.load()->pw_stop_flag.load() == false) {
         auto* pipewire_handle = interface_singleton.pipewire_handle.load();
-        pw_loop_iterate(pw_main_loop_get_loop(pipewire_handle->pw_mainloop), 0);
-        std::this_thread::sleep_for(std::chrono::milliseconds(PW_MIN_CALLTIME_MS));
+        // event-driven: block until a pipewire event arrives or the loop is
+        // woken by pw_main_loop_quit from the stop path (no busy-poll sleep)
+        pw_loop_iterate(pw_main_loop_get_loop(pipewire_handle->pw_mainloop), -1);
       }
       fprintf(stderr, "%s", green_text("[payload] pw stop signal received. pw stopped. \n").c_str());
     }
@@ -316,7 +320,8 @@ void payload_main(){
   // wait until pipewire_fd is up, with a bounded timeout so an edge-case
   // failure (status stuck, fd never set) cannot trap the payload thread forever
   for (int polls = 0; portal_handle->pipewire_fd.load() == -1; ++polls) {
-    if (portal_handle->status.load() == XdpScreencastPortalStatus::kCancelled) {
+    if (portal_handle->status.load() == XdpScreencastPortalStatus::kCancelled ||
+        portal_handle->status.load() == XdpScreencastPortalStatus::kError) {
       break;
     }
     if (polls >= PORTAL_WAIT_MAX_POLLS) {
@@ -326,15 +331,23 @@ void payload_main(){
     std::this_thread::sleep_for(std::chrono::milliseconds(PORTAL_WAIT_POLL_MS));
   }
 
-  // screencast cancelled. we stop the gio mainloop and join the gio mainloop thread
-  if (portal_handle->status.load() == XdpScreencastPortalStatus::kCancelled || portal_handle->pipewire_fd.load() == -1) {
-    fprintf(stderr, "%s", red_text("[payload] screencast cancelled. stop gio and join gio thread. \n").c_str());
+  // screencast cancelled or portal error. stop the gio mainloop and join the gio mainloop thread
+  {
+    auto status = portal_handle->status.load();
+    if (status == XdpScreencastPortalStatus::kError) {
+      fprintf(stderr, "%s", red_text("[payload] portal error (create/start failed). stop gio and join gio thread. \n").c_str());
+    } else if (status == XdpScreencastPortalStatus::kCancelled || portal_handle->pipewire_fd.load() == -1) {
+      fprintf(stderr, "%s", red_text("[payload] screencast cancelled. stop gio and join gio thread. \n").c_str());
+    } else {
+      goto pw_good;
+    }
     g_main_loop_quit(portal_handle->gio_mainloop);
     interface_singleton.interface_handle.load()->x11_sanitizer_stop_flag.store(true, std::memory_order_seq_cst);
     x11_sanitizer_thread.join();
     portal_gio_mainloop_thread.join();
     return;
   }
+  pw_good:
   fprintf(stderr, "%s", green_text("[payload SYNC] pipewire_fd acquired: " + std::to_string(portal_handle->pipewire_fd.load()) + "\n").c_str());
   dingtalk_debug_log("payload pipewire fd acquired: " + std::to_string(portal_handle->pipewire_fd.load()));
 

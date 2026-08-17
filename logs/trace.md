@@ -16,6 +16,24 @@
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
 
 
+## 2026-08-17 — waybar CPU/内存改回内置模块，删除 waybar-system-tooltip 脚本
+
+- 目的：前两步迭代（脚本自差分、JSON escape 加固）仍属对 custom 脚本方案的修补；waybar 内置 `cpu`/`memory` 模块在 kernel 级采样、每个模块独立持有基线，从根本上根除多 bar 并发 / waybar 重载时 custom 脚本共享 state 文件被覆盖导致偶发 0% 的问题。脚本仅服务 cpu/mem 两个子命令，改回内置后彻底失去调用方，一并删除避免死代码。
+- 改动：① `.config/linux/waybar/config` 与 `config.aarch64` 的 `custom/cpu`/`custom/memory` 段改回内置 `cpu`/`memory`，`format` 用 `{usage}%`/`{percentage}%`，`tooltip-format` 用内置占位符（CPU `{usage}%\n负载：{load}`，内存 `{used} / {total}（{percentage}%）\n可用：{available}`），`states` 70/90、80/95 驱动 CSS class，`on-click` 仍为 `foot -- htop -s PERCENT_CPU/PERCENT_MEM`，`interval 5s`；`modules-right` 中 `custom/cpu`/`custom/memory` 改为 `cpu`/`memory`。② `style.css` 选择器 `#custom-cpu`/`#custom-memory` 改为 `#cpu`/`#memory`（含 `.warning`/`.critical`）。③ 删除 `.config/scripts/waybar-system-tooltip`（`git rm -f`）。④ `install.sh` 移除 `waybar-system-tooltip` 部署条目。⑤ `tests/install_wayland_test.sh` 移除对应部署断言。⑥ `tests/waybar_config_test.sh` 删除 `test_waybar_system_tooltip_script_contract`，主契约断言改为内置模块（`"cpu": {`/`"memory": {` + `assert_not_contains 'custom/cpu'` + states + tooltip-format），aarch64 superset 测试注释 `custom/memory` → `memory`。⑦ `.config/linux/waybar/README.md` CPU/内存条目改写为内置模块描述。⑧ `README.md` 文件结构图移除 `waybar-system-tooltip/` 条目。
+- 验证：`sh tests/waybar_config_test.sh` PASS；`sh tests/install_wayland_test.sh` 待跑。
+- live 同步与运行态：未同步 live `~/.config/waybar/`、`~/.config/scripts/`，未重载 waybar；未提交、未推送。同步后 live 残留的 `~/.config/scripts/waybar-system-tooltip` 成为孤儿文件，可在同步时顺手清理。
+- 后续可能方向：tooltip-format 内置占位符无 top 进程列表（原 custom 脚本有 top 5），若日后需要 top 进程，可考虑 `on-click` 拉起 htop 已覆盖交互式查看；config 与 config.aarch64 中 cpu/memory 段仍重复（waybar 无 include 机制，superset 测试已防漂移，维持现状）。
+
+
+## 2026-08-17 — 钉钉 hook PipeWire 线程事件驱动化并新增 kError 状态区分创建失败与用户取消
+
+- 目的：落实上次 trace 的两个后续方向——PipeWire 线程 `pw_loop_iterate(0)+sleep` 忙轮询改为事件驱动阻塞等待；`XdpScreencastPortalStatus` 增加 `kError` 区分 portal 创建失败与用户取消，失败时不再白等 60 秒超时。
+- 改动：`payload.hpp` 枚举加 `kError`，create 失败回调置 `kError`（去掉 TODO）；`payload.cpp` PipeWire 线程改为 `pw_loop_iterate(..., -1)` 阻塞（删除 `PW_MIN_CALLTIME_MS`/sleep），session 等待与 pipewire_fd 等待循环识别 `kError` 提前退出，失败分支区分 "portal error" 与 "cancelled" 日志；`hook.cpp` 停止路径置 `pw_stop_flag` 后调用 `pw_main_loop_quit` 唤醒阻塞的 iterate，状态字符串映射加 "error"。`tests/dingtalk_hook_test.sh` 先行新增两条断言（事件驱动无忙轮询 + kError 区分）。
+- 验证：`tests/dingtalk_hook_test.sh` PASS；`/tmp` 干净 Release 构建编译链接成功（`libdingtalkhook.so`）。运行时行为（实际共享屏幕、取消路径、portal 失败路径）未实测。
+- live 同步与运行态：未同步 live `~/.local/lib/dingtalk-wayland-screenshare/build/`，未重启钉钉；未提交、未推送。
+- 后续可能方向：阻塞式 `pw_loop_iterate(-1)` 依赖停止侧 `pw_main_loop_quit` 的唤醒时序（quit 为 level-triggered，先 quit 后 iterate 也能立即返回），但建议实测一次"开始共享→结束共享"确认无挂起；aarch64 源码统一问题同前。
+
+
 ## 2026-08-17 — 根治 fcitx5 Wayland 检测提示：清除 systemd 用户会话的 GTK_IM_MODULE
 
 - 目的：fcitx5 弹出"建议取消设置 GTK_IM_MODULE"的 Wayland 检测提示，且环境曾出现无法输入中文（fcitx5 被中途 `--replace` 重启后 niri 不重发 text_input.enter，所有 wayland_v2 IC focus:0）。
@@ -92,3 +110,21 @@
 - live 同步与运行态：用户自行安装 .so 并实测通过；未由 agent 同步 live。
 - 提交推送：随 `f787a48`（fix(dingtalk): x86_64 hook 回退稳定版本并加等待超时与取消路径修复，共 12 文件 +265/-176）一并提交并推送至 origin/main。
 - 后续可能方向：PipeWire 线程忙轮询（`pw_loop_iterate` + sleep）可改为事件驱动；`XdpScreencastPortalStatus` 可增加 kError 状态区分创建失败与用户取消。
+
+
+## 2026-08-17 — waybar-system-tooltip 修正注释与自排除逻辑、加固 JSON escape
+
+- 目的：修复 CPU/MEM 模块脚本中注释与实现矛盾（state 文件并非按实例隔离）、`$2 != "sh"` 过滤误伤真实 sh 进程、json_escape 不处理其它控制字符三个问题。
+- 改动：`.config/scripts/waybar-system-tooltip`：① 头部注释改为如实描述共享 state 文件的单 bar 前提与多 bar 串扰限制（waybar exec 不传 bar 身份，无法低成本隔离）；② top_cpu/top_mem_processes 改为 `-v self=$$` 按 pid 排除自身，去掉按 comm "sh" 的过滤（`ps` comm 过滤保留）；③ json_escape 前置 `tr -d` 清除 \r 及其它控制字符，防止异常 comm 产生非法 JSON。`tests/waybar_config_test.sh` 新增 `test_waybar_system_tooltip_script_contract`（sh -n + 断言无 `!= "sh"` 过滤 + python3 解析两子命令输出为合法 JSON）。
+- 验证：`sh tests/waybar_config_test.sh` PASS（含新测试）。
+- live 同步与运行态：未同步 live `~/.config/scripts/`，未重载 waybar；未提交、未推送。
+- 后续可能方向：top 进程降频缓存以降低常态 CPU 开销（2-3%）；`ps` %CPU 为生命周期平均、与栏内即时使用率口径不一致，可考虑差值法；config 与 config.aarch64 中 custom/cpu、custom/memory 段重复（waybar 无 include 机制，现有 superset 测试已防漂移，维持现状）。
+
+
+## 2026-08-17 — waybar CPU 采样改为单次调用内自差分，消除偶发 0%
+
+- 目的：修复栏内 CPU 经常显示 0% 的问题。根因是 state 文件方案下两次脚本调用时刻接近时（多 bar 并发 exec 或 waybar reload 后立即重跑），第二次调用读到刚写入的基准，`delta_total <= 0` 直接输出 0%。
+- 改动：`.config/scripts/waybar-system-tooltip` 的 `read_cpu_usage` 改为单次调用内采样两次 `/proc/stat`（间隔 `sleep 1`）自差分，删除 state 文件逻辑（`state_dir` 及 `$XDG_STATE_HOME/dotfiles/waybar-cpu` 不再使用）；头部注释同步改写。`.config/linux/waybar/README.md` CPU/内存条目同步更新描述。代价：每次 exec 阻塞约 1s（waybar custom 模块异步执行，不阻塞 UI），测量窗口从 5s 变 1s。
+- 验证：间隔 0.1s 连续并发调用两次 `cpu` 子命令，均输出真实值（8%/21%），无 0%；`sh tests/waybar_config_test.sh` PASS。
+- live 同步与运行态：未同步 live `~/.config/scripts/`，未重载 waybar；未提交、未推送。同步后下个 interval 自动生效。
+- 后续可能方向：live 旧 state 文件 `$XDG_STATE_HOME/dotfiles/waybar-cpu` 成为孤儿文件，可在同步时顺手清理。
