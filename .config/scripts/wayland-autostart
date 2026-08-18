@@ -255,8 +255,12 @@ if [ ! -x "$lock_script" ]; then
 elif ! command -v systemctl >/dev/null 2>&1; then
     warn "跳过 swayidle：未找到命令 systemctl"
 else
+    # 空闲 30 分钟自动挂起已移除：挂起唤醒瞬间网络栈重置 + 显示器热插拔 +
+    # xwayland 崩溃会让 Electron 应用（VS Code / Trae）以未捕获的
+    # net::ERR_INTERNET_DISCONNECTED 静默退出。用户不在意功耗，保留
+    # 10 分钟锁屏与 before-sleep 锁屏即可（详见 logs/trace.md 2026-08-18）。
     run_once_logged swayidle 'swayidle.*lock-wayland' \
-        swayidle -w timeout 600 "$lock_script" timeout 1800 'systemctl suspend' before-sleep "$lock_script"
+        swayidle -w timeout 600 "$lock_script" before-sleep "$lock_script"
 fi
 
 polkit_agent=

@@ -97,7 +97,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `fcitx5`
 - `swaybg` 随机壁纸（优先 `~/Pictures/wall`，回退系统 `/usr/share/backgrounds`，镜像 Awesome 会话的 `randomize_wallpaper` 来源）
 - `gammastep` 自动色温（`~/.local/state/niri/autostart/gammastep.log`；aarch64 禁用，见「配置部署边界」）
-- `swayidle`：空闲 10 分钟锁屏、30 分钟自动挂起；系统主动睡眠前也调用 `lock-wayland`
+- `swayidle`：空闲 10 分钟锁屏；系统主动睡眠前也调用 `lock-wayland`（自动挂起已移除，原因见 logs/trace.md 2026-08-18：挂起唤醒瞬间的网络/显示风暴会让 Electron 应用以未捕获的 `net::ERR_INTERNET_DISCONNECTED` 静默退出）
 - KDE 或 GNOME polkit agent（若存在）
 - `nm-applet`、`blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。
 

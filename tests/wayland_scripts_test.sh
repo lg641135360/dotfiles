@@ -67,8 +67,11 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_contains 'aarch64' "$AUTOSTART_SCRIPT"
     assert_contains '跳过 gammastep：aarch64 (MediaTek) 下外接屏会过暗，已禁用自动色温' "$AUTOSTART_SCRIPT"
     assert_contains 'aarch64 跳过 `gammastep`，不启用自动色温' "$NIRI_README"
-    assert_contains "timeout 1800 'systemctl suspend'" "$AUTOSTART_SCRIPT"
-    assert_contains 'swayidle -w timeout 600 "$lock_script" timeout 1800 '"'"'systemctl suspend'"'"' before-sleep "$lock_script"' "$AUTOSTART_SCRIPT"
+    # 自动挂起已移除：挂起唤醒的网络/显示风暴会让 Electron 应用以未捕获的
+    # net::ERR_INTERNET_DISCONNECTED 静默退出（VS Code / Trae）。保留 10 分钟
+    # 锁屏与 before-sleep 锁屏。
+    assert_not_contains "timeout 1800 'systemctl suspend'" "$AUTOSTART_SCRIPT"
+    assert_contains 'swayidle -w timeout 600 "$lock_script" before-sleep "$lock_script"' "$AUTOSTART_SCRIPT"
     assert_contains '/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1' "$AUTOSTART_SCRIPT"
     assert_not_contains 'picom' "$AUTOSTART_SCRIPT"
     assert_not_contains 'xrandr' "$AUTOSTART_SCRIPT"
