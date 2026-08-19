@@ -15,7 +15,7 @@ require() {
 }
 
 # satty 等工具可能只装在 ~/.local/bin（不在 niri spawn 进程的 PATH 中），
-# 提前补入 PATH，避免 F1 触发时因找不到命令而静默退出。
+# 提前补入 PATH，避免 Mod+s 触发时因找不到命令而静默退出。
 export PATH="$HOME/.local/bin:$PATH"
 
 require grim

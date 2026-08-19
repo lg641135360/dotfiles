@@ -140,8 +140,11 @@ test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal() {
     assert_not_contains 'allow_remote_control' "$REPO_ROOT/.config/linux/foot/foot.ini"
 
     # aarch64 keeps transparency but disables blur: mtgpu blur is invisible.
+    # Platform override is 0.90 (common.kdl stays 0.88); do not match the
+    # common value via comments.
     assert_contains 'blur false' "$NIRI_AARCH64_CONFIG"
-    assert_contains 'opacity 0.88' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'opacity 0.90' "$NIRI_AARCH64_CONFIG"
+    assert_not_contains 'opacity 0.88' "$NIRI_AARCH64_CONFIG"
 }
 
 test_niri_config_uses_native_environment_cursor_and_animations() {
@@ -243,6 +246,9 @@ test_readme_documents_parallel_trial_and_fallback() {
     assert_contains 'AwesomeWM 仍是可回退桌面' "$NIRI_README"
     assert_contains 'xwayland-satellite' "$NIRI_README"
     assert_contains 'niri validate -c .config/linux/niri/ubuntu_x64/config.kdl' "$NIRI_README"
+    assert_contains 'niri validate -c .config/linux/niri/ubuntu_aarch64/config.kdl' "$NIRI_README"
+    assert_contains './tests/niri_config_test.sh' "$NIRI_README"
+    assert_not_contains 'niri_wayland_config_test.sh' "$NIRI_README"
     assert_contains '平台配置' "$NIRI_README"
     assert_contains '仅 Ubuntu 部署本仓库的 Niri 配置' "$NIRI_README"
     assert_contains '`~/Pictures/wall`' "$NIRI_README"

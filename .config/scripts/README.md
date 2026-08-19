@@ -10,10 +10,10 @@
 | `rofi-launch` | Rofi 应用启动器包装 |
 | `wayland-autostart` | Wayland 会话自启动；同步会话环境，等待 niri ScreenCast D-Bus 服务后修复 portal 启动顺序，并启动桌面组件；日志写入 `~/.local/state/niri/autostart/` |
 | `dingtalk-wayland` | 钉钉维护/兼容入口；aarch64 日常通过 Mod+C 调用官方 `Elevator.sh`，无需该脚本或 hook。脚本用于 portal 检查、集中日志、按 `/proc/<pid>/exe` 精确清理钉钉/tblive，以及显式 hook 回退 |
-| `terminal-wayland` | Wayland 终端启动器；全平台优先 Alacritty，缺失时回退 foot |
+| `terminal-wayland` | Wayland 终端启动器；aarch64 + Wayland 优先 foot，其他平台优先 Alacritty，缺失时回退 foot |
 | `file-manager-wayland` | Wayland 文件管理器选择器（Dolphin → 系统默认 → 常见文件管理器） |
 | `launcher-wayland` | Wayland 应用启动器 |
-| `screenshot-wayland` | Wayland 截图 |
+| `screenshot-wayland` | Wayland 选区截图（Mod+s：slurp → grim → Satty） |
 | `wallpaper-wayland` | Wayland 壁纸设置 |
 | `browser-wayland` | Google Chrome Wayland 启动器（Wayland 会话加 `--ozone-platform=wayland`，X11 原样透传） |
 | `trae-cn-wayland` | Trae CN (Electron) Wayland 启动器（Wayland 会话加 ozone-wayland + Wayland IME，X11 原样透传） |

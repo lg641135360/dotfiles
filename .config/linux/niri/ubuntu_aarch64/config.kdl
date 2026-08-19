@@ -25,7 +25,7 @@ include "../common.kdl"
 
 // ---- aarch64 平台覆盖：mtgpu 驱动的 blur 无明显视觉效果，仅保留透明 ----
 // 后定义的规则会覆盖 common.kdl 中同匹配的 blur true，关闭模糊。
-// 全局窗口透明 opacity 0.88 已在 common.kdl 中定义，此处保留。
+// common.kdl 全局透明度为 88%；此处覆盖为 0.90 并关闭 blur。
 window-rule {
     opacity 0.90
     background-effect {

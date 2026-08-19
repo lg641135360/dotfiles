@@ -14,7 +14,7 @@ environment {
     INPUT_METHOD "fcitx"
     LC_CTYPE "zh_CN.UTF-8"
     XCURSOR_SIZE "32"
-    // niri spawn 环境不设置 ZDOTDIR：否则 zsh 落到默认 ~/.zshrc 且无 .zshenv 的
+    // 必须设置 ZDOTDIR：否则 zsh 落到默认 ~/.zshrc 且无 .zshenv 的
     // skip_global_compinit，会跑 Ubuntu 全局 compinit（实测交互启动 4.2s vs 优化
     // 配置 0.18s）。全局设置使 Mod+Return 拉起的终端也走 ~/.config/zsh 优化配置。
     // 注意：niri 的 environment {} 不展开 ~，必须用绝对路径。
