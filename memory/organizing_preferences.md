@@ -10,6 +10,7 @@
 
 ## 系统环境
 - 在 Ubuntu aarch64 上，X11-sensitive 桌面工具通常优先使用系统二进制（尤其是 `redshift`）。
+- 主力 AI 编辑器为 Trae CN（aarch64 + niri/Wayland）。已知问题：Trae CN 升级（如 2026-08-10）会丢失内置 ripgrep 二进制的可执行权限（变为 `-rw-r--r--`），导致 IDE 的 Grep 工具在任意路径（含单文件）均报「权限不够 (os error 13)」；rg 由每次搜索临时 spawn，修复后无需重启 Trae。修复：`sudo chmod 755 /usr/share/trae-cn/resources/app/node_modules/@vscode/ripgrep/bin/rg /usr/share/trae-cn/resources/app/node_modules/@byted-fe/ripgrep-linux-arm64/bin/rg`。Trae 升级后 Grep 失效时优先怀疑此问题。
 - 当 Linuxbrew 包遮蔽工作系统二进制且不需要时，通常优先删除包，而不是加防御逻辑。
 - Window manager helper 脚本（`~/.config/scripts/*`）通常保持始终安装并保留可执行位，即使 runtime backend 未安装。
 - 对通过本地 Node current 前缀安装的全局 npm CLI，在共享 zsh PATH 中追加 `$HOME/.local/opt/node-current/bin`。
