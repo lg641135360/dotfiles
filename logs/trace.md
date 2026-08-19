@@ -25,8 +25,8 @@
 - 目的：用户要求每个修改可追溯、可撤回，出现回退时能及时恢复。将 AGENTS.md"安全/可回退"原则落实为机制，填补两个真实缺口：live 手动同步无备份（niri/waybar/scripts 等 IDE 白名单外手动 cp 场景）、trace 无回滚锚点（waybar tooltip 三轮连续修复均在未提交状态推进）。
 - 改动：① `AGENTS.md` 三处——快速参考 checklist 加"回滚锚点已记录"项；执行中约束加"手动同步 live 前必须先创建 `*.backup.<时间戳>` 快照并在 trace 记录 backup 路径"；操作后约束加"收尾总结附 commit message 草稿，建议一轮任务一个 commit 粒度（提交时机由用户掌控）"+"trace 每条记录必须包含回滚信息（commit hash / 未提交标记 / live backup 快照路径）"。② `logs/trace.md` 维护规则同步补回滚信息字段约定。③ `tests/repo_docs_test.sh` 新增 5 条断言锁定新规则措辞，防漂移。
 - 验证：`sh tests/repo_docs_test.sh` PASS（含新断言）；`git diff --check` 干净；归档后 `sh tests/archive_trace_test.sh` PASS。
-- live 同步与运行态：纯仓库文档修改，无需同步 live；未提交、未推送。
-- 回滚信息：未提交（含上轮"提示词系统评估与事实漂移修复"在内一并待提交）。
+- live 同步与运行态：纯仓库文档修改，无需同步 live；已提交并推送。
+- 回滚信息：commit `1a43134`（与"评估与事实漂移修复""回滚规则补齐"合并为一个 commit，撤回用 `git revert 1a43134`）。
 - 后续可能方向：① 规则生效后观察 agent 是否稳定执行 live 备份与收尾提交建议，若执行不到位再考虑收紧措辞；② AGENTS.md 规则已近饱和，后续新增规则应优先考虑合并进现有条目而非新开条目。
 
 
@@ -44,7 +44,8 @@
 - 目的：用户要求评估提示词系统（AGENTS.md / USER.md / SOUL.md / memory/ / logs/trace.md / .github/copilot-instructions.md / tests/repo_docs_test.sh）。评估结论：分层职责、单一权威源 + 薄入口、契约测试（memory 索引防漂移）、意图门控五级分层、trace 自律均为健康设计，架构不动；但发现 3 处事实漂移，按用户确认（aarch64 已以 niri 为主）修复。
 - 改动：① `USER.md` 窗口管理器事实改为"全平台以 niri (Wayland) 为主力（Ubuntu aarch64 已迁移并接入 GDM）；AwesomeWM (X11) 保留为可回退桌面"。② `memory/niri.md` 平台首选项改为"x86_64 与 aarch64 均以 niri + Wayland 为首选"，消除与同文件 aarch64 niri 终端 foot 特化、aarch64 config.kdl 维护内容的自相矛盾。③ `README.md` 提示词系统段把 `CLAUDE.md` 精确表述为 gitignored 本地可选入口（该文件不存在且被 .gitignore 排除，原文"只作为薄入口"易误导）。
 - 验证：`sh tests/repo_docs_test.sh` PASS；`git diff --check` 干净；归档后 `sh tests/archive_trace_test.sh` PASS。
-- live 同步与运行态：纯仓库文档修改，无需同步 live，无运行态变更；未提交、未推送。
+- live 同步与运行态：纯仓库文档修改，无需同步 live，无运行态变更；已提交并推送。
+- 回滚信息：commit `1a43134`（与"回滚锚点规则""回滚规则补齐"合并为一个 commit，撤回用 `git revert 1a43134`）。
 - 后续可能方向：① `USER.md` "主力 IDE 为 VS Code" 与当前实际使用 Trae 可能不符，待用户确认后再改；② 评估中确认 `.github/copilot-instructions.md` 一行薄入口为最优形态，无需扩展。
 
 
@@ -53,8 +54,8 @@
 - 目的：从使用角度评估回滚便利度后发现两个摩擦点——手动备份无清理机制会堆积、live 恢复需自己翻文件拼命令。本轮把此前的改进建议 1+2 落成规则。
 - 改动：① `AGENTS.md` 执行中约束新增两条：手动同步时按"保留 3 份"清理同目标旧 backup（对齐 `install.sh` 的 `clean_old_backups`）；trace 记录 live 同步时必须写好可直接复制执行的恢复命令（含确切备份文件名）。② `logs/trace.md` 维护规则同步补恢复命令要求并附示例。③ `tests/repo_docs_test.sh` 新增 3 条断言（`保留 3 份` / `恢复命令` 两处）锁定措辞。
 - 验证：`sh tests/repo_docs_test.sh` PASS（含新断言）；`git diff --check` 干净；归档后 `sh tests/archive_trace_test.sh` PASS。
-- live 同步与运行态：纯仓库文档修改，无需同步 live；未提交、未推送。
-- 回滚信息：未提交（与前两轮"评估与事实漂移修复""回滚锚点规则"共同待提交）。
+- live 同步与运行态：纯仓库文档修改，无需同步 live；已提交并推送。
+- 回滚信息：commit `1a43134`（与"回滚锚点规则""评估与事实漂移修复"合并为一个 commit，撤回用 `git revert 1a43134`）。
 - 后续可能方向：① `scripts/rollback.sh` 一键恢复工具暂不落地，观察恢复命令写入 trace 的实际体验后再评估；② 多轮未提交叠加的中间轮撤回仍是弱项，依赖用户控制提交节奏。
 
 
