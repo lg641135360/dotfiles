@@ -65,5 +65,5 @@
 - 改动：① `memory/organizing_preferences.md` 系统环境节新增条目：主力 AI 编辑器为 Trae CN；升级丢 rg 执行位导致 Grep 全路径 os error 13；修复命令 `sudo chmod 755` 两个内置 rg 路径（`@vscode/ripgrep/bin/rg` 与 `@byted-fe/ripgrep-linux-arm64/bin/rg`）；升级后 Grep 失效优先怀疑此问题。② `USER.md` 主力 IDE 由「VS Code，Neovim 第二」改为「Trae CN，Neovim 第二，VS Code 偶尔使用」。
 - 验证：`sh tests/repo_docs_test.sh` PASS；`git diff --check` 干净。live 侧用户已手动执行 chmod 修复（无需重启 Trae，rg 每次搜索临时 spawn）。
 - live 同步与运行态：纯仓库文档修改，无需同步 live；本条记录的修复动作发生在 `/usr/share/trae-cn/`（非本仓库管理范围），Trae CN 下次升级可能复发。
-- 回滚信息：commit 待提交后回填（撤回用 `git revert <hash>`）。
+- 回滚信息：commit `1334117`，撤回用 `git revert 1334117`。
 - 后续可能方向：① Trae CN 升级若持续丢执行位，可考虑在 dotfiles 安装脚本加一条防御性 chmod（需权衡：该路径属系统包管理范围）；② 观察官方是否修复打包权限问题。
