@@ -18,7 +18,7 @@ CLAUDE.md
 .DS_Store
 
 # Documentation build artifacts
-docs/superpowers/
+docs
 
 # Local build outputs
 tools/dingtalk-wayland-screenshare/build/
@@ -39,3 +39,5 @@ Thumbs.db
 
 # codegraph
 .codegraph
+
+.trae

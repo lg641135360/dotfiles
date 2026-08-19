@@ -56,6 +56,16 @@ assert_contains '再按任务路径或关键词读取对应模块' "$AGENTS_DOC"
 assert_contains '默认不要全量读取所有模块 memory' "$AGENTS_DOC"
 assert_contains '只读评估不更新 `logs/trace.md`' "$AGENTS_DOC"
 
+# 可追溯/撤回规则（回滚锚点）
+assert_contains '*.backup.<时间戳>' "$AGENTS_DOC"
+assert_contains '一轮任务一个 commit' "$AGENTS_DOC"
+assert_contains '回滚信息' "$AGENTS_DOC"
+assert_contains 'backup 快照路径' "$AGENTS_DOC"
+assert_contains '保留 3 份' "$AGENTS_DOC"
+assert_contains '恢复命令' "$AGENTS_DOC"
+assert_contains '回滚信息' "$REPO_ROOT/logs/trace.md"
+assert_contains '恢复命令' "$REPO_ROOT/logs/trace.md"
+
 # User profile — key facts
 assert_contains 'TypeScript 优先' "$REPO_ROOT/USER.md"
 

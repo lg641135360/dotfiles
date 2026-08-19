@@ -14,6 +14,20 @@
 - 旧条目按月份归档到 `logs/trace-archive/YYYY-MM.md`。
 - 默认任务不得读取 `logs/trace-archive/` 全文。
 - 长期有效的规则、方法论或决策边界，不应长期停留在 `logs/trace.md`；若跨多次任务仍有效，应提升到对应 `memory/` 规则文件。
+- 每条变更记录必须包含回滚信息：commit hash（已提交时）或"未提交"标记；涉及 live 同步时记录 backup 快照路径，并附可直接复制执行的恢复命令（含确切备份文件名），例如：
+  ```bash
+  cp ~/.config/niri/common.kdl.backup.<时间戳> ~/.config/niri/common.kdl
+  ```
+
+
+## 2026-08-19 — 提示词系统新增回滚锚点规则
+
+- 目的：用户要求每个修改可追溯、可撤回，出现回退时能及时恢复。将 AGENTS.md"安全/可回退"原则落实为机制，填补两个真实缺口：live 手动同步无备份（niri/waybar/scripts 等 IDE 白名单外手动 cp 场景）、trace 无回滚锚点（waybar tooltip 三轮连续修复均在未提交状态推进）。
+- 改动：① `AGENTS.md` 三处——快速参考 checklist 加"回滚锚点已记录"项；执行中约束加"手动同步 live 前必须先创建 `*.backup.<时间戳>` 快照并在 trace 记录 backup 路径"；操作后约束加"收尾总结附 commit message 草稿，建议一轮任务一个 commit 粒度（提交时机由用户掌控）"+"trace 每条记录必须包含回滚信息（commit hash / 未提交标记 / live backup 快照路径）"。② `logs/trace.md` 维护规则同步补回滚信息字段约定。③ `tests/repo_docs_test.sh` 新增 5 条断言锁定新规则措辞，防漂移。
+- 验证：`sh tests/repo_docs_test.sh` PASS（含新断言）；`git diff --check` 干净；归档后 `sh tests/archive_trace_test.sh` PASS。
+- live 同步与运行态：纯仓库文档修改，无需同步 live；未提交、未推送。
+- 回滚信息：未提交（含上轮"提示词系统评估与事实漂移修复"在内一并待提交）。
+- 后续可能方向：① 规则生效后观察 agent 是否稳定执行 live 备份与收尾提交建议，若执行不到位再考虑收紧措辞；② AGENTS.md 规则已近饱和，后续新增规则应优先考虑合并进现有条目而非新开条目。
 
 
 ## 2026-08-19 — 对齐 niri 文档与实现，不改会话行为
@@ -25,13 +39,23 @@
 - 后续可能方向：① 安装器补 Ubuntu aarch64 部署测试；② 两边 `niri validate` 纳入测试。
 
 
-## 2026-08-18 — waybar-system-tooltip 修复 CPU top 进程显示被截断成 0%
+## 2026-08-19 — 提示词系统评估与事实漂移修复
 
-- 目的：用户反馈 CPU 模块 tooltip 中部分 top 进程显示 0%。用独立 Python 差分实现对照验证：排序与筛选正确（选择排序用完整浮点值、`delta > 0` 过滤），根因是 `compute_top_cpu` awk 输出用 `%d` 截断，叠加外层 shell `printf '%.0f%%'` 二次取整——1s 窗口下低占用进程瞬时值多在 0.2~0.7%，截断后显示为 0%（实测对照：raw 0.56% → 显示 0%）。mem 模块同步验证无问题：RSS 瞬时值准确（与同时刻 ps 对照差异仅为采样间隙的正常波动），使用率与 `/proc/meminfo`/`free` 一致。
-- 改动：① `.config/scripts/waybar-system-tooltip` `compute_top_cpu` awk 输出 `%d` → `%.1f`，外层 shell `printf '%s  %s  %.0f%%'` → `%.1f%%`（两处必须同步，外层退回 `%.0f%%` 会二次取整重新截成 0），函数头注释同步改 `NN.N%` 并说明防截断动机。② `tests/waybar_config_test.sh` 契约测试新增两处 `%.1f` 静态断言 + 运行时断言（python 解析 tooltip 中 CPU top 值必须均为一位小数）；先改测试确认失败再改实现（测试先行）。③ `.config/linux/waybar/README.md` CPU 条目补"显示一位小数"说明。④ `memory/waybar.md` 瞬时化条目补 `%.1f` 两处联动陷阱。
-- 验证：`sh tests/waybar_config_test.sh` PASS（新断言在实现修改前先失败一次，确认测试有效）；实测 `cpu` 子命令 tooltip top 值为 3.1%/0.7%/0.5% 等，无 0% 截断；`./tests/run.sh fast` 43 PASS 0 FAIL；`git diff --check` clean。
-- live 同步与运行态：未同步 live `~/.config/scripts/waybar-system-tooltip`，未重载 waybar；未提交、未推送。
-- 后续可能方向：① `logs/trace.md` 已达 166 行超建议上限且近期条目超 5 条，下次提交前应执行归档（`npm --prefix scripts run archive-trace --`）；② top 5 阈值过滤（如只显示 ≥0.5% 的进程）可作为备选方案，当前一位小数已足够清晰，不引入。
+- 目的：用户要求评估提示词系统（AGENTS.md / USER.md / SOUL.md / memory/ / logs/trace.md / .github/copilot-instructions.md / tests/repo_docs_test.sh）。评估结论：分层职责、单一权威源 + 薄入口、契约测试（memory 索引防漂移）、意图门控五级分层、trace 自律均为健康设计，架构不动；但发现 3 处事实漂移，按用户确认（aarch64 已以 niri 为主）修复。
+- 改动：① `USER.md` 窗口管理器事实改为"全平台以 niri (Wayland) 为主力（Ubuntu aarch64 已迁移并接入 GDM）；AwesomeWM (X11) 保留为可回退桌面"。② `memory/niri.md` 平台首选项改为"x86_64 与 aarch64 均以 niri + Wayland 为首选"，消除与同文件 aarch64 niri 终端 foot 特化、aarch64 config.kdl 维护内容的自相矛盾。③ `README.md` 提示词系统段把 `CLAUDE.md` 精确表述为 gitignored 本地可选入口（该文件不存在且被 .gitignore 排除，原文"只作为薄入口"易误导）。
+- 验证：`sh tests/repo_docs_test.sh` PASS；`git diff --check` 干净；归档后 `sh tests/archive_trace_test.sh` PASS。
+- live 同步与运行态：纯仓库文档修改，无需同步 live，无运行态变更；未提交、未推送。
+- 后续可能方向：① `USER.md` "主力 IDE 为 VS Code" 与当前实际使用 Trae 可能不符，待用户确认后再改；② 评估中确认 `.github/copilot-instructions.md` 一行薄入口为最优形态，无需扩展。
+
+
+## 2026-08-19 — 回滚规则补齐：备份清理与恢复命令
+
+- 目的：从使用角度评估回滚便利度后发现两个摩擦点——手动备份无清理机制会堆积、live 恢复需自己翻文件拼命令。本轮把此前的改进建议 1+2 落成规则。
+- 改动：① `AGENTS.md` 执行中约束新增两条：手动同步时按"保留 3 份"清理同目标旧 backup（对齐 `install.sh` 的 `clean_old_backups`）；trace 记录 live 同步时必须写好可直接复制执行的恢复命令（含确切备份文件名）。② `logs/trace.md` 维护规则同步补恢复命令要求并附示例。③ `tests/repo_docs_test.sh` 新增 3 条断言（`保留 3 份` / `恢复命令` 两处）锁定措辞。
+- 验证：`sh tests/repo_docs_test.sh` PASS（含新断言）；`git diff --check` 干净；归档后 `sh tests/archive_trace_test.sh` PASS。
+- live 同步与运行态：纯仓库文档修改，无需同步 live；未提交、未推送。
+- 回滚信息：未提交（与前两轮"评估与事实漂移修复""回滚锚点规则"共同待提交）。
+- 后续可能方向：① `scripts/rollback.sh` 一键恢复工具暂不落地，观察恢复命令写入 trace 的实际体验后再评估；② 多轮未提交叠加的中间轮撤回仍是弱项，依赖用户控制提交节奏。
 
 
 ## 2026-08-18 — waybar CPU top 进程瞬时化（与栏内使用率口径一致）
@@ -41,21 +65,3 @@
 - 验证：`sh tests/waybar_config_test.sh` PASS（含 `test_waybar_system_tooltip_script_contract`，新增 7 条断言 + JSON schema 校验保留）；手工 `.config/scripts/waybar-system-tooltip cpu` 输出 chrome 12-13%（瞬时，1s 内平均），对比旧版 ps %CPU 的 130%（生命周期平均，多核累加被 elapsed 稀释后看似很大）——长跑进程的瞬时值明显更合理；`mem` 子命令输出 trae-cn 795M（瞬时 RSS），未受影响；并发调用两次 cpu 子命令无 0%（沿用 trace 验证方法）。
 - live 同步与运行态：未同步 live `~/.config/scripts/waybar-system-tooltip`，未重载 waybar；未提交、未推送。同步后下个 5s interval 自动生效，hover tooltip top CPU 进程显示瞬时值。
 - 后续可能方向：① 内存 top 进程若要对齐 AwesomeWM 用 `/proc/<pid>/status` 的 `VmRSS:` 字段（不再 fork ps），可单独迭代；② `/proc/[0-9]*/stat` glob 在进程数极多时（>1000）可能让 awk `-v` 字符串超过 mawk 限制，需切到临时文件方案（但当前几百进程稳）；③ `index($0, ")")` 取首个 `)` 近似，comm 内含 `)` 极罕见（内核允许 `()` 但进程名一般不含），可接受；④ `eval "$(...)"` 依赖 awk `%d` 强制整数输出，若 awk 实现异常可能引入注入风险，可改为临时文件方式更严格（当前 mawk/gawk 都安全）。
-
-
-## 2026-08-18 — waybar CPU/内存恢复 custom 模块以支持 hover 显示 top 5 进程
-
-- 目的：落实上次回退内置模块后留下的后续方向之一——内置 `cpu`/`memory` 模块的 `tooltip-format` 占位符无法注入动态进程列表，用户希望 hover 时看到 top 5 占用进程（对齐 AwesomeWM `widgets/system.lua` 风格）；同时修复 tooltip 文案不一致（CPU "CPU 使用率：..." vs 内存 "内存：..."）与内存 `states` 阈值偏低（80/95 在 Linux 缓存常态占用高时易误报）。
-- 改动：① 新建 `.config/scripts/waybar-system-tooltip`（mode 0755）——单次调用内自差分（两次 `/proc/stat` 间隔 `sleep 1`，规避 state 文件多 bar 并发 / waybar 重载串扰导致的偶发 0%）、`self=$$` 按 pid 排除自身（去掉 `!= "sh"` 误伤真实 sh 进程）、`json_escape` 前置 `tr -d` 清除控制字符、`emit_class` 阈值 CPU 70/90 内存 85/95、tooltip 对齐 AwesomeWM 风格（首行 `CPU`/`内存` 标题 + 摘要 `使用率：XX%`（CPU 多一行 `负载：X.X`）+ `Top CPU 进程`/`Top 内存进程` + `pid  comm  value` 两空格分隔的 5 行进程列表）。② `.config/linux/waybar/config` 与 `config.aarch64` 的 `cpu`/`memory` 段改为 `custom/cpu`/`custom/memory`（`format`/`exec`/`exec-on-click true`/`interval 5`/`return-type json`/`tooltip true`/`escape false`/`min-length 5`/`align 0.5`/`on-click foot -- htop -s PERCENT_CPU/PERCENT_MEM`）；`modules-right` 同步改名。③ `style.css` 选择器 `#cpu`/`#memory` → `#custom-cpu`/`#custom-memory`（含 `.warning`/`.critical`）。④ `.config/linux/waybar/README.md` CPU/内存条目改回 custom 描述。⑤ `install.sh` `linux_wayland_configs` 数组 `trae-cn-wayland` 后插入 `waybar-system-tooltip` 部署条目。⑥ `tests/waybar_config_test.sh` 主契约断言改为 custom 模块形态、新增 `test_waybar_system_tooltip_script_contract`（`sh -n` + `self=$$` + `tr -d` + 无 `state_dir`/`XDG_STATE_HOME` + `sleep 1` + `emit_class` 阈值 + python3 解析两子命令输出为合法 JSON 校验 schema + tooltip 标题校验）、aarch64 superset 测试不改（custom 段两份 config 字节级一致）。⑦ `tests/install_wayland_test.sh` 补回 `waybar-system-tooltip` 部署断言（4d78570 漏删的 `.config/scripts/README.md` L20 条目正好复用，无需改）。⑧ `README.md` 根文件结构图 L51 后补 `waybar-system-tooltip/` 条目（4d78570 已删）。
-- 验证：`sh tests/waybar_config_test.sh` PASS（含新 `test_waybar_system_tooltip_script_contract`，实际执行 cpu/mem 子命令解析 JSON schema）；`sh tests/install_wayland_test.sh` PASS；`sh tests/niri_config_test.sh` PASS；`sh tests/wayland_scripts_test.sh` PASS；`./tests/run.sh fast` 全部 43 测试 PASS 无跨模块回归；手工 `.config/scripts/waybar-system-tooltip cpu/mem` 输出合法 JSON，含 CPU/内存 标题、使用率、负载、Top 进程 5 行；间隔 0.1s 并发调用两次 cpu 子命令均输出真实值（34%/34%）无 0%（trace 中验证过的单次自差分方案生效）。
-- live 同步与运行态：未同步 live `~/.config/waybar/`、`~/.config/scripts/`，未重载 waybar；未提交、未推送。同步后下个 5s interval 自动生效，hover 即可看到 top 5 进程。
-- 后续可能方向：① ps `%CPU` 为生命周期平均、与栏内即时使用率口径不一致（trace 已记录），可考虑差值法但复杂度高；② 1s 阻塞在 5s interval 下常态 CPU 2-3%（trace 已记录），如需进一步降频可考虑 top 进程独立 cache，但会重蹈 state 文件覆辙，不推荐；③ 测量窗口 1s 比 5s 平均敏感（trace 已记录），峰值可能比内置模块更显眼；④ config 与 config.aarch64 中 `custom/cpu`、`custom/memory` 段仍重复（waybar 无 include 机制，superset 测试已防漂移，维持现状）。
-
-
-## 2026-08-17 — waybar-system-tooltip 修正注释与自排除逻辑、加固 JSON escape
-
-- 目的：修复 CPU/MEM 模块脚本中注释与实现矛盾（state 文件并非按实例隔离）、`$2 != "sh"` 过滤误伤真实 sh 进程、json_escape 不处理其它控制字符三个问题。
-- 改动：`.config/scripts/waybar-system-tooltip`：① 头部注释改为如实描述共享 state 文件的单 bar 前提与多 bar 串扰限制（waybar exec 不传 bar 身份，无法低成本隔离）；② top_cpu/top_mem_processes 改为 `-v self=$$` 按 pid 排除自身，去掉按 comm "sh" 的过滤（`ps` comm 过滤保留）；③ json_escape 前置 `tr -d` 清除 \r 及其它控制字符，防止异常 comm 产生非法 JSON。`tests/waybar_config_test.sh` 新增 `test_waybar_system_tooltip_script_contract`（sh -n + 断言无 `!= "sh"` 过滤 + python3 解析两子命令输出为合法 JSON）。
-- 验证：`sh tests/waybar_config_test.sh` PASS（含新测试）。
-- live 同步与运行态：未同步 live `~/.config/scripts/`，未重载 waybar；未提交、未推送。
-- 后续可能方向：top 进程降频缓存以降低常态 CPU 开销（2-3%）；`ps` %CPU 为生命周期平均、与栏内即时使用率口径不一致，可考虑差值法；config 与 config.aarch64 中 custom/cpu、custom/memory 段重复（waybar 无 include 机制，现有 superset 测试已防漂移，维持现状）。

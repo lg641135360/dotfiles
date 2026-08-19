@@ -1,7 +1,7 @@
 # niri / Wayland
 
 ## 平台与部署
-- 桌面首选按架构区分：x86_64 上 niri + Wayland 为首选与积极演进方向，AwesomeWM + X11 进入维护模式仅作回退；aarch64 上 X11 + AwesomeWM 仍为主要图形显示服务器（保持可回退，不直接删除），niri + Wayland 在该架构暂不作为首选。
+- 桌面首选：x86_64 与 aarch64 均以 niri + Wayland 为首选与积极演进方向；aarch64 显示会话已迁移到 niri 并接入 GDM（解决双屏混 DPI），AwesomeWM + X11 进入维护模式仅作回退（mtgpu 驱动异常时的逃生路径）。
 - 仅 Ubuntu 由 `install.sh` 部署本仓库的 `~/.config/niri`；Arch 保留 live Niri 配置，openSUSE 则由 DMS 接管 `~/.config/niri` 与 `~/.config/alacritty`，必须跳过这两类配置复制，保留 DMS 的生成文件和动态主题。
 - niri 配置不复用 `picom`、`xrandr`、`xinput`、`feh`、`xautolock`；分别由 niri output/input、Wayland 合成、`swaybg`、`swayidle`/`swaylock` 等替代。
 - niri 配置维护 `.config/linux/niri/ubuntu_x64/config.kdl` 与 `.config/linux/niri/ubuntu_aarch64/config.kdl`；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，平台文件只保留 output 段、`include "../common.kdl"`，以及必要的硬件覆盖。安装器仅在 Ubuntu（x86_64 / aarch64）按 `niri_platform_key()` 把对应平台 KDL 复制为 `~/.config/niri/config.kdl`、把 `common.kdl` 复制到 `~/.config/niri/common.kdl`，并把 include 路径从仓库的 `../common.kdl` 改写成 live 扁平布局的 `common.kdl`；不要把 README 或整个平台目录复制到 live。
