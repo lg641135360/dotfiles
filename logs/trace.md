@@ -20,6 +20,15 @@
   ```
 
 
+## 2026-08-21 — 修复 starship git_status.stashed 格式串解析告警
+
+- 目的：starship 1.23.0 在存在 git stash 时输出 `[WARN] ... Error parsing format string git_status.stashed`。根因：`.config/shared/starship.toml` 里 `stashed = "$"`，裸 `$` 在格式串中被当作变量起始但后续为空，解析失败（有 stash 时才触发）。
+- 改动：① `.config/shared/starship.toml` 将 `stashed = "$"` 改为 `stashed = '\$'`（TOML 字面字符串，解析为字面 `$`）。② `tests/starship_config_test.sh` 的 `test_starship_config_has_core_modules` 新增断言锁定 `stashed = '\$'`。
+- 验证：`sh tests/starship_config_test.sh` PASS；`git diff --check` 干净；在含 stash 的临时 git 仓库用仓库 starship.toml 跑 `starship prompt`，无告警且正常渲染 `$`（旧配置复现出 WARN）。
+- live 同步与运行态：未同步 live；`~/.config/starship.toml` 第 76 行仍为 `stashed = "$"`，待用户确认后同步（同步时按 install.sh 惯例做 `*.backup.<时间戳>` 快照并保留 3 份）。
+- 回滚信息：未提交；`git checkout -- .config/shared/starship.toml tests/starship_config_test.sh` 可撤回。
+- 后续可能方向：确认后把修复同步到 live 并重开 shell 即可消除该告警。
+
 ## 2026-08-19 — 回滚规则补齐：备份清理与恢复命令
 
 - 目的：从使用角度评估回滚便利度后发现两个摩擦点——手动备份无清理机制会堆积、live 恢复需自己翻文件拼命令。本轮把此前的改进建议 1+2 落成规则。

@@ -48,6 +48,7 @@ test_starship_config_has_core_modules() {
     assert_contains '$bun' "$STARSHIP_FILE"
     assert_contains '$docker_context' "$STARSHIP_FILE"
     assert_contains 'right_format = """$time$cmd_duration"""' "$STARSHIP_FILE"
+    assert_contains "stashed = '\\\$'" "$STARSHIP_FILE"
     assert_contains 'ignore_base = true' "$STARSHIP_FILE"
     assert_contains "error_symbol = '[❯](bold fg:red)'" "$STARSHIP_FILE"
     assert_not_contains 'bg:' "$STARSHIP_FILE"
