@@ -20,6 +20,24 @@
   ```
 
 
+## 2026-08-23 — 状态栏 catppuccin 模块化（session 图标 + window 状态图标）
+
+- 目的：状态栏仍残留两处「裸文本」（左侧 session 名、中间 window 列表无状态图标），与 catppuccin 图标化风格不统一。落地：① 左侧 `status-left` 从 `#{session_name}` 换成 catppuccin session 模块 `#{E:@catppuccin_status_session}`（带终端图标 + 配色）；② 中间 window 列表 `@catppuccin_window_flags` 从 `"none"` 改为 `"icon"`，启用 activity / bell / silent / current / last / mark / zoom 等 Nerd Font 状态图标（catppuccin 内置，无需新插件）。
+- 改动：① `.config/shared/tmux/.tmux.conf`：L46 window_flags `none`→`icon`、L139 status-left 换 session 模块；② `tests/tmux_status_test.sh`：同步 window_flags / status-left 断言并删除 `@catppuccin_status_session` 负向断言；③ README 状态栏节补 window 图标说明、Sync 提示措辞改为「synchronize-panes 非 window flag」；④ `memory/tmux.md` 状态栏节同步。
+- 验证：`sh tests/tmux_status_test.sh` PASS（exit 0）；detached server（`-L vwflags -f 仓库配置`）确认 `window-status-current-format` 已含图标序列 `#{?window_activity_flag,󱅫,}…#{?window_zoomed_flag,󰁌,}`、`@catppuccin_window_flags`=`icon`；synchronize-panes 非 window flag，继续由 `Sync: ON/OFF` display 承担（README 已同步说明）。
+- live 同步与运行态：待手动同步（沙箱拦截 agent 写 live，见 memory/tmux.md Live 同步节）；同步后 `tmux source-file ~/.tmux.conf` reload。
+- 回滚信息：未提交；`git checkout -- .config/shared/tmux/.tmux.conf .config/shared/tmux/README.md tests/tmux_status_test.sh memory/tmux.md` 撤回本批（含前序 set-titles-format 修复，勿用于局部回滚）。
+- 后续可能方向：① live 手动同步 + reload 后实测 Nerd Font 图标渲染；② 剩余可选仅 prefix_highlight 配色统一（低优先级）。
+
+## 2026-08-23 — 修复 set-titles-format 无效选项
+
+- 目的：live `~/.tmux.conf` source-file 报 `:32: invalid option: set-titles-format`。根因：tmux 外层标题字符串选项名是 `set-titles-string`，上一轮误写为 `set-titles-format`（不存在）；此前 grep 断言与 detached server 验证未捕获该 invalid option。
+- 改动：① `.config/shared/tmux/.tmux.conf` L31 `set-titles-format` → `set-titles-string`；② `tests/tmux_status_test.sh` L119 断言同步。
+- 验证：detached server（`-f` 仓库配置）加载全配置后 grep 无 `invalid`/`unknown`/`bad option`（NO_CONFIG_ERRORS）；`sh tests/tmux_status_test.sh` PASS（exit 0）。
+- live 同步与运行态：live 仍为错误版本，待手动同步；同步后 `tmux source-file ~/.tmux.conf` reload。
+- 回滚信息：未提交；`git checkout -- .config/shared/tmux/.tmux.conf tests/tmux_status_test.sh` 可撤回。
+- 后续可能方向：① 同步 live 消除报错；② 后续 tmux 配置验证统一加「加载全配置 grep 无 invalid/unknown option」步骤。
+
 ## 2026-08-23 — tmux 配置三项体验优化并同步 live
 
 - 目的：落地 tmux 只读分析的三项建议：① `terminal-features` 为 alacritty/kitty/foot 启用 24-bit 真彩色（此前 sensible 把 default-terminal 设为 screen-256color，tmux 内无 RGB 能力声明，nvim/Catppuccin 降级 256 色）；② `prefix+s` 切换 synchronize-panes 时用 display 提示 `Sync: ON/OFF`（window_flags 隐藏后无同步视觉反馈，易误输入到所有 pane）；③ 鼠标拖选松开即复制并退出 copy mode。

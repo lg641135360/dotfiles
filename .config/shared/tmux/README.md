@@ -19,7 +19,8 @@ Catppuccin Mocha，与桌面主题保持一致。
 
 ## 状态栏
 
-- 左侧显示当前 session 名，`status-left-length 20` 截断保护，OMX / 自动生成的长 session 名不会挤占 tab 区域。
+- 左侧显示带图标的 session 名（catppuccin session 模块），`status-left-length 20` 截断保护，OMX / 自动生成的长 session 名不会挤占 tab 区域。
+- 中间 window 列表使用 catppuccin `rounded` 样式，并启用状态图标（`@catppuccin_window_flags icon`）：当前窗口 / 上一个窗口 / activity / bell / zoom / mark / silent 等状态以 Nerd Font 图标显示，图标顺序对齐 tmux `#F`（`#!~[*-]MZ`）。
 - 外层终端（foot / alacritty）窗口标题通过 `set-titles` 显示 `session · window`，niri 任务切换时可区分不同 tmux 窗口。
 - 右侧显示 Prefix/Copy 状态和日期时间，不显示当前 shell 或命令名。
 - 本地 tab 不加 `L:` 前缀；本地默认显示项目名，路径末尾是 `current` 等通用名称时，必要时显示父级/项目名。
@@ -49,7 +50,7 @@ Catppuccin Mocha，与桌面主题保持一致。
 | `Ctrl+a + s` | 切换窗格同步输入 |
 | `Ctrl+a + Space` | 切换窗格布局 |
 
-`Ctrl+a + w` 使用 tmux 内置树状选择器快速跳转 session / window / pane，`Ctrl+a + Tab` 用于在当前窗口和上一个窗口之间快速来回切换。分屏和新窗口默认继承当前 pane 的目录，减少在项目内重复 `cd` 的操作。`h/j/k/l` 与 `H/J/K/L` 均为 repeat 绑定，按下前缀后 500ms 内可连按。复制模式启用 `set-clipboard on`，优先让 tmux 复制内容同步到终端剪贴板；鼠标拖选松开后立即复制并退出复制模式；`word-separators` 已去掉 `/`，按词选择时路径保持完整。`Ctrl+a + s` 切换窗格同步输入时，状态栏会提示 `Sync: ON/OFF`（窗口 flags 已隐藏，同步状态以此提示为准）。
+`Ctrl+a + w` 使用 tmux 内置树状选择器快速跳转 session / window / pane，`Ctrl+a + Tab` 用于在当前窗口和上一个窗口之间快速来回切换。分屏和新窗口默认继承当前 pane 的目录，减少在项目内重复 `cd` 的操作。`h/j/k/l` 与 `H/J/K/L` 均为 repeat 绑定，按下前缀后 500ms 内可连按。复制模式启用 `set-clipboard on`，优先让 tmux 复制内容同步到终端剪贴板；鼠标拖选松开后立即复制并退出复制模式；`word-separators` 已去掉 `/`，按词选择时路径保持完整。`Ctrl+a + s` 切换窗格同步输入时，状态栏会提示 `Sync: ON/OFF`（synchronize-panes 不是 window flag，无法通过图标体现，同步状态以此提示为准）。
 
 ## 会话管理
 

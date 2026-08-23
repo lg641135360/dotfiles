@@ -47,7 +47,7 @@ assert_host_segment() {
 
 test_catppuccin_options_use_current_names() {
     assert_contains "set -g @catppuccin_flavor 'mocha'" "$TMUX_FILE"
-    assert_contains 'set -g @catppuccin_window_flags "none"' "$TMUX_FILE"
+    assert_contains 'set -g @catppuccin_window_flags "icon"' "$TMUX_FILE"
     assert_not_contains '@catppuccin_flavour' "$TMUX_FILE"
     assert_not_contains "set -g @catppuccin_window_status 'no'" "$TMUX_FILE"
     assert_not_contains '@catppuccin_window_default_text' "$TMUX_FILE"
@@ -57,13 +57,12 @@ test_catppuccin_options_use_current_names() {
 
 test_status_bar_has_balanced_left_and_right_modules() {
     assert_contains 'set -g status-interval 15' "$TMUX_FILE"
-    assert_contains 'set -g status-left "#{session_name} "' "$TMUX_FILE"
+    assert_contains 'set -g status-left "#{E:@catppuccin_status_session}"' "$TMUX_FILE"
     assert_contains 'set -g status-left-length 20' "$TMUX_FILE"
     assert_contains 'set -g status-right "#{prefix_highlight} #{E:@catppuccin_status_date_time}"' "$TMUX_FILE"
     assert_contains "set -g @catppuccin_date_time_text '%m/%d %H:%M'" "$TMUX_FILE"
     assert_not_contains 'tmux-plugins/tmux-continuum' "$TMUX_FILE"
     assert_not_contains '@continuum-' "$TMUX_FILE"
-    assert_not_contains '@catppuccin_status_session' "$TMUX_FILE"
     assert_not_contains '@catppuccin_status_application' "$TMUX_FILE"
     assert_not_contains '@catppuccin_status_cpu' "$TMUX_FILE"
     assert_not_contains '@catppuccin_status_ram' "$TMUX_FILE"
@@ -116,8 +115,8 @@ test_keybinding_and_title_enhancements() {
     assert_contains 'bind f display-popup -E -d "#{pane_current_path}"' "$TMUX_FILE"
     assert_contains 'set -g word-separators' "$TMUX_FILE"
     assert_contains 'set -g set-titles on' "$TMUX_FILE"
-    assert_contains "set -g set-titles-format '#S · #W'" "$TMUX_FILE"
-    assert_contains 'set -g status-left "#{session_name} "' "$TMUX_FILE"
+    assert_contains "set -g set-titles-string '#S · #W'" "$TMUX_FILE"
+    assert_contains 'set -g status-left "#{E:@catppuccin_status_session}"' "$TMUX_FILE"
     assert_contains 'set -g status-left-length 20' "$TMUX_FILE"
     assert_contains '可连按，免重复前缀' "$README_FILE"
     assert_contains '临时 shell 浮窗' "$README_FILE"
@@ -261,7 +260,7 @@ test_window_navigation_enhancements() {
 
 test_readme_documents_status_bar_layout() {
     assert_contains '状态栏' "$README_FILE"
-    assert_contains '左侧显示当前 session 名' "$README_FILE"
+    assert_contains '左侧显示带图标的 session 名' "$README_FILE"
     assert_contains '右侧显示 Prefix/Copy 状态和日期时间' "$README_FILE"
     assert_contains '本地 tab 不加 `L:` 前缀' "$README_FILE"
     assert_contains '本地默认显示项目名' "$README_FILE"
