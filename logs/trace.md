@@ -26,7 +26,7 @@
 - 改动：① `install.sh` L332 新增 `"command -v herdr|.config/shared/herdr/config.toml|~/.config/herdr/config.toml|Herdr"`（copy_config 会自动 ensure_dir `~/.config/herdr/`，无需额外处理）；② 新增 `tests/herdr_config_test.sh` 8 组断言：配置存在、install.sh 部署项、主题 catppuccin、prefix ctrl+a、default_shell/new_cwd、vim pane 导航 h/j/k/l、分屏+reload 键、状态栏 datetime 格式；③ `README.md` 目录树 shared/ 下按字母序补 `herdr/` 一行。
 - 验证：`bash -n install.sh`、`sh -n tests/herdr_config_test.sh` 通过；`sh tests/herdr_config_test.sh` PASS；`sh tests/repo_docs_test.sh` PASS；`bash tests/install_backup_test.sh` + `install_submodule_test.sh` + `install_zshenv_test.sh` 全 PASS（install 系列用 bash，`sh` 会因 `pipefail` 报 "Illegal option"）；`git diff --check` 干净。
 - live 同步与运行态：未同步 live、未提交；herdr 二进制未安装，未做 `herdr server reload-config` 运行态验证。
-- 回滚信息：未提交；`git checkout -- install.sh README.md tests/herdr_config_test.sh` 并删除 `.config/shared/herdr/config.toml` 即回滚本轮与上轮合计全部 herdr 改动。
+- 回滚信息：commit `879707a`（撤回用 `git revert 879707a`）；`git checkout 879707a~1 -- install.sh README.md tests/herdr_config_test.sh` 并删除 `.config/shared/herdr/config.toml` 即回滚本轮与上轮合计全部 herdr 改动。
 - 后续可能方向：① 用户装好 herdr 后实测 `herdr server reload-config` 无 startup warning（尤其 reload_config/resize_mode 键互换、prefix+f 无冲突）；② 视需要新增 `memory/herdr.md` 沉淀长期偏好（本轮未建，避免为形式写 memory）。
 
 
@@ -36,7 +36,7 @@
 - 改动：新增 `.config/shared/herdr/config.toml`。① `onboarding=false`；② `[session] resume_agents_on_restore=true`；③ `[terminal] default_shell="zsh"` + `new_cwd="follow"`（对齐 tmux 新 pane/window 继承目录）；④ `[theme] name="catppuccin"`，附被注释的 mocha 精确色值 custom 块（色值取自 `.config/linux/waybar/mocha.css`）；⑤ `[keys]` prefix 改 `ctrl+a`、显式声明 h/j/k/l pane 移动、`split_vertical="prefix+v"`（对应 tmux `|`）/`split_horizontal="prefix+minus"`（对应 tmux `-`）、`reload_config="prefix+r"`（对齐 tmux reload）+ `resize_mode="prefix+shift+r"`（让位）；⑥ `[ui]` tab_bar 置底、`tab_bar_right` 只含 zoom/hostname/`%m/%d %H:%M` datetime（对齐 tmux status-right 不显示 shell）、`window_title="{workspace} · {tab}"`；⑦ `[ui.toast] delivery="herdr"`；⑧ `[[keys.command]]` 绑定 `prefix+f` popup 临时 shell 浮窗（对应 tmux `prefix+f` display-popup）。
 - 验证：`python3 -c 'import tomllib; tomllib.load(...)'` 解析成功（exit 0，顶层键 keys/onboarding/session/terminal/theme/ui）。herdr 二进制未安装，未做运行时加载验证；键名全部来自官方 config-reference（https://herdr.dev/docs/config-reference/）。
 - live 同步与运行态：未同步（纯仓库草稿）；尚未接入 `install.sh` 的 `shared_configs` 列表，也未在 `~/.config/herdr/` 落地。
-- 回滚信息：未提交；`git checkout -- .config/shared/herdr/config.toml` 或删除该目录即回滚。
+- 回滚信息：commit `879707a`（撤回用 `git revert 879707a`）；`git checkout -- .config/shared/herdr/config.toml` 或删除该目录即回滚。
 - 后续可能方向：① 用户确认键位/观感后，补 `.config/shared/herdr/README.md`、接入 install.sh shared_configs（`command -v herdr|...`）并加 `tests/herdr_config_test.sh`；② 实测 `herdr server reload-config` 确认无 startup warning（尤其 reload_config/resize_mode 键互换、prefix+f 无冲突）；③ 视需要新增 `memory/herdr.md` 沉淀偏好。
 
 
