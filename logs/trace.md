@@ -26,7 +26,7 @@
 - 改动：① `.config/scripts/trae-cn-wayland` Wayland 分支追加 `--disable-crash-reporter` 并注释根因；② `tests/wayland_scripts_test.sh` `test_trae_cn_forces_wayland_with_ime` 新增对应断言；③ `.config/scripts/README.md` trae-cn-wayland 描述同步。
 - 验证：`bash -n` + `sh -n` 语法通过；`sh tests/wayland_scripts_test.sh` PASS（exit 0）。
 - live 同步与运行态：待手动同步（IDE 白名单外）；生效需重启 Trae CN（新进程才不带 crash reporter）。
-- 回滚信息：未提交；`git checkout -- .config/scripts/trae-cn-wayland tests/wayland_scripts_test.sh .config/scripts/README.md` 撤回。
+- 回滚信息：commit `1407f2c`（撤回用 `git revert 1407f2c`）。
 - 后续可能方向：同步并重启 Trae CN 后确认终端不再刷 crashpad 告警。
 
 ## 2026-08-23 — 状态栏 catppuccin 模块化（session 图标 + window 状态图标）
