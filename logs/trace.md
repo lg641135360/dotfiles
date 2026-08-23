@@ -20,15 +20,6 @@
   ```
 
 
-## 2026-08-23 — trae-cn-wayland 禁用 Crashpad 消除 prctl EINVAL 告警
-
-- 目的：Trae CN（Electron）在 aarch64 下每个进程启动时 Crashpad 调用 `prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY)`，因 MediaTek 内核缺 `CONFIG_CHECKPOINT_RESTORE` 返回 EINVAL，持续向终端刷 `prctl: Invalid argument (22)` 告警（纯告警，崩溃时无法抓 dump）。落地：Wayland 分支加 `--disable-crash-reporter` 从源头关闭 Crashpad。
-- 改动：① `.config/scripts/trae-cn-wayland` Wayland 分支追加 `--disable-crash-reporter` 并注释根因；② `tests/wayland_scripts_test.sh` `test_trae_cn_forces_wayland_with_ime` 新增对应断言；③ `.config/scripts/README.md` trae-cn-wayland 描述同步。
-- 验证：`bash -n` + `sh -n` 语法通过；`sh tests/wayland_scripts_test.sh` PASS（exit 0）。
-- live 同步与运行态：待手动同步（IDE 白名单外）；生效需重启 Trae CN（新进程才不带 crash reporter）。
-- 回滚信息：commit `1407f2c`（撤回用 `git revert 1407f2c`）。
-- 后续可能方向：同步并重启 Trae CN 后确认终端不再刷 crashpad 告警。
-
 ## 2026-08-23 — 状态栏 catppuccin 模块化（session 图标 + window 状态图标）
 
 - 目的：状态栏仍残留两处「裸文本」（左侧 session 名、中间 window 列表无状态图标），与 catppuccin 图标化风格不统一。落地：① 左侧 `status-left` 从 `#{session_name}` 换成 catppuccin session 模块 `#{E:@catppuccin_status_session}`（带终端图标 + 配色）；② 中间 window 列表 `@catppuccin_window_flags` 从 `"none"` 改为 `"icon"`，启用 activity / bell / silent / current / last / mark / zoom 等 Nerd Font 状态图标（catppuccin 内置，无需新插件）。

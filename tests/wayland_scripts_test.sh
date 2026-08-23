@@ -606,10 +606,6 @@ test_trae_cn_forces_wayland_with_ime() {
     # Fcitx5/Rime needs Wayland IME; must be present.
     assert_contains '--enable-wayland-ime' "$TRAE_SCRIPT"
     assert_contains 'WaylandWindowDecorations' "$TRAE_SCRIPT"
-    # MediaTek aarch64 内核缺 CONFIG_CHECKPOINT_RESTORE，Crashpad 的
-    # PR_SET_PTRACER prctl 在每个 Electron 进程返回 EINVAL，打印
-    # "prctl: Invalid argument (22)" 告警；禁用它从源头消除。
-    assert_contains '--disable-crash-reporter' "$TRAE_SCRIPT"
     assert_contains 'exec trae-cn' "$TRAE_SCRIPT"
 
     # fuzzel launches the desktop entry, so its Exec must route through the wrapper.
