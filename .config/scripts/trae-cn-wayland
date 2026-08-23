@@ -25,8 +25,12 @@ fi
 if [ "$wayland_session" = "1" ]; then
     # --enable-wayland-ime gives Fcitx5/Rime input method support on Wayland;
     # WaylandWindowDecorations lets the compositor draw the titlebar.
+    # --disable-crash-reporter silences the per-process Crashpad
+    # "prctl: Invalid argument (22)" warnings: the MediaTek aarch64 kernel
+    # lacks CONFIG_CHECKPOINT_RESTORE, so Crashpad's PR_SET_PTRACER prctl
+    # returns EINVAL on every Electron process.
     exec trae-cn --ozone-platform=wayland --enable-wayland-ime \
-        --enable-features=WaylandWindowDecorations "$@"
+        --enable-features=WaylandWindowDecorations --disable-crash-reporter "$@"
 fi
 
 exec trae-cn "$@"
