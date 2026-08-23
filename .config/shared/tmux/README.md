@@ -15,9 +15,12 @@
 
 Catppuccin Mocha，与桌面主题保持一致。
 
+`terminal-features` 启用 24-bit 真彩色与同步输出（Sync）：两个主力终端（aarch64 的 foot、x64 的 alacritty）均以 `TERM=xterm-256color` 运行（SSH 远程兼容），因此规则按 `xterm-256color` 匹配，另保留 `alacritty` / `foot` 原生 TERM 兜底。真彩色生效后 tmux 会为 pane 自动设置 `COLORTERM=truecolor`，tmux 内的 nvim 等程序可直接使用真彩色输出；Sync 让 tmux 整屏重绘原子提交，可减少大输出滚动时的闪烁。
+
 ## 状态栏
 
-- 左侧隐藏 session 名，避免 OMX / 自动生成的长 session 名挤占 tab 区域。
+- 左侧显示当前 session 名，`status-left-length 20` 截断保护，OMX / 自动生成的长 session 名不会挤占 tab 区域。
+- 外层终端（foot / alacritty）窗口标题通过 `set-titles` 显示 `session · window`，niri 任务切换时可区分不同 tmux 窗口。
 - 右侧显示 Prefix/Copy 状态和日期时间，不显示当前 shell 或命令名。
 - 本地 tab 不加 `L:` 前缀；本地默认显示项目名，路径末尾是 `current` 等通用名称时，必要时显示父级/项目名。
 - 远程优先显示 SSH `Host` 别名；如果没有可匹配的简单 `Host`/`HostName` 配置，无别名的 IPv4 只显示最后两段，例如 `192.168.1.1` 显示为 `1.1`。
@@ -34,17 +37,19 @@ Catppuccin Mocha，与桌面主题保持一致。
 | `Ctrl+a + Ctrl+a` | 向嵌套 tmux / 远程 tmux 发送前缀键 |
 | `Ctrl+a + w` | 打开 session / window / pane 树状选择器 |
 | `Ctrl+a + Tab` | 回到上一个窗口 |
-| `Ctrl+a + h/j/k/l` | 切换到左/下/上/右窗格 |
-| `Ctrl+a + H/J/K/L` | 按 vim 方向调整 pane 大小 |
+| `Ctrl+a + h/j/k/l` | 切换到左/下/上/右窗格（可连按，免重复前缀） |
+| `Ctrl+a + H/J/K/L` | 按 vim 方向调整 pane 大小（可连按，免重复前缀） |
 | `Ctrl+a + \|` | 水平分割窗格 |
 | `Ctrl+a + -` | 垂直分割窗格 |
 | `Ctrl+a + c` | 在当前 pane 目录中新建窗口 |
+| `Ctrl+a + <` / `Ctrl+a + >` | 当前窗口左移 / 右移（配合自动重排编号） |
+| `Ctrl+a + f` | 弹出临时 shell 浮窗（退出即消失，继承当前目录） |
 | `Ctrl+a + r` | 重新加载配置 |
-| `Ctrl+a + [` | 进入复制/滚动模式（vim 键绑定） |
+| `Ctrl+a + [` / `Ctrl+a + Esc` | 进入复制/滚动模式（vim 键绑定） |
 | `Ctrl+a + s` | 切换窗格同步输入 |
 | `Ctrl+a + Space` | 切换窗格布局 |
 
-`Ctrl+a + w` 使用 tmux 内置树状选择器快速跳转 session / window / pane，`Ctrl+a + Tab` 用于在当前窗口和上一个窗口之间快速来回切换。分屏和新窗口默认继承当前 pane 的目录，减少在项目内重复 `cd` 的操作。复制模式启用 `set-clipboard on`，优先让 tmux 复制内容同步到终端剪贴板。
+`Ctrl+a + w` 使用 tmux 内置树状选择器快速跳转 session / window / pane，`Ctrl+a + Tab` 用于在当前窗口和上一个窗口之间快速来回切换。分屏和新窗口默认继承当前 pane 的目录，减少在项目内重复 `cd` 的操作。`h/j/k/l` 与 `H/J/K/L` 均为 repeat 绑定，按下前缀后 500ms 内可连按。复制模式启用 `set-clipboard on`，优先让 tmux 复制内容同步到终端剪贴板；鼠标拖选松开后立即复制并退出复制模式；`word-separators` 已去掉 `/`，按词选择时路径保持完整。`Ctrl+a + s` 切换窗格同步输入时，状态栏会提示 `Sync: ON/OFF`（窗口 flags 已隐藏，同步状态以此提示为准）。
 
 ## 会话管理
 
@@ -82,7 +87,7 @@ Catppuccin Mocha，与桌面主题保持一致。
 
 **是否自动保存 session？**
 
-不自动保存。当前只保留 `tmux-resurrect` 的手动保存/恢复；需要保存时按 `Ctrl+a + Ctrl+s`，需要恢复时按 `Ctrl+a + Ctrl+r`。
+不自动保存。当前只保留 `tmux-resurrect` 的手动保存/恢复；需要保存时按 `Ctrl+a + Ctrl+s`，需要恢复时按 `Ctrl+a + Ctrl+r`。保存内容包括 pane 可见内容（`@resurrect-capture-pane-contents`），恢复后能看到保存时刻的屏幕内容而非空白。
 
 **彻底清除保存的状态：**
 ```bash

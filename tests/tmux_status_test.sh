@@ -57,8 +57,8 @@ test_catppuccin_options_use_current_names() {
 
 test_status_bar_has_balanced_left_and_right_modules() {
     assert_contains 'set -g status-interval 15' "$TMUX_FILE"
-    assert_contains 'set -g status-left ""' "$TMUX_FILE"
-    assert_contains 'set -g status-left-length 0' "$TMUX_FILE"
+    assert_contains 'set -g status-left "#{session_name} "' "$TMUX_FILE"
+    assert_contains 'set -g status-left-length 20' "$TMUX_FILE"
     assert_contains 'set -g status-right "#{prefix_highlight} #{E:@catppuccin_status_date_time}"' "$TMUX_FILE"
     assert_contains "set -g @catppuccin_date_time_text '%m/%d %H:%M'" "$TMUX_FILE"
     assert_not_contains 'tmux-plugins/tmux-continuum' "$TMUX_FILE"
@@ -72,18 +72,27 @@ test_status_bar_has_balanced_left_and_right_modules() {
 
 test_bottom_overrides_survive_plugin_defaults() {
     status_interval_line=$(awk '/set -g status-interval 15/ { print NR; exit }' "$TMUX_FILE")
-    status_left_line=$(awk '/set -g status-left ""/ { print NR; exit }' "$TMUX_FILE")
+    status_left_line=$(awk '/set -g status-left/ { print NR; exit }' "$TMUX_FILE")
     tpm_line=$(awk '/run '\''~\/.tmux\/plugins\/tpm\/tpm'\''/ { print NR; exit }' "$TMUX_FILE")
 
     [ -n "$status_interval_line" ] || fail "expected status-interval override"
-    [ -n "$status_left_line" ] || fail "expected status-left hide override"
+    [ -n "$status_left_line" ] || fail "expected status-left override"
     [ -n "$tpm_line" ] || fail "expected TPM run line"
     [ "$status_interval_line" -gt "$tpm_line" ] ||
         fail "expected status-interval override after TPM so tmux-sensible cannot reset it"
     [ "$status_left_line" -gt "$tpm_line" ] ||
-        fail "expected status-left hide override after TPM so Catppuccin cannot restore the session module"
+        fail "expected status-left override after TPM so Catppuccin cannot restore the session module"
 }
 
+
+test_true_color_sync_feedback_and_mouse_copy() {
+    assert_contains "set -as terminal-features ',xterm-256color:RGB:Sync,alacritty:RGB:Sync,foot:RGB:Sync'" "$TMUX_FILE"
+    assert_contains 'bind-key s setw synchronize-panes \; display "Sync: #{?pane_synchronized,ON,OFF}"' "$TMUX_FILE"
+    assert_contains 'bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-selection-and-cancel' "$TMUX_FILE"
+    assert_contains '24-bit 真彩色' "$README_FILE"
+    assert_contains 'Sync: ON/OFF' "$README_FILE"
+    assert_contains '鼠标拖选松开后立即复制并退出复制模式' "$README_FILE"
+}
 
 test_daily_pane_workflow_enhancements() {
     assert_contains 'set -g set-clipboard on' "$TMUX_FILE"
@@ -91,6 +100,29 @@ test_daily_pane_workflow_enhancements() {
     assert_contains 'bind c new-window -c "#{pane_current_path}"' "$TMUX_FILE"
     assert_contains 'bind | split-window -h -c "#{pane_current_path}"' "$TMUX_FILE"
     assert_contains 'bind - split-window -v -c "#{pane_current_path}"' "$TMUX_FILE"
+}
+
+test_resurrect_pane_contents() {
+    assert_contains "set -g @resurrect-capture-pane-contents 'on'" "$TMUX_FILE"
+    assert_contains '保存内容包括 pane 可见内容' "$README_FILE"
+}
+
+test_keybinding_and_title_enhancements() {
+    assert_contains 'bind-key -r h select-pane -L' "$TMUX_FILE"
+    assert_contains 'bind -r H resize-pane -L 5' "$TMUX_FILE"
+    assert_contains 'bind < swap-window -t -1' "$TMUX_FILE"
+    assert_contains 'bind > swap-window -t +1' "$TMUX_FILE"
+    assert_contains 'bind Escape copy-mode' "$TMUX_FILE"
+    assert_contains 'bind f display-popup -E -d "#{pane_current_path}"' "$TMUX_FILE"
+    assert_contains 'set -g word-separators' "$TMUX_FILE"
+    assert_contains 'set -g set-titles on' "$TMUX_FILE"
+    assert_contains "set -g set-titles-format '#S · #W'" "$TMUX_FILE"
+    assert_contains 'set -g status-left "#{session_name} "' "$TMUX_FILE"
+    assert_contains 'set -g status-left-length 20' "$TMUX_FILE"
+    assert_contains '可连按，免重复前缀' "$README_FILE"
+    assert_contains '临时 shell 浮窗' "$README_FILE"
+    assert_contains '截断保护' "$README_FILE"
+    assert_contains '路径保持完整' "$README_FILE"
 }
 
 test_destroyed_sessions_detach_instead_of_switching() {
@@ -101,10 +133,10 @@ test_destroyed_sessions_detach_instead_of_switching() {
 }
 
 test_pane_resize_and_border_visuals() {
-    assert_contains 'bind H resize-pane -L 5' "$TMUX_FILE"
-    assert_contains 'bind J resize-pane -D 5' "$TMUX_FILE"
-    assert_contains 'bind K resize-pane -U 5' "$TMUX_FILE"
-    assert_contains 'bind L resize-pane -R 5' "$TMUX_FILE"
+    assert_contains 'bind -r H resize-pane -L 5' "$TMUX_FILE"
+    assert_contains 'bind -r J resize-pane -D 5' "$TMUX_FILE"
+    assert_contains 'bind -r K resize-pane -U 5' "$TMUX_FILE"
+    assert_contains 'bind -r L resize-pane -R 5' "$TMUX_FILE"
     assert_contains 'set -g @catppuccin_pane_border_style "fg=#{@thm_surface_1}"' "$TMUX_FILE"
     assert_contains 'set -g @catppuccin_pane_active_border_style "fg=#{@thm_lavender}"' "$TMUX_FILE"
 }
@@ -229,7 +261,7 @@ test_window_navigation_enhancements() {
 
 test_readme_documents_status_bar_layout() {
     assert_contains '状态栏' "$README_FILE"
-    assert_contains '左侧隐藏 session 名' "$README_FILE"
+    assert_contains '左侧显示当前 session 名' "$README_FILE"
     assert_contains '右侧显示 Prefix/Copy 状态和日期时间' "$README_FILE"
     assert_contains '本地 tab 不加 `L:` 前缀' "$README_FILE"
     assert_contains '本地默认显示项目名' "$README_FILE"
@@ -252,7 +284,10 @@ test_readme_documents_window_navigation() {
 test_catppuccin_options_use_current_names
 test_status_bar_has_balanced_left_and_right_modules
 test_bottom_overrides_survive_plugin_defaults
+test_true_color_sync_feedback_and_mouse_copy
 test_daily_pane_workflow_enhancements
+test_resurrect_pane_contents
+test_keybinding_and_title_enhancements
 test_destroyed_sessions_detach_instead_of_switching
 test_pane_resize_and_border_visuals
 test_tab_titles_use_short_remote_path_helper
