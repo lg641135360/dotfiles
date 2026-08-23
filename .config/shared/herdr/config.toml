@@ -1,0 +1,83 @@
+# herdr 配置草稿
+# 对齐项目的 tmux + Catppuccin 使用习惯（见 memory/tmux.md 与 .config/shared/tmux/.tmux.conf）。
+# herdr 零配置也能跑，本文件只在需要定制时才生效；改完运行 `herdr server reload-config` 即时重载。
+# 完整默认配置参考：`herdr --default-config`；全部键名见 https://herdr.dev/docs/config-reference/。
+
+# 关闭首次启动引导（已走完 onboarding 后写 false，避免每次弹设置向导）
+onboarding = false
+
+# ===== 会话恢复 =====
+# 服务器重启后，装了官方集成的 agent（claude/codex 等）尽量恢复到原生对话，其它 pane 还原为普通 shell。
+[session]
+resume_agents_on_restore = true
+
+# ===== 终端默认 =====
+[terminal]
+default_shell = "zsh"   # 新交互 pane 默认用 zsh（未设置时取 $SHELL，兜底 /bin/sh）
+new_cwd = "follow"      # 新 pane/tab/workspace 继承源 pane 目录，对齐 tmux 的 -c "#{pane_current_path}"
+
+# ===== 主题：Catppuccin moca =====
+# herdr 内置 catppuccin 即为暗色（亮色为 catppuccin-latte），与桌面 / tmux 的 mocha 保持一致。
+[theme]
+name = "catppuccin"
+
+# 如需把强调色等微调成精确的 Catppuccin Mocha 色值，取消注释下面这段（色值取自 .config/linux/waybar/mocha.css）：
+# [theme.custom]
+# accent = "#b4befe"      # lavender，对齐 tmux 的 active pane border
+# sidebar_bg = "#181825"  # mantle
+# active_row_bg = "#1e1e2e"
+# selection_bg = "#313244"
+# green = "#a6e3a1"
+# blue = "#89b4fa"
+# red = "#f38ba8"
+# yellow = "#f9e2af"
+
+# ===== 快捷键：vim 风格，prefix 对齐 tmux 的 C-a =====
+[keys]
+prefix = "ctrl+a"              # 默认 ctrl+b，改成与 tmux 一致的 ctrl+a
+
+# pane 移动（herdr 默认已是 prefix+h/j/k/l，这里显式声明，与 tmux 完全一致）
+focus_pane_left = "prefix+h"
+focus_pane_down = "prefix+j"
+focus_pane_up = "prefix+k"
+focus_pane_right = "prefix+l"
+
+# 分屏：左右 = prefix+v（对应 tmux 的 prefix+|），上下 = prefix+minus（对应 tmux 的 prefix+-）
+split_vertical = "prefix+v"
+split_horizontal = "prefix+minus"
+
+# 重载配置对齐 tmux 的 prefix+r；resize mode 让位改到 prefix+shift+r（进入后按方向键调整 pane 大小）。
+reload_config = "prefix+r"
+resize_mode = "prefix+shift+r"
+
+# ===== UI =====
+[ui]
+tab_bar_position = "bottom"   # tab 行放底部，对齐 tmux 状态栏在底部的习惯
+
+# 右侧状态区对齐 tmux 的 status-right：只保留 zoom / 主机名 / 日期时间，不显示当前 shell/命令。
+# 日期时间格式沿用 tmux 的 catppuccin '@catppuccin_date_time_text "%m/%d %H:%M"'。
+tab_bar_right = [
+  { type = "zoom" },
+  { type = "hostname" },
+  { type = "datetime", format = "%m/%d %H:%M" },
+]
+tab_bar_right_separator = " · "
+
+# 外层终端窗口标题：沿用 tmux 的 set-titles-string 'session · window' 风格（这里会话名 = workspace）
+window_title = "{workspace} · {tab}"
+
+# ===== 通知：后台 agent 完成/需要输入时提醒 =====
+# 走 OS 通知服务（freedesktop notification），niri 下由 mako 弹出；SSH 无图形会话时改 "terminal"。
+[ui.toast]
+delivery = "system"
+delay_seconds = 1
+
+# ===== 临时 shell 浮窗（对应 tmux 的 prefix+f display-popup）=====
+# herdr 默认没有前缀的活键占用 f，这里绑成退出即关闭的临时 shell。
+[[keys.command]]
+key = "prefix+f"
+type = "popup"
+command = "exec \"${SHELL:-zsh}\""
+description = "临时 shell 浮窗"
+width = "80%"
+height = "80%"

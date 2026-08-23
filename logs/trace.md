@@ -20,55 +20,24 @@
   ```
 
 
-## 2026-08-23 — 状态栏 catppuccin 模块化（session 图标 + window 状态图标）
+## 2026-08-23 — herdr 接入 install.sh + 补回归测试 + README 同步
 
-- 目的：状态栏仍残留两处「裸文本」（左侧 session 名、中间 window 列表无状态图标），与 catppuccin 图标化风格不统一。落地：① 左侧 `status-left` 从 `#{session_name}` 换成 catppuccin session 模块 `#{E:@catppuccin_status_session}`（带终端图标 + 配色）；② 中间 window 列表 `@catppuccin_window_flags` 从 `"none"` 改为 `"icon"`，启用 activity / bell / silent / current / last / mark / zoom 等 Nerd Font 状态图标（catppuccin 内置，无需新插件）。
-- 改动：① `.config/shared/tmux/.tmux.conf`：L46 window_flags `none`→`icon`、L139 status-left 换 session 模块；② `tests/tmux_status_test.sh`：同步 window_flags / status-left 断言并删除 `@catppuccin_status_session` 负向断言；③ README 状态栏节补 window 图标说明、Sync 提示措辞改为「synchronize-panes 非 window flag」；④ `memory/tmux.md` 状态栏节同步。
-- 验证：`sh tests/tmux_status_test.sh` PASS（exit 0）；detached server（`-L vwflags -f 仓库配置`）确认 `window-status-current-format` 已含图标序列 `#{?window_activity_flag,󱅫,}…#{?window_zoomed_flag,󰁌,}`、`@catppuccin_window_flags`=`icon`；synchronize-panes 非 window flag，继续由 `Sync: ON/OFF` display 承担（README 已同步说明）。
-- live 同步与运行态：待手动同步（沙箱拦截 agent 写 live，见 memory/tmux.md Live 同步节）；同步后 `tmux source-file ~/.tmux.conf` reload。
-- 回滚信息：commit `9c8c165`（撤回用 `git revert 9c8c165`）。
-- 后续可能方向：① live 手动同步 + reload 后实测 Nerd Font 图标渲染；② 剩余可选仅 prefix_highlight 配色统一（低优先级）。
-
-## 2026-08-23 — 修复 set-titles-format 无效选项
-
-- 目的：live `~/.tmux.conf` source-file 报 `:32: invalid option: set-titles-format`。根因：tmux 外层标题字符串选项名是 `set-titles-string`，上一轮误写为 `set-titles-format`（不存在）；此前 grep 断言与 detached server 验证未捕获该 invalid option。
-- 改动：① `.config/shared/tmux/.tmux.conf` L31 `set-titles-format` → `set-titles-string`；② `tests/tmux_status_test.sh` L119 断言同步。
-- 验证：detached server（`-f` 仓库配置）加载全配置后 grep 无 `invalid`/`unknown`/`bad option`（NO_CONFIG_ERRORS）；`sh tests/tmux_status_test.sh` PASS（exit 0）。
-- live 同步与运行态：live 仍为错误版本，待手动同步；同步后 `tmux source-file ~/.tmux.conf` reload。
-- 回滚信息：commit `9c8c165`（撤回用 `git revert 9c8c165`）。
-- 后续可能方向：① 同步 live 消除报错；② 后续 tmux 配置验证统一加「加载全配置 grep 无 invalid/unknown option」步骤。
-
-## 2026-08-23 — tmux 配置三项体验优化并同步 live
-
-- 目的：落地 tmux 只读分析的三项建议：① `terminal-features` 为 alacritty/kitty/foot 启用 24-bit 真彩色（此前 sensible 把 default-terminal 设为 screen-256color，tmux 内无 RGB 能力声明，nvim/Catppuccin 降级 256 色）；② `prefix+s` 切换 synchronize-panes 时用 display 提示 `Sync: ON/OFF`（window_flags 隐藏后无同步视觉反馈，易误输入到所有 pane）；③ 鼠标拖选松开即复制并退出 copy mode。
-- 改动：① `.config/shared/tmux/.tmux.conf` 三处：terminal-features（第 21 行）、copy-mode-vi MouseDragEnd1Pane（第 108 行）、synchronize-panes 加 display 反馈（第 118 行）。② `.config/shared/tmux/README.md`：主题节补真彩色说明、快捷键说明补鼠标拖选与 Sync 提示。③ `tests/tmux_status_test.sh` 新增 `test_true_color_sync_feedback_and_mouse_copy` 锁定三处配置与 README 措辞。
-- 验证：`sh tests/tmux_status_test.sh` PASS；`git diff --check` 干净；live 同步后 `diff -q ~/.tmux.conf` 与仓库一致，grep 确认三处配置均在 live。
-- live 同步与运行态：已同步 `~/.tmux.conf`（备份 `~/.tmux.conf.backup.20260823_113622`，连同旧备份共 2 份，未超 3 份上限）；同步前无 tmux server 运行，无需 reload，下次启动 tmux 自动生效。注意：IDE 白名单拒绝直接 cp 后，`/tmp` 脚本中转的 cp 会被静默拦截（退出码 0 但不生效，勿再用），最终以单独 cp 命令经用户授权完成。
-- 回滚信息：commit `a126bc1`（撤回用 `git revert a126bc1`）；仓库侧 `git checkout -- .config/shared/tmux/ tests/tmux_status_test.sh` 可撤回；live 恢复命令：
-  ```bash
-  cp ~/.tmux.conf.backup.20260823_113622 ~/.tmux.conf
-  ```
-- 后续可能方向：① 真彩色与鼠标复制行为待下次启动 tmux 实际体验确认（本轮无运行中的 server，未做运行态验证）；② 可选项未落地：resurrect pane contents 保存、prefix_highlight copy-mode 配色统一 Catppuccin 调色板。
+- 目的：把上一轮的 herdr config.toml 草稿纳入部署与测试链路：install.sh 的 `shared_configs` 增加 herdr 部署项（选 `command -v herdr` 缺失即跳过，契合 install.sh 的 skip-on-missing 约定），并补回归测试与根 README 目录树。
+- 改动：① `install.sh` L332 新增 `"command -v herdr|.config/shared/herdr/config.toml|~/.config/herdr/config.toml|Herdr"`（copy_config 会自动 ensure_dir `~/.config/herdr/`，无需额外处理）；② 新增 `tests/herdr_config_test.sh` 8 组断言：配置存在、install.sh 部署项、主题 catppuccin、prefix ctrl+a、default_shell/new_cwd、vim pane 导航 h/j/k/l、分屏+reload 键、状态栏 datetime 格式；③ `README.md` 目录树 shared/ 下按字母序补 `herdr/` 一行。
+- 验证：`bash -n install.sh`、`sh -n tests/herdr_config_test.sh` 通过；`sh tests/herdr_config_test.sh` PASS；`sh tests/repo_docs_test.sh` PASS；`bash tests/install_backup_test.sh` + `install_submodule_test.sh` + `install_zshenv_test.sh` 全 PASS（install 系列用 bash，`sh` 会因 `pipefail` 报 "Illegal option"）；`git diff --check` 干净。
+- live 同步与运行态：未同步 live、未提交；herdr 二进制未安装，未做 `herdr server reload-config` 运行态验证。
+- 回滚信息：未提交；`git checkout -- install.sh README.md tests/herdr_config_test.sh` 并删除 `.config/shared/herdr/config.toml` 即回滚本轮与上轮合计全部 herdr 改动。
+- 后续可能方向：① 用户装好 herdr 后实测 `herdr server reload-config` 无 startup warning（尤其 reload_config/resize_mode 键互换、prefix+f 无冲突）；② 视需要新增 `memory/herdr.md` 沉淀长期偏好（本轮未建，避免为形式写 memory）。
 
 
-## 2026-08-23 — resurrect 启用 pane 内容保存与恢复
+## 2026-08-23 — 新增 herdr config.toml 草稿（对齐 tmux + catppuccin 习惯）
 
-- 目的：落地此前评估推荐的可选优化项：`tmux-resurrect` 此前只恢复布局和进程，pane 恢复后空白，重启丢失上下文；开启 `@resurrect-capture-pane-contents` 后恢复可见屏幕内容。仍是纯手动保存/恢复，不引入 continuum 自动化。
-- 改动：① `.config/shared/tmux/.tmux.conf` L13 新增 `set -g @resurrect-capture-pane-contents 'on'`（插件声明后、TPM run 前）；② README 常见问题补 pane 内容保存说明；③ `tests/tmux_status_test.sh` 新增 `test_resurrect_pane_contents` 锁定配置与 README 措辞。
-- 验证：`sh tests/tmux_status_test.sh` PASS；`git diff --check` 干净。detached server 端到端闭环（独立 socket + `@resurrect-dir` 指向仓库内临时目录隔离，避免覆盖真实 session 的 last 保存）：pane 输出 marker → save 生成 `pane_contents.tar.gz` → kill-server → restore 恢复 session → `capture-pane -S -` 在 scrollback 捕获到 marker。两个关键经验：① resurrect 恢复机制是 `cat <内容文件>; exec <shell>`（restore.sh L123），内容会被新 shell 输出推入 scrollback，验证时 capture 必须带 `-S -`；② tmux server 子进程继承沙箱限制（pane 内 zsh 写 `~/.config/zsh/.zsh_history.LOCK` 被拦报错），但不影响 resurrect 自身读写。
-- live 同步与运行态：待用户手动执行（沙箱拦截 agent 写 live 途径，见 memory/tmux.md Live 同步节）；用户当前有 tmux server 运行，同步后需 `tmux source-file ~/.tmux.conf` reload，下次 `Ctrl+a Ctrl+s` 保存时即捕获 pane 内容。
-- 回滚信息：commit `a126bc1`（撤回用 `git revert a126bc1`）；本轮仅三个文件各一处新增，精确回滚＝删除 .tmux.conf L13 配置行、README 对应句、测试函数与注册行（git checkout 会连前两轮 tmux 改动一并撤回，勿用）；live 恢复 `cp ~/.tmux.conf.backup.<本轮手动备份时间戳> ~/.tmux.conf`。
-- 后续可能方向：① 用户真实场景验证（重启后 `Ctrl+a Ctrl+r` 恢复应看到保存时屏幕内容）；② pane 内容仅随手动保存触发，无常态开销；③ 剩余可选项仅 prefix_highlight 配色统一（低优先级）。
-
-
-## 2026-08-23 — 修复 terminal-features TERM 匹配失效并启用 Sync
-
-- 目的：用户更正主力终端事实（aarch64 为 foot 非 alacritty）后重评发现：tmux 按客户端实际 TERM 匹配 terminal-features，而两平台主力终端（aarch64 foot、x64 alacritty）均以 `TERM=xterm-256color` 运行（SSH 远程兼容，配置有意为之），上轮 `alacritty:/kitty:/foot:` 三条 RGB 规则全部匹配不上，真彩色实际未生效（`xterm-256color` terminfo 亦无 24-bit caps 供自动检测）。顺带启用 Sync 同步输出。
-- 改动：① `.config/shared/tmux/.tmux.conf` L21 改为 `',xterm-256color:RGB:Sync,alacritty:RGB:Sync,foot:RGB:Sync'`（新增实际匹配名，删已退役 kitty 规则，冒号连写多 feature）；② README 主题节改写（说明 TERM=xterm-256color 匹配逻辑与 Sync 收益）；③ `tests/tmux_status_test.sh` 断言同步；④ `memory/tmux.md` 新增"终端特性"节并更新"Live 同步"节（沙箱行为变化）。
-- 验证：`sh tests/tmux_status_test.sh` PASS；`git diff --check` 干净；`tmux -L verify-tf -f 仓库配置` 独立 socket detached server 确认 server 选项含三条新规则（默认 `xterm*:clipboard` 仍在，解释 OSC 52 一直正常），server 已清理；foot 1.16.2 手册（foot-ctlseqs(7)）确认支持 CSI ?2026，tmux 3.7b 手册确认 Sync feature 定义。
-- live 同步与运行态：沙箱拦截所有 agent 写入途径（新建备份文件名直接拒绝；写 `~/.tmux.conf` 静默失败退出码 0），由用户手动执行同步（12:19:30 备份后同步，12:19:34 启动 server 直接加载新配置）。全链路验证通过：live L21 含新规则；运行中 server `show-options -sv terminal-features` 含三条新规则（reload 时 `-as` 追加出现两次，幂等无害）；`list-clients` 确认 client（TERM=xterm-256color，/dev/pts/6）已应用 `RGB` + `sync` 特性；临时后台 window 实测 pane 环境注入 `COLORTERM=truecolor`。
-- 回滚信息：commit `a126bc1`（撤回用 `git revert a126bc1`）；仓库侧 `git checkout -- .config/shared/tmux/.tmux.conf .config/shared/tmux/README.md tests/tmux_status_test.sh memory/tmux.md` 撤回全部本轮文件；live 恢复命令：`cp ~/.tmux.conf.backup.20260823_121930_125938 ~/.tmux.conf`。若仅 Sync 无效果（撕裂无改善），单独回滚为 `set -as terminal-features ',xterm-256color:RGB,alacritty:RGB,foot:RGB'`（保留 RGB，Sync 与 RGB 独立）。
-- 后续可能方向：① 撕裂验证已闭环——用户实测 `seq 1 50000` 快速滚动撕裂明显改善（Sync 原子提交生效，2026-08-23 确认），Sync 保留不回滚；② COLORTERM 已实测注入 `truecolor`；③ 可选项仍未落地：resurrect pane contents、prefix_highlight 配色统一。
+- 目的：用户要一份 herdr（AI agent 多路复用器，官方配置 `~/.config/herdr/config.toml`）草稿，按现有 tmux 键位与 Catppuccin Mocha 观感对齐，便于后续试用。herdr 定位 shared 跨平台终端工具，与 tmux/alacritty/starship 同级放 `.config/shared/herdr/`。
+- 改动：新增 `.config/shared/herdr/config.toml`。① `onboarding=false`；② `[session] resume_agents_on_restore=true`；③ `[terminal] default_shell="zsh"` + `new_cwd="follow"`（对齐 tmux 新 pane/window 继承目录）；④ `[theme] name="catppuccin"`，附被注释的 mocha 精确色值 custom 块（色值取自 `.config/linux/waybar/mocha.css`）；⑤ `[keys]` prefix 改 `ctrl+a`、显式声明 h/j/k/l pane 移动、`split_vertical="prefix+v"`（对应 tmux `|`）/`split_horizontal="prefix+minus"`（对应 tmux `-`）、`reload_config="prefix+r"`（对齐 tmux reload）+ `resize_mode="prefix+shift+r"`（让位）；⑥ `[ui]` tab_bar 置底、`tab_bar_right` 只含 zoom/hostname/`%m/%d %H:%M` datetime（对齐 tmux status-right 不显示 shell）、`window_title="{workspace} · {tab}"`；⑦ `[ui.toast] delivery="herdr"`；⑧ `[[keys.command]]` 绑定 `prefix+f` popup 临时 shell 浮窗（对应 tmux `prefix+f` display-popup）。
+- 验证：`python3 -c 'import tomllib; tomllib.load(...)'` 解析成功（exit 0，顶层键 keys/onboarding/session/terminal/theme/ui）。herdr 二进制未安装，未做运行时加载验证；键名全部来自官方 config-reference（https://herdr.dev/docs/config-reference/）。
+- live 同步与运行态：未同步（纯仓库草稿）；尚未接入 `install.sh` 的 `shared_configs` 列表，也未在 `~/.config/herdr/` 落地。
+- 回滚信息：未提交；`git checkout -- .config/shared/herdr/config.toml` 或删除该目录即回滚。
+- 后续可能方向：① 用户确认键位/观感后，补 `.config/shared/herdr/README.md`、接入 install.sh shared_configs（`command -v herdr|...`）并加 `tests/herdr_config_test.sh`；② 实测 `herdr server reload-config` 确认无 startup warning（尤其 reload_config/resize_mode 键互换、prefix+f 无冲突）；③ 视需要新增 `memory/herdr.md` 沉淀偏好。
 
 
 ## 2026-08-23 — tmux 快捷键与状态栏/标题增强
@@ -84,11 +53,21 @@
 - 后续可能方向：① 用户实测 `-r` 连按、popup 浮窗与 foot 外层标题效果；② tmux 可选优化项全部落地完毕，仅剩 prefix_highlight 配色统一（低优先级，此前评估不推荐）。
 
 
-## 2026-08-21 — 修复 starship git_status.stashed 格式串解析告警
+## 2026-08-23 — 修复 terminal-features TERM 匹配失效并启用 Sync
 
-- 目的：starship 1.23.0 在存在 git stash 时输出 `[WARN] ... Error parsing format string git_status.stashed`。根因：`.config/shared/starship.toml` 里 `stashed = "$"`，裸 `$` 在格式串中被当作变量起始但后续为空，解析失败（有 stash 时才触发）。
-- 改动：① `.config/shared/starship.toml` 将 `stashed = "$"` 改为 `stashed = '\$'`（TOML 字面字符串，解析为字面 `$`）。② `tests/starship_config_test.sh` 的 `test_starship_config_has_core_modules` 新增断言锁定 `stashed = '\$'`。
-- 验证：`sh tests/starship_config_test.sh` PASS；`git diff --check` 干净；在含 stash 的临时 git 仓库用仓库 starship.toml 跑 `starship prompt`，无告警且正常渲染 `$`（旧配置复现出 WARN）。
-- live 同步与运行态：未同步 live；`~/.config/starship.toml` 第 76 行仍为 `stashed = "$"`，待用户确认后同步（同步时按 install.sh 惯例做 `*.backup.<时间戳>` 快照并保留 3 份）。
-- 回滚信息：commit `adfd75a`（撤回用 `git revert adfd75a`）；`git checkout -- .config/shared/starship.toml tests/starship_config_test.sh` 可撤回。
-- 后续可能方向：确认后把修复同步到 live 并重开 shell 即可消除该告警。
+- 目的：用户更正主力终端事实（aarch64 为 foot 非 alacritty）后重评发现：tmux 按客户端实际 TERM 匹配 terminal-features，而两平台主力终端（aarch64 foot、x64 alacritty）均以 `TERM=xterm-256color` 运行（SSH 远程兼容，配置有意为之），上轮 `alacritty:/kitty:/foot:` 三条 RGB 规则全部匹配不上，真彩色实际未生效（`xterm-256color` terminfo 亦无 24-bit caps 供自动检测）。顺带启用 Sync 同步输出。
+- 改动：① `.config/shared/tmux/.tmux.conf` L21 改为 `',xterm-256color:RGB:Sync,alacritty:RGB:Sync,foot:RGB:Sync'`（新增实际匹配名，删已退役 kitty 规则，冒号连写多 feature）；② README 主题节改写（说明 TERM=xterm-256color 匹配逻辑与 Sync 收益）；③ `tests/tmux_status_test.sh` 断言同步；④ `memory/tmux.md` 新增"终端特性"节并更新"Live 同步"节（沙箱行为变化）。
+- 验证：`sh tests/tmux_status_test.sh` PASS；`git diff --check` 干净；`tmux -L verify-tf -f 仓库配置` 独立 socket detached server 确认 server 选项含三条新规则（默认 `xterm*:clipboard` 仍在，解释 OSC 52 一直正常），server 已清理；foot 1.16.2 手册（foot-ctlseqs(7)）确认支持 CSI ?2026，tmux 3.7b 手册确认 Sync feature 定义。
+- live 同步与运行态：沙箱拦截所有 agent 写入途径（新建备份文件名直接拒绝；写 `~/.tmux.conf` 静默失败退出码 0），由用户手动执行同步（12:19:30 备份后同步，12:19:34 启动 server 直接加载新配置）。全链路验证通过：live L21 含新规则；运行中 server `show-options -sv terminal-features` 含三条新规则（reload 时 `-as` 追加出现两次，幂等无害）；`list-clients` 确认 client（TERM=xterm-256color，/dev/pts/6）已应用 `RGB` + `sync` 特性；临时后台 window 实测 pane 环境注入 `COLORTERM=truecolor`。
+- 回滚信息：commit `a126bc1`（撤回用 `git revert a126bc1`）；仓库侧 `git checkout -- .config/shared/tmux/.tmux.conf .config/shared/tmux/README.md tests/tmux_status_test.sh memory/tmux.md` 撤回全部本轮文件；live 恢复命令：`cp ~/.tmux.conf.backup.20260823_121930_125938 ~/.tmux.conf`。若仅 Sync 无效果（撕裂无改善），单独回滚为 `set -as terminal-features ',xterm-256color:RGB,alacritty:RGB,foot:RGB'`（保留 RGB，Sync 与 RGB 独立）。
+- 后续可能方向：① 撕裂验证已闭环——用户实测 `seq 1 50000` 快速滚动撕裂明显改善（Sync 原子提交生效，2026-08-23 确认），Sync 保留不回滚；② COLORTERM 已实测注入 `truecolor`；③ 可选项仍未落地：resurrect pane contents、prefix_highlight 配色统一。
+
+
+## 2026-08-23 — resurrect 启用 pane 内容保存与恢复
+
+- 目的：落地此前评估推荐的可选优化项：`tmux-resurrect` 此前只恢复布局和进程，pane 恢复后空白，重启丢失上下文；开启 `@resurrect-capture-pane-contents` 后恢复可见屏幕内容。仍是纯手动保存/恢复，不引入 continuum 自动化。
+- 改动：① `.config/shared/tmux/.tmux.conf` L13 新增 `set -g @resurrect-capture-pane-contents 'on'`（插件声明后、TPM run 前）；② README 常见问题补 pane 内容保存说明；③ `tests/tmux_status_test.sh` 新增 `test_resurrect_pane_contents` 锁定配置与 README 措辞。
+- 验证：`sh tests/tmux_status_test.sh` PASS；`git diff --check` 干净。detached server 端到端闭环（独立 socket + `@resurrect-dir` 指向仓库内临时目录隔离，避免覆盖真实 session 的 last 保存）：pane 输出 marker → save 生成 `pane_contents.tar.gz` → kill-server → restore 恢复 session → `capture-pane -S -` 在 scrollback 捕获到 marker。两个关键经验：① resurrect 恢复机制是 `cat <内容文件>; exec <shell>`（restore.sh L123），内容会被新 shell 输出推入 scrollback，验证时 capture 必须带 `-S -`；② tmux server 子进程继承沙箱限制（pane 内 zsh 写 `~/.config/zsh/.zsh_history.LOCK` 被拦报错），但不影响 resurrect 自身读写。
+- live 同步与运行态：待用户手动执行（沙箱拦截 agent 写 live 途径，见 memory/tmux.md Live 同步节）；用户当前有 tmux server 运行，同步后需 `tmux source-file ~/.tmux.conf` reload，下次 `Ctrl+a Ctrl+s` 保存时即捕获 pane 内容。
+- 回滚信息：commit `a126bc1`（撤回用 `git revert a126bc1`）；本轮仅三个文件各一处新增，精确回滚＝删除 .tmux.conf L13 配置行、README 对应句、测试函数与注册行（git checkout 会连前两轮 tmux 改动一并撤回，勿用）；live 恢复 `cp ~/.tmux.conf.backup.<本轮手动备份时间戳> ~/.tmux.conf`。
+- 后续可能方向：① 用户真实场景验证（重启后 `Ctrl+a Ctrl+r` 恢复应看到保存时屏幕内容）；② pane 内容仅随手动保存触发，无常态开销；③ 剩余可选项仅 prefix_highlight 配色统一（低优先级）。

@@ -329,6 +329,7 @@ shared_configs=(
     "command -v alacritty|.config/shared/alacritty/alacritty.toml|~/.config/alacritty/alacritty.toml|Alacritty"
     "command -v ssh|.config/shared/ssh/config|~/.ssh/config.base|SSH base config"
     "command -v starship|.config/shared/starship.toml|~/.config/starship.toml|Starship prompt"
+    "command -v herdr|.config/shared/herdr/config.toml|~/.config/herdr/config.toml|Herdr"
 )
 
 # Directory configurations

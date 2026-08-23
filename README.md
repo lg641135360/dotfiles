@@ -11,6 +11,7 @@
 │   │   ├── alacritty/   # 终端模拟器（Linux/Mac 分 keys/window 配置）
 │   │   ├── cc/          # Claude Code statusline 脚本
 │   │   ├── git/         # git 别名和模板
+│   │   ├── herdr/       # AI agent 多路复用器配置（对齐 tmux 键位 + Catppuccin）
 │   │   ├── nvim/        # Neovim 配置（submodule → lg641135360/neovim）
 │   │   ├── ssh/         # SSH base 配置
 │   │   ├── starship.toml # 跨平台 shell 提示符
