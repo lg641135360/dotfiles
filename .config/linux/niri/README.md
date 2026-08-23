@@ -25,7 +25,7 @@
 
 本仓库不负责安装 niri 或其它桌面软件，也不检测显示管理器、desktop entry 或系统服务。`install.sh` 只通过 `command -v` 判断 niri 是否存在，并仅在 Ubuntu x86_64 / aarch64 上部署已维护的平台 KDL；Arch 与 openSUSE 始终保留现有 live Niri 配置，后者由 DMS 管理。Waybar、Mako、Fuzzel 分别在自身命令存在时部署配置。当前是否处于 Wayland 会话不会影响部署。
 
-Wayland 自动色温固定使用 `gammastep`；命令缺失时自启动脚本打印提示并跳过，不回退其它色温程序。aarch64 (MediaTek) 例外：`gammastep` 通过 `wlr-gamma-control` 压低色温/亮度会连带把外接屏压得过暗，因此 aarch64 跳过 `gammastep`，不启用自动色温。
+Wayland 自动色温固定使用 `gammastep`；命令缺失时自启动脚本打印提示并跳过，不回退其它色温程序。夜间使用温和色温 5500K（默认 4800K 会把外接屏压得过暗），亮度保持上限 `-b 1.0:1.0`（gammastep 亮度范围 0.1~1.0，无法提亮）；所有平台（含 aarch64 MediaTek）统一启用。
 
 Waybar 亮度模块（`backlight`）仅用于 aarch64（MediaTek 笔记本有背光设备）：共享的 `.config/linux/waybar/config` 不含该模块（x86/桌面无背光不显示），aarch64 专用变体 `.config/linux/waybar/config.aarch64` 在 `modules-right` 加入 `backlight`。`install.sh` 通过 `install_waybar_config_for_platform()` 按 `arch` 选择部署对应版本（其余 `style.css`/`mocha.css`/`README.md` 两平台共用）。
 
@@ -96,7 +96,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `mako`
 - `fcitx5`
 - `swaybg` 随机壁纸（优先 `~/Pictures/wall`，回退系统 `/usr/share/backgrounds`，镜像 Awesome 会话的 `randomize_wallpaper` 来源）
-- `gammastep` 自动色温（`~/.local/state/niri/autostart/gammastep.log`；aarch64 禁用，见「配置部署边界」）
+- `gammastep` 自动色温（`~/.local/state/niri/autostart/gammastep.log`）
 - `swayidle`：空闲 10 分钟锁屏；系统主动睡眠前也调用 `lock-wayland`（自动挂起已移除，原因见 logs/trace.md 2026-08-18：挂起唤醒瞬间的网络/显示风暴会让 Electron 应用以未捕获的 `net::ERR_INTERNET_DISCONNECTED` 静默退出）
 - KDE 或 GNOME polkit agent（若存在）
 - `nm-applet`、`blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。
@@ -109,7 +109,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 
 ```bash
 tail -n 80 ~/.local/state/niri/autostart/gammastep.log
-gammastep -m drm -p -l 30.6:114.3 -t 6500:4800
+gammastep -m drm -p -l 30.6:114.3 -t 6500:5500 -b 1.0:1.0
 ```
 
 `gammastep` 通过 `wlr-gamma-control` 协议为每个输出注册 gamma 表，但进程启动后不会自动为新接入的输出补注册。`wayland-autostart` 在启动 `gammastep` 时会记录当前 niri 输出数量到 `~/.local/state/niri/autostart/gammastep.outputs`；再次执行时若输出数量变化（热插拔）则自动重启 `gammastep`。热插拔显示器后色温未生效时，手动重新执行 `~/.config/scripts/wayland-autostart` 即可修复。

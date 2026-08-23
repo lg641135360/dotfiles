@@ -10,6 +10,7 @@
 - Wayland 启动入口保持脚本化：`wayland-autostart` 只静默启动存在的 Waybar、Mako、fcitx5、壁纸、idle lock 和 polkit agent；`launcher-wayland` 优先 fuzzel，rofi 仅作 fallback。
 - Wayland 色温固定使用更接近 Redshift 继承者、发行版覆盖更广的 `gammastep`；缺失时打印提示并跳过，不回退 `wlsunset`，也不在 niri autostart 里沿用 X11 主线的 `redshift`。
 - gammastep 只跑后台守护进程，不启用托盘指示器：`gammastep-indicator.service` 需 mask（该 unit 全局 enabled，仅 disable 无效；用 `systemctl --user mask gammastep-indicator.service`）。原因：niri 纯 Wayland 无 XSETTINGS 时其 `Gtk.IconTheme.get_default()` 返回 `None` 导致崩溃循环、空耗 CPU，且用户不想要托盘图标。
+- aarch64 恢复 gammastep 自动夜览（2026-08-23）：曾因 4800K 夜览经 wlr-gamma-control 压低色温把外接屏压得过暗而禁用；现改用温和夜间色温 5500K 减小蓝通道衰减、降低变暗幅度，并把亮度保持上限 `-b 1.0:1.0`（gammastep 亮度范围 0.1~1.0，无法用它提亮补偿），全平台统一启用。
 - niri 会话下 launcher 主线为 Fuzzel + Catppuccin Mocha + CJK 字体；Rofi 保留为 fallback，不作为 Wayland 主力入口。
 - niri autostart 可启动与 Awesome 对齐的可选托盘/辅助服务：`nm-applet`、`blueman-applet`、`udiskie -t`；缺命令时由 `run_once` 静默跳过；`pot` 不再默认自启动。`pasystray` 自启已移除（2026-08-13）：其音量控制由 waybar `pulseaudio` 模块 + 右键 `pavucontrol` 覆盖，移除后 niri 会话不再残留 XWayland 客户端；若日后需要托盘快速切音源，可重新加入。
 

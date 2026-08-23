@@ -58,15 +58,13 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_contains 'export XCURSOR_SIZE=32' "$AUTOSTART_SCRIPT"
     assert_contains 'swaybg' "$AUTOSTART_SCRIPT"
     assert_contains 'wallpaper-wayland-next' "$NIRI_README"
-    assert_contains 'gammastep -m wayland -l 30.6:114.3 -t 6500:4800' "$AUTOSTART_SCRIPT"
+    assert_contains 'gammastep -m wayland -l 30.6:114.3 -t 6500:5500 -b 1.0:1.0' "$AUTOSTART_SCRIPT"
     assert_contains 'start_gammastep' "$AUTOSTART_SCRIPT"
     assert_contains 'gammastep.log' "$NIRI_README"
-    # aarch64 (MediaTek) 禁用 gammastep：wlr-gamma-control 压低色温/亮度会连带把
-    # 外接屏压得过暗，脚本需在 aarch64 下跳过自动色温。
-    assert_contains 'uname -m' "$AUTOSTART_SCRIPT"
-    assert_contains 'aarch64' "$AUTOSTART_SCRIPT"
-    assert_contains '跳过 gammastep：aarch64 (MediaTek) 下外接屏会过暗，已禁用自动色温' "$AUTOSTART_SCRIPT"
-    assert_contains 'aarch64 跳过 `gammastep`，不启用自动色温' "$NIRI_README"
+    # aarch64 之前的 gammastep 跳过分支已移除：全平台统一启用，改用温和夜间色温
+    # 5500K + 亮度上限 -b 1.0:1.0 缓解外接屏过暗（gammastep 亮度范围 0.1~1.0）。
+    assert_not_contains '跳过 gammastep：aarch64' "$AUTOSTART_SCRIPT"
+    assert_not_contains 'aarch64 跳过 `gammastep`' "$NIRI_README"
     # 自动挂起已移除：挂起唤醒的网络/显示风暴会让 Electron 应用以未捕获的
     # net::ERR_INTERNET_DISCONNECTED 静默退出（VS Code / Trae）。保留 10 分钟
     # 锁屏与 before-sleep 锁屏。
