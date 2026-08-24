@@ -20,6 +20,15 @@
   ```
 
 
+## 2026-08-24 — memory 固化 brew vs 系统包管理器落地准则
+
+- 目的：把「哪些软件适合 brew、哪些适合系统包管理器（zypper/apt）」的归类固化为可复用整理规则，避免每次装软件重新推导。
+- 改动：`memory/organizing_preferences.md`「系统环境」段在跨系统包管理策略之后新增一条落地准则：五条判定标准（系统资源 / `*-dev` 库 / 会话居民 / 纯 CLI / 被会话引用），并给出当前 openSUSE WSL2 的 brew（neovim/ripgrep/fd/fzf/bat/yazi/zoxide，即 Linux Brewfile 覆盖的纯 CLI 子集）与 zypper（gcc 系 + tmux + jq）映射，明确 herdr 走官方脚本（不进 Brewfile）、tmux 建议系统装、alacritty 归 DMS。
+- 验证：`git diff --check` 干净；纯 Markdown 改动，无脚本/配置变更。
+- 回滚信息：未提交；`git checkout -- memory/organizing_preferences.md` 即回滚本次 memory 改动（本 trace 条目需单独删除）。
+- 后续可能方向：待用户装好 herdr/node 后实测；如需把该准则提升为 `AGENTS.md` 硬约束再另行讨论；本轮 trace 新增后超 5 条建议上限，node 补齐后执行 `npm --prefix scripts run archive-trace` 归档。
+
+
 ## 2026-08-23 — herdr 接入 install.sh + 补回归测试 + README 同步
 
 - 目的：把上一轮的 herdr config.toml 草稿纳入部署与测试链路：install.sh 的 `shared_configs` 增加 herdr 部署项（选 `command -v herdr` 缺失即跳过，契合 install.sh 的 skip-on-missing 约定），并补回归测试与根 README 目录树。

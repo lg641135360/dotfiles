@@ -17,6 +17,7 @@
 - 对通过 `npm install -g` 安装到 `/usr/local/nodejs` 前缀的 CLI，在共享 zsh PATH 中追加 `/usr/local/nodejs/bin`。
 - 对通过 `npm install -g` 安装到用户级 `/home/rikoo/.npm-global` 前缀的 CLI，在共享 zsh PATH 中追加 `$HOME/.npm-global/bin`。
 - 跨系统包管理策略：macOS 统一用 Homebrew（Brewfile 一键安装全部依赖）；Linux 分层——GUI/桌面环境（awesome/niri/waybar/mako/fuzzel 等）/系统服务（pipewire/wireplumber/xdg-desktop-portal/polkit）/输入法（fcitx5）/构建库（libportal-dev 等）/字体（fonts-noto-cjk）用系统原生包管理器（apt/pacman/dnf），纯用户级 CLI 工具（neovim/tmux/alacritty/fzf/zoxide/bat/lsd/ripgrep/fd/yazi）用 Homebrew。Linux Brewfile 只收录纯 CLI 工具，不收录 GUI/X11 工具。
+- brew vs 系统包管理器落地准则：Linux 上 brew 只装纯用户级 CLI，其余交系统包管理器。判定顺序——① 读写 GPU/亮度/色温/锁屏/音量/输入法等系统资源 → 系统装；② 依赖 `*-dev` 库或需链接系统库 → 系统装；③ 合成器 / WM / 状态栏 / 通知守护等会话居民 → 系统装；④ 纯 CLI、零系统依赖、用户空间可跑 → brew；⑤ 会被登录会话 / systemd / PAM 引用 → 系统装。当前 openSUSE WSL2 落地：brew 装 neovim / ripgrep / fd / fzf / bat / yazi / zoxide（即 Linux Brewfile 覆盖的纯 CLI 子集）；zypper 装 gcc gcc-c++ make file / tmux / jq；herdr 走官方脚本 `curl -fsSL https://herdr.dev/install.sh | sh`（用自带 `herdr update` 升级、不进 Brewfile）；node / claude 按需（node 走 brew 或 npm 前缀）。tmux 属纯 CLI 本可 brew，但建议系统装（libevent/ncurses 与系统一致、避免遮蔽），二选一勿重复；alacritty 在 openSUSE 由 DMS 管理，Linux 不走 brew、install.sh 也跳过部署。
 
 ## 仓库管理
 - `.omx/` 属于本地 OMX 运行状态目录；按当前仓库惯例，通常放入 `.gitignore`，不进入远端仓库。
