@@ -6,6 +6,11 @@
 - niri 配置不复用 `picom`、`xrandr`、`xinput`、`feh`、`xautolock`；分别由 niri output/input、Wayland 合成、`swaybg`、`swayidle`/`swaylock` 等替代。
 - niri 配置维护 `.config/linux/niri/ubuntu_x64/config.kdl` 与 `.config/linux/niri/ubuntu_aarch64/config.kdl`；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，平台文件只保留 output 段、`include "../common.kdl"`，以及必要的硬件覆盖。安装器仅在 Ubuntu（x86_64 / aarch64）按 `niri_platform_key()` 把对应平台 KDL 复制为 `~/.config/niri/config.kdl`、把 `common.kdl` 复制到 `~/.config/niri/common.kdl`，并把 include 路径从仓库的 `../common.kdl` 改写成 live 扁平布局的 `common.kdl`；不要把 README 或整个平台目录复制到 live。
 
+## output / 外接屏
+- Ubuntu aarch64 双屏（niri/Wayland）布局：内屏 eDP-1 `2880x1800@120` scale 2.0（逻辑 1440x900）放左侧 `x=0`；外接屏 DP-2 scale 1.25（逻辑 2048x1152）放右侧 `x=1440`。
+- 外接屏现为 Dell S2721DGF（2560x1440，上限 165Hz）。MediaTek mtdisp 驱动只从 EDID 基块暴露 `2560x1440@59.951`（preferred），不暴露 CEA 扩展块的 120Hz，故 120Hz 必须用 niri `modeline`（Since 25.11）强制：`modeline 497.75 2560 2608 2640 2720 1440 1445 1448 1525 "+hsync" "-vsync"`（取自 EDID CEA 扩展块 DTD，实测 119.998Hz）。不要用 `mode "2560x1440@120"`——该刷新率不在 `niri msg outputs` 列表里时 niri 无法匹配。
+- modeline 失败时 niri 回落到 preferred 59.951Hz，不损坏显示；120Hz 在 165Hz 上限内为官方时序，安全。
+
 ## autostart / launcher
 - Wayland 启动入口保持脚本化：`wayland-autostart` 只静默启动存在的 Waybar、Mako、fcitx5、壁纸、idle lock 和 polkit agent；`launcher-wayland` 优先 fuzzel，rofi 仅作 fallback。
 - Wayland 色温固定使用更接近 Redshift 继承者、发行版覆盖更广的 `gammastep`；缺失时打印提示并跳过，不回退 `wlsunset`，也不在 niri autostart 里沿用 X11 主线的 `redshift`。

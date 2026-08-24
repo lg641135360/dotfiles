@@ -80,3 +80,13 @@
 - live 同步与运行态：待用户手动执行（沙箱拦截 agent 写 live 途径，见 memory/tmux.md Live 同步节）；用户当前有 tmux server 运行，同步后需 `tmux source-file ~/.tmux.conf` reload，下次 `Ctrl+a Ctrl+s` 保存时即捕获 pane 内容。
 - 回滚信息：commit `a126bc1`（撤回用 `git revert a126bc1`）；本轮仅三个文件各一处新增，精确回滚＝删除 .tmux.conf L13 配置行、README 对应句、测试函数与注册行（git checkout 会连前两轮 tmux 改动一并撤回，勿用）；live 恢复 `cp ~/.tmux.conf.backup.<本轮手动备份时间戳> ~/.tmux.conf`。
 - 后续可能方向：① 用户真实场景验证（重启后 `Ctrl+a Ctrl+r` 恢复应看到保存时屏幕内容）；② pane 内容仅随手动保存触发，无常态开销；③ 剩余可选项仅 prefix_highlight 配色统一（低优先级）。
+
+
+## 2026-08-24 — niri 外接屏强制 120Hz 并移到右侧
+
+- 目的：用户要求把外接屏强制设为 120Hz、并放到内屏右侧（此前外接屏在左、运行在 100Hz）。
+- 改动：仓库 `.config/linux/niri/ubuntu_aarch64/config.kdl`：① eDP-1 内屏 `position x=2048` → `x=0`（移到左侧）；② DP-2 外接屏（Dell S2721DGF）`mode "2560x1440@100"` → `modeline 497.75 2560 2608 2640 2720 1440 1445 1448 1525 "+hsync" "-vsync"`（120Hz），`position x=0` → `x=1440`（移到右侧）；③ 注释同步（mtdisp 不暴露 CEA 120Hz 的说明）。scale 不变（1.25 / 2.0）。④ `tests/niri_config_test.sh` 同步断言（DP-2 modeline + `x=1440`、eDP-1 `x=0`）。
+- 验证：`niri validate -c` 仓库与 live 均 "config is valid"；`niri msg outputs` 确认 DP-2 `2560x1440@119.998 Hz (custom)` 逻辑位置 `1440,0`（右侧）、eDP-1 `2880x1800@120` 逻辑位置 `0,0`（左侧）。
+- live 同步与运行态：已同步并 reload（`niri msg action load-config-file`，niri 26.04）。live 备份：`~/.config/niri/config.kdl.backup.20260824_214124_1886757`。注意：沙箱 allowlist 仅放行 `~/.config/niri/config.kdl` 精确路径，`rm` 旧备份被拦（`config.kdl.backup.*` 不在 allowlist），clean_old_backups 未执行，`~/.config/niri/` 现堆积 4 个 config.kdl 备份，待用户手动清理（保留最近 3 个）。
+- 回滚信息：仓库未提交，`git checkout -- .config/linux/niri/ubuntu_aarch64/config.kdl` 回退；live 恢复 `cp ~/.config/niri/config.kdl.backup.20260824_214124_1886757 ~/.config/niri/config.kdl` 后 `niri msg action load-config-file`。
+- 后续可能方向：① 用户实测 120Hz 稳定性（Dell S2721DGF 上限 165Hz，120 为官方时序，安全）；② x64 平台 config.kdl 未改（本次仅 aarch64）；③ 手动清理 `~/.config/niri/config.kdl.backup.*` 旧备份。

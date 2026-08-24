@@ -4,21 +4,24 @@
 // Common input/layout/blur/window-rule/binds live in ../common.kdl.
 // Validate with: niri validate -c ~/.config/niri/config.kdl
 
-// 内屏 eDP-1: 2880x1800@120，2x 缩放（逻辑 1440x900），放在外接屏右侧。
+// 内屏 eDP-1: 2880x1800@120，2x 缩放（逻辑 1440x900），放在外接屏左侧。
 // 注意：MediaTek GPU 缩放下 alacritty 0.18.0-dev 的 GPU 字形渲染会损坏
 // （1x 正常、2x/1.5x 内容重绘后文字丢失），foot 正常；terminal-wayland 已按
 // aarch64 优先 foot。若后续换稳定版 alacritty 可复核（见 README）。
 output "eDP-1" {
     mode "2880x1800@120"
     scale 2.0
-    position x=2048 y=0
+    position x=0 y=0
 }
 
-// 外接屏 DP-2 (AOC Q24E11C): 2560x1440@100，1.25x 缩放（逻辑 2048x1152），放在内屏左侧
+// 外接屏 DP-2 (Dell S2721DGF): 2560x1440@120，1.25x 缩放（逻辑 2048x1152），放在内屏右侧。
+// MediaTek mtdisp 驱动未从 EDID 的 CEA 扩展块暴露 120Hz（实际只报 59.951Hz preferred），
+// 故用显示器官方 120Hz 时序的 modeline 强制（pclk 497.75MHz，取自 EDID CEA 扩展块 DTD）。
+// 若 modeline 失败，niri 会回落到 preferred 59.951Hz，不影响显示。
 output "DP-2" {
-    mode "2560x1440@100"
+    modeline 497.75 2560 2608 2640 2720 1440 1445 1448 1525 "+hsync" "-vsync"
     scale 1.25
-    position x=0 y=0
+    position x=1440 y=0
 }
 
 include "../common.kdl"

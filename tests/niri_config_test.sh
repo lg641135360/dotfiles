@@ -115,15 +115,15 @@ test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal() {
     assert_contains '// Platform: ubuntu_aarch64' "$NIRI_AARCH64_CONFIG"
     assert_contains 'include "../common.kdl"' "$NIRI_AARCH64_CONFIG"
 
-    # External DP-2 (AOC) at 1.25x on the left, internal eDP-1 at 2x HiDPI on the right.
+    # External DP-2 (Dell S2721DGF) at 1.25x on the right, internal eDP-1 at 2x HiDPI on the left.
     assert_contains 'output "eDP-1" {' "$NIRI_AARCH64_CONFIG"
     assert_contains 'mode "2880x1800@120"' "$NIRI_AARCH64_CONFIG"
     assert_contains 'scale 2.0' "$NIRI_AARCH64_CONFIG"
-    assert_contains 'position x=2048 y=0' "$NIRI_AARCH64_CONFIG"
-    assert_contains 'output "DP-2" {' "$NIRI_AARCH64_CONFIG"
-    assert_contains 'mode "2560x1440@100"' "$NIRI_AARCH64_CONFIG"
-    assert_contains 'scale 1.25' "$NIRI_AARCH64_CONFIG"
     assert_contains 'position x=0 y=0' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'output "DP-2" {' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'modeline 497.75 2560 2608 2640 2720 1440 1445 1448 1525 "+hsync" "-vsync"' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'scale 1.25' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'position x=1440 y=0' "$NIRI_AARCH64_CONFIG"
 
     # aarch64 + Wayland 优先 foot：alacritty 0.18.0-dev 在 mtgpu 内屏 2x 字形损坏，
     # foot 渲染正常。其他平台仍优先 alacritty，foot 作最后兜底。
