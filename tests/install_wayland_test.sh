@@ -34,6 +34,11 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/wallpaper-wayland-next|~/.config/scripts/wallpaper-wayland-next|Wayland wallpaper switcher' "$INSTALL_FILE"
     assert_contains '|.config/linux/xdg-desktop-portal/niri-portals.conf|~/.local/share/xdg-desktop-portal/niri-portals.conf|niri desktop portal preferences' "$INSTALL_FILE"
+    # XDG autostart 覆盖：Hidden=true 禁用 GNOME/X11 遗留 autostart（niri 会话）。
+    assert_contains '|.config/linux/xdg-autostart/org.gnome.Evolution-alarm-notify.desktop|~/.config/autostart/org.gnome.Evolution-alarm-notify.desktop|XDG autostart override: evolution-alarm-notify' "$INSTALL_FILE"
+    assert_contains '|.config/linux/xdg-autostart/nm-applet.desktop|~/.config/autostart/nm-applet.desktop|XDG autostart override: nm-applet' "$INSTALL_FILE"
+    assert_contains '|.config/linux/xdg-autostart/print-applet.desktop|~/.config/autostart/print-applet.desktop|XDG autostart override: print-applet' "$INSTALL_FILE"
+    assert_contains '|.config/linux/xdg-autostart/geoclue-demo-agent.desktop|~/.config/autostart/geoclue-demo-agent.desktop|XDG autostart override: geoclue-demo-agent' "$INSTALL_FILE"
     assert_contains 'if command -v niri >/dev/null 2>&1; then' "$INSTALL_FILE"
     assert_contains 'install_niri_config_for_platform()' "$INSTALL_FILE"
     assert_contains 'niri_platform_key()' "$INSTALL_FILE"
@@ -101,6 +106,16 @@ test_install_copies_ubuntu_x64_niri_config() {
     assert_file_exists "$home_dir/.local/share/applications/google-chrome.desktop"
     assert_contains "Exec=$home_dir/.config/scripts/browser-wayland %U" "$home_dir/.local/share/applications/google-chrome.desktop"
     assert_not_contains '__HOME__' "$home_dir/.local/share/applications/google-chrome.desktop"
+
+    # XDG autostart overrides are deployed with Hidden=true.
+    for autostart_override in \
+        org.gnome.Evolution-alarm-notify \
+        nm-applet \
+        print-applet \
+        geoclue-demo-agent; do
+        assert_file_exists "$home_dir/.config/autostart/$autostart_override.desktop"
+        assert_contains 'Hidden=true' "$home_dir/.config/autostart/$autostart_override.desktop"
+    done
 
     rm -rf "$tmpdir"
 }

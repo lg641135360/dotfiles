@@ -27,7 +27,9 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_contains 'run_once_logged' "$AUTOSTART_SCRIPT"
     assert_contains "run_once_logged waybar '(^|/)waybar( |$)' waybar" "$AUTOSTART_SCRIPT"
     assert_contains "run_once_logged mako '(^|/)mako( |$)' mako" "$AUTOSTART_SCRIPT"
-    assert_contains "run_once_logged nm-applet '(^|/)nm-applet( |$)' nm-applet" "$AUTOSTART_SCRIPT"
+    # nm-applet 自启已移除（2026-08-26）：网络状态由 waybar network 模块覆盖，
+    # 其 XDG autostart 由 ~/.config/autostart/nm-applet.desktop 的 Hidden=true 禁用。
+    assert_not_contains "run_once_logged nm-applet '(^|/)nm-applet( |$)' nm-applet" "$AUTOSTART_SCRIPT"
     # pasystray 自启已移除：其音量控制能力由 waybar pulseaudio 模块 + pavucontrol
     # 覆盖，移除后 niri 会话不再有 XWayland 客户端。
     assert_not_contains "run_once_logged pasystray '(^|/)pasystray( |$)' pasystray" "$AUTOSTART_SCRIPT"

@@ -99,9 +99,20 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `gammastep` 自动色温（`~/.local/state/niri/autostart/gammastep.log`）
 - `swayidle`：空闲 10 分钟锁屏；系统主动睡眠前也调用 `lock-wayland`（自动挂起已移除，原因见 logs/trace.md 2026-08-18：挂起唤醒瞬间的网络/显示风暴会让 Electron 应用以未捕获的 `net::ERR_INTERNET_DISCONNECTED` 静默退出）
 - KDE 或 GNOME polkit agent（若存在）
-- `nm-applet`、`blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。
+- `blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。
 
 缺依赖不会中断 niri 启动。
+
+#### 禁用 GNOME/X11 遗留 XDG autostart（2026-08-26）
+
+niri 会话经 systemd 集成（`niri.service` → `xdg-desktop-autostart.target`），`systemd-xdg-autostart-generator` 会处理 `/etc/xdg/autostart/` 下的条目。部分发行版条目用 `NotShowIn=` 排除法（如 `NotShowIn=KDE;GNOME;`），niri 不在排除列表中被命中拉起。本仓库用 `Hidden=true` 同名覆盖文件禁用以下四项（部署到 `~/.config/autostart/`，`X-GNOME-Autostart-enabled` 对 systemd 无效）：
+
+- `org.gnome.Evolution-alarm-notify.desktop`（EDS 提醒；同时它是 evolution D-Bus 三件套的触发源）
+- `nm-applet.desktop`（网络托盘；waybar network 模块已覆盖，且脚本侧 `run_once_logged nm-applet` 一并移除，消除双启动路径）
+- `print-applet.desktop`（打印队列托盘）
+- `geoclue-demo-agent.desktop`（地理位置授权代理，无位置类应用时无用）
+
+`at-spi-dbus-bus`（无障碍总线）保留：freedesktop 通用依赖，且有 D-Bus 二次激活路径。EDS 三件套（evolution-source-registry / addressbook-factory / calendar-factory）是 D-Bus activated static 单元，disable 无效，须 live 侧 `systemctl --user mask`（见 memory/niri.md）。
 
 `Mod+Shift+w` 调用 `wallpaper-wayland-next`，先结束当前 `swaybg`，再复用 `wallpaper-wayland` 重新随机选择壁纸；新壁纸路径仍会写入 `~/.local/state/dotfiles/current-wayland-wallpaper`，供锁屏背景复用。
 

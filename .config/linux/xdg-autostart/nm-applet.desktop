@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=NetworkManager Applet
+Comment=Hidden override: disable nm-applet tray under niri (network status covered by waybar module)
+Hidden=true

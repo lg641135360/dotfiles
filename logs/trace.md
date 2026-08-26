@@ -20,6 +20,15 @@
   ```
 
 
+## 2026-08-26 — 禁用 niri 会话 GNOME/X11 遗留 autostart 与 EDS 三件套
+
+- 目的：后台占用分析发现 niri 会话下 `systemd-xdg-autostart-generator` 经 `NotShowIn=` 排除法拉起 5 个 GNOME/X11 遗留 autostart 服务，且 evolution-alarm-notify 又触发 D-Bus activation 拉起 EDS 三件套（自 7月1日 跨会话常驻）。用户确认完整链路禁用（保留 at-spi）。
+- 改动：① 新增 `.config/linux/xdg-autostart/`（此前为空占位目录）4 个 `Hidden=true` 同名覆盖：`org.gnome.Evolution-alarm-notify` / `nm-applet` / `print-applet` / `geoclue-demo-agent`（`X-GNOME-Autostart-enabled` 对 systemd 无效，必须 `Hidden=true`）；② `install.sh` `linux_wayland_configs` 挂 4 个部署条目（→ `~/.config/autostart/`）；③ `.config/scripts/wayland-autostart` 移除 `run_once_logged nm-applet`（消除脚本+autostart 双路径，网络状态由 waybar network 模块覆盖）；④ `tests/install_wayland_test.sh` 加清单断言 + 沙箱落位断言、`tests/wayland_scripts_test.sh` 改 `assert_not_contains`；⑤ niri README 新增「禁用 GNOME/X11 遗留 XDG autostart」小节；⑥ `memory/niri.md` 沉淀 Hidden=true 覆盖与 EDS mask 决策。
+- 验证：`bash -n install.sh` + `sh -n wayland-autostart` + `git diff --check` 干净；`niri_config_test.sh` / `waybar_config_test.sh` / `wayland_scripts_test.sh` / `install_wayland_test.sh` 全 PASS。
+- live 同步与运行态：已同步 4 个覆盖文件与 wayland-autostart 脚本；已 `systemctl --user mask` EDS 三件套（`~/.config/systemd/user/` 3 个 `/dev/null` symlink）+ `daemon-reload` + `stop` 全部相关服务。验证：generator 不再生成对应单元、`ps` 无相关进程、`is-enabled` 三件套均 masked；at-spi 与 goa-daemon 按计划保留/未处理。
+- 回滚信息：未提交。仓库回滚 `git checkout -- install.sh .config/scripts/wayland-autostart tests/ memory/niri.md .config/linux/niri/README.md && rm .config/linux/xdg-autostart/*.desktop`。live 回滚：`cp ~/.config/scripts/wayland-autostart.backup.20260826_200820.411775667 ~/.config/scripts/wayland-autostart && rm ~/.config/autostart/{org.gnome.Evolution-alarm-notify,nm-applet,print-applet,geoclue-demo-agent}.desktop && systemctl --user unmask evolution-source-registry.service evolution-addressbook-factory.service evolution-calendar-factory.service && systemctl --user daemon-reload`（evolution-alarm-notify.desktop 在 live 无原文件，无需恢复）。
+- 后续可能方向：① goa-daemon（GNOME Online Accounts，D-Bus 激活，7月1日起常驻）本轮未动，若确认无用可同法 mask；② 下次注销重登验证 4 个 autostart 单元不再拉起；③ 钉钉/Chrome 内存大户另行处理（本轮未涉及）。
+
 ## 2026-08-24 — memory 固化 brew vs 系统包管理器落地准则
 
 - 目的：把「哪些软件适合 brew、哪些适合系统包管理器（zypper/apt）」的归类固化为可复用整理规则，避免每次装软件重新推导。

@@ -17,7 +17,9 @@
 - gammastep 只跑后台守护进程，不启用托盘指示器：`gammastep-indicator.service` 需 mask（该 unit 全局 enabled，仅 disable 无效；用 `systemctl --user mask gammastep-indicator.service`）。原因：niri 纯 Wayland 无 XSETTINGS 时其 `Gtk.IconTheme.get_default()` 返回 `None` 导致崩溃循环、空耗 CPU，且用户不想要托盘图标。
 - aarch64 恢复 gammastep 自动夜览（2026-08-23）：曾因 4800K 夜览经 wlr-gamma-control 压低色温把外接屏压得过暗而禁用；现改用温和夜间色温 5500K 减小蓝通道衰减、降低变暗幅度，并把亮度保持上限 `-b 1.0:1.0`（gammastep 亮度范围 0.1~1.0，无法用它提亮补偿），全平台统一启用。
 - niri 会话下 launcher 主线为 Fuzzel + Catppuccin Mocha + CJK 字体；Rofi 保留为 fallback，不作为 Wayland 主力入口。
-- niri autostart 可启动与 Awesome 对齐的可选托盘/辅助服务：`nm-applet`、`blueman-applet`、`udiskie -t`；缺命令时由 `run_once` 静默跳过；`pot` 不再默认自启动。`pasystray` 自启已移除（2026-08-13）：其音量控制由 waybar `pulseaudio` 模块 + 右键 `pavucontrol` 覆盖，移除后 niri 会话不再残留 XWayland 客户端；若日后需要托盘快速切音源，可重新加入。
+- niri autostart 可启动与 Awesome 对齐的可选托盘/辅助服务：`blueman-applet`、`udiskie -t`；缺命令时由 `run_once` 静默跳过；`pot` 不再默认自启动。`pasystray` 自启已移除（2026-08-13）：其音量控制由 waybar `pulseaudio` 模块 + 右键 `pavucontrol` 覆盖，移除后 niri 会话不再残留 XWayland 客户端；若日后需要托盘快速切音源，可重新加入。
+- niri 会话下禁用 GNOME/X11 遗留 XDG autostart（2026-08-26）：niri 经 systemd 集成拉起 `xdg-desktop-autostart.target`，发行版条目用 `NotShowIn=` 排除法（排除 KDE/GNOME 等）时 niri 会被命中。仓库以 `Hidden=true` 同名覆盖文件（`.config/linux/xdg-autostart/` → `~/.config/autostart/`）禁用 `evolution-alarm-notify`、`nm-applet`、`print-applet`、`geoclue-demo-agent`；`X-GNOME-Autostart-enabled=false` 对 systemd 无效，必须用 `Hidden=true`。`nm-applet` 脚本侧启动行一并移除（waybar network 模块覆盖，不留双路径）。`at-spi-dbus-bus` 保留：freedesktop 无障碍总线，有 D-Bus 二次激活路径，硬禁需 mask 两个单元且伤及 GTK/Chromium 无障碍功能。
+- EDS 三件套（evolution-source-registry / addressbook-factory / calendar-factory）是 D-Bus activated 的 static 单元（`/usr/share/dbus-1/services/*.service` 指向），disable 无效、只 stop 会被任意 EDS 客户端再次激活，须 `systemctl --user mask` + stop；主要触发源是 evolution-alarm-notify autostart，禁用覆盖文件是组合拳的前半段。
 
 ## portal / polkit
 - niri portal 偏好使用用户级 `~/.local/share/xdg-desktop-portal/niri-portals.conf`，默认 `gnome;gtk`，但 `FileChooser` 显式指定 `gtk`，避免缺少 Nautilus 时文件选择器失效；polkit agent 候选需覆盖 Ubuntu 的 `/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1`。

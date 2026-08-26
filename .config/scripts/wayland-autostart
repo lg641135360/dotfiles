@@ -214,7 +214,9 @@ start_portal_after_niri
 
 run_once_logged waybar '(^|/)waybar( |$)' waybar
 run_once_logged mako '(^|/)mako( |$)' mako
-run_once_logged nm-applet '(^|/)nm-applet( |$)' nm-applet
+# nm-applet 已移除（2026-08-26）：网络状态由 waybar network 模块覆盖，且其 XDG
+# autostart 由 ~/.config/autostart/nm-applet.desktop 的 Hidden=true 覆盖禁用，
+# 不再保留脚本 + autostart 双启动路径。
 run_once_logged blueman-applet '(^|/)blueman-applet( |$)' blueman-applet
 run_once_logged udiskie '(^|/)udiskie( |$)' udiskie -t
 

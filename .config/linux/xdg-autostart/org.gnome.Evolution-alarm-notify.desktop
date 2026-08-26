@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Events and Tasks Reminders
+Comment=Hidden override: disable evolution-alarm-notify under niri (EDS services are not used)
+Hidden=true
