@@ -41,6 +41,14 @@
   - `mmap frame`
 - aarch64 默认原生捕获路径不加载 hook，因此不应以这些 hook 日志判断共享是否成功
 
+## 输入法随机失效（fcitx5#1641，XIM sync 死锁）
+- 症状：钉钉运行一段时间后随机"键盘失灵"——聊天框（CEF）所有按键（含纯英文）被吞、候选框不再弹出，重启钉钉才恢复；Qt 层（搜索框等，走自带 fcitx5 DBus 插件）不受影响。
+- 归属：社区同款 issue fcitx5#1641（2026-08-12，Open）：xcb-imdkit 1.0.6 XIM sync mode 下，`XIM_DESTROY_IC` 与在途 `XIM_SYNC_REPLY` 微秒级竞争（实测仅差 134µs）→ `_xcb_im_handle_sync_reply` 找不到 IC 提前退出 → `client->sync` 永不复位、后续按键全部入队不派发。钉钉 CEF 109 走 XWayland/XIM（`XMODIFIERS=@im=fcitx`），正好命中；本地 fcitx5 5.1.7（apt）早于且不包含修复，上游 xcb-imdkit 修复尚未合并。
+- 临时缓解：失效时重启 fcitx5（死锁状态在 fcitx5 进程内，重启即清零，影响面比重启钉钉小）。
+- Workaround（issue 作者实测）：fcitx5 XIM 前端关 sync mode（`xim.cpp:163` `xcb_im_set_use_sync_mode` 改 `false` 重编译）；apt 包本地替换后升级会被覆盖，维护成本高，未采用。
+- 实锤手段（下次失效时）：`fcitx5 -d --replace --verbose xim=4` 后观察日志是否出现"连续 `FORWARD_EVENT` 无处理行"特征。
+- 后续：等 xcb-imdkit 上游修复合并随发行版更新；届时验证钉钉不再随机失效即可关闭本条。
+
 ## 已知问题
 - 共享屏幕时必须接受 portal 选择窗口/屏幕的对话框，不能取消
 - 依赖 PipeWire、WirePlumber、xdg-desktop-portal
