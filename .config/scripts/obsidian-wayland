@@ -1,0 +1,53 @@
+#!/bin/sh
+# Obsidian (Electron/Chromium AppImage) Wayland entrypoint. Like other Electron
+# apps, Obsidian defaults to the X11 (ozone/x11) platform and runs through the
+# XWayland compatibility layer under niri. Chromium 130 supports native
+# Wayland; switch it over under a Wayland session and pass through unchanged
+# under X11.
+#
+# The AppImage filename embeds the version (Obsidian-1.8.7_<hash>.AppImage), so
+# discover it by glob instead of hardcoding: upgrades keep working without
+# touching this script.
+
+wayland_session=0
+if [ -n "${WAYLAND_DISPLAY:-}" ] || [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
+    wayland_session=1
+fi
+
+appimage=$(find "$HOME/Applications" -maxdepth 1 -name 'Obsidian-*.AppImage' -type f 2>/dev/null |
+    sort -V | tail -n 1)
+
+if [ -z "$appimage" ] || [ ! -x "$appimage" ]; then
+    printf '%s\n' 'Obsidian unavailable: no ~/Applications/Obsidian-*.AppImage found.' >&2
+    exit 127
+fi
+
+# Launch through /usr/bin/AppImageLauncher instead of exec'ing the AppImage
+# directly. Direct exec hits the binfmt_misc interpreter, whose argv relay to
+# AppImageLauncher is buggy: with >=4 total args the forwarded argv array is
+# not NULL-terminated (strace shows garbage pointers -> execv EFAULT), which
+# made fuzzel launches fail. /usr/bin/AppImageLauncher itself is fine.
+exec_appimage() {
+    if [ -x /usr/bin/AppImageLauncher ]; then
+        exec /usr/bin/AppImageLauncher "$appimage" "$@"
+    fi
+    # Fallback for machines without appimagelauncher (no binfmt entry either):
+    # plain exec works when the kernel does not intercept.
+    exec "$appimage" "$@"
+}
+
+if [ "$wayland_session" = "1" ]; then
+    # Obsidian 1.8.7 ships Electron 33 / Chromium 130:
+    #   --enable-wayland-ime gives Fcitx5/Rime input method support on Wayland;
+    #   --wayland-text-input-version=3 is REQUIRED because Chromium 130 still
+    #   defaults to text-input-v1, which niri does not implement (IME silently
+    #   dead without it; verified on niri 26.04). Chromium >= 13x (Chrome 152,
+    #   Trae 1.107) default to v3 and do not need the flag.
+    exec_appimage --no-sandbox \
+        --ozone-platform=wayland \
+        --enable-wayland-ime \
+        --wayland-text-input-version=3 \
+        "$@"
+fi
+
+exec_appimage --no-sandbox "$@"

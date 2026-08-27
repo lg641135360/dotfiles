@@ -35,6 +35,18 @@
 - niri/Wayland 下 Satty 启动前应 `unset GTK_IM_MODULE`，让 GTK4 走 Wayland text-input/fcitx 路径
 - Wayland autostart 中统一 `unset GTK_IM_MODULE`，`export QT_IM_MODULE=fcitx` 等 Qt 应用仍需
 
+## Chromium/Electron 应用的 Wayland text-input 版本矩阵（x86_64 niri 26.04 实测）
+- niri 只实现 text-input v3；Chromium 系应用需显式或默认 v3，否则 fcitx5 中文输入**静默失效**（无报错，就是不响应）
+- 版本分界：Chromium 130（Electron 33，如 Obsidian 1.8.7）默认 text-input v1 → 必须 `--wayland-text-input-version=3`；Chrome 152 / Trae 1.107 默认已 v3，无需该 flag
+- 判断某 Electron 应用是否需要：`strings <binary> | grep 'Chrome/[0-9]'` 查 Chromium 版本，≥ 大约 13x 默认 v3；不确定就直接加，新 Chromium 会忽略无害
+- 排障入口：先确认 `--ozone-platform=wayland --enable-wayland-ime` 已带，再怀疑 text-input 版本
+- 2026-08-27 已落地：Obsidian（AppImage，glob 发现）经 `~/.config/scripts/obsidian-wayland` + `desktop-entries/obsidian.desktop` 切原生 Wayland，fcitx5 输入实测正常；钉钉（CEF 109）与 corplink（Electron 22）保持 XWayland 不迁
+
+## appimagelauncher binfmt argv bug（x86_64 实测）
+- 直接 `exec AppImage`（带 ≥4 个总参数）时被 binfmt_misc 拦给 `/opt/appimagelauncher.AppDir/.../binfmt-interpreter`，它向 `/usr/bin/AppImageLauncher` 转发 argv 时数组未 NULL 终止 → `execv EFAULT`，启动失败；0-3 个参数正常（易误判为随机故障）
+- 稳定绕法：脚本显式 `exec /usr/bin/AppImageLauncher <AppImage> <args...>`，其内部 binfmt-bypass 组件自行构造正确 argv；无 appimagelauncher 的机器回退裸 exec
+- 排障手法：`strace -f -e trace=execve` 看 interpreter 转发时的 argv 尾部是否跟垃圾指针；`AppImageLauncher` 包装进程退出（SIGTERM code 15）≠ Obsidian 退出，它挂载后会 fork 独立进程
+
 ### Rime（fcitx5-rime）在 MediaTek 定制 librime 上
 - MediaTek 定制 librime **不支持 lua 插件**（`lua_processor`/`lua_translator`/`lua_filter` 均无法创建），而 rime-ice 全系 schema（`rime_ice`/`double_pinyin_*`）都依赖 lua 组件 → 启动即报错。
 - 已按「方案 3a 剥离 lua」处理 live `~/.local/share/fcitx5/rime/rime_ice.schema.yaml`：engine 移除全部 lua 组件与对应配置块/recognizer 规则/开关，并去掉 corrector 用的 `［］comment_format`。基本拼音、词库、候选排序正常；失去以词定字、日期/农历/大写数字/计算器、错音提示、英文自动大写、v 模式、长词优先、部件拆字辅码、置顶候选项等 lua 扩展。

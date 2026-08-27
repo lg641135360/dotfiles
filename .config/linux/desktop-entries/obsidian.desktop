@@ -1,0 +1,16 @@
+[Desktop Entry]
+Name=Obsidian
+Comment=Obsidian knowledge base (native Wayland under niri)
+# Route through obsidian-wayland so the Wayland session adds
+# --ozone-platform=wayland --enable-wayland-ime --wayland-text-input-version=3;
+# the wrapper discovers the versioned AppImage by glob. X11 passes through
+# unchanged. __HOME__ is rewritten to the real $HOME by install.sh at deploy
+# time so the entry is portable across machines/users.
+Exec=__HOME__/.config/scripts/obsidian-wayland %U
+Icon=obsidian
+Type=Application
+StartupNotify=false
+StartupWMClass=obsidian
+Categories=Office;
+MimeType=x-scheme-handler/obsidian;
+Keywords=obsidian;notes;

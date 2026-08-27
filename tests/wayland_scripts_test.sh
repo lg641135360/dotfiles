@@ -21,6 +21,8 @@ BROWSER_SCRIPT=$REPO_ROOT/.config/scripts/browser-wayland
 CHROME_DESKTOP=$REPO_ROOT/.config/linux/desktop-entries/google-chrome.desktop
 TRAE_SCRIPT=$REPO_ROOT/.config/scripts/trae-cn-wayland
 TRAE_DESKTOP=$REPO_ROOT/.config/linux/desktop-entries/trae-cn.desktop
+OBSIDIAN_SCRIPT=$REPO_ROOT/.config/scripts/obsidian-wayland
+OBSIDIAN_DESKTOP=$REPO_ROOT/.config/linux/desktop-entries/obsidian.desktop
 
 test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_executable "$AUTOSTART_SCRIPT"
@@ -615,6 +617,32 @@ test_trae_cn_forces_wayland_with_ime() {
     assert_not_contains 'Exec=/usr/share/trae-cn/trae-cn' "$TRAE_DESKTOP"
 }
 
+test_obsidian_wayland_forces_wayland_with_text_input_v3() {
+    assert_executable "$OBSIDIAN_SCRIPT"
+    assert_contains '--ozone-platform=wayland' "$OBSIDIAN_SCRIPT"
+    # Fcitx5/Rime needs Wayland IME; must be present.
+    assert_contains '--enable-wayland-ime' "$OBSIDIAN_SCRIPT"
+    # Obsidian 1.8.7 = Electron 33 / Chromium 130, which still defaults to
+    # text-input-v1; niri only implements v3, so IME is silently dead without
+    # this flag (verified on niri 26.04).
+    assert_contains '--wayland-text-input-version=3' "$OBSIDIAN_SCRIPT"
+    # AppImage filename embeds the version; the wrapper must discover it by
+    # glob so upgrades do not break the entry.
+    assert_contains "Obsidian-*.AppImage" "$OBSIDIAN_SCRIPT"
+    # Launch via /usr/bin/AppImageLauncher: direct exec hits the buggy
+    # binfmt interpreter (>=4 args -> unterminated argv -> execv EFAULT).
+    assert_contains '/usr/bin/AppImageLauncher' "$OBSIDIAN_SCRIPT"
+    assert_contains 'exec_appimage' "$OBSIDIAN_SCRIPT"
+
+    # fuzzel launches the desktop entry, so its Exec must route through the wrapper.
+    assert_file_exists "$OBSIDIAN_DESKTOP"
+    assert_contains 'Exec=__HOME__/.config/scripts/obsidian-wayland %U' "$OBSIDIAN_DESKTOP"
+    # Exec must not hardcode the versioned AppImage path (glob-discovered in
+    # the wrapper); AppImage may still appear in comments.
+    exec_line=$(grep '^Exec=' "$OBSIDIAN_DESKTOP")
+    assert_not_contains 'AppImage' "$exec_line"
+}
+
 test_wayland_autostart_checks_apps_and_separates_logs
 test_wayland_autostart_logs_each_app_and_warns_for_missing_commands
 test_file_manager_wayland_uses_available_fallbacks
@@ -631,5 +659,6 @@ test_dingtalk_wayland_entrypoint_preserves_preload_contract
 test_browser_wayland_forces_native_wayland_ozone
 test_browser_wayland_passes_ozone_flag_only_under_wayland
 test_trae_cn_forces_wayland_with_ime
+test_obsidian_wayland_forces_wayland_with_text_input_v3
 
 printf 'PASS: wayland scripts tests\n'
