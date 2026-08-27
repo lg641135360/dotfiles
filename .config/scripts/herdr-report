@@ -1,0 +1,50 @@
+#!/bin/sh
+# Bridge Trae CLI lifecycle hooks to Herdr agent state reporting.
+# Trae CLI is not in Herdr's built-in agent list, so ~/.trae/trae_cli.yaml hooks
+# call this script with a state mode; it reports via the Herdr socket API so the
+# sidebar/waits/notifications see idle/working/blocked. Guarded by HERDR_ENV so
+# it stays a no-op outside Herdr panes.
+
+set -u
+
+[ "${HERDR_ENV:-}" = "1" ] || exit 0
+[ -n "${HERDR_PANE_ID:-}" ] || exit 0
+
+HERDR="${HERDR_BIN_PATH:-herdr}"
+PANE="$HERDR_PANE_ID"
+SOURCE="custom:trae"
+
+MODE="${1:-}"
+
+# Hook JSON arrives on stdin; cache it once, then extract fields without jq.
+INPUT=$(cat 2>/dev/null || true)
+SESSION_ID=$(printf '%s' "$INPUT" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
+
+report() {
+    # report <state> [message]; values below are space-free so word-splitting is safe
+    # (herdr's clap rejects --opt=value, options must be space-separated)
+    opts=""
+    [ -n "$SESSION_ID" ] && opts="$opts --agent-session-id $SESSION_ID"
+    [ -n "${2:-}" ] && opts="$opts --message $2"
+    # shellcheck disable=SC2086
+    "$HERDR" pane report-agent "$PANE" --source "$SOURCE" --agent trae \
+        --state "$1" $opts >/dev/null 2>&1 || true
+}
+
+case "$MODE" in
+    working|idle)
+        report "$MODE"
+        ;;
+    notify)
+        # notification event: map notification_type to a semantic state
+        NTYPE=$(printf '%s' "$INPUT" | sed -n 's/.*"notification_type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
+        case "$NTYPE" in
+            permission_prompt) report blocked awaiting-permission ;;
+            elicitation_dialog) report blocked awaiting-user-answer ;;
+            *) report idle ;;
+        esac
+        ;;
+    release)
+        "$HERDR" pane release-agent "$PANE" --source "$SOURCE" --agent trae >/dev/null 2>&1 || true
+        ;;
+esac

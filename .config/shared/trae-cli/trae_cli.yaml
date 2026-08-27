@@ -1,0 +1,24 @@
+allowed_tools:
+    - Bash(git status --short .config/linux/xdg-autostart/)
+model:
+    name: GLM-5.3
+trae_login_base_url: https://console.enterprise.trae.cn
+hooks:
+    - type: command
+      command: ~/.config/scripts/herdr-report working
+      matchers:
+          - event: user_prompt_submit
+          - event: pre_tool_use
+    - type: command
+      command: ~/.config/scripts/herdr-report idle
+      matchers:
+          - event: session_start
+          - event: stop
+    - type: command
+      command: ~/.config/scripts/herdr-report notify
+      matchers:
+          - event: notification
+    - type: command
+      command: ~/.config/scripts/herdr-report release
+      matchers:
+          - event: session_end

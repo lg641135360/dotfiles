@@ -20,6 +20,16 @@
   ```
 
 
+## 2026-08-27 — Trae CLI 接入 herdr 状态监控（hooks 桥接）
+
+- 目的：herdr 原生 agent 列表不含 trae，用户要落地"trae-cli 接入 herdr 监控"。方案 = Trae CLI hooks（`~/.trae/trae_cli.yaml`）→ 桥接脚本 → herdr socket API `pane report-agent`（idle/working/blocked + release）。
+- 改动：① 新增 `.config/scripts/herdr-report`（POSIX sh；`HERDR_ENV=1` 门控外部 no-op；sed 提取 stdin JSON 的 session_id/notification_type，无 jq 依赖；notify 模式细分 permission_prompt/elicitation_dialog→blocked）；② 新增 `.config/shared/trae-cli/trae_cli.yaml`（合并 live 原 4 行配置 + hooks 段：user_prompt_submit/pre_tool_use→working、session_start/stop→idle、notification→notify、session_end→release）；③ `install.sh` `shared_configs` 挂 2 条（herdr-report 脚本 `command -v herdr` 门控、trae_cli.yaml `command -v trae-cli` 门控）；④ `tests/herdr_config_test.sh` 扩 5 组断言；⑤ README 目录树补 2 行；⑥ `memory/herdr.md` 沉淀接入方案。
+- 验证：`sh -n herdr-report` / `bash -n install.sh` / `git diff --check` 干净；`./tests/run.sh fast` 44/44 PASS（含补 `tests/herdr_config_test.sh` 可执行位——run.sh 直接执行需 x 位，历史遗留缺失）；运行态实测（本会话所在 pane `w3:p1`）：working/blocked/idle 上报 + release 后 agent 消失，`herdr agent list` 状态流转全部正确；无 `HERDR_ENV` 时 no-op。
+- 踩坑：herdr 的 clap 不认 `--opt=value` 等号格式（报 unknown option exit=2），选项必须空格分隔——脚本首版用等号格式实测失败后已修正为空格分隔。
+- live 同步：已部署 `~/.config/scripts/herdr-report`（含修正版）与 `~/.trae/trae_cli.yaml`；backup：`~/.trae/trae_cli.yaml.backup.20260827_201938`（仅 1 份，无需清理）。
+- 回滚信息：未提交。仓库回滚：`git checkout -- install.sh tests/herdr_config_test.sh README.md memory/herdr.md && rm .config/scripts/herdr-report .config/shared/trae-cli/trae_cli.yaml`。live 回滚：`cp ~/.trae/trae_cli.yaml.backup.20260827_201938 ~/.trae/trae_cli.yaml && rm ~/.config/scripts/herdr-report`。
+- 后续可能方向：① 在 herdr pane 里真实跑一轮 trae-cli 会话，确认 hooks 触发的端到端流转与 sidebar 展示；② 若 herdr 未来原生支持 trae（`agent start --kind` 枚举），可移除桥接改用原生集成；③ `--seq` 乱序保护当前未加（hooks 串行触发场景暂无乱序），若实测出现状态回跳再补。
+
 ## 2026-08-26 — 禁用 niri 会话 GNOME/X11 遗留 autostart 与 EDS 三件套
 
 - 目的：后台占用分析发现 niri 会话下 `systemd-xdg-autostart-generator` 经 `NotShowIn=` 排除法拉起 5 个 GNOME/X11 遗留 autostart 服务，且 evolution-alarm-notify 又触发 D-Bus activation 拉起 EDS 三件套（自 7月1日 跨会话常驻）。用户确认完整链路禁用（保留 at-spi）。

@@ -16,6 +16,7 @@
 │   │   ├── ssh/         # SSH base 配置
 │   │   ├── starship.toml # 跨平台 shell 提示符
 │   │   ├── tmux/        # tmux 配置和 tab 标题脚本
+│   │   ├── trae-cli/    # Trae CLI 配置（hooks 桥接 herdr 状态上报）
 │   │   └── zsh/         # zsh 模块化配置（.zshrc / aliases / path / env 等）
 │   ├── linux/           # Linux 桌面环境配置
 │   │   ├── awesome/     # AwesomeWM 窗口管理器
@@ -51,6 +52,7 @@
 │       ├── browser-wayland/   # Wayland Chrome 启动器
 │       ├── trae-cn-wayland/   # Wayland Trae CN 启动器
 │       ├── waybar-system-tooltip/  # Waybar CPU/MEM tooltip 脚本
+│       ├── herdr-report/      # Trae CLI 生命周期 → herdr 状态上报桥接
 ├── scripts/          # TypeScript 工具（trace 归档等）
 ├── tests/            # 回归测试
 │   ├── run.sh        # 测试运行器

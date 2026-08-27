@@ -330,6 +330,8 @@ shared_configs=(
     "command -v ssh|.config/shared/ssh/config|~/.ssh/config.base|SSH base config"
     "command -v starship|.config/shared/starship.toml|~/.config/starship.toml|Starship prompt"
     "command -v herdr|.config/shared/herdr/config.toml|~/.config/herdr/config.toml|Herdr"
+    "command -v herdr|.config/scripts/herdr-report|~/.config/scripts/herdr-report|Herdr agent report script"
+    "command -v trae-cli|.config/shared/trae-cli/trae_cli.yaml|~/.trae/trae_cli.yaml|Trae CLI"
 )
 
 # Directory configurations
