@@ -27,7 +27,7 @@
 - 验证：`sh -n herdr-report` / `bash -n install.sh` / `git diff --check` 干净；`./tests/run.sh fast` 44/44 PASS（含补 `tests/herdr_config_test.sh` 可执行位——run.sh 直接执行需 x 位，历史遗留缺失）；运行态实测（本会话所在 pane `w3:p1`）：working/blocked/idle 上报 + release 后 agent 消失，`herdr agent list` 状态流转全部正确；无 `HERDR_ENV` 时 no-op。
 - 踩坑：herdr 的 clap 不认 `--opt=value` 等号格式（报 unknown option exit=2），选项必须空格分隔——脚本首版用等号格式实测失败后已修正为空格分隔。
 - live 同步：已部署 `~/.config/scripts/herdr-report`（含修正版）与 `~/.trae/trae_cli.yaml`；backup：`~/.trae/trae_cli.yaml.backup.20260827_201938`（仅 1 份，无需清理）。
-- 回滚信息：未提交。仓库回滚：`git checkout -- install.sh tests/herdr_config_test.sh README.md memory/herdr.md && rm .config/scripts/herdr-report .config/shared/trae-cli/trae_cli.yaml`。live 回滚：`cp ~/.trae/trae_cli.yaml.backup.20260827_201938 ~/.trae/trae_cli.yaml && rm ~/.config/scripts/herdr-report`。
+- 回滚信息：commit `886644e`（撤回用 `git revert 886644e`）。live 回滚：`cp ~/.trae/trae_cli.yaml.backup.20260827_201938 ~/.trae/trae_cli.yaml && rm ~/.config/scripts/herdr-report`。
 - 后续可能方向：① 在 herdr pane 里真实跑一轮 trae-cli 会话，确认 hooks 触发的端到端流转与 sidebar 展示；② 若 herdr 未来原生支持 trae（`agent start --kind` 枚举），可移除桥接改用原生集成；③ `--seq` 乱序保护当前未加（hooks 串行触发场景暂无乱序），若实测出现状态回跳再补。
 
 ## 2026-08-26 — 禁用 niri 会话 GNOME/X11 遗留 autostart 与 EDS 三件套
