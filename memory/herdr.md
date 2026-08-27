@@ -8,6 +8,11 @@
 - pane 分屏仅用于「需要同一屏并排看两个实时输出」时（如左 agent、右 tail -f 日志），不追求平铺一堆 pane。
 - herdr 是 mouse-first + agent-aware：默认鼠标即可（点 pane/tab、拖分屏边框、右键菜单），键盘为可选增强。
 
+## herdr 与 tmux 分工（共存边界）
+- herdr 管 agent 会话：agent 检测与状态上报（sidebar 汇总 working / blocked / done / idle）、wait / notification / rollup；workspace = repo/任务容器。
+- tmux 管普通终端：日常 shell、批量运维、同步输入广播（synchronize-panes，herdr 无等价功能）。
+- 判定顺序：会话主体是 AI agent 且需要状态监控/通知 → herdr；普通终端操作或需要输入广播 → tmux。同一任务不两边重复铺 pane。
+
 ## 同步输入
 - herdr 无 tmux synchronize-panes（prefix+s 广播输入）等价功能：官方全部 keys 动作列表无多 pane 输入注入类动作，`[[keys.command]]` 的 type 只有 popup / pane / shell / plugin_action，也无 broadcast。
 - 定位差异：tmux 是通用终端复用器（pane 跑普通 shell，同步输入用于批量运维）；herdr 是 AI agent 复用器（pane 跑 agent 会话，广播输入给多个 agent 有副作用风险）。
