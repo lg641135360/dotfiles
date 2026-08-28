@@ -47,7 +47,9 @@
 - 稳定绕法：脚本显式 `exec /usr/bin/AppImageLauncher <AppImage> <args...>`，其内部 binfmt-bypass 组件自行构造正确 argv；无 appimagelauncher 的机器回退裸 exec
 - 排障手法：`strace -f -e trace=execve` 看 interpreter 转发时的 argv 尾部是否跟垃圾指针；`AppImageLauncher` 包装进程退出（SIGTERM code 15）≠ Obsidian 退出，它挂载后会 fork 独立进程
 
-### Rime（fcitx5-rime）在 MediaTek 定制 librime 上
+### Rime（fcitx5-rime）lua 支持按机型区分
+- **机型判定**：先确认 librime 是否带 lua 插件，再决定是否走「剥离 lua」方案。x86_64 Ubuntu 官方 apt librime（如 1.10.0）自带 `librime-plugin-lua`（`/usr/lib/x86_64-linux-gnu/rime-plugins/librime-lua.so`），**无需剥离 lua**，rime-ice 全功能可直接跑；仅 MediaTek 定制 librime（aarch64）无 lua，才需要走下方「方案 3a 剥离 lua」。
+- 2026-08-28 已把 x86_64 机器 live `~/.local/share/fcitx5/rime` 升级到 rime-ice 最新 stable tag `2026.06.30`（完整 lua）：`git checkout -- .` 丢弃旧剥离改动 → `git checkout 2026.06.30` → 旧 `build/` 移走备份后 `rime_deployer --build` 重建 → `pkill fcitx5 && fcitx5 -d --replace`。验证：`3 tasks success / 0 failure`、加载 `lua/lunar.db`（lua 路径激活）、无 SIGSEGV。回滚锚点见 `logs/trace.md` 2026-08-28 条（live rime 独立 git `git checkout 7acdee6` 或整目录 `/tmp/rime-backup-20260828-092429` 恢复）。
 - MediaTek 定制 librime **不支持 lua 插件**（`lua_processor`/`lua_translator`/`lua_filter` 均无法创建），而 rime-ice 全系 schema（`rime_ice`/`double_pinyin_*`）都依赖 lua 组件 → 启动即报错。
 - 已按「方案 3a 剥离 lua」处理 live `~/.local/share/fcitx5/rime/rime_ice.schema.yaml`：engine 移除全部 lua 组件与对应配置块/recognizer 规则/开关，并去掉 corrector 用的 `［］comment_format`。基本拼音、词库、候选排序正常；失去以词定字、日期/农历/大写数字/计算器、错音提示、英文自动大写、v 模式、长词优先、部件拆字辅码、置顶候选项等 lua 扩展。
 - **改完 schema 必须重建过期 .bin**：`rime_deployer --build` 只更新 prism/schema，`table.bin`/`reverse.bin` 可能仍是旧文件 → prism 与字典 .bin 不一致会导致 fcitx5 加载 rime 时 SIGSEGV 崩溃（栈在 `SchemaUpdate::Run → Config::GetString → ConfigData::Traverse`）。安全做法：删除 `build/` 下对应 schema 的 `{prism,table,reverse}.bin` 再 `rime_deployer --build`，最后 `pkill fcitx5 && fcitx5 -d --replace`。

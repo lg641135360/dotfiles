@@ -121,3 +121,13 @@
 - live 同步与运行态：已部署 `~/.config/scripts/obsidian-wayland`（755，含 binfmt 修复的版本，另有初版备份 `obsidian-wayland.backup.20260827_151027`）与 `~/.local/share/applications/obsidian.desktop`（__HOME__ 已替换）并 `update-desktop-database`；经用户确认后已删除 appimagelauncher 自动生成的旧 entry（`appimagekit_...-Obsidian.desktop`，XWayland 路径）。备份：`~/.local/share/applications/appimagekit_9dc8ca19e5f508378990f6571c8c263c-Obsidian.desktop.backup.20260827_144918`。
 - 回滚信息：commit `fb3eea5`（撤回用 `git revert fb3eea5`）；live 恢复：`cp ~/.local/share/applications/appimagekit_9dc8ca19e5f508378990f6571c8c263c-Obsidian.desktop.backup.20260827_144918 ~/.local/share/applications/appimagekit_9dc8ca19e5f508378990f6571c8c263c-Obsidian.desktop && rm ~/.local/share/applications/obsidian.desktop ~/.config/scripts/obsidian-wayland*`（删除的旧 entry 一并从备份恢复）。
 - 后续可能方向：① AppImage 升级后 appimagelauncher 可能重新生成带版本号的旧 entry，届时再删一次即可（备份仍可复用）；② appimagelauncher binfmt-interpreter 的 argv bug 属上游问题，影响所有"exec AppImage 且带 ≥4 参数"的脚本，遇到同类 execv EFAULT 时参考本条绕法；③ corplink（Electron 22）与钉钉（CEF 109）保持 XWayland，不迁。
+
+
+## 2026-08-28 — rime-ice 升级到最新完整 lua 版（x86_64 Ubuntu 恢复 lua）
+
+- 目的：用户反馈"fcitx5 一直弹通知"；排查确认为 rime-ice 在部署完成时反复发 `deploy success` 通知。进一步发现本机（x86_64 Ubuntu，librime 官方 apt 1.10.0 自带 `librime-plugin-lua`）的 live rime 目录仍跑着"剥离 lua"的降级 schema——memory/desktop.md 的 MediaTek aarch64 无 lua 结论不适用于本机，属配置与机器错配。用户确认目标即本机，要求彻底恢复完整 lua。
+- 改动（live `~/.local/share/fcitx5/rime`，独立 git clone，非 dotfiles 仓库）：① `git checkout -- .` 丢弃当初剥离 lua 的 70 个文件本地改动（词库/用户数据在 .gitignore 不受影响）；② `git checkout 2026.06.30`（最新 stable tag，HEAD `6810e89`，恢复全部 schema 含 double_pinyin_jiajia）；③ 旧 `build/` 移走备份后 `rime_deployer --build` 全新重建（11 schemas success, 0 failure）；④ `pkill fcitx5 && fcitx5 -d --replace` 重启，verbose 日志确认 `Notification: 0 deploy success` 且无 SIGSEGV。
+- 验证：`rime_deployer --build` exit 0；fcitx5 日志 `3 tasks ran: 3 success, 0 failure`、加载 `lua/lunar.db`（lua 路径激活）；crash.log 为空；进程稳定运行（pid 1950858）。
+- live 同步与运行态：已重启 fcitx5 生效（用户授权"彻底解决"）。备份：整目录 `/tmp/rime-backup-20260828-092429`、旧 build `/tmp/build-old-20260828-*`、crash.log `/tmp/crash.log.bak-*`。
+- 回滚信息：live rime 独立 git，回滚＝`cd ~/.local/share/fcitx5/rime && git checkout 7acdee6`（剥离版原 HEAD）；或整目录从 `/tmp/rime-backup-20260828-092429` 恢复后 `rime_deployer --build && pkill fcitx5 && fcitx5 -d --replace`。
+- 后续可能方向：① 用户实测以词定字/日期/农历/计算器等 lua 扩展是否恢复；② 若仍偶发部署通知可再在 `~/.config/fcitx5/conf/notifications.conf` 的 `HiddenNotifications` 填 `rime-deploy-done` 屏蔽该条；③ memory/desktop.md 需补充"x86_64 官方 librime 自带 lua，无需剥离"与 MediaTek 机型区分，避免再次错配。
