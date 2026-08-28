@@ -51,7 +51,6 @@
 │       ├── wallpaper-wayland-next/ # Wayland 壁纸（下一张）
 │       ├── browser-wayland/   # Wayland Chrome 启动器
 │       ├── trae-cn-wayland/   # Wayland Trae CN 启动器
-│       ├── waybar-system-tooltip/  # Waybar CPU/MEM tooltip 脚本
 │       ├── herdr-report/      # Trae CLI 生命周期 → herdr 状态上报桥接
 ├── scripts/          # TypeScript 工具（trace 归档等）
 ├── tests/            # 回归测试

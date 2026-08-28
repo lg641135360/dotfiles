@@ -390,7 +390,6 @@ linux_wayland_configs=(
     "|.config/scripts/browser-wayland|~/.config/scripts/browser-wayland|Wayland browser script"
     "|.config/scripts/trae-cn-wayland|~/.config/scripts/trae-cn-wayland|Wayland Trae CN script"
     "|.config/scripts/obsidian-wayland|~/.config/scripts/obsidian-wayland|Wayland Obsidian script"
-    "|.config/scripts/waybar-system-tooltip|~/.config/scripts/waybar-system-tooltip|Waybar CPU/MEM tooltip script"
     "|.config/linux/desktop-entries/google-chrome.desktop|~/.local/share/applications/google-chrome.desktop|Google Chrome Wayland desktop entry"
     "|.config/linux/desktop-entries/trae-cn.desktop|~/.local/share/applications/trae-cn.desktop|Trae CN Wayland desktop entry"
     "|.config/linux/desktop-entries/obsidian.desktop|~/.local/share/applications/obsidian.desktop|Obsidian Wayland desktop entry"

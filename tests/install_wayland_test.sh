@@ -25,7 +25,7 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/scripts/browser-wayland|~/.config/scripts/browser-wayland|Wayland browser script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/trae-cn-wayland|~/.config/scripts/trae-cn-wayland|Wayland Trae CN script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/obsidian-wayland|~/.config/scripts/obsidian-wayland|Wayland Obsidian script' "$INSTALL_FILE"
-    assert_contains '|.config/scripts/waybar-system-tooltip|~/.config/scripts/waybar-system-tooltip|Waybar CPU/MEM tooltip script' "$INSTALL_FILE"
+    assert_not_contains 'waybar-system-tooltip' "$INSTALL_FILE"
     # backlight 用 waybar 内置模块，不再部署独立 watcher 脚本。
     assert_not_contains 'waybar-backlight' "$INSTALL_FILE"
     assert_contains '|.config/linux/desktop-entries/google-chrome.desktop|~/.local/share/applications/google-chrome.desktop|Google Chrome Wayland desktop entry' "$INSTALL_FILE"

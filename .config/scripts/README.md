@@ -18,7 +18,6 @@
 | `wallpaper-wayland` | Wayland 壁纸设置 |
 | `browser-wayland` | Google Chrome Wayland 启动器（Wayland 会话加 `--ozone-platform=wayland`，X11 原样透传） |
 | `trae-cn-wayland` | Trae CN (Electron) Wayland 启动器（Wayland 会话加 ozone-wayland + Wayland IME，X11 原样透传） |
-| `waybar-system-tooltip` | Waybar `custom/cpu`、`custom/memory` 模块后端；子命令 `cpu`/`mem` 输出 JSON（text+tooltip+percentage+class），tooltip 含使用率与 top 5 进程；waybar 的 `return-type=json` 模式下 `tooltip-exec` 会被忽略，tooltip 必须由 JSON 字段提供，故每次 `exec` 都计算 top 进程，interval 设为 5s 控制开销 |
 
 ## 临时停止飞连系统服务
 
