@@ -302,6 +302,7 @@ binds {
     Mod+WheelScrollLeft cooldown-ms=150 { focus-column-or-monitor-left; }
 
     Mod+S repeat=false { spawn "~/.config/scripts/screenshot-wayland"; }
+    Mod+V repeat=false hotkey-overlay-title="剪贴板历史" { spawn "~/.config/scripts/clipboard-wayland" "history"; }
     Ctrl+Print repeat=false { screenshot-screen; }
     Alt+Print repeat=false { screenshot-window; }
 

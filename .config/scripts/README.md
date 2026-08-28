@@ -13,6 +13,7 @@
 | `terminal-wayland` | Wayland 终端启动器；aarch64 + Wayland 优先 foot，其他平台优先 Alacritty，缺失时回退 foot |
 | `file-manager-wayland` | Wayland 文件管理器选择器（Dolphin → 系统默认 → 常见文件管理器） |
 | `launcher-wayland` | Wayland 应用启动器 |
+| `clipboard-wayland` | Wayland 剪贴板管理：`start` 启动 wl-clip-persist 持久化守护（窗口关闭后内容不丢），`history` 用 cliphist + fuzzel 检索并写回剪贴板（Mod+V） |
 | `screenshot-wayland` | Wayland 选区截图（Mod+s：slurp → grim → Satty） |
 | `wallpaper-wayland` | Wayland 壁纸设置 |
 | `browser-wayland` | Google Chrome Wayland 启动器（Wayland 会话加 `--ozone-platform=wayland`，X11 原样透传） |

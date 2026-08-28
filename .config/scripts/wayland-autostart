@@ -219,6 +219,11 @@ run_once_logged mako '(^|/)mako( |$)' mako
 # 不再保留脚本 + autostart 双启动路径。
 run_once_logged blueman-applet '(^|/)blueman-applet( |$)' blueman-applet
 run_once_logged udiskie '(^|/)udiskie( |$)' udiskie -t
+# 剪贴板持久化：wl-paste --watch 在前台阻塞监听复制事件，每次把内容交给
+# wl-clip-persist 接管，避免持有窗口关闭后剪贴板被清空（Wayland 协议通病）。
+# 由 clipboard-wayland 脚本统一入口（缺 wl-paste / wl-clip-persist 时静默跳过）。
+run_once_logged wl-clip-persist 'wl-paste.*wl-clip-persist' \
+    "$HOME/.config/scripts/clipboard-wayland" start
 
 if command -v fcitx5 >/dev/null 2>&1; then
     # 始终在 Wayland 会话拉起 fcitx5 并提供 text-input-v3。fcitx5 走 per-user 的

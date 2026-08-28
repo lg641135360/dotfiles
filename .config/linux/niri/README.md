@@ -76,6 +76,7 @@ niri validate -c ~/.config/niri/config.kdl
 | `Mod+f` | 全屏当前窗口 |
 | `Mod+m` | 最大化到屏幕边缘 |
 | `Mod+s` | 截图标注（slurp 选区 → grim → Satty 标注） |
+| `Mod+v` | 剪贴板历史检索（cliphist list → fuzzel 选择 → 写回剪贴板） |
 | `Mod+Shift+q` | 退出 niri，会有确认 |
 
 终端、文件管理器、launcher、锁屏、壁纸切换、overview、退出、截图标注等一次性动作均禁用按键重复，避免长按时重复启动或连续切换。窗口/ workspace 间垂直切换使用 `Mod+j/k`（优先切窗口，到边界后切 workspace），workspace 间直接跳转用数字键或 `Mod+滚轮`，不再保留 `Page_Up/Page_Down` 及其 Shift 组合；左右切列统一使用 `Mod+h/l`（到边界后切到左/右显示器）或 `Mod+横向滚轮`，不再保留重复的 `Mod+Alt+h/l`；`Mod+a/d` 仍可作为「显式只切显示器」的补充。
@@ -100,6 +101,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `swayidle`：空闲 10 分钟锁屏；系统主动睡眠前也调用 `lock-wayland`（自动挂起已移除，原因见 logs/trace.md 2026-08-18：挂起唤醒瞬间的网络/显示风暴会让 Electron 应用以未捕获的 `net::ERR_INTERNET_DISCONNECTED` 静默退出）
 - KDE 或 GNOME polkit agent（若存在）
 - `blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。
+- `wl-clip-persist` 剪贴板持久化：`wl-paste --watch` 监听复制事件并把内容交给 `wl-clip-persist` 接管，避免持有窗口关闭后剪贴板被清空（Wayland 协议通病）。入口是 `clipboard-wayland start`（缺 `wl-paste`/`wl-clip-persist` 时静默跳过）；`Mod+v` 用 `clipboard-wayland history` 调 fuzzel + cliphist 检索历史并写回剪贴板。`wl-clip-persist` 不在 Ubuntu 24.04 apt 源，由 Nix 安装；`cliphist` 用 apt 安装（Ubuntu 24.04 有 0.4.0）。
 
 缺依赖不会中断 niri 启动。
 

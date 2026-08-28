@@ -9,6 +9,7 @@ NIRI_COMMON_CONFIG=$REPO_ROOT/.config/linux/niri/common.kdl
 PORTAL_CONFIG=$REPO_ROOT/.config/linux/xdg-desktop-portal/niri-portals.conf
 DINGTALK_SOURCE=$REPO_ROOT/tools/dingtalk-wayland-screenshare
 AUTOSTART_SCRIPT=$REPO_ROOT/.config/scripts/wayland-autostart
+CLIPBOARD_SCRIPT=$REPO_ROOT/.config/scripts/clipboard-wayland
 FILE_MANAGER_SCRIPT=$REPO_ROOT/.config/scripts/file-manager-wayland
 DINGTALK_SCRIPT=$REPO_ROOT/.config/scripts/dingtalk-wayland
 TERMINAL_SCRIPT=$REPO_ROOT/.config/scripts/terminal-wayland
@@ -38,6 +39,9 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_contains "run_once_logged blueman-applet '(^|/)blueman-applet( |$)' blueman-applet" "$AUTOSTART_SCRIPT"
     assert_not_contains "run_once_logged pot '(^|/)pot( |$)' pot" "$AUTOSTART_SCRIPT"
     assert_contains "run_once_logged udiskie '(^|/)udiskie( |$)' udiskie -t" "$AUTOSTART_SCRIPT"
+    # 剪贴板持久化：由 clipboard-wayland 统一入口启动 wl-paste --watch wl-clip-persist
+    assert_contains 'wl-paste.*wl-clip-persist' "$AUTOSTART_SCRIPT"
+    assert_contains '"$HOME/.config/scripts/clipboard-wayland" start' "$AUTOSTART_SCRIPT"
     assert_contains '未找到命令' "$AUTOSTART_SCRIPT"
     assert_contains '${XDG_STATE_HOME:-$HOME/.local/state}/niri/autostart' "$AUTOSTART_SCRIPT"
     assert_contains 'log_file=$log_dir/$app.log' "$AUTOSTART_SCRIPT"
@@ -602,6 +606,36 @@ EOF
     rm -rf "$tmpdir"
 }
 
+test_clipboard_wayland_persists_and_queries_history() {
+    assert_executable "$CLIPBOARD_SCRIPT"
+    # 无参数 / start：前台 exec wl-paste --watch wl-clip-persist（持久化守护），
+    # 后台另起 wl-paste --watch cliphist store 记录历史（两个 watch 相互独立）。
+    assert_contains 'wl-paste --watch cliphist store' "$CLIPBOARD_SCRIPT"
+    assert_contains 'exec wl-paste --watch wl-clip-persist --clipboard regular' "$CLIPBOARD_SCRIPT"
+    # history：cliphist list → fuzzel --dmenu → cliphist decode → wl-copy
+    assert_contains 'cliphist list | fuzzel --dmenu --prompt "剪贴板 >"' "$CLIPBOARD_SCRIPT"
+    assert_contains 'cliphist decode | wl-copy' "$CLIPBOARD_SCRIPT"
+    # fuzzel 1.9.2（Ubuntu Noble）：勿引入 1.11+ 专属选项
+    assert_not_contains '--placeholder' "$CLIPBOARD_SCRIPT"
+    # Nix profile PATH 补丁（wl-clip-persist 由 Nix 安装）
+    assert_contains '$HOME/.nix-profile/bin' "$CLIPBOARD_SCRIPT"
+    # 缺依赖时提示并退出，不中断会话
+    assert_contains '未找到命令' "$CLIPBOARD_SCRIPT"
+    assert_contains 'nix profile install nixpkgs#wl-clip-persist' "$CLIPBOARD_SCRIPT"
+
+    # 行为演练：缺命令时 history 模式应报错退出（非零）
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    mkdir -p "$bin_dir"
+    set +e
+    PATH=$bin_dir /bin/sh "$CLIPBOARD_SCRIPT" history >"$tmpdir/out" 2>"$tmpdir/err"
+    rc=$?
+    set -e
+    [ "$rc" -ne 0 ] || fail "clipboard-wayland history without cliphist should fail"
+    assert_contains '未找到命令 cliphist' "$tmpdir/err"
+    rm -rf "$tmpdir"
+}
+
 test_trae_cn_forces_wayland_with_ime() {
     assert_executable "$TRAE_SCRIPT"
     assert_contains '--ozone-platform=wayland' "$TRAE_SCRIPT"
@@ -658,6 +692,7 @@ test_wayland_screenshot_uses_satty
 test_dingtalk_wayland_entrypoint_preserves_preload_contract
 test_browser_wayland_forces_native_wayland_ozone
 test_browser_wayland_passes_ozone_flag_only_under_wayland
+test_clipboard_wayland_persists_and_queries_history
 test_trae_cn_forces_wayland_with_ime
 test_obsidian_wayland_forces_wayland_with_text_input_v3
 

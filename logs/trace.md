@@ -20,6 +20,18 @@
   ```
 
 
+## 2026-08-28 — niri 剪贴板管理（wl-clip-persist 持久化 + cliphist 历史检索）+ live 同步生效
+
+- 目的：补全 Wayland 剪贴板体验——协议层面剪贴板内容归持有窗口所有，窗口关闭即清空。方案 = `wl-paste --watch` 把每次复制交给 `wl-clip-persist` 常驻接管（持久化），`cliphist list | fuzzel --dmenu` 检索历史并 `cliphist decode | wl-copy` 写回。
+- 改动：① 新增 `.config/scripts/clipboard-wayland`（统一入口：`start` 启动持久化守护、`history` 弹 fuzzel 检索；缺依赖 warn+退出不中断会话；因 niri `environment {}` 固定 PATH 不含 `~/.nix-profile/bin`，脚本开头按需补 PATH）；② `wayland-autostart` 在 udiskie 后加 `run_once_logged wl-clip-persist 'wl-paste.*wl-clip-persist' ... clipboard-wayland start`；③ `common.kdl` binds 加 `Mod+V repeat=false hotkey-overlay-title="剪贴板历史" { spawn ... clipboard-wayland "history"; }`（Mod+Shift+V 已被"切换浮动/平铺焦点"占用）；④ `install.sh` `linux_wayland_configs` 挂 clipboard-wayland 部署项；⑤ 测试：`wayland_scripts_test.sh` 新增 `test_clipboard_wayland_persists_and_queries_history`（可执行位 / persist 命令 / fuzzel 管道 / decode 写回 / `assert_not_contains '--placeholder'` / Nix PATH 补丁 / 缺依赖沙箱），`niri_config_test.sh` 补 Mod+V 断言；⑥ README（scripts 文件表、niri 快捷键表与自启动段）同步；⑦ `memory/niri.md` 沉淀决策。
+- 关键修正（live 实测发现）：cliphist 需**独立**的 `wl-paste --watch cliphist store` 进程才记录历史，原设计只有 wl-clip-persist 一个 watch，`cliphist list` 永远为空。已在 `start_persist()` 里加第二个后台 watch（`&`），缺 cliphist 时仅 warn 不影响持久化；`selected=` 行缩进一并修正（11→4 空格）。测试补 `assert_contains 'wl-paste --watch cliphist store'` 断言。
+- 验证：`sh -n clipboard-wayland` / `sh -n wayland-autostart` / `bash -n install.sh` 全 OK；`git diff --check` 干净；`./tests/run.sh fast` 44/44 PASS。
+- 踩坑：① fuzzel 1.9.2（Ubuntu Noble）不支持 1.11+ 的 `--placeholder`，已由 `assert_not_contains '--placeholder'` 拦截并修正；② wl-clip-persist 0.5.0 在 niri 26.04 下偶发 `Broken pipe (os error 32)` WARN 风暴（数秒上百行）——实测根因是**同 seat 残留的旧 data source**（此前多次测试遗留的 wl-clip-persist 实例争抢剪贴板所有权），全新会话单实例启动后复制一次内容即自愈（60s 静默 0 新增警告）；多实例并存是触发主因，故清理全部残留进程后单守护稳定。判断依据：cliphist store 单独运行零错误、persist 单独运行也有同样风暴、风暴数据源 ID 循环（3/7/8）指向残留 source。
+- live 同步与运行态：已同步 `~/.config/scripts/clipboard-wayland`（chmod +x）、`~/.config/scripts/wayland-autostart`、`~/.config/niri/common.kdl`（含 Mod+V）；backup 快照 `*.backup.20260828_105628`（common.kdl / wayland-autostart 各一份）。已 `niri msg action load-config-file` 重载（exit=0）。守护实测：`clipboard-wayland start` 拉起 2 个 watch（persist + cliphist store）均存活、0 警告；复制→关闭源→`wl-paste` 内容不丢（持久化生效）；`cliphist list` 记录增长、decode|wl-copy 写回成功（history 链路通）。当前会话（8月18日登录）autostart 脚本是 8月28日改的，本轮由手动启动守护补位，**下次登录起由 wayland-autostart 自动拉起**。
+- 安装（用户手动执行）：`nix profile install nixpkgs#wl-clip-persist` + `sudo apt install cliphist`（wl-clip-persist 不在 Ubuntu 24.04 apt，走 Nix profile；cliphist 0.4.0 在 apt）。
+- 回滚信息：未提交。仓库回滚：`git checkout -- .config/scripts/clipboard-wayland .config/scripts/wayland-autostart .config/linux/niri/common.kdl install.sh tests/niri_config_test.sh tests/wayland_scripts_test.sh .config/scripts/README.md .config/linux/niri/README.md memory/niri.md`。live 回滚：`cp ~/.config/niri/common.kdl.backup.20260828_105628 ~/.config/niri/common.kdl`、`cp ~/.config/scripts/wayland-autostart.backup.20260828_105628 ~/.config/scripts/wayland-autostart`、`rm ~/.config/scripts/clipboard-wayland`，然后 `niri msg action load-config-file` 与重登。
+- 后续可能方向：① 下次注销重登验证 wayland-autostart 自动拉起守护；② 若历史条目含图片（图像复制），当前 `wl-copy` 文本路径可后续评估；③ 历史条数上限/清理策略待使用反馈。
+
 ## 2026-08-27 — Trae CLI 接入 herdr 状态监控（hooks 桥接）
 
 - 目的：herdr 原生 agent 列表不含 trae，用户要落地"trae-cli 接入 herdr 监控"。方案 = Trae CLI hooks（`~/.trae/trae_cli.yaml`）→ 桥接脚本 → herdr socket API `pane report-agent`（idle/working/blocked + release）。

@@ -1,0 +1,75 @@
+#!/bin/sh
+# Wayland 剪贴板管理入口（wl-clip-persist + cliphist）。
+# 无参数：启动 wl-clip-persist 常驻守护，持久化剪贴板（窗口关闭后内容不丢）。
+# history：用 fuzzel 弹出剪贴板历史检索，选中项写回剪贴板。
+# 缺依赖时提示并退出，不中断会话（与 wayland-autostart 的跳过风格一致）。
+
+# wl-clip-persist 由 Nix profile 提供；niri environment {} 固定环境不含
+# ~/.nix-profile/bin，手动从终端调用时补上 PATH。
+case ":$PATH:" in
+    *":$HOME/.nix-profile/bin:"*) ;;
+    *) export PATH="$HOME/.nix-profile/bin:$PATH" ;;
+esac
+
+warn() {
+    printf '[clipboard-wayland] %s\n' "$*" >&2
+}
+
+# 剪贴板守护：wl-paste --watch 在前台阻塞监听复制事件，每次变化把内容交给
+# wl-clip-persist 接管（避免持有窗口关闭后剪贴板被清空），同时用另一个
+# wl-paste --watch cliphist store 记录历史供检索。两个 watch 相互独立：
+# 缺其一则另一个照常工作（历史记录 / 持久化 各自降级）。
+start_persist() {
+    if ! command -v wl-paste >/dev/null 2>&1; then
+        warn "跳过剪贴板守护：未找到命令 wl-paste"
+        exit 0
+    fi
+
+    # 历史记录：独立 watch 进程（后台），缺 cliphist 时仅提示、不影响持久化。
+    if command -v cliphist >/dev/null 2>&1; then
+        wl-paste --watch cliphist store &
+    else
+        warn "剪贴板历史记录不可用：未找到命令 cliphist（apt: sudo apt install cliphist）"
+    fi
+
+    if ! command -v wl-clip-persist >/dev/null 2>&1; then
+        warn "跳过 wl-clip-persist：未找到命令 wl-clip-persist（Nix: nix profile install nixpkgs#wl-clip-persist）"
+        exit 0
+    fi
+    exec wl-paste --watch wl-clip-persist --clipboard regular
+}
+
+# 剪贴板历史检索：cliphist list → fuzzel 选择 → cliphist decode → wl-copy 写回。
+show_history() {
+    if ! command -v cliphist >/dev/null 2>&1; then
+        warn "剪贴板历史不可用：未找到命令 cliphist（apt: sudo apt install cliphist）"
+        exit 1
+    fi
+    if ! command -v fuzzel >/dev/null 2>&1; then
+        warn "剪贴板历史不可用：未找到命令 fuzzel"
+        exit 1
+    fi
+    if ! command -v wl-copy >/dev/null 2>&1; then
+        warn "剪贴板历史不可用：未找到命令 wl-copy"
+        exit 1
+    fi
+
+    # fuzzel 1.9.2（Ubuntu Noble）用 --dmenu + --prompt；勿引入 1.11+ 专属选项。
+    # cliphist list 输出是 <id>\t<content>，decode 后经 wl-copy 写回剪贴板。
+    selected=$(cliphist list | fuzzel --dmenu --prompt "剪贴板 >")
+    [ -n "$selected" ] || exit 0
+    printf '%s\n' "$selected" | cliphist decode | wl-copy
+}
+
+case "${1:-}" in
+    history)
+        show_history
+        ;;
+    start|"")
+        start_persist
+        ;;
+    *)
+        warn "未知子命令：$1（支持：history / start）"
+        exit 1
+        ;;
+esac

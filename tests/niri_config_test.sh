@@ -48,6 +48,7 @@ test_niri_config_keeps_awesome_muscle_memory() {
     assert_contains 'Mod+Shift+W repeat=false hotkey-overlay-title="切换壁纸" { spawn "~/.config/scripts/wallpaper-wayland-next"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+O repeat=false hotkey-overlay-title="显示总览" { toggle-overview; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Shift+Q repeat=false hotkey-overlay-title="退出 niri" { quit; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+V repeat=false hotkey-overlay-title="剪贴板历史" { spawn "~/.config/scripts/clipboard-wayland" "history"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Tab repeat=false hotkey-overlay-title="切换到上一个窗口" { focus-window-previous; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+H { focus-column-or-monitor-left; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+L { focus-column-or-monitor-right; }' "$NIRI_COMMON_CONFIG"
