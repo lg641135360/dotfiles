@@ -39,8 +39,9 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_contains "run_once_logged blueman-applet '(^|/)blueman-applet( |$)' blueman-applet" "$AUTOSTART_SCRIPT"
     assert_not_contains "run_once_logged pot '(^|/)pot( |$)' pot" "$AUTOSTART_SCRIPT"
     assert_contains "run_once_logged udiskie '(^|/)udiskie( |$)' udiskie -t" "$AUTOSTART_SCRIPT"
-    # 剪贴板持久化：由 clipboard-wayland 统一入口启动 wl-paste --watch wl-clip-persist
-    assert_contains 'wl-paste.*wl-clip-persist' "$AUTOSTART_SCRIPT"
+    # 剪贴板守护由 clipboard-wayland 统一入口监管，autostart 检测监管进程，
+    # 避免只剩一个子进程时误判服务完整。
+    assert_contains "run_once_logged clipboard-wayland '(^|/)(ba)?sh .*/clipboard-wayland( start)?$'" "$AUTOSTART_SCRIPT"
     assert_contains '"$HOME/.config/scripts/clipboard-wayland" start' "$AUTOSTART_SCRIPT"
     assert_contains '未找到命令' "$AUTOSTART_SCRIPT"
     assert_contains '${XDG_STATE_HOME:-$HOME/.local/state}/niri/autostart' "$AUTOSTART_SCRIPT"
@@ -608,10 +609,15 @@ EOF
 
 test_clipboard_wayland_persists_and_queries_history() {
     assert_executable "$CLIPBOARD_SCRIPT"
-    # 无参数 / start：前台 exec wl-paste --watch wl-clip-persist（持久化守护），
-    # 后台另起 wl-paste --watch cliphist store 记录历史（两个 watch 相互独立）。
-    assert_contains 'wl-paste --watch cliphist store' "$CLIPBOARD_SCRIPT"
-    assert_contains 'exec wl-paste --watch wl-clip-persist --clipboard regular' "$CLIPBOARD_SCRIPT"
+    # 无参数 / start：直接启动 wl-clip-persist 持久化守护，并独立启动
+    # wl-paste --watch cliphist store 记录历史；父脚本监管并共同清理两个子进程。
+    assert_contains 'wl-clip-persist --clipboard regular &' "$CLIPBOARD_SCRIPT"
+    assert_contains 'wl-paste --watch cliphist store &' "$CLIPBOARD_SCRIPT"
+    assert_contains 'trap cleanup EXIT' "$CLIPBOARD_SCRIPT"
+    assert_contains "trap 'exit 0' INT TERM HUP" "$CLIPBOARD_SCRIPT"
+    assert_contains 'kill -0 "$persist_pid"' "$CLIPBOARD_SCRIPT"
+    assert_contains 'kill -0 "$history_pid"' "$CLIPBOARD_SCRIPT"
+    assert_not_contains 'wl-paste --watch wl-clip-persist' "$CLIPBOARD_SCRIPT"
     # history：cliphist list → fuzzel --dmenu → cliphist decode → wl-copy
     assert_contains 'cliphist list | fuzzel --dmenu --prompt "剪贴板 >"' "$CLIPBOARD_SCRIPT"
     assert_contains 'cliphist decode | wl-copy' "$CLIPBOARD_SCRIPT"

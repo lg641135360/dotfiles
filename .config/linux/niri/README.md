@@ -101,7 +101,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `swayidle`：空闲 10 分钟锁屏；系统主动睡眠前也调用 `lock-wayland`（自动挂起已移除，原因见 logs/trace.md 2026-08-18：挂起唤醒瞬间的网络/显示风暴会让 Electron 应用以未捕获的 `net::ERR_INTERNET_DISCONNECTED` 静默退出）
 - KDE 或 GNOME polkit agent（若存在）
 - `blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。
-- `wl-clip-persist` 剪贴板持久化：`wl-paste --watch` 监听复制事件并把内容交给 `wl-clip-persist` 接管，避免持有窗口关闭后剪贴板被清空（Wayland 协议通病）。入口是 `clipboard-wayland start`（缺 `wl-paste`/`wl-clip-persist` 时静默跳过）；`Mod+v` 用 `clipboard-wayland history` 调 fuzzel + cliphist 检索历史并写回剪贴板。`wl-clip-persist` 不在 Ubuntu 24.04 apt 源，由 Nix 安装；`cliphist` 用 apt 安装（Ubuntu 24.04 有 0.4.0）。
+- `wl-clip-persist` + `cliphist` 剪贴板管理：`clipboard-wayland start` 直接启动 `wl-clip-persist --clipboard regular` 持有当前剪贴板，并以独立的 `wl-paste --watch cliphist store` 记录历史；父脚本监管并共同清理两个子进程。缺少其中一个依赖时，另一项功能仍可降级运行；`Mod+v` 调用 `clipboard-wayland history`，通过 fuzzel 检索历史并写回剪贴板。`wl-clip-persist` 不在 Ubuntu 24.04 apt 源，由 Nix 安装；`cliphist` 用 apt 安装（Ubuntu 24.04 有 0.4.0）。
 
 缺依赖不会中断 niri 启动。
 
