@@ -20,6 +20,15 @@
   ```
 
 
+## 2026-08-28 — waybar CPU/内存原生模块化 + 剪贴板守护重构（两轮合并提交推送）
+
+- 目的：用户要求整理当前工作区改动并推送。工作区含两轮独立改动，按「一轮任务一个 commit」粒度拆成两个 commit 推送。
+- 改动一（waybar）：CPU/内存从 `custom/cpu`/`custom/memory` + `waybar-system-tooltip` 脚本改用原生 `cpu`/`memory` 模块（每 5s 刷新，tooltip 显示负载/容量，原生 `states` 阈值 CPU 70/90、内存 85/95 驱动 CSS `#cpu.warning`/`.critical`）；删除 `.config/scripts/waybar-system-tooltip`，`install.sh`/根 README/scripts README/waybar README/`memory/waybar.md` 同步；测试删旧脚本契约、改断言原生模块。
+- 改动二（clipboard）：`clipboard-wayland start` 从 `exec wl-paste --watch wl-clip-persist` 改为直接启动 `wl-clip-persist --clipboard regular &` + 独立 `wl-paste --watch cliphist store &`，父脚本 `trap cleanup EXIT` 监管两子进程、任一退出即共同清理（避免半失效）；`wayland-autostart` 改检测 `clipboard-wayland start` 监管进程；niri/scripts README 与 `memory/niri.md` 同步。
+- 验证：`sh tests/waybar_config_test.sh` / `sh tests/wayland_scripts_test.sh` / `sh tests/install_wayland_test.sh` 全 PASS；`git diff --check` 干净；live 已同步（`~/.config/scripts/clipboard-wayland`、`wayland-autostart` 与 repo 一致；`~/.config/waybar/config`、`style.css` 与 repo 一致；`waybar-system-tooltip` 已从 live 删除，仅剩旧 backup `*.backup.20260818_100942_1347567`）。`config.aarch64` 为 aarch64 专用、本机 x86_64 不部署，属预期差异。
+- 回滚信息：commit `3568b2e`（waybar）、`e3df762`（clipboard），均已推送（`git revert 3568b2e` / `git revert e3df762` 撤回）。live 已同步无需额外恢复；若需还原旧脚本，`waybar-system-tooltip` 可从 backup 恢复或 `git show 3568b2e~1:.config/scripts/waybar-system-tooltip` 取回。
+- 后续可能方向：① 下次登录由 wayland-autostart 自动拉起剪贴板守护，验证双进程监管；② waybar 原生 cpu/memory tooltip 无 top 进程列表，若日后需要可评估 `exec-on-event` 或外挂脚本；③ 清理 live `~/.config/scripts/` 旧 backup（保留 3 份惯例）。
+
 ## 2026-08-28 — niri 剪贴板管理（wl-clip-persist 持久化 + cliphist 历史检索）+ live 同步生效
 
 - 目的：补全 Wayland 剪贴板体验——协议层面剪贴板内容归持有窗口所有，窗口关闭即清空。方案 = `wl-paste --watch` 把每次复制交给 `wl-clip-persist` 常驻接管（持久化），`cliphist list | fuzzel --dmenu` 检索历史并 `cliphist decode | wl-copy` 写回。
