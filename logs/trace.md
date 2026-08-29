@@ -20,6 +20,19 @@
   ```
 
 
+## 2026-08-29 — x64 niri 双屏输出名漂移修复（DP-4/HDMI-A-3 → DP-1/HDMI-A-2）+ 测试沙箱 link_cmd 加固
+
+- 目的：用户反馈双屏缩放与 niri 配置不匹配。排查：x64 Ubuntu 26.04 实际输出为 DP-1（Dell D2421DS）与 HDMI-A-2（AOC Q24P1W1），配置仍写 DP-4/HDMI-A-3，匹配不到 → 两屏回落 scale 1。
+- 改动：① `.config/linux/niri/ubuntu_x64/config.kdl` 输出名改 DP-1（`x=0`）/ HDMI-A-2（`x=2048`），scale 1.25 不变，注释记录接口名漂移教训；② `tests/niri_config_test.sh` / `tests/install_wayland_test.sh` 断言同步；③ `tests/lib/sandbox.sh` `link_cmd` 加固——`command -v` 返回裸名（Trae CN safe_rm_aliases 注入的 cp/mv shell 函数、pwd 等 builtin）时回退 PATH 搜索，修复沙箱自引用死链（`cp -> cp`）导致 install.sh 报 "Missing required commands: cp mv" 的问题。
+- 验证：`niri validate` config is valid；`sh tests/niri_config_test.sh` / `bash tests/install_wayland_test.sh` / `bash tests/awesome_lock_test.sh` / `bash tests/install_claude_statusline_test.sh` / `bash tests/install_redshift_test.sh` 全 PASS；`git diff --check` 干净。`bash tests/install_macos_test.sh` 失败为存量环境限制（IDE 沙箱拦 rm 指向 `/usr/lib/cargo/...` 的 uname symlink；用改动前 lib 复测同样失败，与本轮无关）。
+- live 同步与运行态：`common.kdl` 与仓库 diff 一致无漂移；备份后写入 live（include 改写为扁平布局），`niri msg action load-config-file` 重载 exit 0。`niri msg outputs` 实测：DP-1 `0,0` / HDMI-A-2 `2048,0`，均 2560x1440@59.951 scale 1.25（逻辑 2048x1152）。
+- README：niri README 只写"双 2K scale 1.25"未涉及具体接口名，无需同步。
+- 回滚信息：commit `567233b`（撤回用 `git revert 567233b`）；live 恢复：
+  ```bash
+  cp ~/.config/niri/config.kdl.backup.20260829_163214_001921237 ~/.config/niri/config.kdl && niri msg action load-config-file
+  ```
+- 后续可能方向：① trace.md 已超 150 行与 5 条上限，建议执行 `npm --prefix scripts run archive-trace` 归档；② `~/.config/niri/` 旧 backup 堆积（08-24 起 4 个）IDE 沙箱拦 rm，需用户手动清理（保留 3 份）；③ install_macos_test.sh 的沙箱 rm 限制如需根治，可评估 fake uname 或调整测试清理逻辑。
+
 ## 2026-08-28 — waybar CPU/内存原生模块化 + 剪贴板守护重构（两轮合并提交推送）
 
 - 目的：用户要求整理当前工作区改动并推送。工作区含两轮独立改动，按「一轮任务一个 commit」粒度拆成两个 commit 推送。
