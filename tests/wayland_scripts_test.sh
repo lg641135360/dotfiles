@@ -301,6 +301,61 @@ test_launcher_and_lock_have_wayland_first_fallbacks() {
     assert_contains 'loginctl lock-session "$XDG_SESSION_ID"' "$LOCK_SCRIPT"
 }
 
+test_launcher_wayland_respects_running_wayland_fcitx5() {
+    tmpdir=$(mktemp -d)
+    bin_dir=$tmpdir/bin
+    call_log=$tmpdir/fcitx5.calls
+
+    mkdir -p "$bin_dir"
+
+    cat >"$bin_dir/pgrep" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$FAKE_FCITX5_PID"
+EOF
+    chmod +x "$bin_dir/pgrep"
+
+    cat >"$bin_dir/fcitx5" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >>"$FCITX5_CALL_LOG"
+EOF
+    chmod +x "$bin_dir/fcitx5"
+
+    cat >"$bin_dir/fuzzel" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+    chmod +x "$bin_dir/fuzzel"
+
+    trap 'for p in "${wayland_pid:-}" "${bare_pid:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null; done; true' EXIT
+
+    # 场景1：已有 Wayland 连接的 fcitx5。复刻真实 niri 会话布局——
+    # environ 是 NUL 分隔的单行数据且 WAYLAND_DISPLAY 不在首位，存活检查
+    # 必须能识别，否则每次拉起 launcher 都会误判并 `fcitx5 -d --replace`
+    # 重启 fcitx5，导致 waybar 托盘图标反复消失。
+    env NIRI_SOCKET=/run/user/1000/niri.wayland-1.1000.sock XDG_SESSION_TYPE=wayland \
+        WAYLAND_DISPLAY=wayland-1 sleep 30 &
+    wayland_pid=$!
+
+    : >"$call_log"
+    FAKE_FCITX5_PID=$wayland_pid FCITX5_CALL_LOG=$call_log \
+        PATH=$bin_dir:/usr/bin /bin/sh "$LAUNCHER_SCRIPT" >/dev/null 2>&1 ||
+        fail "launcher-wayland should run when a Wayland fcitx5 exists"
+    assert_not_contains '--replace' "$call_log"
+
+    # 场景2：进程不带 WAYLAND_DISPLAY（如 X11 会话残留实例），仍须触发
+    # `fcitx5 -d --replace` 接管。
+    env -i sleep 30 &
+    bare_pid=$!
+
+    : >"$call_log"
+    FAKE_FCITX5_PID=$bare_pid FCITX5_CALL_LOG=$call_log \
+        PATH=$bin_dir:/usr/bin /bin/sh "$LAUNCHER_SCRIPT" >/dev/null 2>&1 ||
+        fail "launcher-wayland should run when fcitx5 is not Wayland-connected"
+    assert_contains '--replace' "$call_log"
+
+    rm -rf "$tmpdir"
+}
+
 test_lock_wayland_uses_recorded_wallpaper_when_available() {
     tmpdir=$(mktemp -d)
     state_dir=$tmpdir/state
@@ -691,6 +746,7 @@ test_wayland_wallpaper_helper_records_current_wallpaper
 test_wayland_wallpaper_switcher_restarts_swaybg_and_reuses_helper
 test_portal_preferences_avoid_nautilus_filechooser_requirement
 test_launcher_and_lock_have_wayland_first_fallbacks
+test_launcher_wayland_respects_running_wayland_fcitx5
 test_lock_wayland_uses_recorded_wallpaper_when_available
 test_lock_wayland_falls_back_to_color_without_wallpaper
 test_wayland_screenshot_uses_selection_and_annotation
