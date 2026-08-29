@@ -165,3 +165,23 @@
 - live 同步与运行态：已重启 fcitx5 生效（用户授权"彻底解决"）。备份：整目录 `/tmp/rime-backup-20260828-092429`、旧 build `/tmp/build-old-20260828-*`、crash.log `/tmp/crash.log.bak-*`。
 - 回滚信息：live rime 独立 git，回滚＝`cd ~/.local/share/fcitx5/rime && git checkout 7acdee6`（剥离版原 HEAD）；或整目录从 `/tmp/rime-backup-20260828-092429` 恢复后 `rime_deployer --build && pkill fcitx5 && fcitx5 -d --replace`。
 - 后续可能方向：① 用户实测以词定字/日期/农历/计算器等 lua 扩展是否恢复；② 若仍偶发部署通知可再在 `~/.config/fcitx5/conf/notifications.conf` 的 `HiddenNotifications` 填 `rime-deploy-done` 屏蔽该条；③ memory/desktop.md 需补充"x86_64 官方 librime 自带 lua，无需剥离"与 MediaTek 机型区分，避免再次错配。
+
+
+## 2026-08-29 — niri 链路周边工具从 Nix 切 Ubuntu apt（x64）
+
+- 目的：收敛 Nix 与系统的集成摩擦（niri environment{} 不含 nix-profile 的 PATH 断层等）。调研结论：Ubuntu 26.04 官方源无 niri/satty/wl-clip-persist/xwayland-satellite，niri 官方指南对 Ubuntu 的推荐路径是第三方 PPA（avengemedia/danklinux+dms，绑定 DMS 生态），不采用；故 niri 本体与三个无官方包工具留在 Nix，周边 11 个工具切 apt。
+- 改动：纯 live 包管理器操作，仓库零改动。① apt 安装 11 包：fuzzel waybar mako-notifier swayidle swaylock wl-clipboard grim slurp alacritty playerctl brightnessctl；② `nix profile remove` 11 条目：waybar playerctl brightnessctl fuzzel grim slurp swayidle mako wl-clipboard alacritty swaylock-effects（注意 Nix 条目是 swaylock-effects 分支，apt 侧对应原生 swaylock，lock-wayland 只用标准参数无影响）；③ 保留 Nix：niri、satty、wl-clip-persist、xwayland-satellite（运行中，DingTalk 等 X11 客户端依赖，apt 无包）、nixGL。仓库脚本均双路径兼容，无需改动：lock-wayland 优先 /usr/bin/swaylock 现命中 apt 版；terminal-wayland 的 `~/.nix-profile/bin/alacritty` 分支自然落到 `command -v` 兜底；clipboard-wayland 的 Nix PATH 补丁因 wl-clip-persist 留在 Nix 而必须保留。
+- 验证：重登 SDDM 后 `command -v` 12 项全部指向 /usr/bin（waybar mako fuzzel swayidle swaylock wl-copy wl-paste grim slurp alacritty playerctl brightnessctl），4 项指向 nix-profile（niri satty wl-clip-persist xwayland-satellite）；`xwayland-satellite :1` 正常拉起。版本快照：waybar 0.15.0 / playerctl 2.4.1（同版），fuzzel 1.14.1→1.12.0、wl-clipboard 2.3.0→2.2.1、alacritty 0.17.0→0.16.1、grim 1.5.0→1.4.0、mako 1.11.0→1.10.0（小降级，脚本用法已核对），slurp 1.5.0→1.6.0、swaylock-effects 1.7.0→swaylock 1.8.4、brightnessctl 0.5.1（同版）。fuzzel.ini 已核对仅用 1.10 前老选项，1.12.0 兼容。
+- live 同步与运行态：已生效（用户手动执行安装/删包/重登；agent 负责调研、清单与验证命令）。无 backup 文件——回滚走 Nix generation，不走快照。
+- 回滚信息：未提交（本轮仓库仅 memory + trace 两文件）；live 回滚锚点＝切换前 Nix generation，`nix profile --rollback` 后注销重登即整体回到 Nix 状态；apt 侧如需清理再 `sudo apt purge` 对应包即可。
+- 后续可能方向：① 用户功能面实测：Mod+C（fuzzel 1.12）、Mod+S（grim 1.4 截图 + satty 标注）、Mod+V（剪贴板历史）、Mod+Alt+L（swaylock 1.8.4）、waybar/mako 渲染、DingTalk XWayland；② 稳定数日后 `nix-collect-garbage -d` 回收 /nix/store（注意会清掉回滚 generation，执行即放弃回滚锚点）；③ 可选清理仍留在 profile 的 awww/imagemagick/libXcursor/libXi/libxcursor（均不在 niri 链路；imagemagick 若要保留功能先 `sudo apt install imagemagick`，awww 为已搁置的双壁纸实验遗留）。
+
+
+## 2026-08-29 — terminal-wayland 移除 Nix profile 特判（迁移收尾）
+
+- 目的：上一轮 Nix→apt 迁移后，`terminal-wayland` 的 `~/.nix-profile/bin/alacritty` 优先分支成为死代码，清理之；全仓库扫描确认其余 Nix 引用均需保留（clipboard-wayland 的 PATH 补丁——wl-clip-persist 仍在 Nix；niri README 对 xwayland-satellite 的描述——仍准确）。
+- 改动：① `.config/scripts/terminal-wayland`：删除 nix-profile alacritty 优先分支，`command -v alacritty`（apt 0.16.1）直接命中，foot 兜底不变，注释注明迁移日期；② `tests/wayland_scripts_test.sh` L274 与 `tests/niri_config_test.sh` L134：原 `assert_contains nix-profile exec` 断言反转为 `assert_not_contains 'nix-profile'`（锁定不再回退到 Nix 特判）；③ `.config/linux/niri/README.md`：终端入口节的 x64 描述同步；swaylock 节补注 apt 迁移（swaylock-effects 已移除）。`scripts/README.md` 的 terminal-wayland 描述本就泛化，无需改。
+- 验证：`tests/wayland_scripts_test.sh` / `tests/niri_config_test.sh` / `tests/foot_config_test.sh` 全部 exit 0；`git diff --check` 干净。live 侧 `Mod+Return` 实际拉起 apt alacritty 的行为在迁移轮已由用户确认正常。
+- live 同步与运行态：未同步——live `~/.config/scripts/terminal-wayland` 仍含死分支（`-x` 检查不命中，行为与仓库版一致，无功能影响），待下轮统一同步。
+- 回滚信息：未提交；`git checkout -- .config/scripts/terminal-wayland tests/wayland_scripts_test.sh tests/niri_config_test.sh .config/linux/niri/README.md` 即回滚。live 恢复（若已同步）：`cp ~/.config/scripts/terminal-wayland.backup.<时间戳> ~/.config/scripts/terminal-wayland`。
+- 后续可能方向：① live 同步 terminal-wayland 时按惯例 backup（保留 3 份）；② 可选清理项（awww/imagemagick/X libs）仍待用户决定；③ aarch64 机器 Nix profile 是否也需同类梳理，另行评估。
