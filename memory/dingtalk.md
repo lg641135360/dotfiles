@@ -22,16 +22,19 @@
 - hook 路径会伪装 `XDG_SESSION_TYPE=x11` 并清除 `WAYLAND_DISPLAY`；x86_64 上脚本默认启用 hook（基于 `uname -m` 判断），aarch64 上默认不启用；可用 `DINGTALK_FORCE_X11_CAPTURE=0/1` 显式覆盖架构默认（优先级最高）
 
 ## hook 源码版本约束（x86_64 关键）
-- x86_64 + 钉钉 8.1.0 必须使用 6 月 4 日 hook 源码版本（commit `13537e2`，`tools/dingtalk-wayland-screenshare/` 全部 4 个文件）
-- 8 月 14 日 commit `3323b5e` 为解决 aarch64 tblive 内嵌 GLib main context 问题改动了 hook 源码，但在 x86_64 上会导致钉钉启动即崩（`CefExecuteProcess exit_code<<0`，hook 未触发，debug log 全空），不可用
-- 两版本关键差异（6 月 4 日 → 8 月 14 日）：
-  - `hook.cpp` 导出 `XShmAttach`：`return false;` → `XShmAttachHook(); return XShmAttachFunc(dpy, shminfo);`
-  - `payload.hpp` mainloop 时序：`create_screencast_session` **之后** `g_main_loop_new` → **之前** `g_main_loop_new`
-  - `payload.hpp` 引入 `create_cancellable` + 失败时 `g_main_loop_quit`
-  - `payload.cpp` 引入 `kPortalCreateTimeout = 60s` + 超时 `g_cancellable_cancel`
-- 6 月 4 日版本机制：导出 `XShmAttach` 返回 false 让钉钉 XShm 初始化失败、回退到 `XGetImage`/`XShmGetImage` hook；portal 初始化由内部 `XShmAttachInner` 在 XShmGetImage 的线程上下文中触发
-- live .so SHA-256（6 月 4 日版本）：`744821ac0dabd7fd787e0093dea299ce6e8590b5fd0567bf7460fb03cafbc519`
-- 重新编译部署：见上方"构建 hook"，从 dotfiles 根目录一次性 `cmake -S ... -B /tmp/... && cmake --build ... && install ...`
+- x86_64 + 钉钉 8.1.0/8.2.8 必须使用修复后的 hook 源码（8.2.8 的 `libmeeting_sdk.so` 同样只编译了 X11 capturer：`ldd` 无 wayland/portal/pipewire 依赖、`nm -D` 无 `wl_display`/`pw_main`/`xdp_session` 符号，2026-08-29 实测），脚本按 `uname -m` 默认走 hook
+- **2026-08-29 修复（必须保留）**：① `payload.hpp` `on_param_changed` 里 `spa_debug_type_find_name()` 对未知 param id 返回 NULL，直接构造 `std::string` 会 abort（`basic_string: construction from null is not valid`）→ tblive 崩溃、共享即退会；apt niri 26.04 的 pipewire 流会发送 hook 不认识的 param id 才踩中。修复为 null 检查 + 回退 `unknown param id: <id>`。② pw 资源销毁移入 loop 线程 + `request_close_session` 在 gio quit 前调度 `xdp_session_close`（详见下方"停止共享后图标不灭"条目——两层时序 bug）
+- 6 月 4 日 commit `13537e2` 为旧稳定基线；8 月 14 日 commit `3323b5e` 在 x86_64 上钉钉启动即崩不可用；后续 `f787a48`（x86_64 稳定版）、`e1c9686`（PipeWire 线程事件驱动化）是当前 live 在用版本，但需叠加上面 2026-08-29 的两处时序修复（null 保护 + 销毁/close 时序）
+- live .so SHA-256（e1c9686 + 2026-08-29 三处修复）：`903fc7abf1cef6a0bd081e8a5c411d011a87db0b8b9b07d3625919fa50ee0c37`
+- 重新编译部署：见上方"构建 hook"；构建依赖 `libportal-dev` 已由 apt 提供（0.9.1，原 Nix 迁移后补装），OpenCV dev 用 apt `libopencv-dev` 4.10.0
+- 从 dotfiles 根目录一次性 `cmake -S ... -B /tmp/... && cmake --build ... && install ...`
+
+## 8.2.8 execstack 补丁（内核 7.0.0-30 必须）
+- 现象（2026-08-29）：点加入会议无反应；日志 `[tblive] media app occur exception` → `tblive can't be launched beyond 10s`，tblive 子进程报 `GetLibEntry instance failed` / `error: entry is null`
+- 根因：钉钉 8.2.8 的 `libconference_new.so` ELF `GNU_STACK` 标记为 **RWE**（可执行栈，打包缺陷）；8 月 29 日 Nix→apt 迁移期间安装的新内核 `7.0.0-30-generic` 拒绝为共享库启用可执行栈 → dlopen 失败。与 hook、启动脚本无关（无 hook、官方 Elevator.sh 同样失败）
+- 修复：python 字节补丁把 PT_GNU_STACK 的 PROT_EXEC 位清零（RWE→RW），备份在 `/opt/apps/com.alibabainc.dingtalk/files/8.2.8-Release.260818002/libconference_new.so.bak-20260829`
+- **钉钉包更新/重装后补丁会被覆盖，需重新执行**（脚本模式同 memory）：定位 `Elf64_Phdr` 中 `p_type == 0x6474e551 (PT_GNU_STACK)`，将 `p_flags` 的最低位清零；补丁脚本曾存于 `/tmp/fix_execstack.py`（临时文件，可能已清理，按此描述可重写）
+- 验证：`readelf -lW` 显示 `GNU_STACK ... RW`；`LD_LIBRARY_PATH=<钉钉目录> python3 -c "import ctypes; ctypes.CDLL('./libconference_new.so')"` 成功
 
 ## 排障日志
 - 查看 `/tmp/dingtalk-wayland-debug.log`
@@ -58,6 +61,14 @@
 - `restart` 通过 `/proc/<pid>/exe` 精确匹配当前用户的钉钉与 tblive，禁止恢复宽泛的 `pkill -f` 命令行匹配
 - hook 需要 `DRM_FORMAT_MOD_LINEAR` 作为 modifier（否则遇到 `no more input formats`）
 - niri 提供 `SPA_DATA_DmaBuf` 时需要对 `spa_data.fd` 做 `mmap` 并复制到 framebuffer
+- **停止共享后 waybar privacy 图标不灭 / tblive 残留——已修复（2026-08-29，两层 hook 时序 bug）**：
+  - 现象链：停止共享（或结束会议）后 tblive 残留、portal 代理的 pipewire 流不回收（client `app=tblive` + `Stream/Input/Video` node + niri `Stream/Output/Video` 持续推帧）、waybar `privacy` 模块 `screenshare`/`audio-in` 图标不灭；portal 流甚至跨 tblive 重启残留（session 未关时 portal 侧持续持有）
+  - 根因 A（pw 销毁死锁）：`e1c9686` 事件驱动化把 `pw_thread_loop` 换成裸 `pw_main_loop` 后，`PipewireScreenCast` 析构（pw_stream_disconnect/destroy/core_disconnect 需与 mainloop 线程同步）被推迟到 loop 线程已退出的 hook 清理阶段执行 → 死锁 → tblive 退出流程卡死（主线程 futex，23 线程 sleeping，`module-rt` 悬挂）
+  - 根因 B（session close 丢失）：`xdp_session_close` 是 GDBus 异步调用，旧顺序先 `g_main_loop_quit` 杀 gio mainloop、后（析构）close → 消息在无人迭代的 GMainContext 上永远发不出去 → portal session 永不关闭 → 流持续存在
+  - 修复：① pw 资源销毁移入 loop 线程（stop 循环退出后、线程 return 前调 `destroy_pw_objects_in_loop_thread()`，各原子指针置 null；析构改判空跳过防死锁）；② `request_close_session()` 在 `StopGIOLoop` **之前**经 `g_main_context_invoke` 调度到 gio 线程执行 `xdp_session_close`，并以 `session_close_done` 原子做 1s 有界等待（实测 10ms 完成）
+  - 修复后验证：debug log `pw objects destroyed in loop thread` → `xdp_session_close invoked in gio context` → `waited 10ms, done=true`；pw 层残留 0、tblive 正常退出、图标熄灭
+  - **钉钉侧遗留（hook 无抓手）**：8.2.8 停止共享按钮有时不触发捕获清理（连 `StopShareScreen`/`export XShmDetach called` 日志都没有，SDK 信令链路断裂），此时只能结束会议（static 析构 → XShmDetach → hook 完整清理）或精确 kill tblive 兜底；建议向钉钉反馈
+  - 诊断技巧：此类问题用 `pw-dump` 对比干净基线看 portal 代理对象（client 带 `pipewire.access.portal.app_id`），`/proc/<tblive-pid>/task/*/comm` 看 pw 线程是否已退出判断卡点
 
 ## 钉钉保持 XWayland 模式（不切原生 Wayland）
 - 钉钉 CEF 109 默认 ozone=x11，在 niri Wayland 双屏混 DPI（DP-2 1.25 / eDP-1 2.0）下走 XWayland 会坐标错位，表现为鼠标双光标、点击落不到窗口

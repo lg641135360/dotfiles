@@ -34,6 +34,8 @@
   - 当前会话通过 `dbus-update-activation-environment --systemd GTK_IM_MODULE=` 将值设空
 - niri/Wayland 下 Satty 启动前应 `unset GTK_IM_MODULE`，让 GTK4 走 Wayland text-input/fcitx 路径
 - Wayland autostart 中统一 `unset GTK_IM_MODULE`，`export QT_IM_MODULE=fcitx` 等 Qt 应用仍需
+- fuzzel（≤1.12.0，含 apt 版）不实现 text-input/input-method 协议，niri 下无法接入 fcitx5，launcher 中文输入属上游能力边界（rofi 同类）；判别方法：`strings <launcher 二进制> | grep -E 'text_input|input_method'` 为空即不支持
+- `/proc/<pid>/environ` 是 NUL 分隔的单行数据，脚本判断某环境变量是否存在必须 `grep -z`（或先 `tr '\0' '\n'`）；裸 `^VAR=` 只命中首变量。典型翻车：launcher-wayland 曾据此永远误判 fcitx5 未运行，每次拉起 launcher 都 `--replace` 重启、托盘图标反复消失（2026-08-29 已修）
 
 ## Chromium/Electron 应用的 Wayland text-input 版本矩阵（x86_64 niri 26.04 实测）
 - niri 只实现 text-input v3；Chromium 系应用需显式或默认 v3，否则 fcitx5 中文输入**静默失效**（无报错，就是不响应）
@@ -41,6 +43,12 @@
 - 判断某 Electron 应用是否需要：`strings <binary> | grep 'Chrome/[0-9]'` 查 Chromium 版本，≥ 大约 13x 默认 v3；不确定就直接加，新 Chromium 会忽略无害
 - 排障入口：先确认 `--ozone-platform=wayland --enable-wayland-ime` 已带，再怀疑 text-input 版本
 - 2026-08-27 已落地：Obsidian（AppImage，glob 发现）经 `~/.config/scripts/obsidian-wayland` + `desktop-entries/obsidian.desktop` 切原生 Wayland，fcitx5 输入实测正常；钉钉（CEF 109）与 corplink（Electron 22）保持 XWayland 不迁
+
+## Trae 终端黑块（xterm.js WebGL glyph atlas）排障（x86_64 niri 实测）
+- 症状：终端随机位置整段文字渲染成**实心**黑色方块，缩放/最大化窗口时黑块分布变化（atlas 重新分页所致）；实心黑块 ≠ 空心 tofu，可排除字体缺字形
+- 根因时间线（2026-08-29）：同日内核 6.8 → 7.0.0-30-generic（11:18 `--fix-broken install` 装入，6.8 同刻被卸载，i915 / Alder Lake UHD 730）+ niri Nix→apt 26.04ppa3 重登会话——底层栈双变更踩中 WebGL 渲染路径。同日钉钉 execstack 问题亦为该内核行为变化实锤，内核嫌疑最大，但 6.8 已卸载无法对照，无法精确归因单一层
+- 修复：Trae settings.json 加 `"terminal.integrated.gpuAcceleration": "off"`（CPU/DOM 渲染，肉眼无性能差异），实测黑块消失；注意该文件仅存于 live（仓库无对应）
+- 后续：Mesa/内核/Electron 任一层更新后可试删该配置恢复 GPU 渲染；若整窗级 GPU 异常（不只终端），改走 wrapper 加 `--disable-gpu` 对照
 
 ## appimagelauncher binfmt argv bug（x86_64 实测）
 - 直接 `exec AppImage`（带 ≥4 个总参数）时被 binfmt_misc 拦给 `/opt/appimagelauncher.AppDir/.../binfmt-interpreter`，它向 `/usr/bin/AppImageLauncher` 转发 argv 时数组未 NULL 终止 → `execv EFAULT`，启动失败；0-3 个参数正常（易误判为随机故障）

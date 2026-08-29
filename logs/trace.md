@@ -20,6 +20,25 @@
   ```
 
 
+## 2026-08-29 — 卸载 Flatpak 钉钉，fuzzel 双"钉钉"入口收敛（live）
+
+- 目的：fuzzel 出现两个"钉钉"入口。排查：Flatpak 版（`com.dingtalk.DingTalk` 8.1.0，占 1.3G，desktop ID 与 deb 版不同、不会被启动器去重）与 deb 版（`com.alibabainc.dingtalk`，用户级包装 `dingtalk-wayland` 覆盖系统级 Elevator.sh）两套并存；且 handler 分裂——`dingtalk://` 默认走 deb、`dingtalk_std_ind://` 默认走 Flatpak。
+- 改动（用户手动执行，agent 复核）：`sudo flatpak uninstall com.dingtalk.DingTalk`；`xdg-mime default com.alibabainc.dingtalk.desktop` 修正 `dingtalk://` 与 `dingtalk_std_ind://` 两个 handler（写入 `~/.config/mimeapps.list`）。
+- 验证：`/var/lib/flatpak/exports/share/applications/` 无 dingtalk 条目；`flatpak list` 无 dingtalk；两个 handler 均指向 `com.alibabainc.dingtalk.desktop`（mimeapps.list 第 50-51 行）；fuzzel 入口待下次打开复核为单个。
+- 回滚信息：未提交（无仓库配置改动，仅 trace/memory 记录）；如需 Flatpak 版回归：`flatpak install flathub com.dingtalk.DingTalk`。
+
+## 2026-08-29 — niri 会话 failed 单元排查 + flameshot/yakuake autostart 禁用（live）
+
+- 目的：排查 `systemctl --user --failed` 的 5 个失败单元（picom/pulseaudio/钉钉/飞连为 XDG autostart 生成单元；ghostty 为包自带 unit，Type=notify-reload 在 niri 下就绪超时被 SIGTERM）；顺带确认 `~/.config/autostart/` 中 flameshot、yakuake 两个 live 独有全量条目残留（截图主线已是 satty Mod+S，yakuake 为 KDE X11 下拉终端）。
+- 改动（live-only，仓库无对应物、install.sh 不登记）：`org.flameshot.Flameshot.desktop` 与 `org.kde.yakuake.desktop` 以 Hidden=true 最小覆盖（格式对齐 `.config/linux/xdg-autostart/` 惯例）。用户同轮已自行处理：钉钉/飞连/picom/pulseaudio 四条 Hidden=true 覆盖 + 备份（19:45）、`reset-failed` 清态（`--failed` 现为空）；ghostty unit 仍 enabled 待 disable/mask。
+- 验证：覆盖文件内容/权限确认；`grep -l 'Hidden=true'` 命中 12 个预期条目；`systemctl --user --failed` 无输出。下次登录需复核 xdg-autostart-generator 不再生成对应 `@autostart` 单元。
+- 回滚信息：未提交（本轮无仓库配置改动，仅 trace/memory 记录）；live 恢复：
+  ```bash
+  cp ~/.config/autostart/org.flameshot.Flameshot.desktop.backup.20260829_194751 ~/.config/autostart/org.flameshot.Flameshot.desktop
+  cp ~/.config/autostart/org.kde.yakuake.desktop.backup.20260829_194751 ~/.config/autostart/org.kde.yakuake.desktop
+  ```
+- 后续可能方向：① picom/pulseaudio 覆盖进仓库（`.config/linux/xdg-autostart/` + install.sh 注册 + install_wayland_test.sh，待拍板）；② ghostty unit disable/mask；③ trace.md 已超 150 行与 5 条上限，建议 `npm --prefix scripts run archive-trace`；④ `~/.config/niri/` 旧 backup 清理（保留 3 份）。
+
 ## 2026-08-29 — x64 niri 双屏输出名漂移修复（DP-4/HDMI-A-3 → DP-1/HDMI-A-2）+ 测试沙箱 link_cmd 加固
 
 - 目的：用户反馈双屏缩放与 niri 配置不匹配。排查：x64 Ubuntu 26.04 实际输出为 DP-1（Dell D2421DS）与 HDMI-A-2（AOC Q24P1W1），配置仍写 DP-4/HDMI-A-3，匹配不到 → 两屏回落 scale 1。
@@ -199,3 +218,35 @@
 - live 同步与运行态：live `~/.config/scripts/clipboard-wayland` 需用户手动同步（沙箱不允许写 ~/.config），同步前按惯例 `cp ~/.config/scripts/clipboard-wayland{,.backup.<时间戳>}`；`~/.config/systemd/user/` 与会话文件的备份已由用户执行时落盘。
 - 回滚信息：仓库改动随 commit `81112b7` 提交（撤销用 `git revert 81112b7`；该提交由 bef005f amend 而来）。live 侧回滚锚＝清空前的 Nix generation——注意 Nix 本体已卸载、`/nix` 已删除，该锚点已失效；apt 侧 `sudo apt purge niri xwayland-satellite` + 移除 PPA 可回退。
 - 后续可能方向：① 用户同步 live clipboard-wayland 后跑一轮功能面（Mod+V 剪贴板历史）；② 稳定数日后 `nix-collect-garbage -d` 回收并可选卸载 Nix 本体；③ cargo 侧 satty 更新流程（`cargo install --git ... --locked` 覆盖装）与 wl-clip-persist 上游跟进为手动节奏，建议观察上游 issue 决定是否跟进 0.22.x 修复版。
+
+
+## 2026-08-29 — launcher-wayland 存活检查修复（fcitx5 托盘消失）+ fuzzel IME 能力边界
+
+- 目的：用户报告「打开 fuzzel 后 fcitx5 托盘图标消失、fuzzel 无法使用 fcitx5」。诊断出两个独立问题：① fuzzel 1.12.0（apt）二进制不含任何 text-input/input-method 协议（`strings /usr/bin/fuzzel` 列出其绑定的全部 Wayland 接口可证），niri 仅经 text-input-v3→input-method 链供 IME，fuzzel 永远无法唤起 fcitx5，属上游功能边界（与 rofi 同类），无配置级修复；② launcher-wayland 的 fcitx5 存活检查 `grep -qa '^WAYLAND_DISPLAY=' /proc/<pid>/environ` 对 NUL 分隔、无换行的 environ 永远匹配失败（`^` 只命中首变量；实测 fcitx5 首变量为 NIRI_SOCKET，裸 grep exit=1、加 `-z` 后 exit=0），导致每次 Mod+C 都误判未运行并执行 `fcitx5 -d --replace`：旧实例经 DBus replace 干净退出（无 coredump、journal 无崩溃记录），waybar 托盘图标随之消失；连续触发时实例互替可致 fcitx5 长时间缺位（当日 journal 佐证：19:38:17-19 七次 fuzzel 锁冲突，19:42:24 fcitx5 被 `fcitx5 -d --replace` 重启）。
+- 改动：① `.config/scripts/launcher-wayland`：`grep -qa` → `grep -zaq`，注释补充 environ NUL 分隔原理与翻车后果；② `tests/wayland_scripts_test.sh` 新增 `test_launcher_wayland_respects_running_wayland_fcitx5`：用受控 env 的真实 sleep 进程复刻「WAYLAND_DISPLAY 非首位」的真实 environ 布局，场景 1（已有 Wayland fcitx5）断言不触发 --replace、场景 2（无 WAYLAND_DISPLAY）断言仍触发。测试先行：旧代码下场景 1 FAIL，修复后通过。
+- 验证：`/bin/sh -n` 语法通过；`/bin/sh tests/wayland_scripts_test.sh` 运行至 clipboard 用例前全部 PASS（含新增用例）。遗留失败一例与本轮无关：clipboard 用例断言 `源码编译装 /usr/local/bin` 在 HEAD、工作区、live 的 clipboard-wayland 中均缺失——系上一轮「IDE 竞态回退」（81112b7 条目已记录）残留，`assert_not_contains 'nix-profile'` 本身通过，仅标记注释丢了。另：Trae 终端把 `sh` 注入为 safe_rm_aliases 函数且静默无操作，跑测试必须用 `/bin/sh` 或 `./tests/xxx`。
+- live 同步与运行态：未同步。live `~/.config/scripts/launcher-wayland` 仍带 bug（每次 Mod+C 重启 fcitx5）。同步前按惯例 backup：`cp ~/.config/scripts/launcher-wayland{,.backup.<时间戳>}`（保留 3 份）；恢复命令：`cp ~/.config/scripts/launcher-wayland.backup.<时间戳> ~/.config/scripts/launcher-wayland`。
+- 回滚信息：代码随 commit `c8c9ef8` 提交（撤销用 `git revert c8c9ef8`）。
+- 后续可能方向：① 用户同步 live 后实测：Mod+C 连续开合数次，waybar 托盘 fcitx5 图标应稳定不消失；② clipboard-wayland 补 `源码编译装 /usr/local/bin` 注释（repo+live 一并同步）以修复遗留红测试；③ launcher 中文输入如强需求，关注 fuzzel 上游 text-input 支持进展，或评估支持 IME 的替代 launcher。
+
+
+## 2026-08-29 — 钉钉 8.2.8 会议两连修：execstack 字节补丁 + hook null param 崩溃修复
+
+- 目的：用户报告「点加入会议没反应」。连续排查出两个独立根因并修复：① 新内核拒绝加载带可执行栈标记的会议库（tblive 起不来）；② hook 新版代码对未知 pipewire param id 的 null 字符串构造（共享即退会）。两问题都与 8 月 29 日 Nix→apt 迁移的时间线耦合（新内核 + apt niri 26.04），但因果独立。
+- 诊断链（含对照试验选择）：① 首查进程/日志：tblive 进程数 0，`[tblive] media app occur exception` → `can't be launched beyond 10s`，stderr `GetLibEntry instance failed`/`entry is null`，hook debug log 不存在；② 发现 live hook .so SHA（fd8f653d）≠ memory 记录的 6 月 4 日稳定版（744821ac），仓库历史显示后续有 f787a48/e1c9686 两版——先假设 hook 不兼容；③ **对照试验（用户选无 hook 重启）**：`DINGTALK_FORCE_X11_CAPTURE=0 restart` 后点会议仍同样失败 → 排除 hook；④ **strace 跟踪官方 Elevator.sh**（ptrace attach 被 yama 禁止，改为启动即跟踪）：`libconference_new.so` openat 成功但 `libscreencast.so` 从未被加载；⑤ ctypes 复现 dlopen 实锤：`cannot enable executable stack as shared object requires: Invalid argument`——`readelf -lW` 确认 `libconference_new.so` GNU_STACK 为 **RWE**（`libscreencast.so` 为正常 RW）；apt history 显示 8 月 29 日 11:18 `--fix-broken install` 装入内核 **7.0.0-30-generic**，8 月 28 日会议正常（dinglive/logs/live-2026-08-28.txt 尾部 `screen_share_success:1`）→ 新内核拒绝 RWE stack 实锤；⑥ python 字节补丁（PT_GNU_STACK p_flags 清 EXEC 位）后 ctypes dlopen OK、会议窗口恢复；⑦ 随即暴露第二层：点共享后 `terminate called ... std::logic_error`，what() 为 `basic_string: construction from null is not valid`，定位 `payload.hpp on_param_changed`：`spa_debug_type_find_name()` 对 apt niri 26.04 发来的未知 param id 返回 NULL，直接构造 std::string 即 abort。
+- 改动：① `tools/dingtalk-wayland-screenshare/payload.hpp`：`on_param_changed` 中 `spa_debug_type_find_name` 返回值加 null 检查，null 时回退 `"unknown param id: " + std::to_string(id)`（附注释说明 apt niri 26.04 触发条件）；② live hook 重新编译部署（构建依赖补装 `libportal-dev`——原由 Nix 提供，迁移后缺失；OpenCV dev 本就在 apt），新 .so SHA-256 `d4f8eafde3ebfb59cbd42c865ba1fc37f0337c6445161948e862cd7714d8a650`；③ `/opt/apps/com.alibabainc.dingtalk/files/8.2.8-Release.260818002/libconference_new.so` 打 execstack 补丁（用户执行 sudo），备份 `libconference_new.so.bak-20260829` 同目录；④ memory/dingtalk.md：新增"8.2.8 execstack 补丁"章节、重写"hook 源码版本约束"（8.2.8 实测结论 + null 修复 + 新 SHA + libportal-dev 依赖）。
+- 验证：`tests/dingtalk_hook_test.sh` PASS；hook 重新编译 BUILD OK；最终实测（用户确认）会议窗口正常弹出、共享屏幕正常，debug log `processed frame count: 400` 帧处理稳定。辅助验证：`readelf -lW` 显示 GNU_STACK RW；repo `git diff --check` 干净。注意 IDE clangd 对 payload.hpp 的 glib/portal include 报错为既有环境问题（缺 include 路径），实际编译无碍。
+- live 同步与运行态：hook .so 属 `~/.local/lib`（脚本惯例位置）直接部署；钉钉经 `restart` 重载两次（对照试验 + 修复后）；`/opt` 库补丁由用户 sudo 执行。仓库侧 `.config/scripts/` 无改动、无需同步 live。
+- 回滚信息：代码随 commit `76e795e` 提交（撤销用 `git revert 76e795e`）。/opt 补丁回滚（仅补丁打错时用，回滚即复现 tblive 起不来）：`sudo cp /opt/apps/com.alibabainc.dingtalk/files/8.2.8-Release.260818002/libconference_new.so.bak-20260829 /opt/apps/com.alibabainc.dingtalk/files/8.2.8-Release.260818002/libconference_new.so`。live hook .so 回滚：旧 fd8f653d/d4f8eafd 版已被覆盖无备份，如需回退 revert 后重编译。
+- 后续可能方向：① **钉钉包更新后 execstack 补丁会被覆盖**，会议再次打不开时按 memory/dingtalk.md「8.2.8 execstack 补丁」章节重打（可考虑把补丁脚本固化进 tools/ 并加入 install.sh 或定期检查）；② `spa_debug_type_find_name` null 修复建议回馈上游 lzl200110/dingtalk-wayland-screenshare（apt niri 26.04 用户都会踩）；③ 8.2.8 下 `~/.local/lib/dingtalk-wayland-screenshare` 的 libgbm preload 告警依旧无害，继续忽略；④ **同日续报：停止共享/结束会议后图标不灭 + tblive 残留——已修复（三层时序 bug 定稿）**——多轮复现与 pw-dump 基线对比逐步收敛：首次复现抓到 portal 代理流残留（client `app=tblive` + `Stream/Input/Video` + niri `Stream/Output/Video` 推帧不止，跨 tblive 重启持续存在）；排除 hook 停止路径死锁（stop 序列完整收敛）后，终从线程名单（无 pw loop 线程 + `module-rt` 悬挂 + 主线程 futex）实锤两处时序 bug：**(A)** pw 资源析构在 loop 线程退出后执行（`pw_stream_disconnect/destroy` 需与 mainloop 同步）→ 死锁卡死 tblive 退出；**(B)** `xdp_session_close` 在 gio mainloop quit 之后调（GDBus 异步消息发不出去）→ portal session 永不关闭 → 流持续存在。修复：pw 销毁移入 loop 线程（`destroy_pw_objects_in_loop_thread` + 析构判空兜底）、session close 经 `g_main_context_invoke` 调度到 gio 线程（`StopGIOLoop` 前执行 + `session_close_done` 1s 有界等待，实测 10ms 完成）。修复后实测：`pw objects destroyed in loop thread` → `xdp_session_close invoked in gio context` → `waited 10ms, done=true`；pw 层残留 0、tblive 正常退出、图标熄灭。**钉钉侧遗留**：8.2.8 停止共享按钮有时连 `StopShareScreen`/`XShmDetach` 都不触发（SDK 信令链路断裂，hook 无抓手），缓解 = 结束会议或 kill tblive，建议向钉钉反馈。新 .so SHA `903fc7abf1cef6a0bd081e8a5c411d011a87db0b8b9b07d3625919fa50ee0c37`；诊断技巧与根因全录 memory/dingtalk.md。
+
+
+## 2026-08-29 — Trae 终端黑块：关闭终端 WebGL GPU 渲染
+
+- 目的：用户报告 Trae 终端随机位置整段文字渲染成黑色方块，缩放/最大化窗口时变化。症状匹配 xterm.js WebGL 渲染器 glyph atlas 纹理异常（Wayland/Electron 下已知问题）；时间线与当日 Nix→apt niri 会话重登耦合（Wayland 会话重启后 WebGL 上下文初始化环境变化），但仅为触发契机。
+- 排查与定位：settings.json 无 `terminal.integrated.gpuAcceleration`（默认 auto → WebGL 渲染器）；实心黑块（非空心 tofu）+ 随窗口几何变化 → 排除字体缺字形，锁定 GPU 渲染路径。
+- 改动（仅 live `~/.config/Trae CN/User/settings.json`，仓库无对应文件）：`terminal.integrated.smoothScrolling` 后新增 `"terminal.integrated.gpuAcceleration": "off"`（附一行注释说明原因）。README 无需同步：Trae settings 不属于任何 dotfiles 模块文档范围，且启动脚本/desktop entry 未动。
+- 验证：改后文件以注释剥离方式校验 JSONC 解析通过（python3 json.loads）；备份文件校验为纯 JSON（证明注释为本次唯一新增非 JSON 元素）。生效需用户在 Trae 中 Reload Window（`Ctrl+Shift+P`），终端黑块是否消失待用户实测确认。
+- live 同步与运行态：直接改 live（该文件仅存在于 live，不在仓库）；backup：`~/.config/Trae CN/User/settings.json.backup.20260829_203536`（同目录仅 1 份，无需清理）。恢复命令：`cp "$HOME/.config/Trae CN/User/settings.json.backup.20260829_203536" "$HOME/.config/Trae CN/User/settings.json"`。
+- 回滚信息：未提交（本轮仓库侧仅 logs/trace.md 本条追加；工作区另有前几轮 launcher-wayland/dingtalk/memory 等未提交改动，勿一起 checkout）。
+- 后续可能方向：① ~~用户 Reload Window 后实测黑块是否消失~~ **已确认修复**（用户实测黑块消失）；② ~~memory/desktop.md 固化排障条目~~ **已完成**（新增「Trae 终端黑块（xterm.js WebGL glyph atlas）排障」节，含根因时间线：8/29 内核 6.8→7.0.0-30 + niri Nix→apt 双变更）；③ 上游关注 xterm.js WebGL addon 对 Wayland/fractional scaling 的修复进展，且 Mesa/内核/Electron 更新后可试删 `gpuAcceleration: off` 恢复默认。
