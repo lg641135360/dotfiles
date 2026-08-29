@@ -4,13 +4,15 @@
 // Common input/layout/blur/window-rule/binds live in ../common.kdl.
 // Validate with: niri validate -c ~/.config/niri/config.kdl
 
-output "DP-4" {
+// 输出名以 `niri msg outputs` 实际为准：DP-1 (Dell D2421DS) 在左，HDMI-A-2 (AOC Q24P1W1) 在右。
+// 历史上曾是 DP-4 / HDMI-A-3，接口名随显卡/接线变化，匹配不到时 niri 会回落 scale 1。
+output "DP-1" {
     mode "2560x1440@59.951"
     scale 1.25
     position x=0 y=0
 }
 
-output "HDMI-A-3" {
+output "HDMI-A-2" {
     mode "2560x1440@59.951"
     scale 1.25
     position x=2048 y=0

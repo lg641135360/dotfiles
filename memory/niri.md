@@ -8,6 +8,7 @@
 
 ## output / 外接屏
 - Ubuntu aarch64 双屏（niri/Wayland）布局：内屏 eDP-1 `2880x1800@120` scale 2.0（逻辑 1440x900）放左侧 `x=0`；外接屏 DP-2 scale 1.25（逻辑 2048x1152）放右侧 `x=1440`。
+- Ubuntu x64 双屏（2026-08-29）：DP-1 (Dell D2421DS) 左 `x=0`、HDMI-A-2 (AOC Q24P1W1) 右 `x=2048`，均 2560x1440@59.951、scale 1.25（逻辑 2048x1152）。接口名会随显卡/接线漂移（此前为 DP-4 / HDMI-A-3），配置匹配不到输出时 niri 全部回落 scale 1——排查缩放异常先对比 `niri msg outputs` 实际接口名与配置。
 - 外接屏现为 Dell S2721DGF（2560x1440，上限 165Hz）。MediaTek mtdisp 驱动只从 EDID 基块暴露 `2560x1440@59.951`（preferred），不暴露 CEA 扩展块的 120Hz，故 120Hz 必须用 niri `modeline`（Since 25.11）强制：`modeline 497.75 2560 2608 2640 2720 1440 1445 1448 1525 "+hsync" "-vsync"`（取自 EDID CEA 扩展块 DTD，实测 119.998Hz）。不要用 `mode "2560x1440@120"`——该刷新率不在 `niri msg outputs` 列表里时 niri 无法匹配。
 - modeline 失败时 niri 回落到 preferred 59.951Hz，不损坏显示；120Hz 在 165Hz 上限内为官方时序，安全。
 

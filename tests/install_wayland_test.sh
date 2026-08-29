@@ -101,7 +101,7 @@ test_install_copies_ubuntu_x64_niri_config() {
     assert_contains '// Platform: ubuntu_x64' "$home_dir/.config/niri/config.kdl"
     assert_contains 'include "common.kdl"' "$home_dir/.config/niri/config.kdl"
     assert_not_contains 'include "../common.kdl"' "$home_dir/.config/niri/config.kdl"
-    assert_contains 'output "DP-4" {' "$home_dir/.config/niri/config.kdl"
+    assert_contains 'output "DP-1" {' "$home_dir/.config/niri/config.kdl"
     assert_contains 'scale 1.25' "$home_dir/.config/niri/config.kdl"
 
     # Desktop entries get the __HOME__ placeholder substituted with the real $HOME.

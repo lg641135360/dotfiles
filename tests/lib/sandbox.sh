@@ -17,6 +17,12 @@
 # Symlinks an existing command into the fake bin dir. Fails loudly if
 # the command is missing on the host so tests do not silently skip
 # commands they assume are present.
+#
+# `command -v` may resolve to a bare name (shell function / alias /
+# builtin) instead of a path — e.g. editor shell-integration scripts
+# inject cp/mv wrapper functions that leak into child shells. Linking
+# to a bare name would create a self-referential dangling symlink, so
+# in that case fall back to searching PATH for the real executable.
 link_cmd() {
     cmd=$1
     target_dir=$2
@@ -24,6 +30,25 @@ link_cmd() {
         printf 'link_cmd: %s not found on host PATH\n' "$cmd" >&2
         return 1
     }
+    case $src in
+        */*) ;;
+        *)
+            src=""
+            oldifs=$IFS
+            IFS=:
+            for dir in $PATH; do
+                if [ -f "$dir/$cmd" ] && [ -x "$dir/$cmd" ]; then
+                    src="$dir/$cmd"
+                    break
+                fi
+            done
+            IFS=$oldifs
+            [ -n "$src" ] || {
+                printf 'link_cmd: %s resolves to a shell function/alias/builtin, no executable found on PATH\n' "$cmd" >&2
+                return 1
+            }
+            ;;
+    esac
     ln -s "$src" "$target_dir/$cmd"
 }
 

@@ -11,6 +11,7 @@
 ## 系统环境
 - 在 Ubuntu aarch64 上，X11-sensitive 桌面工具通常优先使用系统二进制（尤其是 `redshift`）。
 - 主力 AI 编辑器为 Trae CN（aarch64 + niri/Wayland）。已知问题：Trae CN 升级（如 2026-08-10）会丢失内置 ripgrep 二进制的可执行权限（变为 `-rw-r--r--`），导致 IDE 的 Grep 工具在任意路径（含单文件）均报「权限不够 (os error 13)」；rg 由每次搜索临时 spawn，修复后无需重启 Trae。修复：`sudo chmod 755 /usr/share/trae-cn/resources/app/node_modules/@vscode/ripgrep/bin/rg /usr/share/trae-cn/resources/app/node_modules/@byted-fe/ripgrep-linux-arm64/bin/rg`。Trae 升级后 Grep 失效时优先怀疑此问题。
+- Trae CN 终端 shell 集成会注入 `safe_rm_aliases.sh`（cp/mv 变为 shell 函数并渗入子 bash），使 `command -v cp` 返回裸名而非路径；依赖 `command -v` 解析真实二进制的测试沙箱会因此造出自引用死链（`tests/lib/sandbox.sh` 的 `link_cmd` 已于 2026-08-29 加 PATH 回退防护）。另：IDE 沙箱会拦截删除解析目标在 allowlist 外的 symlink（如 coreutils-rs 的 `uname → /usr/lib/cargo/...`），`install_macos_test.sh` 在 Trae 终端内因此无法完整运行，属环境限制而非仓库问题。
 - 当 Linuxbrew 包遮蔽工作系统二进制且不需要时，通常优先删除包，而不是加防御逻辑。
 - Window manager helper 脚本（`~/.config/scripts/*`）通常保持始终安装并保留可执行位，即使 runtime backend 未安装。
 - 对通过本地 Node current 前缀安装的全局 npm CLI，在共享 zsh PATH 中追加 `$HOME/.local/opt/node-current/bin`。

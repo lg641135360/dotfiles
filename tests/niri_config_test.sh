@@ -104,8 +104,8 @@ test_niri_config_uses_wayland_replacements_not_x11_autostart() {
 
     # Platform-specific output section stays in the platform config.
     assert_contains '// Platform: ubuntu_x64' "$NIRI_CONFIG"
-    assert_contains 'output "DP-4" {' "$NIRI_CONFIG"
-    assert_contains 'output "HDMI-A-3" {' "$NIRI_CONFIG"
+    assert_contains 'output "DP-1" {' "$NIRI_CONFIG"
+    assert_contains 'output "HDMI-A-2" {' "$NIRI_CONFIG"
     assert_contains 'scale 1.25' "$NIRI_CONFIG"
     assert_contains 'position x=2048 y=0' "$NIRI_CONFIG"
 }
