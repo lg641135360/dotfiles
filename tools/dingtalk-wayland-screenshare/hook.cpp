@@ -265,6 +265,13 @@ void XShmDetachHook(){
   if (interface_singleton.interface_handle != nullptr){
 
     XShmDetachStopPWLoop();
+    // portal session 必须在 gio mainloop 存活时关闭：xdp_session_close 走 GDBus
+    // 异步调用，quit 之后再调消息永远发不出去，session 不会被回收，其下 pipewire
+    // 流保持活跃（niri 持续推帧，waybar privacy 图标不灭）。见
+    // XdpScreencastPortal::request_close_session。
+    if (auto* portal_handle = interface_singleton.portal_handle.load()) {
+      portal_handle->request_close_session();
+    }
     XShmDetachStopGIOLoop();
 
     // normal de-initialize interface singleton:

@@ -128,6 +128,34 @@ struct XdpScreencastPortal {
   std::atomic<int> pipewire_fd{-1};
   std::atomic<XdpScreencastPortalStatus> status{XdpScreencastPortalStatus::kInit};
   std::vector<unsigned> pipewire_node_ids{};
+  std::atomic<bool> session_close_done{false};
+
+  // 必须在 gio mainloop 仍存活时关闭 session：xdp_session_close 走 GDBus 异步
+  // 调用，若先 g_main_loop_quit 再 close（旧析构顺序），消息在无人迭代的
+  // GMainContext 上永远发不出去，portal session 不会被回收，其下的 pipewire
+  // 流保持活跃（niri 持续推帧，waybar privacy 图标不灭）。通过 default
+  // context 调度到 gio 线程内执行，并有界等待执行完成。
+  static int close_session_invoke_cb(gpointer data){
+    auto* self = static_cast<THIS_CLASS*>(data);
+    if (self->session.load()) xdp_session_close(self->session.load());
+    dingtalk_debug_log("xdp_session_close invoked in gio context");
+    self->session_close_done.store(true, std::memory_order_release);
+    return G_SOURCE_REMOVE;
+  }
+  void request_close_session(){
+    if (!session.load()) {
+      dingtalk_debug_log("request_close_session: session is null, skip");
+      return;
+    }
+    session_close_done.store(false, std::memory_order_release);
+    dingtalk_debug_log("request_close_session: invoke close to gio context");
+    g_main_context_invoke(NULL, close_session_invoke_cb, this);
+    int waited_ms = 0;
+    for (; !session_close_done.load(std::memory_order_acquire) && waited_ms < 1000; waited_ms += 10)
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    dingtalk_debug_log("request_close_session: waited " + std::to_string(waited_ms) +
+                       "ms, done=" + (session_close_done.load() ? "true" : "false"));
+  }
 
   static void screencast_session_create_cb(
     GObject* source_object,
@@ -274,13 +302,30 @@ struct PipewireScreenCast {
 
   static constexpr pw_registry_events registry_events{ PW_VERSION_REGISTRY_EVENTS, THIS_CLASS::registry_global };
 
-  ~PipewireScreenCast() {
-    if (stream) pw_stream_disconnect(stream);
-    if (stream) pw_stream_destroy(stream);
-    if (core) pw_core_disconnect(core);
-    if (context) pw_context_destroy(context);
-    if (pw_mainloop) pw_main_loop_destroy(pw_mainloop);
+  // 必须在 pipewire loop 线程（仍存活时）调用：pw_stream_disconnect/destroy 等
+  // 需要与 mainloop 线程同步，若延迟到 hook 析构（此时 loop 线程已退出）会死锁，
+  // 卡死 tblive 退出流程并残留 pipewire 节点（waybar privacy 图标不灭）。
+  void destroy_pw_objects_in_loop_thread(){
+    auto* s = stream.exchange(nullptr);
+    if (s) {
+      pw_stream_disconnect(s);
+      pw_stream_destroy(s);
+    }
+    auto* c = core.exchange(nullptr);
+    if (c) pw_core_disconnect(c);
+    auto* ctx = context.exchange(nullptr);
+    if (ctx) pw_context_destroy(ctx);
+    auto* ml = pw_mainloop.exchange(nullptr);
+    if (ml) pw_main_loop_destroy(ml);
     pw_deinit();
+    fprintf(stderr, "%s", green_text("[payload] pw objects destroyed in loop thread. \n").c_str());
+    dingtalk_debug_log("pw objects destroyed in loop thread");
+  }
+
+  ~PipewireScreenCast() {
+    // 正常路径：pw 资源已由 pipewire 线程在退出前销毁（各指针已置 null），
+    // 此处判空跳过。loop 线程已死后不能再调 pw_stream_disconnect/destroy
+    // （会死锁），残留资源依赖进程退出后由 pipewire 服务端回收。
   }
 
   void reset_last_frame_time() {
@@ -361,7 +406,13 @@ private:
     
     THIS_CLASS* this_ptr = reinterpret_cast<THIS_CLASS*>(data);
     this_ptr->reset_last_frame_time();
-    std::string param_id_name_str = spa_debug_type_find_name(spa_type_param, id);
+    // spa_debug_type_find_name 对未知 param id 返回 NULL；std::string(nullptr)
+    // 在 libstdc++ 下触发 "basic_string: construction from null is not valid"
+    // 并 abort（apt niri 26.04 的 pipewire 流会发送 hook 不认识的 param id）。
+    const char* param_id_name = spa_debug_type_find_name(spa_type_param, id);
+    std::string param_id_name_str = param_id_name
+        ? param_id_name
+        : "unknown param id: " + std::to_string(id);
     fprintf(stderr, "%s", yellow_text("[payload pw] param changed. received param type: " + param_id_name_str + "\n").c_str());
     dingtalk_debug_log("param changed: " + param_id_name_str);
     if (param == nullptr || id != SPA_PARAM_Format) {

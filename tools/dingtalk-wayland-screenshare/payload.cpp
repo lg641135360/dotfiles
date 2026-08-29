@@ -276,6 +276,13 @@ std::thread payload_start_pipewire_thread(){
         pw_loop_iterate(pw_main_loop_get_loop(pipewire_handle->pw_mainloop), -1);
       }
       fprintf(stderr, "%s", green_text("[payload] pw stop signal received. pw stopped. \n").c_str());
+      // loop 线程还活着，此刻销毁 pw 资源才是线程安全的；若延迟到 hook 析构
+      // （本线程已退出），pw_stream_disconnect/destroy 需要与 mainloop 同步会
+      // 死锁，卡死 tblive 退出流程并残留 pipewire 节点（waybar privacy 图标不灭）。
+      auto* pipewire_handle_to_destroy = interface_singleton.pipewire_handle.load();
+      if (pipewire_handle_to_destroy) {
+        pipewire_handle_to_destroy->destroy_pw_objects_in_loop_thread();
+      }
     }
   );
   fprintf(stderr, "%s", green_text("[payload] pipewire thread started.\n").c_str());
