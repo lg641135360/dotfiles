@@ -12,7 +12,7 @@
 - `picom`、`xrandr`、`xinput`、`feh`、`xautolock` 不进入 niri 配置：Wayland 下分别由 niri/output/input、`swaybg`、`swayidle`/`swaylock` 等替代。
 - 当前 Ubuntu x86_64 双 2K 外接屏按旧 X11 `Xft.dpi=124` 的观感近似设置为 niri `scale 1.25`，并沿用 `cursor.1x` 的 `XCURSOR_SIZE=32`。
 - niri 的多屏 workspace 不是 i3/Sway 式全局编号列表；每个显示器都有自己的一条垂直 workspace 轨道。需要跨屏时，用 monitor 级快捷键移动焦点、列或整个 workspace。
-- `xwayland-satellite` 已放入 Nix profile；niri 26.04 会在需要运行 X11 应用时按需自动拉起它，因此本仓库不手动 autostart 该进程。
+- `xwayland-satellite` 由 apt 提供（avengemedia/danklinux PPA，0.8.2ppa1，2026-08-29 起替代 Nix 版）；niri 26.04 会在需要运行 X11 应用时按需自动拉起它，因此本仓库不手动 autostart 该进程。
 - Portal 偏好由 `.config/linux/xdg-desktop-portal/niri-portals.conf` 维护，安装到 `~/.local/share/xdg-desktop-portal/niri-portals.conf`；其中 `FileChooser=gtk` 用来避免 GNOME portal 在缺少 Nautilus 时影响文件选择器。
 - **Overview 美化**（Mod+O）：`layout { background-color "transparent" }` 保持日常桌面干净，`overview {}` 使用暗底色 `#1e1e2e` 压暗 overview 背景并加 workspace 卡片阴影。`place-within-backdrop` 经测试在 niri 26.04 上 `load-config-file` 后不生效（含新 surface），待 niri 更新后重新评估 awall 双壁纸方案。
 - **环境变量**：`common.kdl` 顶部的 `environment {}` 块声明 `QT_IM_MODULE`/`XMODIFIERS`/`SDL_IM_MODULE`/`GLFW_IM_MODULE`/`INPUT_METHOD`/`LC_CTYPE`/`XCURSOR_SIZE`/`ZDOTDIR` 等，niri 直接 spawn 的进程会继承；`wayland-autostart` 仍保留 `export` 与 `dbus-update-activation-environment`/`systemctl --user import-environment` 把这些变量同步到 DBus 和 systemd 用户会话。`GTK_IM_MODULE` 故意不设置，让 Wayland GTK 走 text-input 协议（fcitx5 偏好）；但 sddm/niri-session 的 `systemctl --user import-environment`（无参数）会把 im-config 在登录环境注入的 `GTK_IM_MODULE=fcitx` 导入 systemd 用户会话，因此 `wayland-autostart` 在 import 之后显式 `systemctl --user unset-environment GTK_IM_MODULE` 把它单独清掉，否则 fcitx5 会持续弹出"建议取消设置 GTK_IM_MODULE"的 Wayland 检测提示。`ZDOTDIR=/home/rikoo/.config/zsh`（niri 的 `environment {}` 不展开 `~`，须用绝对路径）让 niri spawn 的 shell（含 `Mod+Return` 拉起的终端）也走优化后的 zsh 配置：否则 zsh 落到默认 `~/.zshrc` 且没有 `.zshenv` 的 `skip_global_compinit`，会跑 Ubuntu 全局 compinit，交互启动实测 4.2s（优化配置 0.18s）。同时 `environment {}` 强制设置 `XDG_SESSION_TYPE=wayland`、`XDG_CURRENT_DESKTOP=niri`、`XDG_SESSION_DESKTOP=niri`：从 shell 手动启动 niri 时会继承错误的会话环境（`XDG_SESSION_TYPE=tty`、`XDG_CURRENT_DESKTOP=awesome`），会导致应用/toolkit 无法走 text-input-v3 接入 fcitx5、输入法无法输入中文；强制覆盖后会话按纯 Wayland/niri 身份运行。
@@ -101,7 +101,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `swayidle`：空闲 10 分钟锁屏；系统主动睡眠前也调用 `lock-wayland`（自动挂起已移除，原因见 logs/trace.md 2026-08-18：挂起唤醒瞬间的网络/显示风暴会让 Electron 应用以未捕获的 `net::ERR_INTERNET_DISCONNECTED` 静默退出）
 - KDE 或 GNOME polkit agent（若存在）
 - `blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。
-- `wl-clip-persist` + `cliphist` 剪贴板管理：`clipboard-wayland start` 直接启动 `wl-clip-persist --clipboard regular` 持有当前剪贴板，并以独立的 `wl-paste --watch cliphist store` 记录历史；父脚本监管并共同清理两个子进程。缺少其中一个依赖时，另一项功能仍可降级运行；`Mod+v` 调用 `clipboard-wayland history`，通过 fuzzel 检索历史并写回剪贴板。`wl-clip-persist` 不在 Ubuntu 24.04 apt 源，由 Nix 安装；`cliphist` 用 apt 安装（Ubuntu 24.04 有 0.4.0）。
+- `wl-clip-persist` + `cliphist` 剪贴板管理：`clipboard-wayland start` 直接启动 `wl-clip-persist --clipboard regular` 持有当前剪贴板，并以独立的 `wl-paste --watch cliphist store` 记录历史；父脚本监管并共同清理两个子进程。缺少其中一个依赖时，另一项功能仍可降级运行；`Mod+v` 调用 `clipboard-wayland history`，通过 fuzzel 检索历史并写回剪贴板。`wl-clip-persist` 不在 Ubuntu apt 源，2026-08-29 起由源码编译安装到 `/usr/local/bin`（更新方式：`git pull && cargo build --release` 后覆盖）；`cliphist` 用 apt 安装（0.5.0）。
 
 缺依赖不会中断 niri 启动。
 
@@ -140,7 +140,7 @@ session include common-session
 `Mod+Return` 调用 `~/.config/scripts/terminal-wayland`：
 
 - **aarch64 + Wayland** — 优先使用 `foot`（mtgpu 下 alacritty 0.18.0-dev 在缩放输出内屏 2x 字形损坏，foot 渲染正常）；foot 不可用时回退到下面的通用顺序
-- **其他平台（x86_64 / X11）** — 优先使用 `~/.nix-profile/bin/alacritty`，其次系统 `alacritty`，最后回退 `foot`
+- **其他平台（x86_64 / X11）** — 使用 `alacritty`（2026-08-29 起由 apt 提供，不再特判 Nix profile 路径），最后回退 `foot`
 
 非 aarch64+Wayland 场景保持 Alacritty 优先可以复用 shared Alacritty 字体、透明度、快捷键和主题配置。
 

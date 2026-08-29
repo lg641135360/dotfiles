@@ -4,13 +4,6 @@
 # history：用 fuzzel 弹出剪贴板历史检索，选中项写回剪贴板。
 # 缺依赖时提示并退出，不中断会话（与 wayland-autostart 的跳过风格一致）。
 
-# wl-clip-persist 由 Nix profile 提供；niri environment {} 固定环境不含
-# ~/.nix-profile/bin，手动从终端调用时补上 PATH。
-case ":$PATH:" in
-    *":$HOME/.nix-profile/bin:"*) ;;
-    *) export PATH="$HOME/.nix-profile/bin:$PATH" ;;
-esac
-
 warn() {
     printf '[clipboard-wayland] %s\n' "$*" >&2
 }
@@ -83,7 +76,7 @@ show_history() {
         exit 1
     fi
 
-    # fuzzel 1.9.2（Ubuntu Noble）用 --dmenu + --prompt；勿引入 1.11+ 专属选项。
+    # fuzzel 1.12.0（Ubuntu apt）支持 --dmenu + --prompt；勿引入更新版本才有的选项。
     # cliphist list 输出是 <id>\t<content>，decode 后经 wl-copy 写回剪贴板。
     selected=$(cliphist list | fuzzel --dmenu --prompt "剪贴板 >")
     [ -n "$selected" ] || exit 0

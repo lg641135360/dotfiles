@@ -621,13 +621,13 @@ test_clipboard_wayland_persists_and_queries_history() {
     # history：cliphist list → fuzzel --dmenu → cliphist decode → wl-copy
     assert_contains 'cliphist list | fuzzel --dmenu --prompt "剪贴板 >"' "$CLIPBOARD_SCRIPT"
     assert_contains 'cliphist decode | wl-copy' "$CLIPBOARD_SCRIPT"
-    # fuzzel 1.9.2（Ubuntu Noble）：勿引入 1.11+ 专属选项
+    # fuzzel 1.12.0（Ubuntu apt）：勿引入更新版本才有的选项
     assert_not_contains '--placeholder' "$CLIPBOARD_SCRIPT"
-    # Nix profile PATH 补丁（wl-clip-persist 由 Nix 安装）
-    assert_contains '$HOME/.nix-profile/bin' "$CLIPBOARD_SCRIPT"
+    # wl-clip-persist 2026-08-29 起源码编译装 /usr/local/bin，不得再含 Nix profile 补丁
+    assert_not_contains 'nix-profile' "$CLIPBOARD_SCRIPT"
     # 缺依赖时提示并退出，不中断会话
     assert_contains '未找到命令' "$CLIPBOARD_SCRIPT"
-    assert_contains 'nix profile install nixpkgs#wl-clip-persist' "$CLIPBOARD_SCRIPT"
+    assert_contains '源码编译装 /usr/local/bin' "$CLIPBOARD_SCRIPT"
 
     # 行为演练：缺命令时 history 模式应报错退出（非零）
     tmpdir=$(mktemp -d)
