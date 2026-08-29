@@ -271,7 +271,7 @@ test_launcher_and_lock_have_wayland_first_fallbacks() {
     assert_executable "$TERMINAL_SCRIPT"
     assert_executable "$LAUNCHER_SCRIPT"
     assert_executable "$LOCK_SCRIPT"
-    assert_contains 'exec "$HOME/.nix-profile/bin/alacritty" "$@"' "$TERMINAL_SCRIPT"
+    assert_not_contains 'nix-profile' "$TERMINAL_SCRIPT"
     assert_contains 'exec alacritty "$@"' "$TERMINAL_SCRIPT"
     assert_contains 'exec foot "$@"' "$TERMINAL_SCRIPT"
     assert_not_contains 'exec kitty "$@"' "$TERMINAL_SCRIPT"

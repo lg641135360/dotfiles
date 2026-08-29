@@ -131,7 +131,8 @@ test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal() {
     assert_contains 'uname -m' "$TERMINAL_SCRIPT"
     assert_contains 'WAYLAND_DISPLAY' "$TERMINAL_SCRIPT"
     assert_not_contains 'exec kitty "$@"' "$TERMINAL_SCRIPT"
-    assert_contains 'exec "$HOME/.nix-profile/bin/alacritty" "$@"' "$TERMINAL_SCRIPT"
+    # Alacritty 2026-08-29 起走 apt，terminal-wayland 不得再特判 Nix profile 路径。
+    assert_not_contains 'nix-profile' "$TERMINAL_SCRIPT"
     assert_contains 'exec foot "$@"' "$TERMINAL_SCRIPT"
 
     # 常驻单实例快速开窗方案已随 kitty 一并移除（避免残留 socket / 登录多一个常驻

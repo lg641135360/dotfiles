@@ -13,10 +13,7 @@ fi
 
 # 非 aarch64+Wayland：全平台优先 Alacritty，以便 X11 与 Wayland 会话复用
 # 同一套 shared Alacritty 字体/透明度/快捷键/主题配置。foot 仅作为最后兜底（Wayland-only）。
-if [ -x "$HOME/.nix-profile/bin/alacritty" ]; then
-    exec "$HOME/.nix-profile/bin/alacritty" "$@"
-fi
-
+# Alacritty 2026-08-29 起由 apt 提供，不再特判 Nix profile 路径。
 if command -v alacritty >/dev/null 2>&1; then
     exec alacritty "$@"
 fi
