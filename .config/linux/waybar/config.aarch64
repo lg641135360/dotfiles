@@ -63,7 +63,7 @@
     "tooltip-format-wifi": "Wi-Fi\nSSID：{essid}\n信号：{signalStrength}%\n接口：{ifname}\n地址：{ipaddr}/{cidr}",
     "tooltip-format-ethernet": "有线网络\n接口：{ifname}\n地址：{ipaddr}/{cidr}",
     "tooltip-format-disconnected": "网络未连接",
-    "on-click": "nm-connection-editor"
+    "on-click": "foot -- nmtui"
   },
   "backlight": {
     "format": "󰃟 {percent}%",

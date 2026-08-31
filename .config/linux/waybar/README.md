@@ -30,7 +30,7 @@ aarch64（config.aarch64，含背光与电池）
 
 - **工作区**：使用图标（聚焦/活动/紧急/空），无数字编号，适配 niri 动态工作区
 - **窗口标题**：保留当前输出的 niri 窗口标题，并清理常见 VS Code / Chrome / Alacritty 标题
-- **网络**：常驻显示实时上下行带宽（↓↑），单击打开网络连接编辑器；Wi-Fi、有线和断开状态使用独立 tooltip，按场景显示 SSID、信号、接口和 IP；Waybar 0.15 的带宽占位符在 tooltip 中存在单位换算问题，因此 tooltip 不重复显示速率
+- **网络**：常驻显示实时上下行带宽（↓↑），单击用 `foot -- nmtui` 打开终端内 WiFi 扫描/选择界面（nmtui 可直接列出可用网络并连接，比连接编辑器顺手）；Wi-Fi、有线和断开状态使用独立 tooltip，按场景显示 SSID、信号、接口和 IP；Waybar 0.15 的带宽占位符在 tooltip 中存在单位换算问题，因此 tooltip 不重复显示速率
 - **时钟**：保持紧凑日期时间，悬停显示按 ISO 8601（周一起始）排列的月历
 - **音量**：图标化显示音量，静音状态使用中文；单击静音切换，右击打开 pavucontrol，滚轮调音量（步长 5%，`on-scroll` 调 `wpctl` + `interval 1` 保持显示刷新）
 - **背光（仅 aarch64）**：使用 waybar 内置 `backlight` 模块，图标化显示亮度百分比；滚轮 ±5%、左键 0%、右键 100%（`on-scroll`/`on-click` 直接调 `brightnessctl`）。内置模块靠 udev 事件驱动刷新，但 MediaTek `m1000_backlight` 亮度变化不发 uevent，故加 `interval: 0.1`（约 100ms 轮询兜底）实现近实时更新，无需外部脚本或信号；该模块读 `actual_brightness`，勿自己写脚本读 `brightness`（该值恒为最大值导致百分比恒 100%）

@@ -82,7 +82,7 @@ test_waybar_matches_niri_trial_contract() {
     assert_contains "\"format-wifi\": \"$wifi_icon $down_arrow{bandwidthDownBytes} $up_arrow{bandwidthUpBytes}\"" "$WAYBAR_CONFIG"
     assert_contains "\"format-ethernet\": \"$ethernet_icon $down_arrow{bandwidthDownBytes} $up_arrow{bandwidthUpBytes}\"" "$WAYBAR_CONFIG"
     assert_not_contains '"format-alt":' "$WAYBAR_CONFIG"
-    assert_contains '"on-click": "nm-connection-editor"' "$WAYBAR_CONFIG"
+    assert_contains '"on-click": "foot -- nmtui"' "$WAYBAR_CONFIG"
     assert_contains '"tooltip-format-wifi": "Wi-Fi\nSSID：{essid}\n信号：{signalStrength}%\n接口：{ifname}\n地址：{ipaddr}/{cidr}"' "$WAYBAR_CONFIG"
     assert_contains '"tooltip-format-ethernet": "有线网络\n接口：{ifname}\n地址：{ipaddr}/{cidr}"' "$WAYBAR_CONFIG"
     assert_not_contains '下载：{bandwidthDownBytes}' "$WAYBAR_CONFIG"
