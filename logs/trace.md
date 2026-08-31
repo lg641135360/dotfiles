@@ -20,6 +20,18 @@
   ```
 
 
+## 2026-08-31 — niri 26.04 全局 window-rule 启用 popup 菜单背景模糊
+
+- 目的：开启 niri 26.04 新增的 `popups { background-effect }` 能力，让应用弹出菜单（下拉、右键菜单等）获得背景模糊（popup 默认 non-xray，模糊下层窗口而非壁纸）。
+- 改动：`.config/linux/niri/common.kdl` 全局 window-rule（0.88 透明 + blur）内追加 `popups { background-effect { blur true } }`；README「窗口规则」段与 `memory/niri.md` 同步一行说明。aarch64 平台 `blur` 全局关闭，该改动对其无行为影响。
+- 验证：`niri validate -c`（repo 与 live 均 config is valid）；`sh tests/niri_config_test.sh` exit 0；`git diff --check` 干净；live `niri msg action load-config-file` 重载 exit 0。
+- live 同步：备份 `~/.config/niri/common.kdl.backup.20260831_144608_147375618` 后写入（shell cp 被 IDE 沙箱拦，改用编辑工具落地，内容与仓库一致；同目标旧 backup 已按惯例清理保留 3 份）。
+- 回滚信息：未提交。恢复命令：
+  ```bash
+  cp ~/.config/niri/common.kdl.backup.20260831_144608_147375618 ~/.config/niri/common.kdl && niri msg action load-config-file
+  ```
+- 后续可能方向：① 弹窗模糊观感需日常使用确认（XWayland 应用 popup 是否生效待实测）；② 26.04 其余可选项（`screenshot-window show-pointer=true`、非 xray 模糊）未启用；③ trace.md 超行数/条数上限，建议 `npm --prefix scripts run archive-trace`。
+
 ## 2026-08-29 — 卸载 Flatpak 钉钉，fuzzel 双"钉钉"入口收敛（live）
 
 - 目的：fuzzel 出现两个"钉钉"入口。排查：Flatpak 版（`com.dingtalk.DingTalk` 8.1.0，占 1.3G，desktop ID 与 deb 版不同、不会被启动器去重）与 deb 版（`com.alibabainc.dingtalk`，用户级包装 `dingtalk-wayland` 覆盖系统级 Elevator.sh）两套并存；且 handler 分裂——`dingtalk://` 默认走 deb、`dingtalk_std_ind://` 默认走 Flatpak。

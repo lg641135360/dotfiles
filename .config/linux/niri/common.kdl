@@ -168,6 +168,13 @@ window-rule {
     background-effect {
         blur true
     }
+    // 26.04 起支持 popup 菜单（应用下拉、右键菜单等）背景模糊；popup 效果
+    // 默认 non-xray（模糊下层窗口而非壁纸）。XWayland 应用是否生效需实测。
+    popups {
+        background-effect {
+            blur true
+        }
+    }
 }
 
 window-rule {

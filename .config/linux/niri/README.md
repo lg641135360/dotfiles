@@ -164,7 +164,7 @@ Obsidian 1.8.7 基于 Electron 33 / Chromium 130，原生 Wayland 后端已可�
 
 ## 窗口规则
 
-- 全局窗口默认启用 0.88 透明度和 niri 背景模糊，并设置 `draw-border-with-background false`，避免半透明窗口聚焦时把蓝色 focus ring 背景透出来。透明由各应用自身透明度（如 alacritty 的 `background_opacity 0.82`）与全局 0.88 叠加。
+- 全局窗口默认启用 0.88 透明度和 niri 背景模糊，并设置 `draw-border-with-background false`，避免半透明窗口聚焦时把蓝色 focus ring 背景透出来。透明由各应用自身透明度（如 alacritty 的 `background_opacity 0.82`）与全局 0.88 叠加。同一全局规则还通过 `popups { background-effect { blur true } }`（niri 26.04）为应用弹出菜单（下拉、右键菜单等）启用背景模糊；popup 效果默认 non-xray（模糊下层窗口而非壁纸），XWayland 应用是否生效取决于其 popup surface 类型。
 - Polkit、`pinentry`、`ssh-askpass` 等认证窗口强制浮动并覆盖为 1.0 不透明度，确保密码提示清晰且边界明确。
 - `layer-rule` 为 waybar 和 fuzzel 启用背景模糊（`background-effect { blur true }`），弹出层视觉焦点集中。
 - 钉钉主窗口默认使用 2/3 列宽并覆盖为 1.0 不透明度，减少 Qt/CEF 经 XWayland 在 mtgpu 上叠加透明合成产生黑块或重绘异常的风险；不强制浮动、不强制聚焦，也不固定输出，会议窗口和对话框仍由应用自身管理（2026-08-29 曾试验钉钉窗口浮动，实测后回退）。aarch64 平台配置在后置的全局 0.90 透明规则之后再次覆盖钉钉为 1.0，确保最终生效。
