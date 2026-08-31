@@ -92,6 +92,20 @@ test_niri_config_exposes_multi_monitor_navigation() {
     assert_not_contains 'Mod+Period' "$NIRI_COMMON_CONFIG"
 }
 
+test_niri_config_preset_column_widths_and_fullscreen() {
+    # Mod+Space 只在 1/2 与 2/3 两档预设列宽间循环（2026-08-31 用户决策）。
+    assert_contains 'preset-column-widths {
+        proportion 0.5
+        proportion 0.66667
+    }' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'proportion 0.33333' "$NIRI_COMMON_CONFIG"
+    # Mod+F 改为扩展当前列到可用宽度（= 原 Mod+Ctrl+F 的能力）；原全屏交给应用内 F11。
+    assert_contains 'Mod+F repeat=false hotkey-overlay-title="扩展当前列到可用宽度" { expand-column-to-available-width; }' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+F repeat=false { fullscreen-window; }' "$NIRI_COMMON_CONFIG"
+    # Mod+Ctrl+F 与 Mod+F 动作重复，已释放（2026-08-31 用户决策）。
+    assert_not_contains 'Mod+Ctrl+F' "$NIRI_COMMON_CONFIG"
+}
+
 test_niri_config_uses_wayland_replacements_not_x11_autostart() {
     # Shared Wayland-native directives live in common.kdl.
     assert_contains 'prefer-no-csd' "$NIRI_COMMON_CONFIG"
@@ -276,6 +290,7 @@ test_readme_documents_parallel_trial_and_fallback() {
 test_niri_config_exists_and_validates_when_available
 test_niri_config_keeps_awesome_muscle_memory
 test_niri_config_exposes_multi_monitor_navigation
+test_niri_config_preset_column_widths_and_fullscreen
 test_niri_config_uses_wayland_replacements_not_x11_autostart
 test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal
 test_niri_config_uses_native_environment_cursor_and_animations

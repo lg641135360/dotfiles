@@ -73,7 +73,7 @@ niri validate -c ~/.config/niri/config.kdl
 | `Mod+Shift+1..9` | 移动当前窗口到指定 workspace |
 | `Mod+Ctrl+Shift+a/d` | 移动当前 workspace 到左/右显示器 |
 | `Mod+Ctrl+Space` | 切换浮动 |
-| `Mod+f` | 全屏当前窗口 |
+| `Mod+f` | 扩展当前列到可用宽度（全屏交给应用内 `F11`） |
 | `Mod+m` | 最大化到屏幕边缘 |
 | `Mod+s` | 截图标注（slurp 选区 → grim → Satty 标注） |
 | `Mod+v` | 剪贴板历史检索（cliphist list → fuzzel 选择 → 写回剪贴板） |

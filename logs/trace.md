@@ -20,6 +20,25 @@
   ```
 
 
+## 2026-08-31 — Mod+Space 预设列宽收敛为两档 + Mod+F 改扩展列宽
+
+- 目的：用户希望 `Mod+Space` 在固定少数列宽间循环，且 `Mod+F` 不再做全屏（全屏交给应用内 F11），复用为列宽操作。
+- 改动：① `.config/linux/niri/common.kdl` layout 段 `preset-column-widths` 由 4 档（1/3、1/2、2/3、全宽）收敛为 2 档（1/2、2/3）；② `Mod+F` 由 `fullscreen-window` 改为 `expand-column-to-available-width`（即原 `Mod+Ctrl+F` 的能力，`Mod+Ctrl+F` 保留）；③ README「快捷键映射」与 `tests/niri_config_test.sh` 新增 `test_niri_config_preset_column_widths_and_fullscreen` 锁定新预设块与 `Mod+F` 绑定。
+- 验证：`sh tests/niri_config_test.sh` exit 0（PASS: niri config tests）；`git diff --check` 干净；本机有 `niri` 时测试内的 `niri validate -c` 分支同时校验配置合法。
+- 回滚信息：未提交（本轮仅仓库内改动，未同步 live、无 backup 快照）。仓库回滚入口：
+  ```bash
+  git checkout -- .config/linux/niri/common.kdl .config/linux/niri/README.md tests/niri_config_test.sh
+  ```
+- 后续可能方向：① 日常观察 1/2 ↔ 2/3 两档循环是否够用；② `Mod+Ctrl+F` 与 `Mod+F` 现为同一动作，若嫌冗余可择一释放；③ live 同步前先备份 `~/.config/niri/common.kdl`（对齐 install.sh 惯例）。
+
+## 2026-08-31 — 释放 Mod+Ctrl+F 冗余绑定
+
+- 目的：上一轮 `Mod+F` 已改绑 `expand-column-to-available-width`（与原 `Mod+Ctrl+F` 相同），按用户决策释放 `Mod+Ctrl+F`，避免两键同动作。
+- 改动：① `.config/linux/niri/common.kdl` 删除 `Mod+Ctrl+F repeat=false { expand-column-to-available-width; }`；② README「快捷键映射」`Mod+f` 行去掉「等于 `Mod+Ctrl+f`」措辞；③ `tests/niri_config_test.sh` 新增 `assert_not_contains 'Mod+Ctrl+F'`；④ `memory/niri.md` 键位决策同步。
+- 验证：`sh tests/niri_config_test.sh` exit 0（含 `niri validate` 分支）；`git diff --check` 干净。
+- 回滚信息：未提交（仅仓库内改动，未同步 live）。仓库回滚入口与上一轮相同：`git checkout -- .config/linux/niri/common.kdl .config/linux/niri/README.md tests/niri_config_test.sh memory/niri.md logs/trace.md`。
+- 后续可能方向：`Mod+Ctrl+F` 已空出，后续可按需绑定新动作。
+
 ## 2026-08-31 — niri 重新启用 focus-follows-mouse
 
 - 目的：用户决策打开鼠标 hover 跟随焦点（好用）。2026-08-29 禁用记录仅为使用偏好，与钉钉 @ 候选框消失无关（已由 open-focused false 修复），重新启用无决策冲突。
