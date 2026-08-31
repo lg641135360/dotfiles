@@ -19,6 +19,8 @@ test_fuzzel_config_matches_wayland_launcher_contract() {
     assert_contains 'selection-text=1e1e2eff' "$FUZZEL_CONFIG"
     assert_contains 'border=94e2d5ff' "$FUZZEL_CONFIG"
     assert_contains 'icon-theme=Papirus-Dark' "$FUZZEL_CONFIG"
+    # 2026-08-31 恢复应用图标（fuzzel 1.12.0 卡顿前提消除，见 README）。
+    assert_contains 'icons-enabled=yes' "$FUZZEL_CONFIG"
 
     # Ubuntu Noble ships fuzzel 1.9.2, which predates these options (added in
     # 1.11: placeholder/use-bold/keyboard-focus/match-mode/match-counter and the

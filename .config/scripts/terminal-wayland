@@ -1,30 +1,22 @@
 #!/bin/sh
 # Wayland terminal entrypoint for niri.
 
-# aarch64 + Wayland 优先 foot：该平台 alacritty 0.18.0-dev 在 mtgpu 缩放输出
-# （内屏 2x）下字形渲染会损坏（文字丢失），而 foot 渲染正常。详见
-# logs/trace.md 与 memory/foot.md。
-# x86_64 / macOS 等其他平台继续优先 alacritty，foot 仅作最后兜底。
-if [ "$(uname -m)" = "aarch64" ] && [ -n "$WAYLAND_DISPLAY" ]; then
-    if command -v foot >/dev/null 2>&1; then
-        exec foot "$@"
-    fi
-fi
-
-# 非 aarch64+Wayland：全平台优先 Alacritty，以便 X11 与 Wayland 会话复用
-# 同一套 shared Alacritty 字体/透明度/快捷键/主题配置。foot 仅作为最后兜底（Wayland-only）。
-# Alacritty 2026-08-29 起由 apt 提供，不再特判 Nix profile 路径。
-if command -v alacritty >/dev/null 2>&1; then
-    exec alacritty "$@"
-fi
-
+# 默认使用 foot（Wayland 原生终端），alacritty 仅作兜底。
+# 2026-08-31 起 niri/Wayland 会话默认终端统一为 foot（含 x86_64），alacritty 仅在
+# foot 缺失时回退。历史背景：aarch64 曾因 MediaTek mtgpu 缩放输出下 alacritty
+# 0.18.0-dev 字形损坏（内屏 2x 文字丢失）而优先 foot；现全平台统一 foot 优先，
+# aarch64 行为不变（详见 logs/trace.md 与 memory/foot.md）。
 if command -v foot >/dev/null 2>&1; then
     exec foot "$@"
 fi
 
-if command -v notify-send >/dev/null 2>&1; then
-    notify-send "Terminal unavailable" "Install Alacritty or foot to enable Mod+Return in niri." || true
+if command -v alacritty >/dev/null 2>&1; then
+    exec alacritty "$@"
 fi
 
-printf '%s\n' 'Terminal unavailable: install Alacritty or foot.' >&2
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send "Terminal unavailable" "Install foot or Alacritty to enable Mod+Return in niri." || true
+fi
+
+printf '%s\n' 'Terminal unavailable: install foot or Alacritty.' >&2
 exit 127

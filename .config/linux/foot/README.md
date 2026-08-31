@@ -2,7 +2,7 @@
 
 ## 定位
 
-在 niri 等 Wayland 会话中作为 Alacritty 的兜底终端。当 `alacritty` 不可用时，由 [terminal-wayland](../../scripts/terminal-wayland) 自动调用 `exec foot "$@"`。
+niri/Wayland 会话的默认终端（2026-08-31 起全平台统一，含 x86_64）。`Mod+Return` 与 fuzzel 经由 [terminal-wayland](../../scripts/terminal-wayland) 打开 foot；`alacritty` 仅在 foot 缺失时回退。
 
 ## 文件结构
 
@@ -49,10 +49,10 @@ foot 配置自包含（palette 内嵌），无需像 alacritty 那样 clone 外�
 ## 与 alacritty 的差异
 
 - **主题内嵌**：`foot.ini` 直接写 Catppuccin Mocha palette，不依赖外置主题文件。
-- **cursor color**：foot 显式设置 `cursor.color = 1e1e2e f5e0dc`（text/cursor），与 Catppuccin Mocha 主题一致；alacritty 走主题默认反转。
+- **cursor color**：foot 显式设置 `colors.cursor = 1e1e2e f5e0dc`（text/cursor，foot 1.25 起 `colors.cursor` 取代废弃的 `cursor.color`），与 Catppuccin Mocha 主题一致；alacritty 走主题默认反转。
 - **OSC52**：foot 默认行为即仅允许写剪贴板方向，与 alacritty 的 `osc52 = "OnlyCopy"` 等价，无需显式配置。
 - **窗口模糊**：alacritty 在 Linux 启用 `blur = true`；foot 无对应能力，透明度由 `colors.alpha = 0.82` 提供，模糊由 niri 全局 `background-effect { blur true }` 负责（与 alacritty 在 niri 下的实际表现一致）。
 
 ## 启动方式：普通冷启动
 
-[terminal-wayland](../../scripts/terminal-wayland) 在 alacritty 不可用时 `exec foot "$@"` 冷启动，不依赖常驻实例或远程控制。
+[terminal-wayland](../../scripts/terminal-wayland) 直接 `exec foot "$@"` 冷启动（默认），不依赖常驻实例或远程控制；`alacritty` 仅在 foot 缺失时回退。

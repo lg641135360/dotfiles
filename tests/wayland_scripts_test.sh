@@ -272,23 +272,21 @@ test_launcher_and_lock_have_wayland_first_fallbacks() {
     assert_executable "$LAUNCHER_SCRIPT"
     assert_executable "$LOCK_SCRIPT"
     assert_not_contains 'nix-profile' "$TERMINAL_SCRIPT"
-    assert_contains 'exec alacritty "$@"' "$TERMINAL_SCRIPT"
     assert_contains 'exec foot "$@"' "$TERMINAL_SCRIPT"
+    assert_contains 'exec alacritty "$@"' "$TERMINAL_SCRIPT"
     assert_not_contains 'exec kitty "$@"' "$TERMINAL_SCRIPT"
-    # aarch64 + Wayland 优先 foot 分支必须在 alacritty 之前；其他平台 alacritty 在
-    # 最后一个 foot 兜底之前。
-    assert_contains 'uname -m' "$TERMINAL_SCRIPT"
-    assert_contains 'WAYLAND_DISPLAY' "$TERMINAL_SCRIPT"
-    aarch64_foot_line=$(grep -nF 'exec foot "$@"' "$TERMINAL_SCRIPT" | head -n 1 | cut -d: -f1)
+    # niri/Wayland 默认终端统一为 foot（2026-08-31 起含 x86_64）：foot 分支必须在
+    # alacritty 兜底之前，且只保留一条 foot 分支；不再需要 uname -m 架构特判。
+    assert_not_contains 'uname -m' "$TERMINAL_SCRIPT"
+    assert_not_contains 'WAYLAND_DISPLAY' "$TERMINAL_SCRIPT"
+    foot_count=$(grep -cF 'exec foot "$@"' "$TERMINAL_SCRIPT" || true)
+    [ "$foot_count" -eq 1 ] || fail "expected exactly one 'exec foot' branch in $TERMINAL_SCRIPT"
+    foot_line=$(grep -nF 'exec foot "$@"' "$TERMINAL_SCRIPT" | head -n 1 | cut -d: -f1)
     alacritty_line=$(grep -nF 'exec alacritty "$@"' "$TERMINAL_SCRIPT" | head -n 1 | cut -d: -f1)
-    last_foot_line=$(grep -nF 'exec foot "$@"' "$TERMINAL_SCRIPT" | tail -n 1 | cut -d: -f1)
-    [ -n "$aarch64_foot_line" ] && [ -n "$alacritty_line" ] &&
-        [ "$aarch64_foot_line" -lt "$alacritty_line" ] ||
-        fail "expected aarch64+Wayland foot branch before alacritty in $TERMINAL_SCRIPT"
-    [ -n "$alacritty_line" ] && [ -n "$last_foot_line" ] &&
-        [ "$alacritty_line" -lt "$last_foot_line" ] ||
-        fail "expected 'exec alacritty' before the final foot fallback in $TERMINAL_SCRIPT"
-    assert_contains '回退 foot' "$NIRI_README"
+    [ -n "$foot_line" ] && [ -n "$alacritty_line" ] &&
+        [ "$foot_line" -lt "$alacritty_line" ] ||
+        fail "expected 'exec foot' before the alacritty fallback in $TERMINAL_SCRIPT"
+    assert_contains '默认使用' "$NIRI_README"
     assert_contains 'export INPUT_METHOD=fcitx' "$LAUNCHER_SCRIPT"
     assert_contains 'fcitx5 -d --replace' "$LAUNCHER_SCRIPT"
     assert_contains 'exec fuzzel "$@"' "$LAUNCHER_SCRIPT"
@@ -299,6 +297,11 @@ test_launcher_and_lock_have_wayland_first_fallbacks() {
     assert_contains 'exec "$locker" -f --show-failed-attempts --show-keyboard-layout -i "$image" -s fill -c 11111b' "$LOCK_SCRIPT"
     assert_contains 'exec "$locker" -f --show-failed-attempts --show-keyboard-layout -c 11111b' "$LOCK_SCRIPT"
     assert_contains 'loginctl lock-session "$XDG_SESSION_ID"' "$LOCK_SCRIPT"
+    # gtklock 4.0 优先（时钟/日期 + Mocha 主题），swaylock 保留为兜底。
+    assert_contains 'lock_with_gtklock()' "$LOCK_SCRIPT"
+    assert_contains 'gtklock --config "$config" --style "$style" --background "$image"' "$LOCK_SCRIPT"
+    assert_contains 'gtklock --config "$config" --style "$style"' "$LOCK_SCRIPT"
+    assert_contains 'command -v gtklock' "$LOCK_SCRIPT"
 }
 
 test_launcher_wayland_respects_running_wayland_fcitx5() {
@@ -407,6 +410,79 @@ EOF
 
     assert_not_contains '-i' "$args_log"
     assert_contains '-c' "$args_log"
+    assert_contains '11111b' "$args_log"
+
+    rm -rf "$tmpdir"
+}
+
+# gtklock 4.0 存在时应优先使用（时钟/日期 + Mocha 主题），并把当前壁纸经
+# --background 传入；swaylock 只在 gtklock 缺失时才兜底。
+test_lock_wayland_prefers_gtklock_when_available() {
+    tmpdir=$(mktemp -d)
+    state_dir=$tmpdir/state
+    home_dir=$tmpdir/home
+    image=$tmpdir/current-wallpaper.jpg
+    args_log=$tmpdir/gtklock.args
+    fake_gtklock=$tmpdir/gtklock
+    fake_swaylock=$tmpdir/swaylock
+
+    mkdir -p "$state_dir/dotfiles" "$home_dir/.config/gtklock"
+    printf 'fake image\n' >"$image"
+    printf '%s\n' "$image" >"$state_dir/dotfiles/current-wayland-wallpaper"
+    printf 'gtklock style\n' >"$home_dir/.config/gtklock/style.css"
+    printf 'gtklock config\n' >"$home_dir/.config/gtklock/config.ini"
+
+    cat >"$fake_gtklock" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" >"$GTKLOCK_ARGS_LOG"
+EOF
+    chmod +x "$fake_gtklock"
+
+    # swaylock 兜底仍在 PATH 里，但 gtklock 存在时应优先命中 gtklock。
+    cat >"$fake_swaylock" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" >"$SWAYLOCK_ARGS_LOG"
+EOF
+    chmod +x "$fake_swaylock"
+
+    PATH=$tmpdir HOME=$home_dir XDG_STATE_HOME=$state_dir GTKLOCK_ARGS_LOG=$args_log \
+        /bin/sh "$LOCK_SCRIPT" >/dev/null 2>&1 ||
+        fail "lock-wayland should prefer gtklock when available"
+
+    assert_contains '--config' "$args_log"
+    assert_contains '--style' "$args_log"
+    assert_contains 'style.css' "$args_log"
+    assert_contains '--background' "$args_log"
+    assert_contains "$image" "$args_log"
+
+    rm -rf "$tmpdir"
+}
+
+# gtklock 缺失时回退 swaylock；此处复用 test_lock_wayland_* 的 fake swaylock
+# 路径（PATH 里无 gtklock），确保脚本在无 gtklock 的机器上仍能锁屏。
+test_lock_wayland_falls_back_to_swaylock_without_gtklock() {
+    tmpdir=$(mktemp -d)
+    state_dir=$tmpdir/state
+    args_log=$tmpdir/swaylock.args
+    fake_swaylock=$tmpdir/swaylock
+
+    mkdir -p "$state_dir"
+
+    cat >"$fake_swaylock" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" >"$SWAYLOCK_ARGS_LOG"
+EOF
+    chmod +x "$fake_swaylock"
+
+    PATH=$tmpdir XDG_STATE_HOME=$state_dir LOCK_WAYLAND_SWAYLOCK=$fake_swaylock SWAYLOCK_ARGS_LOG=$args_log \
+        /bin/sh "$LOCK_SCRIPT" >/dev/null 2>&1 ||
+        fail "lock-wayland should fall back to swaylock without gtklock"
+
+    # swaylock.args 里不会出现二进制名，用原始 grep 做「任一命中」校验
+    # （不能借 assert_contains X || assert_contains Y——fail 会 exit 终止整个测试）。
+    if ! grep -Fq -- '-c' "$args_log"; then
+        fail "expected swaylock fallback args in $args_log: $(cat "$args_log")"
+    fi
     assert_contains '11111b' "$args_log"
 
     rm -rf "$tmpdir"
@@ -749,6 +825,8 @@ test_launcher_and_lock_have_wayland_first_fallbacks
 test_launcher_wayland_respects_running_wayland_fcitx5
 test_lock_wayland_uses_recorded_wallpaper_when_available
 test_lock_wayland_falls_back_to_color_without_wallpaper
+test_lock_wayland_prefers_gtklock_when_available
+test_lock_wayland_falls_back_to_swaylock_without_gtklock
 test_wayland_screenshot_uses_selection_and_annotation
 test_wayland_screenshot_uses_satty
 test_dingtalk_wayland_entrypoint_preserves_preload_contract

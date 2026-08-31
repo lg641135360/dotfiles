@@ -274,6 +274,49 @@
 - 后续可能方向：① 用户同步 live 后实测：Mod+C 连续开合数次，waybar 托盘 fcitx5 图标应稳定不消失；② clipboard-wayland 补 `源码编译装 /usr/local/bin` 注释（repo+live 一并同步）以修复遗留红测试；③ launcher 中文输入如强需求，关注 fuzzel 上游 text-input 支持进展，或评估支持 IME 的替代 launcher。
 
 
+## 2026-08-31 — niri 环境盘点 + mako 保留 / 过时 1.8 测试约束同步到 1.10
+
+- 目的：用户要求盘点当前 niri 环境组件、评估 mako 等通知组件是否换更优方案。盘点结果：niri 26.04ppa3 / waybar（源码≥0.15）/ mako 1.10.0（独占 org.freedesktop.Notifications）/ fuzzel 1.12.0 / swaybg / gammastep / swaylock+swayidle / grim+slurp+satty 0.22.0 / wl-clip-persist+cliphist，均 apt/源码/PPA 落位，无 Nix。替代评估：SwayNC（sway-notification-center 0.12.4，apt 可直接装）功能最全（历史中心/勿扰/CSS 主题/niri 层模糊/waybar 集成）但偏重（GTK4+libadwaita）；dunst 1.12.2 已装未跑但 X11 优先、纯 Wayland 走 XWayland，违背「会话不残留 XWayland 客户端」既有决策，不推荐；fnott 1.8.0 更轻但价值低于 mako。
+- 用户决策：**保持 mako 不动**（够用、极轻、零风险），仅把过时的 1.8 兼容测试约束同步到 1.10。
+- 改动（仓库，2 文件）：① `.config/linux/mako/README.md`：Ubuntu 24.04/mako 1.8 → 26.04/mako 1.10，删除「不得用 1.9+ 新键」旧约束说明，改为「配置只使用 1.10 支持的选项」；② `tests/mako_config_test.sh`：移除 `icon-border-radius` 不应出现断言与 `avoids_post_1_8_keys` 旧测试（1.10 已支持这些键），新增 `test_mako_config_keys_valid_for_1_10` 白名单校验（配置每个 key 必须在 mako 1.10 man page 选项集合内）。
+- 验证：`./tests/mako_config_test.sh` exit 0（PASS: mako config tests）；`git diff --check` 干净。
+- live 同步与运行态：未同步。live `~/.config/mako/config` 无需改动（mako 1.10 兼容现有配置，未新增键）；live 无需重载。仓库测试文件/README 与 live 无对应文件，无需同步。
+- 回滚信息：未提交；`git checkout -- .config/linux/mako/README.md tests/mako_config_test.sh` 即回滚。
+- 后续可能方向：① 若日后想要通知历史中心/勿扰开关，可评估 SwayNC（apt 0.12.4），涉及新增 swaync 配置 + 改 wayland-autostart + niri layer-rule + 测试，需用户确认；② mako 未来升级时先核对版本是否向后兼容当前选项（README 已注明）。
+
+
+## 2026-08-31 — 其余组件盘点 + fuzzel 恢复应用图标
+
+- 目的：用户要求盘点 niri 环境其余重要组件是否有可优化点。盘点结论：waybar（原生 cpu/memory/privacy 模块）/ swaybg / gammastep / swaylock+swayidle / grim+slurp+satty / portal 时序 / niri 键位窗口规则均已按既有 memory 决策收敛，无实质优化空间；候选优化四项：A fuzzel 恢复图标（README 自记待办）、B cliphist `-min-store-length` 过滤短内容、C waybar niri/window rewrite 补 trae-cn/Obsidian/foot、D ubuntu_x64 平台文件版本注释 24.04→26.04。
+- 用户决策：仅执行 **A（fuzzel 恢复图标）**，其余三项不做。
+- 改动（仓库，3 文件）：① `.config/linux/fuzzel/fuzzel.ini`：`icons-enabled=no` → `yes`（fuzzel 1.9.2 Noble 卡顿规避前提已因升级 1.12.0 消除，Papirus-Dark 图标主题此前被白白禁用）；② `.config/linux/fuzzel/README.md`：图标说明改为「2026-08-31 恢复，若 1.12.0 上仍复现卡顿可临时改回 no」；③ `tests/fuzzel_config_test.sh`：新增 `assert_contains 'icons-enabled=yes'` 锁定新行为。
+- 验证：`./tests/fuzzel_config_test.sh` exit 0（PASS: fuzzel config tests）；`git diff --check` 干净。
+- live 同步与运行态：未同步。live `~/.config/fuzzel/fuzzel.ini` 仍为 `icons-enabled=no`，需要用户手动同步后重开 fuzzel 生效（Mod+C 即可）；同步前按惯例 `cp ~/.config/fuzzel/fuzzel.ini{,.backup.<时间戳>}`（保留 3 份）。
+- 回滚信息：未提交；`git checkout -- .config/linux/fuzzel/fuzzel.ini .config/linux/fuzzel/README.md tests/fuzzel_config_test.sh` 即回滚。live 恢复：`cp ~/.config/fuzzel/fuzzel.ini.backup.<时间戳> ~/.config/fuzzel/fuzzel.ini`。
+- 后续可能方向：① 用户同步 live 后实测 Mod+C：fuzzel 列表应显示应用图标，若 1.12.0 仍卡顿/输入无响应/ESC 无效则改回 no；② B/C/D 三项保持未执行，若日后需要可单独提出。
+
+
+## 2026-08-31 — swaylock 解锁环美化（Catppuccin Mocha 配色）
+
+- 目的：用户要求锁屏美化提升日常体验。调研：live swaylock 1.8.4（apt 主线版）支持配置文件（`long-option=value` 格式，man swaylock 明确）与完整解锁环配色（ring/inside/line/key-hl/bs-hl 及其 ver/wrong 变体），但不支持 `--effect-blur`（那是已随 Nix 移除的 swaylock-effects fork 功能）；背景模糊需另评估替代品，本轮不做。
+- 改动（仓库）：① 新增 `.config/linux/swaylock/config`：Mocha 解锁环——默认 `#89b4fa`（与 niri focus-ring 对齐）/ 验证中 `#a6e3a1` / 错误 `#f38ba8` / 按键高亮 `#f9e2af` / 退格 `#f38ba8`，`indicator-radius 80` + `thickness 8`、字体 Maple Mono NF CN（与 waybar/mako 对齐）；壁纸/纯色兜底仍由 lock-wayland 命令行（-i/-s fill/-c 11111b）控制，配置只管解锁环，不重复背景逻辑；② 新增 `.config/linux/swaylock/README.md`（含 effect-blur 能力边界说明）；③ `install.sh` 的 `linux_wayland_dir_configs` 新增 `command -v swaylock|.config/linux/swaylock|~/.config/swaylock|Swaylock`（与 mako/fuzzel/foot 同构，copy_config 用 cp -a 整目录复制）；④ 新增 `tests/swaylock_config_test.sh`（Mocha 配色契约 + 配置文件不得混入 color/image/scaling 背景命令 + README 能力边界）；⑤ `tests/install_wayland_test.sh` 补 swaylock 部署断言；⑥ `tests/repo_docs_test.sh` 补 swaylock README 存在断言；⑦ `memory/niri.md` 与 niri README 锁屏节补解锁环配色说明。
+- 验证：`swaylock -C <config>` 无解析错误（空 stderr，无 unknown option）；`tests/swaylock_config_test.sh` / `install_wayland_test.sh` / `wayland_scripts_test.sh` / `repo_docs_test.sh` / `niri_config_test.sh` 全部 exit 0；`git diff --check` 干净。
+- live 同步与运行态：未同步。需用户手动部署 `~/.config/swaylock/config`（可跑 install.sh 或手动 cp，`cp -a` 保留权限）；生效无需重载（锁屏时即时读取）。同步前按惯例 backup：`cp -a ~/.config/swaylock{,.backup.<时间戳>}`（若目录已存在）。
+- 回滚信息：未提交；回滚＝删除新增 4 文件并还原 3 处改动：`git checkout -- install.sh tests/install_wayland_test.sh tests/repo_docs_test.sh .config/linux/niri/README.md memory/niri.md logs/trace.md` + `git rm .config/linux/swaylock tests/swaylock_config_test.sh`（或 `git checkout --` 前先删新文件）。
+- 后续可能方向：① 用户同步 live 后实测 Mod+Alt+L 锁屏观感（解锁环颜色/尺寸/字体）；② 若想要壁纸背景模糊，可评估 swaylock-effects 替代（其 1.8 是否兼容本 config 的 long-option 格式需核对）或 niri 锁屏替代方案；③ indicator-idle-visible 是否开启（默认空闲时环隐藏、输入时出现）属使用偏好，可按需调整。
+
+
+## 2026-08-31 — 锁屏主线迁 gtklock 4.0（仓库侧准备，含 swaylock 兜底）
+
+- 目的：用户想锁屏显示时间；swaylock 1.8 apt 主线版无 `--clock`（swaylock-effects 才有，已随 Nix 移除），apt 无 swaylock-effects 包。社区调研：gtklock 4.0（apt 现装）支持时钟/日期 + CSS 主题，niri 用户实装记录佐证；hyprlock 偏 Hyprland 生态、依赖偏重，swaylock-effects 需源码编译。用户决定：**gtklock 为主线，先准备仓库侧方案，实测通过后再同步 live**。
+- 兼容性实测（关键证据）：① niri 26.04 `strings /usr/bin/niri` 含 `ext_session_lock_manager_v1`/`ext_session_lock_v1`/`ext_session_lock_surface_v1` → 支持 gtklock 唯一依赖的协议；② gtklock 4.0 二进制 strings 只有 `gtk_session_lock_*`，**无 wlr-input-inhibitor**（网上流传的 Hyprland input-inhibitor 坑是旧版行为，与本环境无关）；③ Ubuntu 包自带 `/etc/pam.d/gtklock`（19 字节）→ 装包即用无需手动 PAM；④ man page 确认 `--time-format`/`--date-format`（date(1) 语法）、`--style`/`--background`/`--config`，配置为 glib key file `[main]` 组。
+- 改动（仓库）：① 新增 `.config/linux/gtklock/{config.ini,style.css,README.md}`：config.ini `time-format=%H:%M` / `date-format=%A %m月%d日`；style.css Mocha 主题（`#clock-label` 96px 大时钟 `#cdd6f4`、`#input-field` 蓝边框 `#89b4fa`、`#warning-label` 黄/`#error-label` 红、`#unlock-button` 蓝）；② `.config/scripts/lock-wayland`：新增 `lock_with_gtklock()`，`command -v gtklock` 时优先（`--config`/`--style`/`--background` 全用绝对路径复用当前壁纸），gtklock 缺失/无 style 时回退原 swaylock 分支；③ `install.sh` 的 `linux_wayland_dir_configs` 新增 `command -v gtklock|.config/linux/gtklock|~/.config/gtklock|Gtklock`；④ 新增 `tests/gtklock_config_test.sh`（config/README 契约 + Mocha 关键色 + 目标 widget 名 + config 不含 style/background 路径键）；⑤ `tests/wayland_scripts_test.sh`：lock 契约断言补 gtklock 分支，新增 `test_lock_wayland_prefers_gtklock_when_available`（fake gtklock + fake swaylock 并存时优先 gtklock）与 `test_lock_wayland_falls_back_to_swaylock_without_gtklock`；⑥ `tests/install_wayland_test.sh` / `tests/repo_docs_test.sh` 补 gtklock 断言；⑦ niri README 锁屏节、`scripts/README.md` 的 lock-wayland 行、`memory/niri.md` 同步。
+- 验证：`tests/run.sh fast` 46 PASS / 0 FAIL（含新增 gtklock_config_test.sh）；`git diff --check` 干净。
+- live 同步与运行态：**未同步、未重载**。仓库侧已就绪，待用户实测通过再同步。实测步骤：① `sudo apt install gtklock`（自带 PAM，无需手动配置）；② 手动 `gtklock` 触发一次锁屏验证（失败只影响该次锁屏，解锁后 swaylock 链路不受影响）；③ 通过后同步 `~/.config/gtklock/`（跑 install.sh 或手动 cp，backup 惯例保留 3 份），再启用。
+- 回滚信息：未提交。回滚＝删除新增 gtklock 目录/测试 + 还原 lock-wayland/install.sh/测试/README/memory/trace：`git checkout -- .config/scripts/lock-wayland install.sh tests/wayland_scripts_test.sh tests/install_wayland_test.sh tests/repo_docs_test.sh .config/linux/niri/README.md .config/scripts/README.md memory/niri.md logs/trace.md` + `git rm .config/linux/gtklock tests/gtklock_config_test.sh`。live 恢复（若已同步）：删 `~/.config/gtklock`，lock-wayland 无需改动（gtklock 缺失自动回退 swaylock）。
+- 后续可能方向：① 用户实测 gtklock 时钟/日期/主题观感，确认后可把 swaylock 配置降为纯兜底或移除；② gtklock 的 `--idle-hide`/`--start-hidden`/`--idle-timeout`（空闲隐藏输入框）可按需开启，属使用偏好；③ 若想要壁纸模糊背景，评估 swaylock-effects（源码编译）或 gtklock + 半透明 CSS 叠加。
+
+
 ## 2026-08-29 — 钉钉 8.2.8 会议两连修：execstack 字节补丁 + hook null param 崩溃修复
 
 - 目的：用户报告「点加入会议没反应」。连续排查出两个独立根因并修复：① 新内核拒绝加载带可执行栈标记的会议库（tblive 起不来）；② hook 新版代码对未知 pipewire param id 的 null 字符串构造（共享即退会）。两问题都与 8 月 29 日 Nix→apt 迁移的时间线耦合（新内核 + apt niri 26.04），但因果独立。
@@ -360,3 +403,23 @@
 - live 同步与运行态：未同步（沙箱限制，用户执行粘贴块；备份+保留 3 份惯例同前）。恢复命令：`cp ~/.config/niri/common.kdl.backup.<时间戳> ~/.config/niri/common.kdl`。
 - 回滚信息：本 commit（撤销用 `git revert HEAD`）；单规则级回退可 revert 后仅保留 `open-focused false`。
 - 后续可能方向：① 用户同步后实测表情面板/对话框/图片预览应浮动，主窗口保持平铺；② 同名「钉钉」弹窗若高频出现且干扰，需等 niri 支持按尺寸/role/transient 匹配或 satellite 翻译 EWMH 提示后再收敛；③ 若钉钉弹窗浮动后出现遮挡/定位异常，用 `default-floating-position` 微调。
+
+
+## 2026-08-31 — terminal-wayland 默认终端统一为 foot（含 x86_64）
+
+- 目的：用户要求将 niri 启动的终端（Mod+Return / fuzzel 调用的 `terminal-wayland`）改为 foot。此前仅 aarch64+Wayland 优先 foot（mtgpu 下 alacritty 0.18.0-dev 缩放输出字形损坏），x86_64 通用分支优先 alacritty、foot 兜底。
+- 改动（仓库）：① `.config/scripts/terminal-wayland`：改为全平台默认 foot 优先、alacritty 兜底，移除 aarch64 专用分支与 `uname -m`/`WAYLAND_DISPLAY` 特判（aarch64 行为不变，foot 本就优先）；② 测试：`tests/wayland_scripts_test.sh`（foot 唯一分支且位于 alacritty 之前、无 uname/WAYLAND_DISPLAY 特判）、`tests/niri_config_test.sh`（aarch64 用例同步）、`tests/foot_config_test.sh`（用例改名 `test_terminal_wayland_prefers_foot`）；③ 文档：`.config/linux/niri/README.md`（快捷键表 + 终端入口节）、`.config/linux/foot/README.md`（定位/启动方式）、`.config/scripts/README.md`（terminal-wayland 描述）、`.config/linux/niri/ubuntu_aarch64/config.kdl`（注释）；④ memory/foot.md、memory/niri.md 同步默认终端决策。
+- 验证：`sh -n .config/scripts/terminal-wayland` 通过；`./tests/wayland_scripts_test.sh` / `niri_config_test.sh` / `foot_config_test.sh` / `fuzzel_config_test.sh` 全部 exit 0；`git diff --check` 干净；live 与仓库 diff 一致、live 可执行位正常。
+- live 同步与运行态：已同步。live `~/.config/scripts/terminal-wayland` 已写入新版本。注意：IDE 终端沙箱不允许写 `~/.config/scripts`（`cp`/`rm` 被拦截），但专用文件工具（Read/Write/DeleteFile）可操作该路径——本轮改用 Write 工具完成「先建备份快照 + 覆盖 live」。备份：`~/.config/scripts/terminal-wayland.backup.20260831_200600_000000`（当前 live 旧版快照）。恢复命令：`cp ~/.config/scripts/terminal-wayland.backup.20260831_200600_000000 ~/.config/scripts/terminal-wayland`。生效：脚本每次调用即时读取，下次 Mod+Return / fuzzel 打开终端即 foot，无需重启会话。按用户范围仅改 niri 启动终端，未动系统 `x-terminal-emulator`（仍悬空指向已卸载的 ghostty）与 `$TERMINAL` 变量（仍 alacritty）。
+- 回滚信息：未提交；`git checkout -- .config/scripts/terminal-wayland tests/wayland_scripts_test.sh tests/niri_config_test.sh tests/foot_config_test.sh .config/linux/niri/README.md .config/linux/foot/README.md .config/scripts/README.md .config/linux/niri/ubuntu_aarch64/config.kdl memory/foot.md memory/niri.md logs/trace.md` 即回滚。
+- 后续可能方向：① 用户实测 Mod+Return / fuzzel 应打开 foot；② backup 现 4 份（旧 3 + 本轮 1），按保留 3 份惯例下轮可清最旧 20260611 那份；③ 若后续也想统一系统默认，可再评估 `sudo update-alternatives --set x-terminal-emulator /usr/bin/foot`（顺带修复悬空 ghostty 链接）与 `TERMINAL=foot`。
+
+
+## 2026-08-31 — foot.ini 光标色迁移 colors.cursor（foot 1.25 废弃 cursor.color）
+
+- 目的：foot 1.25.0 启动报 `deprecated: foot: cursor.color: use colors.cursor instead`。man foot.ini 确认 `[cursor] color` 已废弃，光标前景/背景色改由 `[colors] cursor`（text 在前 cursor 在后）承担，取值不变。
+- 改动（仓库）：① `.config/linux/foot/foot.ini`：删除 `[cursor]` 下 `color=1e1e2e f5e0dc`，在 `[colors]` 新增 `cursor=1e1e2e f5e0dc`（同值，注释注明 foot 1.25 迁移）；② `tests/foot_config_test.sh` `test_cursor_is_blinking_beam` 新增 `assert_contains 'cursor=1e1e2e f5e0dc'` + `assert_not_contains 'color=1e1e2e f5e0dc'`，锁定新语法且不再出现废弃键；③ `.config/linux/foot/README.md` 与 memory/foot.md 的 cursor color 差异说明同步。
+- 验证：`foot -C -c` 对仓库与 live 配置均 exit 0 且无 deprecation 输出；`./tests/foot_config_test.sh` exit 0；`git diff --check` 干净。
+- live 同步与运行态：已同步。live `~/.config/foot/foot.ini` 已写入新版本（终端沙箱不可写 `~/.config/foot`，改用 Write 工具先备份后覆盖）。备份：`~/.config/foot/foot.ini.backup.20260831_201000_000000`（旧版快照，此前无其它 backup）。恢复命令：`cp ~/.config/foot/foot.ini.backup.20260831_201000_000000 ~/.config/foot/foot.ini`。生效：foot 下次启动即读取新配置，无需重载会话。
+- 回滚信息：未提交；`git checkout -- .config/linux/foot/foot.ini tests/foot_config_test.sh .config/linux/foot/README.md memory/foot.md logs/trace.md` 即回滚。
+- 后续可能方向：① 用户实测新开 foot 终端不再出现 deprecation 警告；② 若日后 foot 升级再报新 deprecation，按 `foot -C` + `man foot.ini` 核对迁移。

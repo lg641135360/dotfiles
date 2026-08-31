@@ -67,6 +67,32 @@ lock_with_swaylock() {
     exec "$locker" -f --show-failed-attempts --show-keyboard-layout -c 11111b
 }
 
+# gtklock 4.0 优先（时钟/日期 + Mocha CSS 主题，见 .config/linux/gtklock/）。
+# --style 用绝对路径避免相对路径歧义；--background 复用当前壁纸（与 swaylock
+# 分支一致），找不到壁纸时由 CSS 的纯色兜底。
+lock_with_gtklock() {
+    style=$HOME/.config/gtklock/style.css
+    config=$HOME/.config/gtklock/config.ini
+
+    if [ ! -r "$style" ]; then
+        warn "gtklock style 缺失：$style，回退 swaylock"
+        if locker=$(find_swaylock); then
+            lock_with_swaylock "$locker"
+        fi
+        exit 127
+    fi
+
+    if image=$(current_wallpaper_image); then
+        exec gtklock --config "$config" --style "$style" --background "$image"
+    fi
+
+    exec gtklock --config "$config" --style "$style"
+}
+
+if command -v gtklock >/dev/null 2>&1; then
+    lock_with_gtklock
+fi
+
 if locker=$(find_swaylock); then
     lock_with_swaylock "$locker"
 fi

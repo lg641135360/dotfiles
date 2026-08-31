@@ -54,7 +54,7 @@ niri validate -c ~/.config/niri/config.kdl
 
 | Awesome 习惯 | niri 动作 |
 | --- | --- |
-| `Mod+Return` | 打开终端：aarch64 + Wayland 优先 foot；其他平台优先 Alacritty，缺失时回退 foot |
+| `Mod+Return` | 打开终端：默认 foot，缺失时回退 Alacritty |
 | `Mod+e` | 打开文件管理器：Dolphin → 系统默认 → Nautilus/Thunar/PCManFM → Yazi |
 | `Mod+c` | 启动 launcher：优先 `fuzzel`，缺失时回退 `rofi-launch` |
 | `Mod+q` | 关闭当前窗口 |
@@ -127,7 +127,9 @@ gammastep -m drm -p -l 30.6:114.3 -t 6500:5500 -b 1.0:1.0
 
 `gammastep` 通过 `wlr-gamma-control` 协议为每个输出注册 gamma 表，但进程启动后不会自动为新接入的输出补注册。`wayland-autostart` 在启动 `gammastep` 时会记录当前 niri 输出数量到 `~/.local/state/niri/autostart/gammastep.outputs`；再次执行时若输出数量变化（热插拔）则自动重启 `gammastep`。热插拔显示器后色温未生效时，手动重新执行 `~/.config/scripts/wayland-autostart` 即可修复。
 
-`lock-wayland` 使用 `swaylock`，解锁密码来自系统 PAM 账户认证；它不是 GNOME Keyring/KWallet/浏览器保存密码。脚本会优先调用 `/usr/bin/swaylock`（2026-08-29 起 swaylock 由 apt 提供，Nix profile 侧的 swaylock-effects 已移除；该优先级同时确保与系统 PAM 配置格式一致）。锁屏背景优先复用 `wallpaper-wayland` 记录的当前壁纸；若记录缺失，会尝试从当前 `swaybg -i <图片>` 进程解析图片路径；两者都不可用时才退回 Catppuccin Mocha 的纯色背景 `11111b`。若手动补 `/etc/pam.d/swaylock`，使用 PAM 的 `include` 控制语法：
+`lock-wayland` 优先使用 `gtklock`（时钟/日期 + Mocha CSS 主题，见 `.config/linux/gtklock/`），缺失时回退 `swaylock`。解锁密码来自系统 PAM 账户认证；它不是 GNOME Keyring/KWallet/浏览器保存密码。gtklock 4.0 基于 `ext-session-lock-v1`，niri 26.04 支持该协议；Ubuntu apt 包自带 `/etc/pam.d/gtklock`，装包即用。gtklock 的 `config.ini`（`time-format`/`date-format`，date(1) 语法）与 `style.css`（Catppuccin Mocha）由 install.sh 部署到 `~/.config/gtklock/`；背景壁纸与 style 路径由 lock-wayland 以 `--background`/`--style` 命令行传入（复用 `wallpaper-wayland` 记录的当前壁纸，缺失时 CSS 纯色 `#11111b` 兜底）。
+
+回退分支 `swaylock`（2026-08-29 起由 apt 提供，Nix profile 侧的 swaylock-effects 已移除）：脚本优先调用 `/usr/bin/swaylock`，锁屏背景优先复用 `wallpaper-wayland` 记录的当前壁纸；若记录缺失，会尝试从当前 `swaybg -i <图片>` 进程解析图片路径；两者都不可用时才退回 Catppuccin Mocha 的纯色背景 `11111b`。解锁环配色由 `.config/linux/swaylock/config` 提供：Catppuccin Mocha 蓝 `#89b4fa` 默认环 / 绿 `#a6e3a1` 验证中 / 红 `#f38ba8` 错误，与 niri focus-ring 对齐；swaylock 1.8 主线版不支持 `--effect-blur`（swaylock-effects fork 功能），背景模糊暂不可用。若手动补 `/etc/pam.d/swaylock`，使用 PAM 的 `include` 控制语法：
 
 ```pam
 auth include common-auth
@@ -139,14 +141,13 @@ session include common-session
 
 `Mod+Return` 调用 `~/.config/scripts/terminal-wayland`：
 
-- **aarch64 + Wayland** — 优先使用 `foot`（mtgpu 下 alacritty 0.18.0-dev 在缩放输出内屏 2x 字形损坏，foot 渲染正常）；foot 不可用时回退到下面的通用顺序
-- **其他平台（x86_64 / X11）** — 使用 `alacritty`（2026-08-29 起由 apt 提供，不再特判 Nix profile 路径），最后回退 `foot`
+- **全平台（含 x86_64）** — 默认使用 `foot`（Wayland 原生终端，字体/透明度/快捷键/主题与 shared Alacritty 观感对齐）；`alacritty` 仅在 foot 缺失时回退（2026-08-29 起由 apt 提供，不再特判 Nix profile 路径）
 
-非 aarch64+Wayland 场景保持 Alacritty 优先可以复用 shared Alacritty 字体、透明度、快捷键和主题配置。
+2026-08-31 起 niri/Wayland 会话默认终端统一为 foot。此前仅 aarch64+Wayland 优先 foot（mtgpu 下 alacritty 0.18.0-dev 在缩放输出内屏 2x 字形损坏、foot 渲染正常），其他平台优先 alacritty；现全平台统一 foot 优先，aarch64 行为不变。
 
-历史上 aarch64 终端优先级历经多次调整：曾因 mtgpu 字形问题优先 `kitty`（foot 兜底），后因用户以外接屏为主、alacritty 显示正常而改回 alacritty 全平台默认；现因 foot 字体配置已对齐 alacritty 观感、且 foot 在该硬件上渲染更稳定，恢复 aarch64+Wayland 优先 foot。
+历史上 aarch64 终端优先级历经多次调整：曾因 mtgpu 字形问题优先 `kitty`（foot 兜底），后因用户以外接屏为主、alacritty 显示正常而改回 alacritty 全平台默认；现因 foot 字体配置已对齐 alacritty 观感、且 foot 在 Wayland 渲染更稳定，恢复并推广为全平台 foot 优先。
 
-兜底终端采用 foot（普通冷启动，Wayland-only）。历史上曾用 kitty 作兜底，并实现「常驻单实例 + `kitty @ launch --type=os-window`」快速开窗（冷启动 ~1.5s → 开窗 ~0.4s），但常驻实例维护成本高（残留 socket 导致 bind 失败的恶性循环、登录需多开一个常驻窗口）价值有限，已整体移除 kitty 改回 foot 兜底：`terminal-wayland` 直接 `exec foot`。
+兜底终端采用 alacritty（普通冷启动，Wayland-only）。历史上曾用 kitty 作兜底，并实现「常驻单实例 + `kitty @ launch --type=os-window`」快速开窗（冷启动 ~1.5s → 开窗 ~0.4s），但常驻实例维护成本高（残留 socket 导致 bind 失败的恶性循环、登录需多开一个常驻窗口）价值有限，已整体移除 kitty 改回 foot 兜底；foot 上位的现在由 `terminal-wayland` 直接 `exec foot`。
 
 ## 浏览器入口
 

@@ -1,0 +1,32 @@
+# swaylock 解锁环配色（Catppuccin Mocha），部署到 ~/.config/swaylock/config。
+# swaylock 1.8（apt 主线版，2026-08-29 起替代 Nix 的 swaylock-effects）：
+#   - 支持配置文件，格式 long-option=value（去掉 -- 前缀）；
+#   - 不支持 --effect-blur（那是 swaylock-effects fork 功能，已随 Nix 移除），
+#     背景模糊若要恢复需评估 swaylock-effects 替代品，目前不做。
+# 壁纸/纯色兜底仍由 lock-wayland 命令行控制（-i/-s fill/-c 11111b），
+# 本文件只负责解锁环视觉，避免与命令行 background 逻辑重复。
+
+# 解锁环：默认态用 Catppuccin Mocha blue（与 niri focus-ring 一致）
+ring-color=#89b4fa
+inside-color=#1e1e2e80
+line-color=#1e1e2e
+
+# 验证中：green（认证通过瞬间）
+ring-ver-color=#a6e3a1
+inside-ver-color=#1e1e2e80
+line-ver-color=#a6e3a1
+
+# 密码错误：red
+ring-wrong-color=#f38ba8
+inside-wrong-color=#1e1e2e80
+line-wrong-color=#f38ba8
+
+# 按键/退格高亮
+key-hl-color=#f9e2af
+bs-hl-color=#f38ba8
+
+# 解锁环尺寸与字体（与 waybar/mako 的 Maple Mono 观感对齐）
+indicator-radius=80
+indicator-thickness=8
+font=Maple Mono NF CN
+font-size=28

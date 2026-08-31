@@ -1,0 +1,64 @@
+/* gtklock Catppuccin Mocha 锁屏主题。
+ * 目标 widget（gtklock 默认 UI，见 man gtklock / 默认 layout）：
+ *   window / #window-box / #clock-label / #input-label / #input-field /
+ *   #warning-label / #error-label / #unlock-button
+ * 背景由 lock-wayland 以 --background 传入当前壁纸，CSS 仅兜底纯色。 */
+
+window {
+    background-color: #11111b;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+#clock-label {
+    font-family: "Maple Mono NF CN", sans-serif;
+    font-size: 96px;
+    font-weight: 700;
+    color: #cdd6f4;
+    text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+#input-label {
+    color: #a6adc8;
+    font-family: "Maple Mono NF CN", sans-serif;
+    font-size: 16px;
+}
+
+#input-field {
+    background-color: rgba(30, 30, 46, 0.82);
+    color: #cdd6f4;
+    border: 2px solid #89b4fa;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-family: "Maple Mono NF CN", sans-serif;
+    font-size: 16px;
+    caret-color: #89b4fa;
+}
+
+#warning-label {
+    color: #f9e2af;
+    font-family: "Maple Mono NF CN", sans-serif;
+    font-size: 14px;
+}
+
+#error-label {
+    color: #f38ba8;
+    font-family: "Maple Mono NF CN", sans-serif;
+    font-size: 14px;
+}
+
+#unlock-button {
+    background-color: #89b4fa;
+    color: #1e1e2e;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-family: "Maple Mono NF CN", sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+#unlock-button:hover {
+    background-color: #b4befe;
+}

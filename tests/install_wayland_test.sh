@@ -60,6 +60,8 @@ test_install_deploys_wayland_trial_files() {
     assert_contains 'copy_config "$config_src" "$target_dir/config" "waybar config (${arch:-generic})"' "$INSTALL_FILE"
     assert_contains 'command -v mako|.config/linux/mako|~/.config/mako|Mako' "$INSTALL_FILE"
     assert_contains 'command -v fuzzel|.config/linux/fuzzel|~/.config/fuzzel|Fuzzel' "$INSTALL_FILE"
+    assert_contains 'command -v swaylock|.config/linux/swaylock|~/.config/swaylock|Swaylock' "$INSTALL_FILE"
+    assert_contains 'command -v gtklock|.config/linux/gtklock|~/.config/gtklock|Gtklock' "$INSTALL_FILE"
 }
 
 test_install_copies_wayland_files_when_niri_exists_outside_wayland_session() {

@@ -5,12 +5,12 @@
 | 脚本 | 用途 |
 |------|------|
 | `lock` | X11 锁屏（i3lock-color → i3lock --blur → i3lock 纯色降级） |
-| `lock-wayland` | Wayland 锁屏（swaylock） |
+| `lock-wayland` | Wayland 锁屏（gtklock 优先，swaylock 兜底） |
 | `corplink-service` | 临时管理飞连 `corplink.service`；支持查看状态、停止到下次重启、立即恢复 |
 | `rofi-launch` | Rofi 应用启动器包装 |
 | `wayland-autostart` | Wayland 会话自启动；同步会话环境，等待 niri ScreenCast D-Bus 服务后修复 portal 启动顺序，并启动桌面组件；日志写入 `~/.local/state/niri/autostart/` |
 | `dingtalk-wayland` | 钉钉维护/兼容入口；aarch64 日常通过 Mod+C 调用官方 `Elevator.sh`，无需该脚本或 hook。脚本用于 portal 检查、集中日志、按 `/proc/<pid>/exe` 精确清理钉钉/tblive，以及显式 hook 回退 |
-| `terminal-wayland` | Wayland 终端启动器；aarch64 + Wayland 优先 foot，其他平台优先 Alacritty，缺失时回退 foot |
+| `terminal-wayland` | Wayland 终端启动器；默认 foot，缺失时回退 Alacritty |
 | `file-manager-wayland` | Wayland 文件管理器选择器（Dolphin → 系统默认 → 常见文件管理器） |
 | `launcher-wayland` | Wayland 应用启动器 |
 | `clipboard-wayland` | Wayland 剪贴板管理：`start` 启动 wl-clip-persist 持久化守护（窗口关闭后内容不丢），`history` 用 cliphist + fuzzel 检索并写回剪贴板（Mod+V） |

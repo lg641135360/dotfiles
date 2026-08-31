@@ -140,14 +140,15 @@ test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal() {
     assert_contains 'scale 1.25' "$NIRI_AARCH64_CONFIG"
     assert_contains 'position x=1440 y=0' "$NIRI_AARCH64_CONFIG"
 
-    # aarch64 + Wayland 优先 foot：alacritty 0.18.0-dev 在 mtgpu 内屏 2x 字形损坏，
-    # foot 渲染正常。其他平台仍优先 alacritty，foot 作最后兜底。
-    assert_contains 'uname -m' "$TERMINAL_SCRIPT"
-    assert_contains 'WAYLAND_DISPLAY' "$TERMINAL_SCRIPT"
+    # 全平台 niri/Wayland 默认终端统一为 foot（2026-08-31 起含 x86_64），aarch64
+    # 行为不变（mtgpu 下 foot 渲染正常）；alacritty 仅作兜底。
+    assert_not_contains 'uname -m' "$TERMINAL_SCRIPT"
+    assert_not_contains 'WAYLAND_DISPLAY' "$TERMINAL_SCRIPT"
     assert_not_contains 'exec kitty "$@"' "$TERMINAL_SCRIPT"
     # Alacritty 2026-08-29 起走 apt，terminal-wayland 不得再特判 Nix profile 路径。
     assert_not_contains 'nix-profile' "$TERMINAL_SCRIPT"
     assert_contains 'exec foot "$@"' "$TERMINAL_SCRIPT"
+    assert_contains 'exec alacritty "$@"' "$TERMINAL_SCRIPT"
 
     # 常驻单实例快速开窗方案已随 kitty 一并移除（避免残留 socket / 登录多一个常驻
     # 窗口等维护成本）；不得再出现 socket 控制或远程控制。

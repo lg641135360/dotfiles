@@ -6,8 +6,8 @@
 
 // 内屏 eDP-1: 2880x1800@120，2x 缩放（逻辑 1440x900），放在外接屏左侧。
 // 注意：MediaTek GPU 缩放下 alacritty 0.18.0-dev 的 GPU 字形渲染会损坏
-// （1x 正常、2x/1.5x 内容重绘后文字丢失），foot 正常；terminal-wayland 已按
-// aarch64 优先 foot。若后续换稳定版 alacritty 可复核（见 README）。
+// （1x 正常、2x/1.5x 内容重绘后文字丢失），foot 正常；terminal-wayland 已
+// 全平台统一 foot 优先。若后续换稳定版 alacritty 可复核（见 README）。
 output "eDP-1" {
     mode "2880x1800@120"
     scale 2.0

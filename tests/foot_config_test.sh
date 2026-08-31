@@ -39,6 +39,9 @@ test_mouse_hides_while_typing() {
 test_cursor_is_blinking_beam() {
     assert_contains 'style=beam' "$FOOT_FILE"
     assert_contains 'blink=yes' "$FOOT_FILE"
+    # foot 1.25 起 colors.cursor 取代废弃的 cursor.color（text 在前 cursor 在后）。
+    assert_contains 'cursor=1e1e2e f5e0dc' "$FOOT_FILE"
+    assert_not_contains 'color=1e1e2e f5e0dc' "$FOOT_FILE"
 }
 
 test_term_uses_xterm_256color() {
@@ -86,11 +89,11 @@ test_installed_in_wayland_dir_configs() {
     assert_contains 'command -v foot|.config/linux/foot|~/.config/foot|Foot' "$INSTALL_FILE"
 }
 
-test_terminal_wayland_falls_back_to_foot() {
-    # aarch64 + Wayland 优先 foot（mtgpu 下 alacritty 字形损坏）；其他平台 alacritty
-    # 优先、foot 作最后兜底（普通冷启动，无远程控制）。
+test_terminal_wayland_prefers_foot() {
+    # niri/Wayland 默认终端统一为 foot（2026-08-31 起含 x86_64），alacritty 仅兜底。
     assert_not_contains 'exec kitty "$@"' "$TERMINAL_SCRIPT"
     assert_contains 'exec foot "$@"' "$TERMINAL_SCRIPT"
+    assert_contains 'exec alacritty "$@"' "$TERMINAL_SCRIPT"
 }
 
 test_font_matches_alacritty
@@ -102,6 +105,6 @@ test_scrollback_matches_alacritty
 test_catppuccin_mocha_palette
 test_keys_mirror_alacritty
 test_installed_in_wayland_dir_configs
-test_terminal_wayland_falls_back_to_foot
+test_terminal_wayland_prefers_foot
 
 printf 'PASS: foot config tests\n'

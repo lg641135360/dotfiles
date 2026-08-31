@@ -1,11 +1,11 @@
 # Foot 偏好
 
 ## 定位
-- foot 是 niri/Wayland 会话下的终端：
-  - **aarch64 + Wayland** — 优先使用 foot（mtgpu 下 alacritty 0.18.0-dev 在缩放输出内屏 2x 字形损坏，foot 渲染正常）
-  - **其他平台** — alacritty 优先，foot 仅作兜底，当 `alacritty` 不可用时由 `terminal-wayland` 通过 `exec foot "$@"` 冷启动
-- `terminal-wayland` 顶部的 aarch64+Wayland 分支先于 alacritty 检测；foot 不可用时回退到通用 alacritty → foot 兜底顺序
-- 不再维护 kitty 配置；原 `.config/linux/kitty/` 已移除，`terminal-wayland` 的兜底分支由 kitty 改为 foot
+- foot 是 niri/Wayland 会话的默认终端（2026-08-31 起全平台统一，含 x86_64）：
+  - 历史：aarch64 曾因 mtgpu 下 alacritty 0.18.0-dev 在缩放输出内屏 2x 字形损坏、foot 渲染正常而优先 foot；现全平台统一 foot 优先，aarch64 行为不变
+  - `alacritty` 仅在 foot 缺失时由 `terminal-wayland` 回退冷启动（`exec alacritty "$@"`）
+- `terminal-wayland` 顺序：foot 优先 → alacritty 兜底；已移除 aarch64+Wayland 专用分支与 `uname -m` / `WAYLAND_DISPLAY` 特判
+- 不再维护 kitty 配置；原 `.config/linux/kitty/` 已移除，`terminal-wayland` 的兜底分支由 kitty 改为 foot，再于 2026-08-31 将默认终端由 alacritty 改为 foot
 - foot 是 Wayland-only 终端（无 X11 / macOS 版本），配置仅放 `.config/linux/foot/`，由 `install.sh` 的 `linux_wayland_dir_configs` 在 `command -v foot` 通过时复制到 `~/.config/foot/`
 
 ## 观感对齐
@@ -14,7 +14,7 @@
 
 ## 与 alacritty 的差异
 - **主题内嵌**：`foot.ini` 直接写 Catppuccin Mocha palette，不依赖外置主题文件（alacritty 需要 clone `alacritty-theme`）。
-- **cursor color**：foot 显式 `cursor.color = 1e1e2e f5e0dc`（text/cursor）以对齐 Catppuccin Mocha；alacritty 走主题默认反转。
+- **cursor color**：foot 显式 `colors.cursor = 1e1e2e f5e0dc`（text/cursor，foot 1.25 起 `colors.cursor` 取代废弃的 `cursor.color`）以对齐 Catppuccin Mocha；alacritty 走主题默认反转。
 - **OSC52**：foot 默认仅允许写剪贴板方向，与 alacritty 的 `terminal.osc52 = "OnlyCopy"` 等价，无需显式配置。
 - **窗口模糊**：alacritty 在 Linux 启用 `blur = true`；foot 无对应能力，透明度由 `colors.alpha = 0.82` 提供，模糊交给 niri 全局 `background-effect { blur true }`（与 alacritty 在 niri 下的实际表现一致）。
 
