@@ -167,7 +167,10 @@ Obsidian 1.8.7 基于 Electron 33 / Chromium 130，原生 Wayland 后端已可�
 - 全局窗口默认启用 0.88 透明度和 niri 背景模糊，并设置 `draw-border-with-background false`，避免半透明窗口聚焦时把蓝色 focus ring 背景透出来。透明由各应用自身透明度（如 alacritty 的 `background_opacity 0.82`）与全局 0.88 叠加。
 - Polkit、`pinentry`、`ssh-askpass` 等认证窗口强制浮动并覆盖为 1.0 不透明度，确保密码提示清晰且边界明确。
 - `layer-rule` 为 waybar 和 fuzzel 启用背景模糊（`background-effect { blur true }`），弹出层视觉焦点集中。
-- 钉钉主窗口默认使用 2/3 列宽并覆盖为 1.0 不透明度，减少 Qt/CEF 经 XWayland 在 mtgpu 上叠加透明合成产生黑块或重绘异常的风险；不强制浮动、不强制聚焦，也不固定输出，会议窗口和对话框仍由应用自身管理。aarch64 平台配置在后置的全局 0.90 透明规则之后再次覆盖钉钉为 1.0，确保最终生效。
+- 钉钉主窗口默认使用 2/3 列宽并覆盖为 1.0 不透明度，减少 Qt/CEF 经 XWayland 在 mtgpu 上叠加透明合成产生黑块或重绘异常的风险；不强制浮动、不强制聚焦，也不固定输出，会议窗口和对话框仍由应用自身管理（2026-08-29 曾试验钉钉窗口浮动，实测后回退）。aarch64 平台配置在后置的全局 0.90 透明规则之后再次覆盖钉钉为 1.0，确保最终生效。
+- 禁用 focus-follows-mouse（保持 niri 默认关闭，2026-08-29 用户决策）：曾怀疑鼠标 hover 跟随焦点是钉钉 @ 候选框出现后立即消失的原因，实测禁用后问题依旧，两者无关；保持关闭为使用偏好，切换焦点用 `Mod+h/l/j/k`。
+- 钉钉弹窗不抢焦点：event-stream 实测钉钉各弹窗（@ 候选框、菜单、预览等）是 XWayland 受管窗口，map 时 niri 默认把键盘焦点给它们，随后弹窗迅速自毁（@ 候选框表现为出现后立即消失，与鼠标无关）；且弹窗的 X 窗口标题不稳定（同一弹窗先后出现过 `MainMenuPanelView` / `Form` / `com.alibabainc.dingtalk` 等），无法按 title 定向。因此对钉钉 app-id 整体设置 `open-focused false`——该属性只作用于新 map 的窗口，已打开的主窗口不受影响，所有新弹窗从出生起不持有键盘焦点（X11 弹窗「不带输入焦点」的正常模式）。代价：重启钉钉或新开钉钉窗口时不会自动聚焦，需手动点一下。
+- 钉钉弹窗（表情面板等）除主窗口外全部浮动：Wayland 与 xwayland-satellite 不翻译 X11 的 EWMH 窗口类型提示（`_NET_WM_WINDOW_TYPE_DIALOG/POPUP_MENU` 等），niri 只自动浮动固定尺寸窗口，resizable 弹窗会平铺成新列——表情面板即因此出现在右侧新窗口。按社区对弹窗大户的标准做法，用 `exclude title=r#"^钉钉|钉钉$"#` 排除标题「钉钉」的主窗口（实测稳定，兼容未读数等前后缀），其余钉钉窗口全部 `open-floating true`；与 `open-focused false` 互不冲突。残余：偶发的同名「钉钉」弹窗会陪主窗口一起平铺。
 - Cherry Studio 默认列宽为 2/3 屏，保留较宽的对话阅读区域，同时还能露出相邻列。
 - Chrome 默认列宽为 2/3 屏，适合网页阅读和文档页面；透明度和背景模糊不做 Chrome 特例，统一使用全局窗口效果。
 - VS Code 默认列宽为 1.0，适合代码、终端和侧边栏同时展开。

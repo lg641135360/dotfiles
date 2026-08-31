@@ -250,3 +250,69 @@
 - live 同步与运行态：直接改 live（该文件仅存在于 live，不在仓库）；backup：`~/.config/Trae CN/User/settings.json.backup.20260829_203536`（同目录仅 1 份，无需清理）。恢复命令：`cp "$HOME/.config/Trae CN/User/settings.json.backup.20260829_203536" "$HOME/.config/Trae CN/User/settings.json"`。
 - 回滚信息：未提交（本轮仓库侧仅 logs/trace.md 本条追加；工作区另有前几轮 launcher-wayland/dingtalk/memory 等未提交改动，勿一起 checkout）。
 - 后续可能方向：① ~~用户 Reload Window 后实测黑块是否消失~~ **已确认修复**（用户实测黑块消失）；② ~~memory/desktop.md 固化排障条目~~ **已完成**（新增「Trae 终端黑块（xterm.js WebGL glyph atlas）排障」节，含根因时间线：8/29 内核 6.8→7.0.0-30 + niri Nix→apt 双变更）；③ 上游关注 xterm.js WebGL addon 对 Wayland/fractional scaling 的修复进展，且 Mesa/内核/Electron 更新后可试删 `gpuAcceleration: off` 恢复默认。
+
+
+## 2026-08-29 — 钉钉 XWayland 次级窗口浮动（主窗口保持平铺）
+
+- 目的：用户反馈钉钉走 XWayland 弹出的次级窗口（会议、预览、对话框等）被平铺进滚动列、观感奇怪，应全部浮动，但主窗口不能浮动。实测主窗口 app-id `com.alibabainc.dingtalk`、标题「钉钉」（`niri msg windows`）。
+- 改动：① `.config/linux/niri/common.kdl` 在钉钉列宽/不透明规则后新增窗口规则：`match app-id=r#"^com\.alibabainc\.dingtalk$"#` + `exclude title=r#"^钉钉|钉钉$"#` + `open-floating true`——除主窗口外其余钉钉窗口打开即浮动；exclude 用「开头或结尾」匹配，兼容未读数等标题前后缀变化（如「(3) 钉钉」），避免主窗口被误浮动；niri 26.04 支持 `exclude` 匹配器（25.1+），两个平台配置 `niri validate` 通过。② `tests/niri_config_test.sh` `test_niri_config_has_dingtalk_and_app_window_rules` 新增规则块与 README 文案断言（测试先行）。③ `.config/linux/niri/README.md` 窗口规则节同步说明（替换原「不强制浮动」表述）。④ 顺带修复遗留红测试：`.config/scripts/clipboard-wayland` 缺依赖提示中过时的 Nix 安装提示改为「2026-08-29 起源码编译装 /usr/local/bin，不在 apt 源」——即上一轮 launcher 条目遗留事项 ②，`tests/wayland_scripts_test.sh` 断言 `源码编译装 /usr/local/bin` 由此转绿；⑤ memory/niri.md、memory/dingtalk.md 同步浮动决策。
+- 验证：`niri validate -c .config/linux/niri/ubuntu_x64/config.kdl` 与 aarch64 均通过；`./tests/niri_config_test.sh`、`./tests/waybar_config_test.sh`、`./tests/wayland_scripts_test.sh`（修复后）、`./tests/install_wayland_test.sh`、`./tests/dingtalk_hook_test.sh` 全部 PASS；`git diff --check` 干净。open-floating 仅作用于开窗时刻，已开的钉钉主窗口不受影响。
+- live 同步与运行态：backup 已创建（时间戳 20260829_212041）：`~/.config/niri/common.kdl.backup.20260829_212041`、`~/.config/scripts/clipboard-wayland.backup.20260829_212041`；同目标旧备份按保留 3 份清理：common.kdl 删 `20260818_100942_1347567`。文件复制被 IDE 沙箱拦截（`~/.config/niri` 不在可写 allowlist），live 同步由用户执行粘贴命令块完成：cp 两个文件到 live（common.kdl 需 `sed` 把 `include "../common.kdl"` 改写为 `include "common.kdl"`，对齐 install.sh 变换）+ `niri msg action load-config-file` 立即热重载。恢复命令：`cp ~/.config/niri/common.kdl.backup.20260829_212041 ~/.config/niri/common.kdl && cp ~/.config/scripts/clipboard-wayland.backup.20260829_212041 ~/.config/scripts/clipboard-wayland`。
+- 回滚信息：未提交；撤销改动用 `git checkout -- .config/linux/niri/common.kdl .config/linux/niri/README.md tests/niri_config_test.sh .config/scripts/clipboard-wayland`（工作区另有本条 trace/memory 改动，勿一并回退）。
+- 后续可能方向：① 用户同步 live 后实测：打开钉钉会议/文件预览等次级窗口应浮动，主窗口保持平铺；若主窗口标题变化形态不在「钉钉开头/结尾」内（如带中间缀），按 `niri msg windows` 实测标题收紧 exclude；② 钉钉窗口偶尔出现标题不以「钉钉」开头的残留小窗，若仍平铺可按实测标题逐个补充 exclude；③ tblive（共享预览窗）不在本规则范围，如需浮动另行评估。
+
+
+## 2026-08-29 — 钉钉浮动策略定稿（含主窗口）+ 禁用 focus-follows-mouse
+
+- 目的：用户实测上一轮「exclude 主窗口」方案后改需求：钉钉全部窗口（含主窗口）都浮动，不保留 exclude；并报告钉钉里输入 @ 时候选框被鼠标影响、出现后立即消失，询问能否禁用焦点跟随鼠标。排查：common.kdl input 段启用了 `focus-follows-mouse max-scroll-amount="0%"`（全仓库仅此一处、无任何 memory/trace/README 记录说明当初动机），@ 候选框作为 XWayland 弹层出现在光标附近时被 hover 夺焦，钉钉判定失焦立即关闭候选框——删除该项（niri 默认即关闭）即为修复。
+- 改动：① `.config/linux/niri/common.kdl`：钉钉浮动规则去掉 `exclude title=r#"^钉钉|钉钉$"#`，改为 `match app-id` + `open-floating true` 全量浮动；主窗口 2/3 列宽规则保留（手动平铺时仍生效）；input 段删除 `focus-follows-mouse` 行，留一行注释（避开字面量，测试断言配置中不得再出现该字符串）说明不开 hover 跟随焦点的原因。② `tests/niri_config_test.sh`：更新规则块断言、README 文案断言，新增 `assert_not_contains 'focus-follows-mouse'` 与 README「禁用 focus-follows-mouse」断言锁定决策。③ `.config/linux/niri/README.md` 窗口规则节：钉钉全部浮动说明 + 禁用 hover 跟随焦点说明（切换焦点用 Mod+h/l/j/k）。④ memory/niri.md、memory/dingtalk.md 同步定稿决策。
+- 验证：`niri validate`（x64+aarch64）通过；`./tests/niri_config_test.sh`、`./tests/waybar_config_test.sh`、`./tests/wayland_scripts_test.sh`、`./tests/install_wayland_test.sh` 全部 PASS；`git diff --check` 干净。过程插曲：input 段的首次删除编辑一度被回退（IDE 侧疑似竞态，与上一轮 81112b7 回退类似），复核发现后重新执行并通过断言验证。
+- live 同步与运行态：未同步（IDE 沙箱不可写 `~/.config/niri`，live 同步由用户执行粘贴命令块；backup 惯例同前）。恢复命令：`cp ~/.config/niri/common.kdl.backup.<时间戳> ~/.config/niri/common.kdl`。
+- 回滚信息：未提交（含上一轮未提交改动，建议两轮合并为一个 commit 或按功能拆分）；撤销本轮改动用 `git checkout -- .config/linux/niri/common.kdl .config/linux/niri/README.md tests/niri_config_test.sh`。
+- 后续可能方向：① 用户同步 live 后实测：a) 钉钉主窗口/次级窗口均浮动；b) 钉钉输入 @ 候选框不再被鼠标顶掉（焦点跟随已关）；c) 习惯代价——鼠标划过其他窗口不再切换焦点，如不适配可评估只对部分场景妥协（niri 无白名单机制，只能全开/全关）；② @ 候选框若仍消失，下一嫌疑是钉钉弹层自身的 focus-out 处理（XWayland transient 行为），需 `niri msg windows` 观察弹层开合时的窗口焦点事件；③ tblive 仍不在浮动范围。
+
+
+## 2026-08-29 — 钉钉浮动方案实测回退；focus-follows-mouse 与 @ 问题无关但保持禁用
+
+- 目的：用户实测两轮浮动方案后决定全部回退（「浮动窗口这个修改回退把」），并反馈禁用 focus-follows-mouse 后钉钉 @ 候选框出现即消失的问题依旧（该改动与 @ 问题无关）。经确认：浮动规则全删（回到本轮前状态）；focus-follows-mouse 保持禁用（纯粹使用偏好）；@ 问题继续用 `niri msg event-stream` 观测排查。
+- 改动：① `.config/linux/niri/common.kdl`：删除钉钉 `open-floating true` 规则块（2/3 列宽 + 1.0 不透明规则保留），focus-follows-mouse 维持删除、注释保留；② `tests/niri_config_test.sh`：删除浮动规则与「全部浮动」README 断言，恢复「钉钉主窗口默认使用 2/3 列宽并覆盖为 1.0 不透明度」断言，保留 `assert_not_contains 'focus-follows-mouse'` 锁定禁用决策；③ `.config/linux/niri/README.md`：钉钉条目恢复原文并注明「2026-08-29 曾试验钉钉窗口浮动，实测后回退」，focus 条目修正归因（实测与 @ 候选框消失无关，保持关闭为使用偏好）；④ memory/niri.md、memory/dingtalk.md 同步（记录三次迭代教训：exclude 方案 → 全浮动 → 全回退）。
+- 验证：`niri validate`（x64+aarch64）通过；`./tests/niri_config_test.sh`、`./tests/waybar_config_test.sh`、`./tests/wayland_scripts_test.sh`、`./tests/install_wayland_test.sh` 全部 PASS；`git diff --check` 干净。
+- live 同步与运行态：未同步（IDE 沙箱不可写 `~/.config/niri`，live 同步由用户执行粘贴命令块；备份与保留 3 份惯例同前）。恢复命令：`cp ~/.config/niri/common.kdl.backup.<时间戳> ~/.config/niri/common.kdl`。
+- 回滚信息：未提交（工作区含三轮未提交改动：浮动方案的全部迭代 + clipboard 注释修复，最终净效果 = 钉钉浮动规则无、focus-follows-mouse 禁用、clipboard 注释更新；提交前可 `git diff` 复核净差异，浮动相关迭代在 diff 中已相互抵消）。
+- 后续可能方向：① @ 候选框消失根因排查（event-stream 观测中）：候选框若为 override-redirect 窗口则 event-stream 无事件，嫌疑转向 XWayland/IME（fcitx5 XIM，见 memory/dingtalk.md fcitx5#1641）/钉钉自身弹层逻辑；若为受管窗口则看 WindowOpenedOrChanged/WindowFocusChanged/WindowClosed 时序定位是 niri 焦点行为还是应用失焦自关；② 对照实验：同流程在 AwesomeWM/X11 会话下是否复现（复现则为钉钉/IME 应用层问题，与 niri 无关）；③ 钉钉浮动方案记录保留在 trace/memory，日后若再想试可从历史恢复。
+
+
+## 2026-08-29 — @ 候选框消失根因定位（焦点乒乓）+ MainMenuPanelView open-focused false 实验
+
+- 目的：用户配合复现 @ 候选框消失并反馈「鼠标悬停其上也消失、不动鼠标只敲键盘也消失」（鼠标无关）。分析 `/tmp/niri-events-dingtalk.log`（后台 `niri msg event-stream` 捕获）定位根因。
+- 证据链：@ 弹窗为**受管 XWayland 窗口** `MainMenuPanelView`（350x419，niri 自动浮动）——每次 @：弹窗 map 时 `is_focused: true`（niri 默认把键盘焦点给新窗口）→ 焦点在弹窗仍打开时被设回钉钉主窗口 174（用户无鼠标/键盘动作，niri 只在窗口开/关时移焦点 → 钉钉自己经 XSetInputFocus 抢回）→ 弹窗关闭（CEF「失焦即关」）→ 伴随弹窗（标题「钉钉」683x488，与主窗口同名）打开→被抢→关闭，乒乓循环 4 轮。结论：niri 焦点行为是循环的起点，钉钉抢回焦点+失焦自毁完成闭环。
+- 改动（实验）：① `.config/linux/niri/common.kdl` 新增 `window-rule { match app-id=…dingtalk… title=r#"^MainMenuPanelView$"# open-focused false }`——弹窗 map 起不持有焦点，主窗口焦点全程不变（X11 弹窗正常模式）。KDL 语法注意：app-id 与 title 必须写在同一个 `match` 节点（分开两个节点 `title=` 会解析报错）。② `tests/niri_config_test.sh` 加规则块断言；③ `.config/linux/niri/README.md` 加「钉钉 @ 成员选择弹窗不抢焦点」条目；④ memory/dingtalk.md 新增「@ 候选框出现后立即消失」观测记录（含证据链与无效时的出路）。
+- 验证：`niri validate`（x64+aarch64）通过；niri/waybar/wayland-scripts/install-wayland 测试 PASS；`git diff --check` 干净。**实验效果待用户实测 @**：成功判据 = 候选框持续显示、event-stream 中弹窗 map 后无 focus changed/WindowClosed 乒乓；失败 = 候选框仍消失，结论转向钉钉 CEF 自身缺陷（网页版钉钉对照 + 反馈钉钉）。
+- live 同步与运行态：未同步（IDE 沙箱不可写 `~/.config/niri`），由用户粘贴命令块同步并 `niri msg action load-config-file` 热重载。event-stream 观测进程保持运行（/tmp/niri-events-dingtalk.log 持续追加），实验后据此判读。恢复命令：`cp ~/.config/niri/common.kdl.backup.<时间戳> ~/.config/niri/common.kdl`。
+- 回滚信息：未提交（含浮动回退轮改动）；撤销本条实验用 `git checkout -- .config/linux/niri/common.kdl .config/linux/niri/README.md tests/niri_config_test.sh`。
+- 后续可能方向：① 实验成功→转正规则并把结论写入 memory/dingtalk.md；② 实验失败→回退规则，网页版钉钉对照验证区分应用缺陷/XWayland 层，必要时 `fcitx5 -d --replace --verbose xim=4` 排查 XIM 干扰；③ 伴随弹窗（标题「钉钉」683x488）与主窗口同名无法用 title 区分，如证实相关需另找抓手（如 niri 后续支持按尺寸/role 匹配）。
+
+## 2026-08-29（续）— @ 实验 1 无效：弹窗标题不稳定，升级为 app-id 级 open-focused false
+
+- 结果：用户实测候选框仍消失。event-stream 判读：热重载（第二个 Config loaded，行 478）后日志中 `MainMenuPanelView` 出现 0 次——钉钉弹窗的 X 窗口标题不稳定（本轮实测 `Form`（平铺）、`com.alibabainc.dingtalk`（浮动）、`分享的图片` 等轮换），title 定向规则未命中，所有弹窗仍 `is_focused: true` 打开后迅速关闭。**结论：焦点乒乓假设尚未被真正测试。**
+- 改动：common.kdl 的 MainMenuPanelView 规则升级为 `match app-id=…dingtalk…` + `open-focused false`（只作用于新 map 窗口，已开主窗口不受影响；所有新弹窗无论标题都不抢焦点）；代价：重启钉钉/新开窗口时不自动聚焦，需手动点一下。测试断言同步（含 assert_not_contains 旧 title 规则），README 条目改写。
+- 验证：`niri validate`（x64+aarch64）+ niri/waybar/wayland-scripts/install-wayland 测试 PASS；`git diff --check` 干净。
+- 判读逻辑（下次实测）：a) 候选框稳定显示 → 假设成立（niri map 时给焦点是触发器），规则转正；b) 仍消失且弹窗 `is_focused: false` 打开 → 应用层自毁（钉钉 CEF 缺陷），回退规则并建议网页版钉钉对照/反馈钉钉；c) 仍消失且无弹窗事件 → 弹窗走了 override-redirect，嫌疑转 XWayland satellite/IME 层，做 fcitx5 判别实验（`pkill fcitx5` 后测 @，再 `fcitx5 -d` 恢复）。
+- 回滚信息：未提交；`git checkout -- .config/linux/niri/common.kdl .config/linux/niri/README.md tests/niri_config_test.sh`。
+
+## 2026-08-29（终）— @ 实验 2 成功：app-id 级 open-focused false 转正
+
+- 结果：用户同步后实测 @ 候选框稳定显示。event-stream 证据（第三次 Config loaded 后）：弹窗以 `is_focused: false` + `focus_timestamp: None` 打开（规则生效，不再抢焦点），无焦点乒乓。**根因定案：niri 对新 map 窗口默认聚焦，钉钉弹窗（Qt/CEF）收到意外 FocusIn 即自毁；弹窗不持有焦点后即稳定。**
+- 改动：无新改动（实验 2 的 app-id 级规则转正为最终状态）；memory/niri.md 窗口规则条目补充弹窗规则结论，memory/dingtalk.md「@ 候选框」条目定稿（含 title 不稳定教训与 event-stream 判别工具记录）。event-stream 观测进程已停止（pkill -f 'niri msg event-stream'），日志保留 /tmp/niri-events-dingtalk.log。
+- 验证：用户实测候选框稳定；日志判读弹窗 `is_focused: false`；仓库测试此前已全 PASS（本轮无配置改动，无需重跑）。
+- live 同步与运行态：live `~/.config/niri/common.kdl` 已由用户同步至最终状态（含 2/3 列宽+1.0 不透明、open-focused false、无 focus-follows-mouse）。
+- 回滚信息：本 commit（撤销用 `git revert HEAD`，回滚入口见提交记录 fix(niri): 钉钉弹窗不抢焦点修复 @ 候选框消失）。
+
+## 2026-08-29（补）— 表情面板平铺：钉钉浮动第四次迭代定稿（exclude 主窗口全浮动）
+
+- 目的：用户反馈钉钉表情面板出现在右侧新窗口（平铺成新列），并询问社区平铺方案对弹窗大户的通用做法。解答：X11 时代靠 EWMH 窗口类型提示（DIALOG/POPUP_MENU 等）+ WM_TRANSIENT_FOR 由 WM 自动浮动；Wayland 的 xdg_toplevel 无类型概念、xwayland-satellite 不翻译这些提示，niri 只自动浮动固定尺寸窗口——resizable 弹窗（表情面板）只能靠 window-rule。社区对 QQ/微信/钉钉的主流做法：整体浮动（主窗口也浮）或 exclude 主窗口全浮动。
+- 改动：① `.config/linux/niri/common.kdl` 恢复 exclude 浮动规则（用户确认选择）：`match app-id=…dingtalk…` + `exclude title=r#"^钉钉|钉钉$"#` + `open-floating true`，表情面板/对话框/预览等全部浮动，与 `open-focused false` 互不冲突；残余：偶发同名「钉钉」弹窗陪主窗口平铺。② 测试断言、README（EWMH 缺口背景 + 社区做法依据）、memory/niri.md（四次迭代轨迹定稿）、memory/dingtalk.md 同步。
+- 验证：`niri validate`（x64+aarch64）通过；niri/waybar/wayland-scripts/install-wayland 测试 PASS；`git diff --check` 干净。
+- live 同步与运行态：未同步（沙箱限制，用户执行粘贴块；备份+保留 3 份惯例同前）。恢复命令：`cp ~/.config/niri/common.kdl.backup.<时间戳> ~/.config/niri/common.kdl`。
+- 回滚信息：本 commit（撤销用 `git revert HEAD`）；单规则级回退可 revert 后仅保留 `open-focused false`。
+- 后续可能方向：① 用户同步后实测表情面板/对话框/图片预览应浮动，主窗口保持平铺；② 同名「钉钉」弹窗若高频出现且干扰，需等 niri 支持按尺寸/role/transient 匹配或 satellite 翻译 EWMH 提示后再收敛；③ 若钉钉弹窗浮动后出现遮挡/定位异常，用 `default-floating-position` 微调。

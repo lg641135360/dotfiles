@@ -52,12 +52,18 @@
 - 实锤手段（下次失效时）：`fcitx5 -d --replace --verbose xim=4` 后观察日志是否出现"连续 `FORWARD_EVENT` 无处理行"特征。
 - 后续：等 xcb-imdkit 上游修复合并随发行版更新；届时验证钉钉不再随机失效即可关闭本条。
 
+## @ 候选框出现后立即消失（已修复：弹窗不抢焦点，2026-08-29 定案）
+- 症状：钉钉聊天输入 `@` 后成员候选框出现即消失；鼠标悬停在候选框上/完全不动鼠标都一样，与鼠标无关。曾怀疑 niri `focus-follows-mouse`，禁用后问题依旧（无关）。
+- 根因（`niri msg event-stream` 实测）：@ 弹窗是**受管 XWayland 窗口**（非 override-redirect）。niri 对新 map 窗口默认给键盘焦点 → 钉钉弹窗（Qt/CEF）收到意外 FocusIn 后自毁（伴随弹窗重建/乒乓），表现为候选框闪现即消失。**修复：niri window-rule 对钉钉 app-id 整体 `open-focused false`**——该属性只作用于新 map 窗口，已开主窗口不受影响；所有新弹窗从出生起不持有焦点（`is_focused: false` + `focus_timestamp: None`，X11 弹窗「不带输入焦点」的正常模式），候选框稳定显示。
+- 实验迭代记录：第一版按 title 匹配 `MainMenuPanelView` 无效——钉钉弹窗的 X 窗口标题不稳定（实测同一场景轮换 MainMenuPanelView / Form / com.alibabainc.dingtalk / 钉钉 / 分享的图片），必须用 app-id 级匹配。代价：重启钉钉或新开钉钉窗口时不自动聚焦，需手动点一下。
+- 判别工具：`niri msg event-stream` 后台记录到 /tmp 后复现，看弹窗 `is_focused` 与开/关时序即可区分 niri 焦点行为与应用层自毁；日志为纯文本格式（事件名形如 `Window opened or changed:`，非 JSON）。
+
 ## 已知问题
 - 共享屏幕时必须接受 portal 选择窗口/屏幕的对话框，不能取消
 - 依赖 PipeWire、WirePlumber、xdg-desktop-portal
 - niri 主会话必须用 `niri --session` 启动；仅 `Exec=niri` 时 `xdg-desktop-portal-gnome` 不会提供 ScreenCast 接口，libportal 返回 `CreateSession failed`
 - `wayland-autostart` 必须等待 `org.gnome.Mutter.ScreenCast` 注册后再按 GNOME backend → portal frontend 顺序重启服务；仅检查 portal 进程存在会保留跨会话的 Settings-only 失效状态
-- niri 对钉钉设置 2/3 默认列宽和 1.0 不透明度；不强制浮动、聚焦或固定输出，避免影响会议窗口和托盘恢复
+- niri 对钉钉设置 2/3 默认列宽和 1.0 不透明度；除主窗口（标题「钉钉」，`exclude ^钉钉|钉钉$`）外其余钉钉 XWayland 窗口全部 `open-floating true` 浮动（2026-08-29 四次迭代定稿：表情面板等 resizable 弹窗平铺成新列后恢复 exclude 方案，Wayland 不翻译 X11 EWMH 类型提示是根因）；不强制聚焦或固定输出。niri 侧已对钉钉 app-id 整体 `open-focused false`（修复 @ 候选框自毁，见上节），并禁用 `focus-follows-mouse`（用户偏好，与 @ 问题无关）
 - `restart` 通过 `/proc/<pid>/exe` 精确匹配当前用户的钉钉与 tblive，禁止恢复宽泛的 `pkill -f` 命令行匹配
 - hook 需要 `DRM_FORMAT_MOD_LINEAR` 作为 modifier（否则遇到 `no more input formats`）
 - niri 提供 `SPA_DATA_DmaBuf` 时需要对 `spa_data.fd` 做 `mmap` 并复制到 framebuffer

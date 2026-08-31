@@ -59,7 +59,7 @@ input {
         accel-speed 0.0
     }
 
-    focus-follows-mouse max-scroll-amount="0%"
+    // 不开鼠标 hover 跟随焦点：XWayland 弹层（如钉钉 @ 候选框）会被夺焦立即消失。
 }
 
 layout {
@@ -189,6 +189,27 @@ window-rule {
     match app-id=r#"^com\.alibabainc\.dingtalk$"#
     default-column-width { proportion 0.66667; }
     opacity 1.0
+}
+
+// 钉钉各类弹窗（@ 候选框、菜单、预览等）的 X 窗口标题不稳定（event-stream 实测同一
+// 弹窗先后出现过 MainMenuPanelView / Form / com.alibabainc.dingtalk 等），无法按 title
+// 定向。open-focused false 只作用于新 map 的窗口：已打开的主窗口不受影响，所有新弹窗
+// 从出生起不持有键盘焦点，主窗口焦点全程不变（X11 弹窗「不带输入焦点」的正常模式）。
+// 代价：重启钉钉或新开钉钉窗口时不会自动聚焦，需手动点一下。
+window-rule {
+    match app-id=r#"^com\.alibabainc\.dingtalk$"#
+    open-focused false
+}
+
+// 钉钉是弹窗大户（表情面板、对话框、图片预览等）：Wayland 与 xwayland-satellite 不翻译
+// X11 的 EWMH 窗口类型提示，niri 只自动浮动固定尺寸窗口，resizable 弹窗会平铺成新列
+// （如表情面板出现在右侧新窗口）。按社区标准做法 exclude 主窗口标题「钉钉」（实测稳定，
+// 兼容未读数等前后缀），其余钉钉窗口全部浮动；与上方 open-focused false 互不冲突。
+// 残余瑕疵：偶发的同名「钉钉」弹窗会陪主窗口一起平铺。
+window-rule {
+    match app-id=r#"^com\.alibabainc\.dingtalk$"#
+    exclude title=r#"^钉钉|钉钉$"#
+    open-floating true
 }
 
 window-rule {

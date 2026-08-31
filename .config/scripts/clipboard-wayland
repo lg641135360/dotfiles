@@ -34,7 +34,7 @@ start_persist() {
         wl-clip-persist --clipboard regular &
         persist_pid=$!
     else
-        warn "剪贴板持久化不可用：未找到命令 wl-clip-persist（Nix: nix profile install nixpkgs#wl-clip-persist）"
+        warn "剪贴板持久化不可用：未找到命令 wl-clip-persist（2026-08-29 起源码编译装 /usr/local/bin，不在 apt 源）"
     fi
 
     if command -v cliphist >/dev/null 2>&1; then

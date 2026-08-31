@@ -219,6 +219,22 @@ test_niri_config_has_dingtalk_and_app_window_rules() {
     assert_contains 'match app-id=r#"^google-chrome$"#' "$NIRI_COMMON_CONFIG"
     assert_contains 'match app-id=r#"^com\.alibabainc\.dingtalk$"#' "$NIRI_COMMON_CONFIG"
     assert_contains '钉钉主窗口默认使用 2/3 列宽并覆盖为 1.0 不透明度' "$NIRI_README"
+    # 钉钉弹窗（@ 候选框等）标题不稳定（MainMenuPanelView/Form/…），无法按 title 定向；
+    # app-id 级 open-focused false 只影响新 map 窗口：弹窗不抢焦点，主窗口焦点全程不变。
+    assert_contains 'match app-id=r#"^com\.alibabainc\.dingtalk$"#
+    open-focused false' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'title=r#"^MainMenuPanelView$"#' "$NIRI_COMMON_CONFIG"
+    assert_contains '钉钉弹窗不抢焦点' "$NIRI_README"
+    # 钉钉弹窗（表情面板等 resizable 弹层）除主窗口外全部浮动：X11 EWMH 类型提示不被
+    # xwayland-satellite 翻译，niri 只自动浮动固定尺寸窗口；exclude 主窗口标题（实测稳定）。
+    assert_contains 'match app-id=r#"^com\.alibabainc\.dingtalk$"#
+    exclude title=r#"^钉钉|钉钉$"#
+    open-floating true' "$NIRI_COMMON_CONFIG"
+    assert_contains '钉钉弹窗（表情面板等）除主窗口外全部浮动' "$NIRI_README"
+    # focus-follows-mouse 保持禁用（2026-08-29 用户决策；曾怀疑与钉钉 @ 候选框消失有关，
+    # 实测禁用后问题依旧，两者无关，保持 niri 默认关闭为偏好）。
+    assert_not_contains 'focus-follows-mouse' "$NIRI_COMMON_CONFIG"
+    assert_contains '禁用 focus-follows-mouse' "$NIRI_README"
     # ubuntu_aarch64/config.kdl 在 include common.kdl 后还有全局透明规则，
     # 必须再次覆盖钉钉，确保最终生效的是 1.0。
     assert_contains 'match app-id=r#"^com\.alibabainc\.dingtalk$"#' "$NIRI_AARCH64_CONFIG"
