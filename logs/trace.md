@@ -20,6 +20,22 @@
   ```
 
 
+## 2026-08-31 — waybar 网络模块点击改为打开 nmtui
+
+- 目的：waybar 网络模块原 `on-click: nm-connection-editor` 只管理/新建连接、无扫描列表，无法点选可用 WiFi；改为点击直接开终端内 nmtui 扫描/选择。
+- 改动：① `.config/linux/waybar/config` 与 `.config/linux/waybar/config.aarch64` 的 network `on-click` 改为 `foot -- nmtui`（与 CPU/内存模块 `foot -- htop` 写法一致，foot 为 niri 默认终端）；② `tests/waybar_config_test.sh` 断言同步为 `foot -- nmtui`；③ `waybar/README.md` 与 `memory/waybar.md` 网络模块说明同步。
+- 验证：`./tests/waybar_config_test.sh` exit 0（PASS: waybar config tests，含 config.aarch64 superset 一致性校验）；`git diff --check` 干净；live 同步后重启 waybar（pid 89764）运行正常，live `~/.config/waybar/config` 的 network `on-click` 已为 `foot -- nmtui`。
+- 回滚信息：未提交；live 已同步（aarch64 部署 `config.aarch64` → `~/.config/waybar/config`）。备份快照：`~/.config/waybar/config.backup.20260831_221415_85495`。恢复命令：
+  ```bash
+  cp ~/.config/waybar/config.backup.20260831_221415_85495 ~/.config/waybar/config
+  pkill -x waybar; sleep 0.5; nohup waybar >/tmp/waybar-restart.log 2>&1 &
+  ```
+  仓库回滚入口：
+  ```bash
+  git checkout -- .config/linux/waybar/config .config/linux/waybar/config.aarch64 tests/waybar_config_test.sh .config/linux/waybar/README.md memory/waybar.md logs/trace.md
+  ```
+- 后续可能方向：live 已生效；观察 nmtui 点击交互是否顺手，若希望从 waybar 直接弹出 fuzzel/rofi 扫描列表，可再评估替代方案。
+
 ## 2026-08-31 — Mod+Space 预设列宽收敛为两档 + Mod+F 改扩展列宽
 
 - 目的：用户希望 `Mod+Space` 在固定少数列宽间循环，且 `Mod+F` 不再做全屏（全屏交给应用内 F11），复用为列宽操作。
@@ -423,3 +439,97 @@
 - live 同步与运行态：已同步。live `~/.config/foot/foot.ini` 已写入新版本（终端沙箱不可写 `~/.config/foot`，改用 Write 工具先备份后覆盖）。备份：`~/.config/foot/foot.ini.backup.20260831_201000_000000`（旧版快照，此前无其它 backup）。恢复命令：`cp ~/.config/foot/foot.ini.backup.20260831_201000_000000 ~/.config/foot/foot.ini`。生效：foot 下次启动即读取新配置，无需重载会话。
 - 回滚信息：未提交；`git checkout -- .config/linux/foot/foot.ini tests/foot_config_test.sh .config/linux/foot/README.md memory/foot.md logs/trace.md` 即回滚。
 - 后续可能方向：① 用户实测新开 foot 终端不再出现 deprecation 警告；② 若日后 foot 升级再报新 deprecation，按 `foot -C` + `man foot.ini` 核对迁移。
+
+
+## 2026-08-31 — aarch64 外接屏换 AOC 后移除旧 120Hz modeline（修复黑屏）
+
+- 目的：用户反馈外接屏黑屏。`niri msg outputs` 显示 DP-2 实际为 AOC U27U2G6R4B（4K 面板、60Hz 上限），EDID 只给 `3840x2160@29.981`（preferred）与 `2560x1440@59.951`；而配置里仍保留旧 Dell S2721DGF 的 120Hz modeline（`497.75 2560 2608 2640 2720 1440 1445 1448 1525 "+hsync" "-vsync"`）。niri 提交成功（`niri msg outputs` 显示 current custom 119.998Hz）但面板拒绝 → 黑屏。
+- 改动（仓库）：① `.config/linux/niri/ubuntu_aarch64/config.kdl`：DP-2 删掉 modeline，改 `mode "2560x1440@59.951"`，scale/position 不变；注释同步 AOC 换屏背景与黑屏根因；② `tests/niri_config_test.sh`：aarch64 用例断言 `mode "2560x1440@59.951"` 且不再含旧 modeline 串；③ `memory/niri.md` output/外接屏节重写：当前 AOC、不要用旧 modeline、4K 需先查 DP 带宽，并保留 Dell 时代 modeline 历史供追溯。
+- 验证：`bash tests/niri_config_test.sh` PASS；`bash tests/wayland_scripts_test.sh` PASS；live 与仓库 `diff` IDENTICAL。
+- live 同步与运行态：已同步 `~/.config/niri/config.kdl`。备份：`~/.config/niri/config.kdl.backup.20260831_215151_19494`（旧版快照；现共 4 份，下轮按保留 3 份清最旧 `20260819_223525`）。恢复命令：`cp ~/.config/niri/config.kdl.backup.20260831_215151_19494 ~/.config/niri/config.kdl`。生效：niri 26.04 自动监视配置文件（或 `niri msg action load-config-file` 立即触发）；尚未执行重载，需用户确认。
+- 回滚信息：未提交；`git checkout -- .config/linux/niri/ubuntu_aarch64/config.kdl tests/niri_config_test.sh memory/niri.md logs/trace.md` 即回滚（repo 侧）；live 侧见上恢复命令。
+- 后续可能方向：① 用户确认后触发重载，实测外接屏应恢复显示 1440p60；② 若想用 4K 原生，先排查 DP 线缆/接口带宽（当前 EDID 只给 4K30）；③ backup 累计 4 份，下轮同步前清理最旧 1 份。
+
+### 2026-08-31 追加 — live include 路径更正（重载生效关键）
+
+- 复现：首次 `load-config-file` 后 DP-2 仍显示 119.998Hz custom；`niri validate` 报错 `failed to read included config from "~/../common.kdl": No such file or directory`。根因：live `~/.config/niri/` 是扁平布局，common.kdl 就在同目录；本次直接复制仓库文件时把 include 从 `"common.kdl"`（live 正确写法，install.sh 会改写）错带成了仓库的 `"../common.kdl"`，配置解析失败、重载未生效。
+- 处理：`sed -i 's|include "../common.kdl"|include "common.kdl"|' ~/.config/niri/config.kdl`，仅改 live；仓库文件保持 `"../common.kdl"`（install.sh 部署时会改写）。`niri validate` exit 0。
+- 验证：再次 `load-config-file` 后 `niri msg outputs` DP-2 = `2560x1440 @ 59.951 Hz`，custom 消失。
+- 备份/恢复不变：`config.kdl.backup.20260831_215151_19494`。
+
+
+## 2026-08-31 — aarch64 外接屏改试 1920x1080@60.000（用户选档）
+
+- 目的：用户要求把外接屏从 1440p60 改为 1080p60 试档（AOC U27U2G6R4B，EDID 含 `1920x1080@60.000`）。
+- 改动（仓库）：① `.config/linux/niri/ubuntu_aarch64/config.kdl`：DP-2 `mode "2560x1440@59.951"` → `mode "1920x1080@60.000"`，scale 1.25/position x=1440 不变，注释同步（逻辑 1536x864）；② `tests/niri_config_test.sh`：aarch64 断言改 `mode "1920x1080@60.000"`；③ `memory/niri.md`：外接屏档位更新为 1080p60（注明初版 1440p60 也正常显示）。
+- 验证：`bash tests/niri_config_test.sh` PASS；`git diff --check` 干净；`niri validate` exit 0。
+- live 同步与运行态：已同步 `~/.config/niri/config.kdl` 并 `load-config-file` 生效。备份：`~/.config/niri/config.kdl.backup.20260831_215432_22729`（1440p60 版快照）。恢复命令：`cp ~/.config/niri/config.kdl.backup.20260831_215432_22729 ~/.config/niri/config.kdl`（记得带 `include "common.kdl"` 扁平写法，勿用仓库 `../common.kdl`）。生效验证：`niri msg outputs` DP-2 = `1920x1080 @ 60.000 Hz`，逻辑 1536x864 @ 1.25x。
+- 回滚信息：未提交；`git checkout -- .config/linux/niri/ubuntu_aarch64/config.kdl tests/niri_config_test.sh memory/niri.md logs/trace.md` 即回滚（repo 侧）；live 侧见上恢复命令。
+- 后续可能方向：① 用户实测 1080p60 观感/字号是否合适；② 若字号偏大/偏小可调 scale；③ 若想要 4K，先排查 DP 线缆/接口带宽（当前 EDID 只给 4K30）；④ config.kdl backup 现有 5 份（20260819/20260824/20260831_214238/20260831_215151/20260831_215432），下轮按保留 3 份清理最旧 2 份。
+
+
+## 2026-08-31 — aarch64 外接屏定档 3840x2160@29.981（4K30，用户选默认）
+
+- 目的：用户把外接屏档位从 1080p60 改为默认 4K30（AOC U27U2G6R4B 的 EDID preferred `3840x2160@29.981`）。
+- 改动（仓库）：① `.config/linux/niri/ubuntu_aarch64/config.kdl`：DP-2 `mode "1920x1080@60.000"` → `mode "3840x2160@29.981"`，scale 1.25/position x=1440 不变，注释记录档位轨迹（1440p60→1080p60→4K30）；② `tests/niri_config_test.sh`：aarch64 断言改 `mode "3840x2160@29.981"`；③ `memory/niri.md`：外接屏定档 4K30（EDID preferred，默认档）。
+- 验证：`bash tests/niri_config_test.sh` PASS；`git diff --check` 干净；`niri validate` exit 0。
+- live 同步与运行态：已同步 `~/.config/niri/config.kdl` 并 `load-config-file` 生效。备份：`~/.config/niri/config.kdl.backup.20260831_215600_25007`（1080p60 版快照）。恢复命令：`cp ~/.config/niri/config.kdl.backup.20260831_215600_25007 ~/.config/niri/config.kdl`（记得带 `include "common.kdl"` 扁平写法）。生效验证：`niri msg outputs` DP-2 = `3840x2160 @ 29.981 Hz (preferred)`，逻辑 3072x1728 @ 1.25x。
+- 回滚信息：未提交；`git checkout -- .config/linux/niri/ubuntu_aarch64/config.kdl tests/niri_config_test.sh memory/niri.md logs/trace.md` 即回滚（repo 侧）；live 侧见上恢复命令。
+- 后续可能方向：① 用户实测 4K30 观感（30Hz 滚动/光标是否可接受）；② 若嫌 30Hz 卡可回 1440p60 或 1080p60；③ 若想要 4K60，先排查 DP 线缆/接口带宽；④ config.kdl backup 现有 6 份，下轮按保留 3 份清理最旧 3 份。
+
+
+## 2026-08-31 — aarch64 外接屏缩放改 2.0（4K30 @ 2x，逻辑 1920x1080）
+
+- 目的：用户要求外接屏从 1.25x 改为 2x 缩放。
+- 改动（仓库）：① `.config/linux/niri/ubuntu_aarch64/config.kdl`：DP-2 `scale 1.25` → `scale 2.0`，注释记录缩放轨迹（逻辑 1920x1080）；② `tests/niri_config_test.sh`：aarch64 断言去掉 `scale 1.25`，改为两块屏各一个 `scale 2.0`（`grep -c 'scale 2.0'` 应为 2），并 `assert_not_contains 'scale 1.25'`（配置注释避免出现该串）；③ `memory/niri.md`：aarch64 布局与档位描述更新为 DP-2 4K30 scale 2.0。
+- 验证：`bash tests/niri_config_test.sh` PASS；`git diff --check` 干净；`niri validate` exit 0。
+- live 同步与运行态：已同步 `~/.config/niri/config.kdl` 并 `load-config-file` 生效。备份：`~/.config/niri/config.kdl.backup.20260831_215831_27283`（1.25x 版快照）。恢复命令：`cp ~/.config/niri/config.kdl.backup.20260831_215831_27283 ~/.config/niri/config.kdl`（记得带 `include "common.kdl"` 扁平写法）。生效验证：`niri msg outputs` DP-2 = `3840x2160 @ 29.981 Hz (preferred)`、`Scale: 2`、逻辑 1920x1080。
+- 回滚信息：未提交；`git checkout -- .config/linux/niri/ubuntu_aarch64/config.kdl tests/niri_config_test.sh memory/niri.md logs/trace.md` 即回滚（repo 侧）；live 侧见上恢复命令。
+- 后续可能方向：① 用户实测 2x 缩放观感（字号应与内屏一致，跨屏鼠标手感需验证）；② 若两屏缩放差异导致拖动别扭可再调；③ config.kdl backup 现有 7 份，下轮按保留 3 份清理最旧 4 份。
+
+## 2026-08-31 — 卸载 Linuxbrew gcc@14（最小改动，释放 372MB）
+
+- 目的：brew 包体检发现 gcc@14 为无依赖的"真叶子"（`brew uses --installed gcc@14` 为空），不在 Linux Brewfile 声明内，且系统已提供 gcc-12/13（`/usr/bin/gcc`），brew 的 gcc-14 未遮蔽系统二进制；用户确认仅卸载 gcc@14（最小改动），其余候选（llvm 2.6G / rust+llvm@22 3.6G）暂不动。
+- 已做：`brew uninstall gcc@14`，移除 Cellar/gcc@14/14.4.0（1,897 文件，372.3MB）。
+- 验证：`brew list --formula` 无 gcc@14（grep 计数 0）、`brew leaves` 不再含 gcc@14（现为 bat fzf herdr lsd neovim rust tmux zoxide）、`Cellar/gcc@14` 目录已删、冒烟 `command -v` bat/fzf/lsd/zoxide/gcc 全部 OK。brew 主 `gcc`（bat/lsd/zoxide 构建依赖）保留未动。
+- 回滚信息：未提交（仓库零改动，纯系统变更）。恢复命令：
+  ```bash
+  brew install gcc@14
+  ```
+- 后续可能方向：① rust+llvm@22 仍是可删候选（合计约 3.6G）。**2026-08-31 复核纠正**：裸 `llvm` 公式实际未安装（`brew info llvm` = Not installed），系统仅有 llvm@22（22.1.8，2.6G，keg-only，作为 rust 依赖）；clangd 从未在 PATH（无 `~/.local/bin/clangd` 软链、llvm@22 未链接、无 apt clangd），删 rust+llvm@22 不影响 starship（`~/.cargo/bin/starship` 为独立二进制）也不改变 clangd 现状（本就不可用）。`brew cleanup rust` 可先白拿旧版 1.97.1 的 509M（零风险）。② Brewfile 声明但未安装的 fd/ripgrep/yazi 需确认是否有意移除；③ `brew outdated` 有 neovim/tree-sitter/unibilium 可升级。
+
+
+## 2026-08-31 — foot 1.27.0 源码编译安装到 /usr/local（放弃 Linuxbrew 路线）
+
+- 目的：用户要 foot 最新版。Ubuntu noble apt 冻结 1.16.2、无 PPA（foot 冷门 + 依赖 fcft>=3.3.1 缺口，无人维护配对 PPA）。先试 Linuxbrew（brew foot 1.27.0 bottle 装成），但发现被 `/usr/bin/foot` 遮蔽用不上且违背"GUI 走系统源"分层原则，用户决定改源码编译装 `/usr/local`（其 PATH 中 `/usr/local/bin` 在 `/usr/bin` 前，天然生效）。
+- 系统改动：① `brew uninstall foot`（keg 删除）+ `brew autoremove`（顺带清 expat / llvm 2.8G / python@3.14 / z3 四个孤儿依赖）；② `chmod 700 ~/.homebrew`（brew 报 `Refusing to write insecure trust store`，根因该目录 group 可写）；③ `sudo apt-get install -y libutf8proc-dev`（grapheme 聚类依赖，其余 dev 包系统已齐）；④ 源码编译 foot 1.27.0：`~/build/foot`（`git clone` fcft/tllist 到 subprojects 补 fcft 3.3.3，因 noble 系统 `libfcft-dev` 仅 3.1.8），`meson setup build --buildtype=release -Dime=true -Dgrapheme-clustering=enabled -Dfcft:grapheme-shaping=enabled -Dfcft:run-shaping=enabled -Dterminfo=enabled -Dthemes=true -Ddocs=enabled`（注意 `-Dime` 是 boolean 只能 `true`，传 `enabled` 报错），`ninja -C build`（165 目标全过），`sudo meson install -C build` → `/usr/local/bin/foot`。
+- 验证：`which foot` = `/usr/local/bin/foot`；`foot --version` = `1.27.0 -pgo +ime +graphemes +toplevel-tag +blur`（较系统 1.16.2 多 `+toplevel-tag/+blur`，少 `+pgo`）；`/usr/bin/foot` 1.16.2 仍在作回退；`/usr/local/bin/footclient`、`/usr/local/share/terminfo/f/foot`、`/usr/local/share/man/man1/foot.1` 均就位。
+- 回滚信息：未提交（本轮为系统变更 + 仓库 memory/trace 更新）。恢复命令：`sudo meson uninstall -C ~/build/foot/build`（移除全部 `/usr/local` 产物，回落 apt 1.16.2）；brew 侧如需还原 `brew install foot`。repo 侧 `git checkout -- memory/foot.md logs/trace.md` 即回滚。
+- 后续可能方向：① 用户实测 niri 下新 foot 渲染/透明度（foot.ini `colors.alpha=0.82`，`+blur` 支持背景模糊）与 IME 中文输入；② 日后升级：`~/build/foot` 更新 tag 后 `ninja -C build && sudo meson install -C build`；③ 上一轮 brew 体检遗留候选（llvm@22 / rust）仍可考虑瘦身。
+
+
+## 2026-08-31 — foot.ini 迁移 [colors] → [colors-dark]（消除 1.27 deprecation 警告）
+
+- 目的：升级 foot 1.27.0 后旧 `[colors]` 区块弃用，每开一个窗口打印多行 `deprecated: foot: [colors]: use [colors-dark] instead`。
+- 改动（仓库）：① `.config/linux/foot/foot.ini`：`[colors]` → `[colors-dark]`（foot 1.27 默认主题即 colors-dark，键名含 alpha 全部不变），加注释；② `tests/foot_config_test.sh`：`test_catppuccin_mocha_palette` 补 `assert_matches '^\[colors-dark\]$'` + `assert_not_matches '^\[colors\]$'` 防回归；③ `.config/linux/foot/README.md`：新增「palette 区块」说明（dark/light 切换方式）；④ `memory/foot.md`：安装与升级节补 1.27 主题迁移经验。
+- 验证：`bash tests/foot_config_test.sh` PASS；`foot -c .config/linux/foot/foot.ini -C` exit 0 且无 warn（live 旧配置 `foot -C` 复现 deprecated 警告，确证根因）；`git diff --check` 干净。
+- live 同步：IDE 沙箱不允许写 `~/.config/foot/foot.ini`（不在白名单，与 niri common.kdl / waybar 同类），需用户手动复制。备份：`~/.config/foot/foot.ini.backup.20260831_224246`（旧版快照，同步后按保留 3 份惯例清理更旧者）。恢复命令：`cp ~/.config/foot/foot.ini.backup.20260831_224246 ~/.config/foot/foot.ini`。同步命令：`cp ~/Documents/dotfiles/.config/linux/foot/foot.ini ~/.config/foot/foot.ini`。
+- 回滚信息：未提交；repo 侧 `git checkout -- .config/linux/foot/foot.ini tests/foot_config_test.sh .config/linux/foot/README.md memory/foot.md logs/trace.md` 即回滚。
+- 后续可能方向：① 用户手动同步 live 后新开 foot，应不再出现 deprecation 警告；② 若想用浅色主题，可加 `[colors-light]` 并用 `color-theme-toggle` 键位或 `SIGUSR1/2` 切换；③ live 同步受 IDE 白名单限制，后续 foot.ini 改动手动 cp 即可。
+
+## 2026-08-31 — brew cleanup rust 清理旧版残留 1.97.1（释放 515.3MB）
+
+- 目的：brew 体检发现 rust 在 Cellar 有新旧两版（1.98.0 在用 + 1.97.1 旧残留）。先干跑 `brew cleanup -n rust` 确认删除范围与无风险后，经用户确认执行清理。
+- 干跑确认：`brew cleanup -n rust` 将删除 ① `Cellar/rust/1.97.1`（7,256 文件，515.3MB）、② 缓存 `~/.cache/Homebrew/rust--1.97.1.arm64_linux.bottle.tar.gz`（131.1MB）、③ `rust_bottle_manifest--1.97.1`（154KB），合计约 646.6MB。风险核对：`opt/rust` → `Cellar/rust/1.98.0`、`bin/rustc`/`bin/cargo` 均链接 1.98.0，无任何包依赖 rust，starship（`~/.cargo/bin` 独立二进制）不受影响。
+- 已做：`brew cleanup rust` 执行成功（"This operation has freed approximately 515.3MB"——实际只报了 Cellar 部分，缓存另有 ~131MB 一并清除）。
+- 验证：`Cellar/rust/` 仅剩 1.98.0；`brew list --versions rust` = `rust 1.98.0`；`rustc 1.98.0` / `cargo 1.98.0` 运行正常；缓存中 `rust--1.97.1.*` 已消失（`rust_bottle_manifest--1.98.0` 为当前版，保留）。
+- 回滚信息：未提交（仓库仅 trace 记录，纯系统变更）。恢复命令：`brew install rust`（装回当前 1.98.0；1.97.1 为旧版残留无需还原）。
+- 后续可能方向：① rust（1.98.0 约 497M）+ llvm@22（2.6G，rust 依赖）仍是激进瘦身候选（合计约 3.6G），删除影响仅失去 Rust 工具链（starship/clangd 均不受影响），待用户决定；② `brew cleanup`（不带参数）可再清理其它旧版本残留与缓存（如 gcc@14 遗留 manifest 等）。
+
+## 2026-08-31 — 激进瘦身：卸载 rust + llvm@22（合计释放约 3.3G）
+
+- 目的：用户确认激进瘦身——删除 Rust 工具链（rust 1.98.0 + 其依赖 llvm@22 2.6G），预期仅失去 cargo/rustc 等，starship 与 clangd 不受影响。
+- 已做：① `brew uninstall rust`（1.98.0，7,328 文件，502.4MB）——Homebrew 6.0.20 在 uninstall 时自动触发 autoremove，顺带移除 20 个孤儿依赖：llvm@22（9,051 文件，2.7GB）、curl、brotli、cyrus-sasl、keyutils、krb5、libedit、libffi、libidn2、libnghttp2、libnghttp3、libngtcp2、libpsl、libunistring、libxcrypt、openldap、pkgconf、readline、sqlite、util-linux（合计约 300MB）；② `brew autoremove` 收尾清理 autoremove 遗留的旧版孤儿 libpsl 0.23.1 + pkgconf 3.0.5（约 2MB）。
+- 验证：`brew missing` 无缺失（exit 0）；剩余 formula 36 个、叶子包 7 个（bat fzf herdr lsd neovim tmux zoxide）；冒烟测试 starship 1.26.0（`~/.cargo/bin/starship`，独立二进制，exit 0）/nvim/tmux/bat/fzf/lsd/zoxide/herdr 全部正常，git/gcc 走系统 `/usr/bin` 不受影响；`cargo`/`rustc` 已按预期移除；`Cellar/rust` 与 `Cellar/llvm@22` 目录已删，Cellar 总量降至 1.3G。
+- 回滚信息：未提交（仓库仅 trace 记录，纯系统变更）。恢复命令：`brew install rust`（llvm@22 作为依赖自动装回）。本会话累计释放：gcc@14 372MB + rust 清理 646MB + 本轮 ~3.3G ≈ **4.3G**。
+- 后续可能方向：① 日常观察无 cargo/rustc 后是否有遗漏引用（path.zsh 的 `~/.cargo/bin` 保留，starship 仍可从此加载）；② Linux Brewfile 与当前实际安装不一致（Brewfile 声明 fd/ripgrep/yazi 未安装，且未含 lsd/tmux/herdr），可择机同步；③ `brew outdated` 有 neovim/tree-sitter/unibilium 可升级；④ 若日后需要 Rust（cargo install 等），`brew install rust` 即回。
