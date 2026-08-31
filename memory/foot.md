@@ -20,3 +20,15 @@
 
 ## 透明度取舍
 - foot 的 `colors.alpha` 直接采用 0.82，与 alacritty Linux 一致；不再沿用 kitty 之前因 aarch64 mtgpu alpha 合成 bug 而走的 1.0 不透明路径。若后续在 aarch64 内屏 2x 下复现 mtgpu 半透明渲染 bug，再单独评估是否在该硬件上降回不透明。
+
+## 安装与升级（2026-08-31 起，源码编译 /usr/local）
+- foot 1.27.0 由源码编译安装到 `/usr/local`（`foot --version` = `1.27.0 -pgo +ime +graphemes +toplevel-tag +blur`），`/usr/bin/foot` 1.16.2（apt）保留作回退；PATH 中 `/usr/local/bin`（第 5 位）在 `/usr/bin`（第 7 位）前，`foot` 天然解析到新版，无需改 PATH。
+- 曾试 Linuxbrew 路线后放弃：brew foot 的 bin 在 `path.zsh` 里是 `pathappend`（PATH 末尾），`foot` 被 `/usr/bin/foot` 遮蔽用不上；且 foot 属 GUI/桌面组件，按分层原则应走系统源。已 `brew uninstall foot` + `brew autoremove`。
+- 编译踩坑（可复用）：
+  - noble 的 `libfcft-dev` 仅 3.1.8，不满足 foot 1.27 的 fcft>=3.3.1，必须源码子工程：`git clone` fcft、tllist 到 `subprojects/`，meson 自动 fallback 静态链接（fcft 3.3.3）。
+  - meson 选项类型：`-Dime` 是 **boolean** 只能 `-Dime=true`（传 `enabled` 报 `Value enabled is not boolean`）；`-Dgrapheme-clustering` 是 feature 可传 `enabled`；fcft 的 `-Dfcft:grapheme-shaping=enabled -Dfcft:run-shaping=enabled` 为 feature 类型 OK。
+  - 编译依赖仅需补装 `libutf8proc-dev`（grapheme 聚类，pkg-config 名 `libutf8proc`），其余 pixman/fontconfig/freetype/harfbuzz/wayland dev、wayland-protocols、tic、python3 系统自带。
+  - brew 偶发 `Refusing to write insecure trust store`：`~/.homebrew` 目录 group/world 可写导致，`chmod 700 ~/.homebrew` 修复。
+- 源码/构建目录：`~/build/foot`（含 subprojects/fcft、tllist）。日后升级：更新 tag 覆盖源码 → `ninja -C build` → `sudo meson install -C build`。
+- 卸载/回退：`sudo meson uninstall -C ~/build/foot/build` 即移除全部 `/usr/local` 产物，回落系统 apt 1.16.2。
+- **1.27 主题迁移**：foot 1.27 起旧 `[colors]` 区块弃用（每窗口打印 `deprecated: use [colors-dark] instead`），palette 需放 `[colors-dark]`（默认主题）/`[colors-light]`（可配 `color-theme-toggle` 键位或 `SIGUSR1/2` 切换）；键名含 `alpha` 全部不变。已迁移（2026-08-31）。校验配置：`foot -c <file> -C`（exit 0 通过）。live 同步受 IDE 白名单限制需手动 `cp` 仓库 `foot.ini`。

@@ -56,6 +56,9 @@ test_scrollback_matches_alacritty() {
 }
 
 test_catppuccin_mocha_palette() {
+    # foot 1.27 起 palette 须放 [colors-dark]（默认主题）；旧 [colors] 已弃用并告警。
+    assert_matches '^\[colors-dark\]$' "$FOOT_FILE"
+    assert_not_matches '^\[colors\]$' "$FOOT_FILE"
     assert_contains 'background=1e1e2e' "$FOOT_FILE"
     assert_contains 'foreground=cdd6f4' "$FOOT_FILE"
     assert_contains 'regular1=f38ba8' "$FOOT_FILE"
