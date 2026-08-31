@@ -59,7 +59,11 @@ input {
         accel-speed 0.0
     }
 
-    // 不开鼠标 hover 跟随焦点：XWayland 弹层（如钉钉 @ 候选框）会被夺焦立即消失。
+    // 鼠标 hover 跟随焦点（2026-08-31 用户决策启用）：指针进入哪个窗口即聚焦，
+    // 配合 scrollable columns 横向滑动更顺手。注意：与钉钉 @ 候选框消失无关
+    // （该问题已由 open-focused false 修复）；若弹层异常复发，先复查钉钉的
+    // open-focused 规则而非本项。
+    focus-follows-mouse
 }
 
 layout {

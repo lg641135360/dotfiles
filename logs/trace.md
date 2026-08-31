@@ -20,13 +20,25 @@
   ```
 
 
+## 2026-08-31 — niri 重新启用 focus-follows-mouse
+
+- 目的：用户决策打开鼠标 hover 跟随焦点（好用）。2026-08-29 禁用记录仅为使用偏好，与钉钉 @ 候选框消失无关（已由 open-focused false 修复），重新启用无决策冲突。
+- 改动：① `tests/niri_config_test.sh` 断言先反转（`assert_not_contains` → `assert_contains` focus-follows-mouse；README 断言改「启用 focus-follows-mouse」）；② `.config/linux/niri/common.kdl` input 段加 `focus-follows-mouse` 并更新注释；③ README「窗口规则」条目与 `memory/niri.md` 决策轨迹同步。
+- 验证：`niri validate`（x64 与 aarch64 平台 config 均 valid）；`sh tests/niri_config_test.sh` exit 0；`git diff --check` 干净；live `niri msg action load-config-file` 重载 exit 0，live 与仓库 diff 仅剩 include 注释行。
+- live 同步：备份 `~/.config/niri/common.kdl.backup.20260831_151639_858088962` 后经编辑工具写入，同目标旧 backup 已清理保留 3 份。
+- 回滚信息：未提交（待与上轮 trace hash 更新一起提交）。仓库回滚：`git checkout .config/linux/niri/common.kdl tests/niri_config_test.sh`（提交后改 `git revert`）；live 恢复：
+  ```bash
+  cp ~/.config/niri/common.kdl.backup.20260831_151639_858088962 ~/.config/niri/common.kdl && niri msg action load-config-file
+  ```
+- 后续可能方向：① 日常观察 hover 聚焦与钉钉弹层交互（异常复发先查 open-focused 规则）；② 若滚动视图时误聚焦烦人，可评估 `focus-follows-mouse { max-scroll-amount }` 限幅。
+
 ## 2026-08-31 — niri 26.04 全局 window-rule 启用 popup 菜单背景模糊
 
 - 目的：开启 niri 26.04 新增的 `popups { background-effect }` 能力，让应用弹出菜单（下拉、右键菜单等）获得背景模糊（popup 默认 non-xray，模糊下层窗口而非壁纸）。
 - 改动：`.config/linux/niri/common.kdl` 全局 window-rule（0.88 透明 + blur）内追加 `popups { background-effect { blur true } }`；README「窗口规则」段与 `memory/niri.md` 同步一行说明。aarch64 平台 `blur` 全局关闭，该改动对其无行为影响。
 - 验证：`niri validate -c`（repo 与 live 均 config is valid）；`sh tests/niri_config_test.sh` exit 0；`git diff --check` 干净；live `niri msg action load-config-file` 重载 exit 0。
 - live 同步：备份 `~/.config/niri/common.kdl.backup.20260831_144608_147375618` 后写入（shell cp 被 IDE 沙箱拦，改用编辑工具落地，内容与仓库一致；同目标旧 backup 已按惯例清理保留 3 份）。
-- 回滚信息：未提交。恢复命令：
+- 回滚信息：commit `bd953a4`（feat(niri): 启用 26.04 popup 菜单背景模糊；仓库回滚 `git revert bd953a4`）。live 恢复命令：
   ```bash
   cp ~/.config/niri/common.kdl.backup.20260831_144608_147375618 ~/.config/niri/common.kdl && niri msg action load-config-file
   ```
