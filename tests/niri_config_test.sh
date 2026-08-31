@@ -231,9 +231,9 @@ test_niri_config_has_dingtalk_and_app_window_rules() {
     exclude title=r#"^钉钉|钉钉$"#
     open-floating true' "$NIRI_COMMON_CONFIG"
     assert_contains '钉钉弹窗（表情面板等）除主窗口外全部浮动' "$NIRI_README"
-    # focus-follows-mouse 启用（2026-08-31 用户决策）。2026-08-29 曾禁用为使用偏好，
-    # 与钉钉 @ 候选框消失无关（该问题已由 open-focused false 修复）。
-    assert_contains 'focus-follows-mouse' "$NIRI_COMMON_CONFIG"
+    # focus-follows-mouse 启用（2026-08-31 用户决策），max-scroll-amount="0%" 禁止
+    # 聚焦引发的视图滚动跟随（同日决策：保留 hover 激活、去掉边缘滚动）。
+    assert_contains 'focus-follows-mouse max-scroll-amount="0%"' "$NIRI_COMMON_CONFIG"
     assert_contains '启用 focus-follows-mouse' "$NIRI_README"
     # ubuntu_aarch64/config.kdl 在 include common.kdl 后还有全局透明规则，
     # 必须再次覆盖钉钉，确保最终生效的是 1.0。
