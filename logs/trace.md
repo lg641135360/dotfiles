@@ -25,11 +25,11 @@
 - 目的：升级 1.27 后补充实用配置——框选同时进剪贴板历史（配合 wl-clip-persist/cliphist）、后台响铃 urgent、URL 实线下划线、整窗均匀透明、滚动位置百分比、双击选词追加代码字符；并纠正 memory/README 中"foot 无模糊能力"的过时描述（1.27 `+blur` 构建已支持 `ext-background-effect-v1`，但 niri 全局 window-rule 已对 foot 启用 blur，重复开启无额外效果；且经核实 niri 26.04 未实现 `xdg-toplevel-tag-v1`，故 blur / toplevel-tag 均不配置）。
 - 改动：① `.config/linux/foot/foot.ini` 新增 `selection-target=both`、`[bell] urgent=yes`、`[url] style=single`、`alpha-mode=all`、`indicator-format=percentage`、`word-delimiters`（默认集追加 `./=+-*%$@!?~^`，避开 `;`/`#` 注释语义冲突）；② `tests/foot_config_test.sh` 的 `test_practical_additions` 断言六项；③ foot README 与 `memory/foot.md` 同步（新增说明 + 修正 blur 描述）。
 - 验证：`foot -c .config/linux/foot/foot.ini -C` exit 0（1.27 校验）；`bash tests/foot_config_test.sh` PASS；`git diff --check` 干净。注：本终端 `sh`/dash 执行任何脚本均零输出（含 `echo hi`，rc=0），为终端环境既有怪癖，故用 bash 验证；若影响 `./tests/run.sh` 聚合需单独排查。
-- 回滚信息：未提交；live 同步走 `./install.sh`（检测 `command -v foot` 通过后复制 `.config/linux/foot/` → `~/.config/foot/`，自动 `mv` 备份为 `~/.config/foot.backup.<TS>` 并保留 3 份）；agent 终端因 IDE 白名单不能直接写 `~/.config/foot`，故由用户执行同步。恢复命令：
+- 回滚信息：已提交 `e28819a`（含本条目仓库侧全部改动）；live 同步走 `./install.sh`（检测 `command -v foot` 通过后复制 `.config/linux/foot/` → `~/.config/foot/`，自动 `mv` 备份为 `~/.config/foot.backup.<TS>` 并保留 3 份）；agent 终端因 IDE 白名单不能直接写 `~/.config/foot`，故由用户执行同步。恢复命令：
   ```bash
   cp -a ~/.config/foot.backup.<TS> ~/.config/foot
   ```
-  repo 侧 `git checkout -- .config/linux/foot/foot.ini .config/linux/foot/README.md tests/foot_config_test.sh memory/foot.md logs/trace.md` 即回滚。
+  repo 侧 `git revert e28819a` 即回滚。
 - 后续可能方向：① 日常观察 selection-target=both 是否让框选内容进入 cliphist 历史、bell urgent 是否按预期在 niri 指示器提示；② dash 零输出问题若影响 run.sh 聚合，需单独定位。
 
 
@@ -38,7 +38,7 @@
 - 目的：删除 4 月手工安装遗留的 wayland-protocols 1.32 残留，消除其对 apt 1.47 的 pkg-config 遮蔽（此前导致 foot 编译回退捆绑 1.49 子工程、DTD 校验失败）。
 - 改动（用户执行）：`sudo rm /usr/local/share/pkgconfig/wayland-protocols.pc` + `sudo rm -r /usr/local/share/wayland-protocols`（同源陈旧数据目录一并清理）。
 - 验证：两路径均已不存在；`pkg-config --modversion wayland-protocols` 默认返回 **1.47**（无需 `PKG_CONFIG_PATH` 覆盖）；系统 1.47 数据 `/usr/share/wayland-protocols`（含 ext-background-effect/xdg-toplevel-tag）完整；`foot --version` = 1.27.0 正常。
-- 回滚信息：未提交（纯系统变更，删的是旧手工安装残留、无保留价值）。还原入口：`sudo apt-get reinstall wayland-protocols`（提供系统 1.47，无需还原 1.32 残留）。repo 侧 `git checkout -- memory/foot.md logs/trace.md` 即回滚。
+- 回滚信息：纯系统变更（删的是旧手工安装残留、无保留价值），仓库侧已随 `e28819a` 提交。还原入口：`sudo apt-get reinstall wayland-protocols`（提供系统 1.47，无需还原 1.32 残留）。repo 侧 `git revert e28819a` 即回滚。
 - 后续可能方向：foot 后续升级编译不再需要 `PKG_CONFIG_PATH` 覆盖，直接用 memory/foot.md 中的简化命令即可。
 
 
@@ -47,11 +47,11 @@
 - 目的：本机（Ubuntu resolute/26.04）apt foot 仅 1.25.0-1（resolute/universe，中科大镜像），上游最新 1.27.0；用户确认源码编译安装到 `/usr/local`，apt 1.25.0 保留作回退。
 - 系统改动：① `sudo apt-get install -y libfcft-dev libutf8proc-dev scdoc`（resolute `libfcft-dev` 已 3.3.2 满足 fcft≥3.3.1，无需再 clone fcft/tllist 子工程）；② `git clone --branch 1.27.0` 到 `~/build/foot`；③ **踩坑**：pkg-config 误报 wayland-protocols 1.32 致 meson 回退捆绑 1.49 子工程，其新 XML 超出系统 wayland-scanner 1.24.0 DTD 校验失败——根因 `/usr/local/share/pkgconfig/wayland-protocols.pc`（1.32 陈旧残留）优先级高于 apt 1.47；修复：`PKG_CONFIG_PATH=/usr/share/pkgconfig meson setup --wipe build --buildtype=release -Dime=true -Dgrapheme-clustering=enabled -Ddocs=enabled -Dthemes=true`（系统 wayland-protocols 1.47 含 toplevel-tag/background-effect，1.24.0 scanner 可处理），`ninja -C build` 全过；④ `sudo meson install -C build` → `/usr/local/bin/foot`。
 - 验证：`which foot` = `/usr/local/bin/foot`；`foot --version` = `1.27.0 +ime +graphemes +toplevel-tag +blur -assertions`（本次未做 PGO，故无 `+pgo`）；`/usr/bin/foot` 1.25.0 仍在作回退；footclient/docs 就位；`foot -c .config/linux/foot/foot.ini -C` exit 0（1.27 `[colors-dark]` 兼容，仓库配置无需改动）。
-- 回滚信息：未提交（系统变更 + 仓库 trace 归档/memory 更新）。恢复命令：
+- 回滚信息：仓库侧已随 `e28819a` 提交（trace 归档/memory 更新）；系统变更部分恢复命令：
   ```bash
   sudo meson uninstall -C ~/build/foot/build   # 移除全部 /usr/local 产物，回落 apt 1.25.0
   ```
-  repo 侧 `git checkout -- logs/trace.md logs/trace-archive/2026-08.md memory/foot.md` 即回滚。
+  repo 侧 `git revert e28819a` 即回滚。
 - 后续可能方向：① 建议清理陈旧残留 `/usr/local/share/pkgconfig/wayland-protocols.pc`（1.32），否则其它构建项目仍会误判 wayland-protocols 版本；② 用户实测 niri 下 1.27 渲染/透明度/IME；③ 日后升级：`~/build/foot` 更新 tag 后 `PKG_CONFIG_PATH=/usr/share/pkgconfig ninja -C build && sudo meson install -C build`。
 
 
