@@ -18,3 +18,6 @@
 - CPU tooltip 显示使用率与系统负载，内存 tooltip 显示使用率、已用/总量与可用容量；需要查看 top 进程时单击模块打开按 `PERCENT_CPU` / `PERCENT_MEM` 排序的 `htop`。
 - 原生 `states` 阈值为 CPU 70/90、内存 85/95；CSS 使用 `#cpu.warning` / `.critical` 和 `#memory.warning` / `.critical`。内存阈值较高，避免 Linux 文件缓存造成常态误报。
 - config 与 config.aarch64 中 `cpu`、`memory` 段保持一致，靠 aarch64 superset 测试防止漂移。
+
+## 空闲抑制模块（2026-09-01）
+- `idle_inhibitor` 加入两平台 modules-right（音量与隐私状态之间）：单击切换 swayidle 自动锁屏/关屏（看视频、演示场景）；眼睛图标两态（activated 󰈈 / deactivated 󰈉），激活时 `#idle_inhibitor.activated` 用 peach 醒目提示，tooltip 中文显示当前状态；该模块属共享段，aarch64 superset 测试继续只豁免 backlight/battery。

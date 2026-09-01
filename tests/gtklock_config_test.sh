@@ -37,6 +37,18 @@ test_gtklock_config_matches_contract() {
     assert_contains '#unlock-button' "$GTKLOCK_STYLE"
 }
 
+# 双屏输入表单定位（2026-09-01）：gtklock 输入框只显示在一块屏上，niri 锁屏键盘
+# 焦点跟随指针，表单与指针不同屏时按键落空。monitor-priority 钉主屏（DP-1 优先、
+# eDP-1 兜底），follow-focus 让表单跟随指针。关键约束：glib key file 同名 key
+# 重复写只保留最后一条（gtklock 经 g_key_file_get_string_list 读取），必须用
+# 单行 `;` 列表——锁定"monitor-priority 恰好出现一次且为完整列表"。
+test_gtklock_monitor_priority_is_single_line_list() {
+    assert_contains 'monitor-priority=DP-1;eDP-1' "$GTKLOCK_CONFIG"
+    assert_contains 'follow-focus=true' "$GTKLOCK_CONFIG"
+    [ "$(grep -c '^monitor-priority=' "$GTKLOCK_CONFIG")" -eq 1 ] ||
+        fail "monitor-priority 必须只写一行（glib key file 重复 key 只保留最后一条）"
+}
+
 # config.ini 不得含 style=/background= 这类路径键：背景与样式路径都由
 # lock-wayland 命令行（--style/--background）传入，避免部署后相对路径漂移。
 test_gtklock_config_keeps_paths_in_script() {
@@ -54,6 +66,7 @@ test_gtklock_readme_documents_capabilities() {
 }
 
 test_gtklock_config_matches_contract
+test_gtklock_monitor_priority_is_single_line_list
 test_gtklock_config_keeps_paths_in_script
 test_gtklock_readme_documents_capabilities
 

@@ -78,7 +78,13 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     # net::ERR_INTERNET_DISCONNECTED 静默退出（VS Code / Trae）。保留 10 分钟
     # 锁屏与 before-sleep 锁屏。
     assert_not_contains "timeout 1800 'systemctl suspend'" "$AUTOSTART_SCRIPT"
-    assert_contains 'swayidle -w timeout 600 "$lock_script" before-sleep "$lock_script"' "$AUTOSTART_SCRIPT"
+    assert_contains 'timeout 600 "$lock_script"' "$AUTOSTART_SCRIPT"
+    # 锁屏后再过 5 分钟 DPMS 关屏（2026-09-01）：power-off-monitors 只关屏不挂起，
+    # 无唤醒风暴问题；唤醒输入时 resume 恢复。README 同步说明。
+    assert_contains "timeout 900 'niri msg action power-off-monitors'" "$AUTOSTART_SCRIPT"
+    assert_contains "resume 'niri msg action power-on-monitors'" "$AUTOSTART_SCRIPT"
+    assert_contains 'before-sleep "$lock_script"' "$AUTOSTART_SCRIPT"
+    assert_contains 'power-off-monitors' "$NIRI_README"
     assert_contains '/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1' "$AUTOSTART_SCRIPT"
     assert_not_contains 'picom' "$AUTOSTART_SCRIPT"
     assert_not_contains 'xrandr' "$AUTOSTART_SCRIPT"

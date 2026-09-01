@@ -9,3 +9,10 @@
 `org.freedesktop.Notifications` 无服务提供者）；`tests/mako_config_test.sh`
 据此改为锁定「配置只使用 mako 1.10 支持的选项」。未来若升级 mako，先核对新
 版本是否向后兼容当前选项，再决定是否放开。
+
+## 免打扰模式
+
+配置定义了 `do-not-disturb` 模式（niri `Mod+Shift+N` 调
+`makoctl mode -t do-not-disturb` 切换）：激活期间普通/低优先级通知弹窗隐藏
+（仍进入历史，`makoctl history` 可查）；`urgency=critical` 通知通过
+criteria 组合段保持可见，避免错过重要告警。

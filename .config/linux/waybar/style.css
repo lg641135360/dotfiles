@@ -29,7 +29,8 @@ window#waybar {
 #pulseaudio,
 #battery,
 #cpu,
-#memory {
+#memory,
+#idle_inhibitor {
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
@@ -102,7 +103,8 @@ window#waybar {
 #pulseaudio,
 #battery,
 #cpu,
-#memory {
+#memory,
+#idle_inhibitor {
   padding: 0 7px;
   margin: 0 1px;
   background: transparent;
@@ -115,7 +117,8 @@ window#waybar {
 #pulseaudio:hover,
 #battery:hover,
 #cpu:hover,
-#memory:hover {
+#memory:hover,
+#idle_inhibitor:hover {
   background-color: alpha(@surface0, 0.58);
 }
 
@@ -166,6 +169,15 @@ window#waybar {
 
 #pulseaudio.muted {
   color: @red;
+}
+
+/* 空闲抑制：默认灰（自动锁屏运行中），激活后 peach 醒目提示（自动锁屏已停用）。 */
+#idle_inhibitor {
+  color: @overlay1;
+}
+
+#idle_inhibitor.activated {
+  color: @peach;
 }
 
 #battery {

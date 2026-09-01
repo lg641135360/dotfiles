@@ -17,6 +17,7 @@
 - **Overview 美化**（Mod+O）：`layout { background-color "transparent" }` 保持日常桌面干净，`overview {}` 使用暗底色 `#1e1e2e` 压暗 overview 背景并加 workspace 卡片阴影。`place-within-backdrop` 经测试在 niri 26.04 上 `load-config-file` 后不生效（含新 surface），待 niri 更新后重新评估 awall 双壁纸方案。
 - **环境变量**：`common.kdl` 顶部的 `environment {}` 块声明 `QT_IM_MODULE`/`XMODIFIERS`/`SDL_IM_MODULE`/`GLFW_IM_MODULE`/`INPUT_METHOD`/`LC_CTYPE`/`XCURSOR_SIZE`/`ZDOTDIR` 等，niri 直接 spawn 的进程会继承；`wayland-autostart` 仍保留 `export` 与 `dbus-update-activation-environment`/`systemctl --user import-environment` 把这些变量同步到 DBus 和 systemd 用户会话。`GTK_IM_MODULE` 故意不设置，让 Wayland GTK 走 text-input 协议（fcitx5 偏好）；但 sddm/niri-session 的 `systemctl --user import-environment`（无参数）会把 im-config 在登录环境注入的 `GTK_IM_MODULE=fcitx` 导入 systemd 用户会话，因此 `wayland-autostart` 在 import 之后显式 `systemctl --user unset-environment GTK_IM_MODULE` 把它单独清掉，否则 fcitx5 会持续弹出"建议取消设置 GTK_IM_MODULE"的 Wayland 检测提示。`ZDOTDIR=/home/rikoo/.config/zsh`（niri 的 `environment {}` 不展开 `~`，须用绝对路径）让 niri spawn 的 shell（含 `Mod+Return` 拉起的终端）也走优化后的 zsh 配置：否则 zsh 落到默认 `~/.zshrc` 且没有 `.zshenv` 的 `skip_global_compinit`，会跑 Ubuntu 全局 compinit，交互启动实测 4.2s（优化配置 0.18s）。同时 `environment {}` 强制设置 `XDG_SESSION_TYPE=wayland`、`XDG_CURRENT_DESKTOP=niri`、`XDG_SESSION_DESKTOP=niri`：从 shell 手动启动 niri 时会继承错误的会话环境（`XDG_SESSION_TYPE=tty`、`XDG_CURRENT_DESKTOP=awesome`），会导致应用/toolkit 无法走 text-input-v3 接入 fcitx5、输入法无法输入中文；强制覆盖后会话按纯 Wayland/niri 身份运行。
 - **光标**：`cursor { xcursor-size 32; hide-when-typing }` 让 niri 在 autostart 执行前就使用正确尺寸，并在键盘输入时自动隐藏鼠标；与 `XCURSOR_SIZE=32` 环境变量互补。
+- **键盘**：`repeat-delay 300` + `repeat-rate 40`（niri 默认 600ms/25 偏慢，长按 hjkl 导航与编辑器内移动明显迟钝）；`numlock` 开机启用。
 - **触摸板**：`input { touchpad { ... } }` 启用 `tap`（轻点点击）、`natural-scroll`（自然滚动）、`dwt`（打字时禁用）、`click-method "clickfinger"`（点击区不分左右、用指头数量区分左/中/右键）、`scroll-method "two-finger"`（双指滚动）、`accel-speed 0.3`（指针略加速）、`drag-lock`（tap-and-drag 时短暂抬指不掉拖动，便于跨屏拖窗口/选区文本）。aarch64 内屏 2880x1800@120 + scale 2.0 下默认 `scroll-factor 1.0` 滚动偏慢，显式提升到 `1.5`；x86_64 桌面无触摸板时此项无副作用。
 - **焦点环**：`focus-ring` 使用 Catppuccin Mocha 蓝 `#89b4fa`（活动）/灰 `#45475a`（非活动）/红 `#f38ba8`（紧急，用于 IM 闪动等需要注意的窗口）。
 - **动画**：`animations {}` 按 `workspace-switch`/`window-open`/`window-close`/`window-resize` 分别配置 spring 参数（damping-ratio 0.7-0.8、stiffness 700-800），过渡更顺滑。
@@ -58,10 +59,12 @@ niri validate -c ~/.config/niri/config.kdl
 | `Mod+e` | 打开文件管理器：Dolphin → 系统默认 → Nautilus/Thunar/PCManFM → Yazi |
 | `Mod+c` | 启动 launcher：优先 `fuzzel`，缺失时回退 `rofi-launch` |
 | `Mod+q` | 关闭当前窗口 |
-| `Mod+Alt+l` | 锁屏：优先 `swaylock` |
+| `Mod+Alt+l` | 锁屏：优先 gtklock，缺失时回退 swaylock |
 | `Mod+Shift+w` | 随机切换 Wayland 壁纸 |
 | `Mod+o` | 显示/关闭 niri overview 总览 |
 | `Mod+Tab` | 切换到焦点历史中的上一个窗口 |
+| ``Mod+` `` | 聚焦焦点历史中的上一个 workspace |
+| `Mod+Shift+n` | 切换通知免打扰（mako `do-not-disturb` mode，critical 通知保持可见） |
 | `Mod+h/l` | 左/右聚焦窗口列（到边界后切到左/右显示器） |
 | `Mod+j/k` | 下/上聚焦窗口（到边界后切 workspace） |
 | `Mod+Minus/Equal` | 缩小/放大当前列宽 |
@@ -98,7 +101,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `fcitx5`
 - `swaybg` 随机壁纸（优先 `~/Pictures/wall`，回退系统 `/usr/share/backgrounds`，镜像 Awesome 会话的 `randomize_wallpaper` 来源）
 - `gammastep` 自动色温（`~/.local/state/niri/autostart/gammastep.log`）
-- `swayidle`：空闲 10 分钟锁屏；系统主动睡眠前也调用 `lock-wayland`（自动挂起已移除，原因见 logs/trace.md 2026-08-18：挂起唤醒瞬间的网络/显示风暴会让 Electron 应用以未捕获的 `net::ERR_INTERNET_DISCONNECTED` 静默退出）
+- `swayidle`：空闲 10 分钟锁屏；锁屏后再空闲 5 分钟（timeout 900）用 `niri msg action power-off-monitors` 关闭显示器，唤醒输入时 `power-on-monitors` 恢复——只走 DPMS 关屏不挂起，无挂起唤醒的网络/显示风暴问题；waybar `idle_inhibitor` 激活期间锁屏/关屏整体被抑制。系统主动睡眠前也调用 `lock-wayland`（自动挂起已移除，原因见 logs/trace.md 2026-08-18：挂起唤醒瞬间的网络/显示风暴会让 Electron 应用以未捕获的 `net::ERR_INTERNET_DISCONNECTED` 静默退出）
 - KDE 或 GNOME polkit agent（若存在）
 - `blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。
 - `wl-clip-persist` + `cliphist` 剪贴板管理：`clipboard-wayland start` 直接启动 `wl-clip-persist --clipboard regular` 持有当前剪贴板，并以独立的 `wl-paste --watch cliphist store` 记录历史；父脚本监管并共同清理两个子进程。缺少其中一个依赖时，另一项功能仍可降级运行；`Mod+v` 调用 `clipboard-wayland history`，通过 fuzzel 检索历史并写回剪贴板。`wl-clip-persist` 不在 Ubuntu apt 源，2026-08-29 起由源码编译安装到 `/usr/local/bin`（更新方式：`git pull && cargo build --release` 后覆盖）；`cliphist` 用 apt 安装（0.5.0）。
@@ -173,7 +176,7 @@ Obsidian 1.8.7 基于 Electron 33 / Chromium 130，原生 Wayland 后端已可�
 - 钉钉弹窗不抢焦点：event-stream 实测钉钉各弹窗（@ 候选框、菜单、预览等）是 XWayland 受管窗口，map 时 niri 默认把键盘焦点给它们，随后弹窗迅速自毁（@ 候选框表现为出现后立即消失，与鼠标无关）；且弹窗的 X 窗口标题不稳定（同一弹窗先后出现过 `MainMenuPanelView` / `Form` / `com.alibabainc.dingtalk` 等），无法按 title 定向。因此对钉钉 app-id 整体设置 `open-focused false`——该属性只作用于新 map 的窗口，已打开的主窗口不受影响，所有新弹窗从出生起不持有键盘焦点（X11 弹窗「不带输入焦点」的正常模式）。代价：重启钉钉或新开钉钉窗口时不会自动聚焦，需手动点一下。
 - 钉钉弹窗（表情面板等）除主窗口外全部浮动：Wayland 与 xwayland-satellite 不翻译 X11 的 EWMH 窗口类型提示（`_NET_WM_WINDOW_TYPE_DIALOG/POPUP_MENU` 等），niri 只自动浮动固定尺寸窗口，resizable 弹窗会平铺成新列——表情面板即因此出现在右侧新窗口。按社区对弹窗大户的标准做法，用 `exclude title=r#"^钉钉|钉钉$"#` 排除标题「钉钉」的主窗口（实测稳定，兼容未读数等前后缀），其余钉钉窗口全部 `open-floating true`；与 `open-focused false` 互不冲突。残余：偶发的同名「钉钉」弹窗会陪主窗口一起平铺。
 - Cherry Studio 默认列宽为 2/3 屏，保留较宽的对话阅读区域，同时还能露出相邻列。
-- Chrome 默认列宽为 2/3 屏，适合网页阅读和文档页面；透明度和背景模糊不做 Chrome 特例，统一使用全局窗口效果。
+- Chrome 默认列宽为 2/3 屏，适合网页阅读和文档页面；透明度和背景模糊不做 Chrome 特例，统一使用全局窗口效果。Chrome 画中画与 firefox PiP 一样浮动显示：PiP 窗口可缩放，不浮动会平铺成新列；标题随 Chrome UI 语言本地化（英文 `Picture in picture` / 中文 `画中画`），规则两种标题都匹配（与 `aerospace.toml` 的 PiP 规则一致）。
 - VS Code 默认列宽为 1.0，适合代码、终端和侧边栏同时展开。
 - Trae（`trae-cn`）默认列宽为 1.0，与 VS Code 一致，占满整个 workspace 宽度。
 

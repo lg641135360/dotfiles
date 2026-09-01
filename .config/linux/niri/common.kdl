@@ -39,6 +39,9 @@ input {
             // Leave layout to systemd-localed / GNOME settings unless overridden later.
         }
         numlock
+        // 默认 600ms/25 次每秒偏慢（hjkl 导航、编辑器移动迟钝）；调到 300ms/40。
+        repeat-delay 300
+        repeat-rate 40
     }
 
     touchpad {
@@ -239,6 +242,14 @@ window-rule {
     open-floating true
 }
 
+// Chrome 画中画同样是可缩放窗口，不浮动会平铺成新列；标题随 Chrome UI 语言
+// 本地化（英文 "Picture in picture" / 中文 "画中画"），两态都匹配（与
+// aerospace.toml 的 PiP 规则一致；Firefox PiP 标题不做本地化，无需此处理）。
+window-rule {
+    match app-id=r#"^google-chrome$"# title=r#"^(Picture in picture|画中画)$"#
+    open-floating true
+}
+
 window-rule {
     match app-id=r#"^(org\.kde\.polkit-kde-authentication-agent-1|pinentry|ssh-askpass)$"#
     open-floating true
@@ -262,6 +273,8 @@ binds {
     Mod+Shift+W repeat=false hotkey-overlay-title="切换壁纸" { spawn "~/.config/scripts/wallpaper-wayland-next"; }
     Mod+O repeat=false hotkey-overlay-title="显示总览" { toggle-overview; }
     Mod+Tab repeat=false hotkey-overlay-title="切换到上一个窗口" { focus-window-previous; }
+    Mod+grave repeat=false hotkey-overlay-title="聚焦上一个 workspace" { focus-workspace-previous; }
+    Mod+Shift+N repeat=false hotkey-overlay-title="切换通知免打扰" { spawn-sh "makoctl mode -t do-not-disturb"; }
     Mod+Shift+Q repeat=false hotkey-overlay-title="退出 niri" { quit; }
 
     // Adjust column width / window height without occupying the primary H/J/K/L navigation keys.

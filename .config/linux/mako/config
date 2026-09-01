@@ -25,3 +25,12 @@ default-timeout=4000
 [urgency=critical]
 border-color=#f38ba8
 default-timeout=0
+
+# 免打扰模式：niri `Mod+Shift+N` 调 `makoctl mode -t do-not-disturb` 切换。
+# invisible=1 隐藏普通/低优先级弹窗（通知仍进历史，makoctl history 可查）；
+# critical 通知保持可见，避免错过重要告警。
+[mode=do-not-disturb]
+invisible=1
+
+[mode=do-not-disturb urgency=critical]
+invisible=0

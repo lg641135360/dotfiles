@@ -261,8 +261,15 @@ else
     # xwayland 崩溃会让 Electron 应用（VS Code / Trae）以未捕获的
     # net::ERR_INTERNET_DISCONNECTED 静默退出。用户不在意功耗，保留
     # 10 分钟锁屏与 before-sleep 锁屏即可（详见 logs/trace.md 2026-08-18）。
+    # 锁屏 15 分钟后关闭显示器（power-off-monitors 只走 DPMS 关屏，不挂起，
+    # 无上述唤醒风暴问题）；唤醒输入时 resume 恢复。waybar idle_inhibitor
+    # 激活期间 swayidle 整体被抑制，锁屏/关屏均不触发。
     run_once_logged swayidle 'swayidle.*lock-wayland' \
-        swayidle -w timeout 600 "$lock_script" before-sleep "$lock_script"
+        swayidle -w \
+            timeout 600 "$lock_script" \
+            timeout 900 'niri msg action power-off-monitors' \
+            resume 'niri msg action power-on-monitors' \
+            before-sleep "$lock_script"
 fi
 
 polkit_agent=

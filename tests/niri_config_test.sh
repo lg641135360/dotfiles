@@ -50,6 +50,8 @@ test_niri_config_keeps_awesome_muscle_memory() {
     assert_contains 'Mod+Shift+Q repeat=false hotkey-overlay-title="退出 niri" { quit; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+V repeat=false hotkey-overlay-title="剪贴板历史" { spawn "~/.config/scripts/clipboard-wayland" "history"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Tab repeat=false hotkey-overlay-title="切换到上一个窗口" { focus-window-previous; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+grave repeat=false hotkey-overlay-title="聚焦上一个 workspace" { focus-workspace-previous; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Shift+N repeat=false hotkey-overlay-title="切换通知免打扰" { spawn-sh "makoctl mode -t do-not-disturb"; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+H { focus-column-or-monitor-left; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+L { focus-column-or-monitor-right; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+J { focus-window-or-workspace-down; }' "$NIRI_COMMON_CONFIG"
@@ -198,6 +200,12 @@ test_niri_config_uses_native_environment_cursor_and_animations() {
     assert_contains 'cursor {' "$NIRI_COMMON_CONFIG"
     assert_contains 'xcursor-size 32' "$NIRI_COMMON_CONFIG"
 
+    # 键盘重复速率：niri 默认 600ms/25 偏慢（hjkl 导航、编辑器移动迟钝），
+    # 调到 300ms/40（2026-09-01 优化）；README 同步说明。
+    assert_contains 'repeat-delay 300' "$NIRI_COMMON_CONFIG"
+    assert_contains 'repeat-rate 40' "$NIRI_COMMON_CONFIG"
+    assert_contains '`repeat-delay 300`' "$NIRI_README"
+
     # touchpad: tap / natural-scroll / dwt / clickfinger / two-finger / accel,
     # 并为高分屏（aarch64 内屏 2x）显式提升 scroll-factor 至 1.5。
     assert_contains 'touchpad {' "$NIRI_COMMON_CONFIG"
@@ -265,6 +273,12 @@ test_niri_config_has_dingtalk_and_app_window_rules() {
     assert_contains 'match app-id=r#"^code$"#' "$NIRI_COMMON_CONFIG"
     assert_contains 'match app-id=r#"^trae-cn$"#' "$NIRI_COMMON_CONFIG"
     assert_contains 'default-column-width { proportion 1.0; }' "$NIRI_COMMON_CONFIG"
+    # Chrome 画中画是可缩放窗口，不浮动会平铺成新列；标题随 Chrome UI 语言本地化
+    # （英文 Picture in picture / 中文 画中画，本机 zh_CN 环境为后者），两态都匹配
+    # （2026-09-01，对齐 aerospace.toml 先例）。
+    assert_contains 'match app-id=r#"^google-chrome$"# title=r#"^(Picture in picture|画中画)$"#
+    open-floating true' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Chrome 画中画' "$NIRI_README"
     assert_contains 'Cherry Studio 默认列宽为 2/3 屏' "$NIRI_README"
     assert_contains 'Chrome 默认列宽为 2/3 屏' "$NIRI_README"
     assert_contains '透明度和背景模糊不做 Chrome 特例' "$NIRI_README"

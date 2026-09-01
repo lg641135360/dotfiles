@@ -19,6 +19,34 @@
   cp ~/.config/niri/common.kdl.backup.<时间戳> ~/.config/niri/common.kdl
   ```
 
+## 2026-09-01 — gtklock 双屏输入表单定位（monitor-priority + follow-focus）
+
+- 目的：修复"锁屏后必须挪鼠标到副屏才能输密码"——gtklock 输入框只显示在一块屏上（落在副屏 HDMI-A-2），niri 锁屏键盘焦点跟随指针（常在主屏 DP-1），按键落空。
+- 改动：`gtklock/config.ini` 新增 `monitor-priority=DP-1;eDP-1`（x64 钉主屏，aarch64 无 DP-1 落 eDP-1）+ `follow-focus=true`（表单跟指针，niri 异常则删）。**关键排坑**：glib key file 同名 key 重复写只保留最后一条（python3 GLib 实测 + gtklock `src/config.c` 用 `g_key_file_get_string_list` 证实），man 页"可多次指定"仅指命令行 `-M`，故必须用单行 `;` 列表。`tests/gtklock_config_test.sh` 新增 `test_gtklock_monitor_priority_is_single_line_list`（含"恰好一行"计数断言）；gtklock README、`memory/niri.md` 同步。
+- 验证：`bash tests/gtklock_config_test.sh` PASS；python3 GLib 按 gtklock 同一代码路径解析实际 config.ini，`monitor-priority` 读出 `['DP-1','eDP-1']`、`follow-focus` 读出 True。未触发实际锁屏（属告警操作，留用户实测：锁屏后指针在任意屏应可直接输密码）。
+- 回滚信息：未提交（并入当日未提交批次）；未同步 live。同步走 `./install.sh`（自动备份 `~/.config/gtklock`）。
+
+## 2026-09-01 — Chrome PiP 浮动规则补中文标题匹配（画中画）
+
+- 目的：当日六项优化中的 Chrome PiP 规则 `title=r#"^Picture in picture$"#` 在本机 zh_CN 环境（Chrome 跟随系统 locale、无 app_locale 覆盖）下永远匹配不到——中文 UI 的 PiP 窗口标题为「画中画」（`aerospace.toml` 的 `(Picture-in-Picture|画中画)` 为同款先例）。
+- 改动：`common.kdl` 标题正则改为 `^(Picture in picture|画中画)$`；`niri_config_test.sh` 断言、niri README、`memory/niri.md` 同步（含 map 时标题未就绪则留在平铺态的残余风险与 `niri msg windows` 排查法）。
+- 验证：`niri validate -c` 两平台通过；`bash tests/niri_config_test.sh` PASS。
+- 回滚信息：未提交（并入当日未提交的 niri 优化批次）；未同步 live。实测确认：在 Chrome 开一次画中画，应浮动；若仍平铺，`niri msg windows` 看实际标题再调正则。
+
+## 2026-09-01 — niri 环境高价值优化六项落地（键盘 repeat / workspace 回跳 / Chrome PiP / idle_inhibitor / DPMS 关屏 / mako 免打扰）
+
+- 目的：落地 niri 环境评估（只读分析）确认的第 1–6 项高价值低风险优化，全部走"配置 → 测试断言 → README/memory 同步"链路。
+- 改动：
+  1. `common.kdl` keyboard 段加 `repeat-delay 300` + `repeat-rate 40`（默认 600ms/25 偏慢）；
+  2. `common.kdl` binds 新增 `Mod+grave`→`focus-workspace-previous`（workspace 级回跳）、`Mod+Shift+N`→`makoctl mode -t do-not-disturb`；
+  3. `common.kdl` 新增 Chrome 画中画 window-rule（app-id `^google-chrome$` + title `^Picture in picture$`，`open-floating true`）；
+  4. waybar `config`/`config.aarch64` modules-right 加入 `idle_inhibitor`（音量与隐私之间），`style.css` 三处共享选择器列表追加 `#idle_inhibitor` 并新增 `#idle_inhibitor.activated` peach 态；
+  5. `wayland-autostart` swayidle 追加 `timeout 900 'niri msg action power-off-monitors'` + `resume ... power-on-monitors`（DPMS 关屏不挂起）；
+  6. mako config 新增 `[mode=do-not-disturb] invisible=1` + `[mode=do-not-disturb urgency=critical] invisible=0`。
+  测试：`niri_config_test.sh`（repeat/键位/PiP 断言）、`waybar_config_test.sh`（modules-right 两行 + idle_inhibitor 断言）、`wayland_scripts_test.sh`（swayidle 关屏断言）、`mako_config_test.sh`（known keys 加 `invisible`、两个 awk 放行注释行、结构测试放行 `[mode=...]` 段、新增 DND 断言）。README：niri（快捷键表两行 + 锁屏行纠正为 gtklock 优先 + 键盘 bullet + Chrome PiP bullet + swayidle bullet）、waybar（布局图 + 空闲抑制要点）、mako（免打扰模式一节）。memory：`niri.md`（键位三条 + 窗口规则一条 + autostart 一条）、`waybar.md`（空闲抑制模块一节）。
+- 验证：`niri validate -c` 两平台 KDL 均 valid（确认 `Mod+grave` 键名与 `focus-workspace-previous` action 受支持）；`bash -n wayland-autostart` 通过；四个目标测试文件单独 PASS；`./tests/run.sh fast` PASS=46 FAIL=0。
+- 回滚信息：未提交（工作区 15 个文件修改，commit 时机由用户掌控）；未同步 live。live 同步走 `./install.sh`（自动备份 `~/.config` 对应目标并保留 3 份），niri 26.04 watcher 会自动重载 `common.kdl`，waybar/mako/swayidle 需重启会话或重跑 `~/.config/scripts/wayland-autostart`（mako 需 `makoctl reload`）。
+- 后续方向（评估中未落地的中价值项）：`toggle-window-rule-opacity` 键位、portal 文件选择器浮动（需实测 app-id）、foot `[bell] notify=yes`、niri 内置交互式截图 UI 绑 `Print`；另有 niri README 两处文档腐化待修（"上游 flake 构建"已过时、平台表 DP-2 缩放仍写 1.25x）。
 
 ## 2026-09-02 — 新增 update-ai-clis 一键更新 AI CLI
 

@@ -15,6 +15,7 @@
 
 ## autostart / launcher
 - Wayland 启动入口保持脚本化：`wayland-autostart` 只静默启动存在的 Waybar、Mako、fcitx5、壁纸、idle lock 和 polkit agent；`launcher-wayland` 优先 fuzzel，rofi 仅作 fallback。
+- swayidle 空闲链（2026-09-01 扩展）：`timeout 600` 锁屏 → `timeout 900` 追加 `niri msg action power-off-monitors`（resume 时 power-on）DPMS 关屏——只关屏不挂起，无 2026-08-18 挂起唤醒的网络/显示风暴问题；锁屏与关屏在 waybar `idle_inhibitor` 激活期间整体被抑制。自动挂起仍不恢复。
 - Wayland 色温固定使用更接近 Redshift 继承者、发行版覆盖更广的 `gammastep`；缺失时打印提示并跳过，不回退 `wlsunset`，也不在 niri autostart 里沿用 X11 主线的 `redshift`。
 - gammastep 只跑后台守护进程，不启用托盘指示器：`gammastep-indicator.service` 需 mask（该 unit 全局 enabled，仅 disable 无效；用 `systemctl --user mask gammastep-indicator.service`）。原因：niri 纯 Wayland 无 XSETTINGS 时其 `Gtk.IconTheme.get_default()` 返回 `None` 导致崩溃循环、空耗 CPU，且用户不想要托盘图标。
 - aarch64 恢复 gammastep 自动夜览（2026-08-23）：曾因 4800K 夜览经 wlr-gamma-control 压低色温把外接屏压得过暗而禁用；现改用温和夜间色温 5500K 减小蓝通道衰减、降低变暗幅度，并把亮度保持上限 `-b 1.0:1.0`（gammastep 亮度范围 0.1~1.0，无法用它提亮补偿），全平台统一启用。
@@ -31,11 +32,14 @@
 - niri 钉钉主窗口由 `window-rule` 管理列宽与不透明度：匹配 `com.alibabainc.dingtalk`，默认 2/3 列宽并覆盖为 1.0 不透明，避免 Qt/CEF 经 XWayland 在 mtgpu 上叠透明出黑块；不强制聚焦、不固定输出。不匹配 `tblive`。2026-08-29 浮动决策四次迭代后定稿：exclude 主窗口（标题「钉钉」，`^钉钉|钉钉$` 兼容未读数前后缀）+ `open-floating true`，其余钉钉窗口全部浮动——背景是表情面板等 resizable 弹窗平铺成新列（Wayland/xwayland-satellite 不翻译 X11 EWMH 窗口类型提示，niri 只自动浮动固定尺寸窗口；社区对弹窗大户的标准做法即 exclude 主窗口全浮动）。迭代轨迹：exclude 浮动 → 全浮动 → 全回退 → 表情面板平铺问题后恢复 exclude 浮动。残余：偶发同名「钉钉」弹窗陪主窗口平铺。同日另立钉钉弹窗规则：app-id 级 `open-focused false`（修复 @ 候选框等弹窗 map 时被 niri 聚焦、收到意外 FocusIn 自毁的问题，详见 memory/dingtalk.md；只作用于新 map 窗口，代价是重启钉钉/新开窗口不自动聚焦）。同日 `focus-follows-mouse` 从 input 段移除并保持 niri 默认关闭（用户决策）：曾怀疑 hover 夺焦导致钉钉 @ 候选框出现即消失，实测禁用后问题依旧、两者无关；关闭仅为使用偏好。2026-08-29：Flatpak 版钉钉（`com.dingtalk.DingTalk`，1.3G 冗余）已卸载，fuzzel 双入口收敛；`dingtalk://` 与 `dingtalk_std_ind://` handler 统一指向 deb 包装条目 `com.alibabainc.dingtalk.desktop`（dingtalk-wayland），钉钉只保留 deb 版单一路径。2026-08-31：`focus-follows-mouse` 按用户决策重新启用（hover 聚焦配合横向滑动顺手）；当日禁用仅为使用偏好、与 @ 问题无关的结论不变，`tests/niri_config_test.sh` 断言已同步反转。同日第二次迭代：加 `max-scroll-amount="0%"`（用户反馈"focus 不要跟随鼠标"）——禁止聚焦引发的视图滚动跟随，鼠标靠边不滚视图，仅 hover 激活完全可见的窗口；测试断言锁定完整参数行。
 - niri 全局窗口效果使用 `opacity 0.88` + `background-effect { blur true }`，并配合 `draw-border-with-background false` 避免半透明窗口聚焦时透出蓝色 focus ring 背景；Chrome 不再单独覆盖透明度或背景模糊，保持全局统一。2026-08-31 起同一全局 window-rule 增加 `popups { background-effect { blur true } }`（26.04 特性；popup 效果默认 non-xray，模糊下层窗口而非壁纸，x64 Ubuntu 实机已启用；aarch64 因平台 `blur` 全局关闭不受影响）。
 - aarch64 平台在 include `common.kdl` 之后覆盖全局为 `opacity 0.90` + `blur false`（mtgpu 模糊几乎不可见），并再次把钉钉覆盖为 1.0，避免被后置全局透明规则盖掉。
+- Chrome 画中画（app-id `^google-chrome$` + title `^(Picture in picture|画中画)$`）`open-floating true`（2026-09-01）：PiP 是可缩放窗口，不浮动会平铺成新列，与既有 firefox PiP 规则同理。标题随 Chrome UI 语言本地化（本机 zh_CN 为「画中画」，aerospace.toml 有同款先例），Firefox PiP 标题不做本地化无需此处理。残余风险：若 PiP 窗口 map 时标题未就绪，`open-floating` 只在开窗时评估会留在平铺态，实测不浮动时用 `niri msg windows` 核对实际标题。
 
 ## 键位 / 导航
 - niri 主导航偏好使用 `Mod+h/l` 左右聚焦窗口列、`Mod+j/k` 下/上聚焦窗口（到边界后切 workspace）；不要保留 `Mod+Left/Right/Up/Down` 方向键替代绑定。
 - niri workspace 导航只保留 `Mod+j/k`、数字键和 `Mod+滚轮`，不保留 `Page_Up/Page_Down` 及其 Shift 组合；左右切列只保留 `Mod+h/l` 和 `Mod+横向滚轮`，不保留重复的 `Mod+Alt+h/l`。
-- niri 使用 `Mod+Tab` 切换到焦点历史中的上一个窗口；暂不为不常用的列内上下窗口聚焦单独设置快捷键。
+- niri 使用 `Mod+Tab` 切换到焦点历史中的上一个窗口；暂不为不常用的列内上下窗口聚焦单独设置快捷键。`Mod+grave`（2026-09-01）聚焦焦点历史中的上一个 workspace（focus-workspace-previous，窗口级回跳的 workspace 级互补）。
+- `Mod+Shift+N`（2026-09-01）调 `makoctl mode -t do-not-disturb` 切换 mako 免打扰：mako config 定义 `[mode=do-not-disturb] invisible=1` + `[mode=do-not-disturb urgency=critical] invisible=0`，普通/低优先级弹窗隐藏但仍进历史，critical 保持可见。
+- 键盘重复速率 `repeat-delay 300` + `repeat-rate 40`（2026-09-01）：niri 默认 600ms/25 偏慢，长按 hjkl 导航与编辑器内移动迟钝。
 - `Mod+Space` 只在 1/2 与 2/3 两档预设列宽间循环（2026-08-31 用户决策，收敛自 4 档），全宽由 `Mod+F` 的扩展列宽替代；`Mod+F` 绑 `expand-column-to-available-width`，全屏交给应用内 F11，不再占 niri 键位。`Mod+Ctrl+F` 曾因动作与 `Mod+F` 重复而释放（2026-08-31），后复用于 `toggle-window-floating`（2026-09-01，替代原 `Mod+Ctrl+Space`：避免与 `Mod+Space` 列宽循环相邻误触）。
 - niri 26.04 默认监视配置文件，保存后自动重载；不要为热更新单独绑定 `Mod+Ctrl+r`。`niri msg action load-config-file` 只留给脚本，用来跳过 watcher 的短暂延迟。
 - niri 使用 `Mod+Shift+h/l` 左右移动当前列，以便调整同一 workspace 中窗口列的位置；锁屏使用 `Mod+Alt+l`，不再占用 `Mod+Shift+l`。
@@ -49,6 +53,7 @@
 - Wayland 壁纸来源优先 `~/Pictures/wall`，回退系统 `/usr/share/backgrounds`（镜像 Awesome 会话的 `randomize_wallpaper` 来源，保证两会话壁纸一致）；不纳入 `~/Pictures`（只含截图）。
 - Wayland 锁屏使用 `swaylock` 时优先复用当前 `wallpaper-wayland` 记录或正在运行的 `swaybg -i` 壁纸，并用 `-s fill` 填充；找不到当前壁纸时才回退纯色 `11111b`。
 - **锁屏主线 gtklock 4.0（2026-08-31 起，lock-wayland 优先，swaylock 兜底）**：gtklock 提供时钟/日期 + Mocha CSS 主题，替代 swaylock 解锁环。协议：gtklock 用 `ext-session-lock-v1`，niri 26.04 支持（strings 含 `ext_session_lock_manager_v1`）；apt 包自带 `/etc/pam.d/gtklock`，装包即用，无需手动 PAM。配置仓库 `.config/linux/gtklock/{config.ini,style.css}`（install.sh 部署到 `~/.config/gtklock/`）：`time-format=%H:%M` / `date-format=%A %m月%d日`（date(1) 语法），CSS 目标 widget 为默认 UI 的 `#clock-label`/`#input-field`/`#warning-label`/`#error-label`/`#unlock-button`。背景壁纸与 style 路径由 lock-wayland 以 `--background`/`--style` 命令行传入（绝对路径避免相对路径漂移）。若 gtklock 不可用回退 swaylock；测试 `tests/gtklock_config_test.sh` + `tests/wayland_scripts_test.sh` 覆盖。
+- **gtklock 双屏表单定位（2026-09-01）**：gtklock 输入框只显示在一块屏上，niri 锁屏键盘焦点跟随指针，表单与指针不同屏时按键落空（曾必须挪鼠标到副屏输密码）。`monitor-priority=DP-1;eDP-1` 按序钉主屏（x64=DP-1，aarch64 落 eDP-1）+ `follow-focus=true` 表单跟指针（man 注明非所有合成器可用，niri 异常则删）。**坑**：glib key file 同名 key 重复写只保留最后一条（gtklock 经 `g_key_file_get_string_list` 读取，`src/config.c` 证实），必须单行 `;` 列表；man 页"可多次指定"仅指命令行 `-M`。
 - swaylock 解锁环配色走仓库 `.config/linux/swaylock/config`（install.sh 的 `linux_wayland_dir_configs` 部署到 `~/.config/swaylock/config`）：Catppuccin Mocha 蓝 `#89b4fa` 默认环（与 niri focus-ring 对齐）、绿 `#a6e3a1` 验证中、红 `#f38ba8` 密码错误、黄 `#f9e2af` 按键高亮；`indicator-radius 80` / `thickness 8`，字体 Maple Mono NF CN。壁纸/纯色仍由 lock-wayland 命令行控制，配置文件只管解锁环。swaylock 1.8 apt 主线版不支持 `--effect-blur`（swaylock-effects fork 功能，已随 Nix 移除）；若日后想要背景模糊再评估替代品。
 - niri/Wayland 选区截图标注入口使用 `Mod+s`，并只使用 Satty；缺少 `satty`、`grim`、`slurp` 或 `wl-copy` 时脚本直接失败提示，不回退到 `swappy` / `ksnip`。不要再绑定裸 `F1`。
 - Satty 文字标注显式使用 `Noto Sans CJK SC`；Satty 支持 IME，但没有可靠字体 fallback，未指定 CJK 字体时中文标注可能看起来像无法输入。

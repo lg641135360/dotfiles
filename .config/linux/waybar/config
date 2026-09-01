@@ -8,7 +8,7 @@
   "spacing": 2,
   "modules-left": ["niri/workspaces", "custom/separator", "niri/window"],
   "modules-center": ["clock"],
-  "modules-right": ["network", "cpu", "memory", "pulseaudio", "privacy", "tray"],
+  "modules-right": ["network", "cpu", "memory", "pulseaudio", "idle_inhibitor", "privacy", "tray"],
   "niri/workspaces": {
     "format": "{icon}",
     "format-icons": {
@@ -76,6 +76,15 @@
     "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-",
     "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
     "on-click-right": "pavucontrol"
+  },
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": {
+      "activated": "󰈈",
+      "deactivated": "󰈉"
+    },
+    "tooltip-format-activated": "自动锁屏已停用（点击恢复）",
+    "tooltip-format-deactivated": "自动锁屏运行中（点击停用）"
   },
   "privacy": {
     "icon-spacing": 4,

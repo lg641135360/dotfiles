@@ -21,7 +21,7 @@ test_waybar_aarch64_has_battery_module() {
     # config.aarch64 variant also exposes a battery module in modules-right.
     assert_file_exists "$WAYBAR_AARCH64_CONFIG"
     assert_contains '"battery"' "$WAYBAR_AARCH64_CONFIG"
-    assert_contains '"modules-right": ["network", "cpu", "memory", "backlight", "pulseaudio", "battery", "privacy", "tray"]' "$WAYBAR_AARCH64_CONFIG"
+    assert_contains '"modules-right": ["network", "cpu", "memory", "backlight", "pulseaudio", "battery", "idle_inhibitor", "privacy", "tray"]' "$WAYBAR_AARCH64_CONFIG"
     # Battery styles live in the shared style.css (deployed to both platforms).
     assert_contains '#battery' "$WAYBAR_STYLE"
     assert_contains '#battery.charging' "$WAYBAR_STYLE"
@@ -71,7 +71,17 @@ test_waybar_matches_niri_trial_contract() {
     assert_not_contains '"3":' "$WAYBAR_CONFIG"
     assert_not_contains '"4":' "$WAYBAR_CONFIG"
     assert_not_contains '"5":' "$WAYBAR_CONFIG"
-    assert_contains '"modules-right": ["network", "cpu", "memory", "pulseaudio", "privacy", "tray"]' "$WAYBAR_CONFIG"
+    assert_contains '"modules-right": ["network", "cpu", "memory", "pulseaudio", "idle_inhibitor", "privacy", "tray"]' "$WAYBAR_CONFIG"
+    # idle_inhibitor：单击切换 swayidle 自动锁屏/关屏（2026-09-01）；眼睛图标
+    # 开/关两态（U+F0208/U+F0209），激活时 style.css 用 peach 醒目提示。
+    eye_open=$(printf '\363\260\210\210')
+    eye_off=$(printf '\363\260\210\211')
+    assert_contains '"idle_inhibitor": {' "$WAYBAR_CONFIG"
+    assert_contains "\"activated\": \"$eye_open\"" "$WAYBAR_CONFIG"
+    assert_contains "\"deactivated\": \"$eye_off\"" "$WAYBAR_CONFIG"
+    assert_contains '"tooltip-format-activated": "自动锁屏已停用（点击恢复）"' "$WAYBAR_CONFIG"
+    assert_contains '"tooltip-format-deactivated": "自动锁屏运行中（点击停用）"' "$WAYBAR_CONFIG"
+    assert_contains '#idle_inhibitor.activated' "$WAYBAR_STYLE"
     # Nerd Font / Unicode glyphs (UTF-8 bytes via printf to survive editors
     # that strip unrenderable glyphs). Mirrors how the config file itself is
     # authored.

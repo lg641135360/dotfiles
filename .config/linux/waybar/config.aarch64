@@ -8,7 +8,7 @@
   "spacing": 2,
   "modules-left": ["niri/workspaces", "custom/separator", "niri/window"],
   "modules-center": ["clock"],
-  "modules-right": ["network", "cpu", "memory", "backlight", "pulseaudio", "battery", "privacy", "tray"],
+  "modules-right": ["network", "cpu", "memory", "backlight", "pulseaudio", "battery", "idle_inhibitor", "privacy", "tray"],
   "niri/workspaces": {
     "format": "{icon}",
     "format-icons": {
@@ -100,6 +100,15 @@
       "warning": 35,
       "critical": 15
     }
+  },
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": {
+      "activated": "󰈈",
+      "deactivated": "󰈉"
+    },
+    "tooltip-format-activated": "自动锁屏已停用（点击恢复）",
+    "tooltip-format-deactivated": "自动锁屏运行中（点击停用）"
   },
   "privacy": {
     "icon-spacing": 4,
