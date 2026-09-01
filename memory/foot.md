@@ -16,7 +16,13 @@
 - **主题内嵌**：`foot.ini` 直接写 Catppuccin Mocha palette，不依赖外置主题文件（alacritty 需要 clone `alacritty-theme`）。
 - **cursor color**：foot 显式 `colors.cursor = 1e1e2e f5e0dc`（text/cursor，foot 1.25 起 `colors.cursor` 取代废弃的 `cursor.color`）以对齐 Catppuccin Mocha；alacritty 走主题默认反转。
 - **OSC52**：foot 默认仅允许写剪贴板方向，与 alacritty 的 `terminal.osc52 = "OnlyCopy"` 等价，无需显式配置。
-- **窗口模糊**：alacritty 在 Linux 启用 `blur = true`；foot 无对应能力，透明度由 `colors.alpha = 0.82` 提供，模糊交给 niri 全局 `background-effect { blur true }`（与 alacritty 在 niri 下的实际表现一致）。
+- **窗口模糊**：alacritty 在 Linux 启用 `blur = true`；foot 1.27 `+blur` 构建已支持 `colors.blur=yes`（`ext-background-effect-v1`），但 niri 全局 window-rule 已对 foot 启用 `background-effect { blur true }`，重复开启无额外效果，故 foot 自身不配 blur；透明度由 `colors.alpha = 0.82` 提供（与 alacritty 在 niri 下的实际表现一致）。
+- **选中与剪贴板**（2026-09-01）：`selection-target=both` 框选同时写 PRIMARY+CLIPBOARD，配合 wl-clip-persist/cliphist 自动进入剪贴板历史（foot 默认仅 PRIMARY）；代价是框选即写剪贴板。
+- **响铃**（2026-09-01）：`[bell] urgent=yes` 后台窗口响铃触发 urgent（niri 指示器提示）。
+- **URL 下划线**（2026-09-01）：1.27 起默认点线 `dotted`，`[url] style=single` 改回实线保持旧观感。
+- **透明度应用范围**（2026-09-01）：`alpha-mode=all` 整窗均匀半透明，镜像 alacritty opacity（foot 默认仅"默认背景"单元格透明，彩色背景不透明）；代价是彩色高亮也变透。
+- **滚动指示**（2026-09-01）：`indicator-format=percentage` 滚动时显示位置百分比。
+- **选词边界**（2026-09-01）：`word-delimiters` 默认集追加代码字符 `./=+-*%$@!?~^`（不加入 `;`/`#` 避免 INI 注释语义冲突），双击按标识符整选。
 
 ## 透明度取舍
 - foot 的 `colors.alpha` 直接采用 0.82，与 alacritty Linux 一致；不再沿用 kitty 之前因 aarch64 mtgpu alpha 合成 bug 而走的 1.0 不透明路径。若后续在 aarch64 内屏 2x 下复现 mtgpu 半透明渲染 bug，再单独评估是否在该硬件上降回不透明。
@@ -30,5 +36,6 @@
   - 编译依赖仅需补装 `libutf8proc-dev`（grapheme 聚类，pkg-config 名 `libutf8proc`），其余 pixman/fontconfig/freetype/harfbuzz/wayland dev、wayland-protocols、tic、python3 系统自带。
   - brew 偶发 `Refusing to write insecure trust store`：`~/.homebrew` 目录 group/world 可写导致，`chmod 700 ~/.homebrew` 修复。
 - 源码/构建目录：`~/build/foot`（含 subprojects/fcft、tllist）。日后升级：更新 tag 覆盖源码 → `ninja -C build` → `sudo meson install -C build`。
-- 卸载/回退：`sudo meson uninstall -C ~/build/foot/build` 即移除全部 `/usr/local` 产物，回落系统 apt 1.16.2。
-- **1.27 主题迁移**：foot 1.27 起旧 `[colors]` 区块弃用（每窗口打印 `deprecated: use [colors-dark] instead`），palette 需放 `[colors-dark]`（默认主题）/`[colors-light]`（可配 `color-theme-toggle` 键位或 `SIGUSR1/2` 切换）；键名含 `alpha` 全部不变。已迁移（2026-08-31）。校验配置：`foot -c <file> -C`（exit 0 通过）。live 同步受 IDE 白名单限制需手动 `cp` 仓库 `foot.ini`。
+- 卸载/回退：`sudo meson uninstall -C ~/build/foot/build` 即移除全部 `/usr/local` 产物，回落系统 apt 版本（noble 1.16.2 / resolute 1.25.0）。
+- **resolute 机器（2026-09-01）**：apt foot 为 1.25.0-1，已源码编译 1.27.0 到 `/usr/local`（产物 `1.27.0 +ime +graphemes +toplevel-tag +blur`，未做 PGO）。与 noble 差异：resolute `libfcft-dev` 3.3.2 直接满足 fcft≥3.3.1，**无需 clone fcft/tllist 子工程**。**踩过的坑（已修复 2026-09-01）**：`/usr/local/share/pkgconfig/wayland-protocols.pc`（1.32 陈旧残留）优先级高于 apt 的 1.47，致 pkg-config 误报 1.32、meson 回退捆绑 1.49 子工程后 DTD 校验失败（系统 wayland-scanner 1.24.0 不认其新 XML）；当时以 `PKG_CONFIG_PATH=/usr/share/pkgconfig` 绕过，后连同数据目录 `/usr/local/share/wayland-protocols` 一并删除，现默认即 1.47，编译无需再带覆盖。构建配置：`meson setup --wipe build --buildtype=release -Dime=true -Dgrapheme-clustering=enabled -Ddocs=enabled -Dthemes=true`；升级命令：`ninja -C ~/build/foot/build && sudo meson install -C ~/build/foot/build`。
+- **1.27 主题迁移**：foot 1.27 起旧 `[colors]` 区块弃用（每窗口打印 `deprecated: use [colors-dark] instead`），palette 需放 `[colors-dark]`（默认主题）/`[colors-light]`（可配 `color-theme-toggle` 键位或 `SIGUSR1/2` 切换）；键名含 `alpha` 全部不变。已迁移（2026-08-31）。校验配置：`foot -c <file> -C`（exit 0 通过）。live 同步走 `./install.sh`（自动备份 + 保留 3 份）；agent 终端受 IDE 白名单限制不能直接写 `~/.config/foot`。
