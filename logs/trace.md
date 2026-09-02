@@ -20,6 +20,15 @@
   ```
 
 
+## 2026-09-02 — 新增 update-ai-clis 一键更新 AI CLI
+
+- 目的：为 npm 全局安装的 claude-code/codex 提供统一升级入口（两者均不走 brew cask，见同日更早记录），避免手动敲 `npm update -g` 两个包名。
+- 改动（仓库）：① 新增 `.config/scripts/update-ai-clis`（`#!/bin/sh`，支持默认更新、`--check` 只读查版本、`--help`；内部执行 `npm update -g @anthropic-ai/claude-code @openai/codex`，缺 npm 时报错退出）；② `install.sh` shared_configs 加部署项（条件 `command -v npm`，部署到 `~/.config/scripts/update-ai-clis`）；③ `.config/scripts/README.md` 文件清单表 + 用法段落；④ 新增 `tests/update_ai_clis_test.sh`（存在/可执行/目标包/子命令/部署/未知参数拒绝）。
+- 验证：`sh -n` 语法 OK；`update-ai-clis --check` 正确列出 claude-code 2.1.258 + codex 0.152.1；`--help` 正常；`sh tests/update_ai_clis_test.sh` PASS；`tests/run.sh fast` PASS=47 FAIL=0；`git diff --cached --check` 干净。
+- 回滚信息：已提交 `4d6f32d`（脚本 + README + install.sh + 测试）。`git revert 4d6f32d` 即回滚；live 未同步（脚本仅存仓库，install.sh 重跑或手动复制部署）。
+- 后续可能方向：① live 同步走 `./install.sh`（检测 npm 后复制 `.config/scripts/update-ai-clis` → `~/.config/scripts/`）或手动 `cp` + chmod +x；② 若日后某包回到 brew 管理，需同步更新脚本包列表。
+
+
 ## 2026-09-02 — claude-code 升级源被墙，改由 npm 全局安装
 
 - 目的：brew cask `claude-code` 无法升级（`brew outdated` 显示 2.1.220 → 2.1.236），排查发现 `downloads.claude.ai`（原生二进制唯一源，Google Cloud IP 35.190.46.17）TCP 443 被阻断——`claude.ai` 主页可达但下载 CDN 不可达；无本地代理可用；官方 npm registry 与 npmmirror 均可达。经用户确认切换 npm 方案。
