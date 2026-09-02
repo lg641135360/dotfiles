@@ -83,7 +83,7 @@ test_niri_config_exposes_multi_monitor_navigation() {
     assert_not_contains 'Mod+Page_Down' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Shift+Page_Up' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+Shift+Page_Down' "$NIRI_COMMON_CONFIG"
-    assert_contains 'Mod+Ctrl+Space repeat=false hotkey-overlay-title="切换窗口浮动" { toggle-window-floating; }' "$NIRI_COMMON_CONFIG"
+    assert_contains 'Mod+Ctrl+F repeat=false hotkey-overlay-title="切换窗口浮动" { toggle-window-floating; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+Shift+V repeat=false hotkey-overlay-title="切换浮动/平铺焦点" { switch-focus-between-floating-and-tiling; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+W repeat=false hotkey-overlay-title="切换列标签模式" { toggle-column-tabbed-display; }' "$NIRI_COMMON_CONFIG"
     assert_contains 'Mod+BracketLeft repeat=false hotkey-overlay-title="向左并入/移出窗口" { consume-or-expel-window-left; }' "$NIRI_COMMON_CONFIG"
@@ -102,8 +102,10 @@ test_niri_config_preset_column_widths_and_fullscreen() {
     # Mod+F 改为扩展当前列到可用宽度（= 原 Mod+Ctrl+F 的能力）；原全屏交给应用内 F11。
     assert_contains 'Mod+F repeat=false hotkey-overlay-title="扩展当前列到可用宽度" { expand-column-to-available-width; }' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'Mod+F repeat=false { fullscreen-window; }' "$NIRI_COMMON_CONFIG"
-    # Mod+Ctrl+F 与 Mod+F 动作重复，已释放（2026-08-31 用户决策）。
-    assert_not_contains 'Mod+Ctrl+F' "$NIRI_COMMON_CONFIG"
+    # Mod+Ctrl+F 曾与 Mod+F 动作重复而释放（2026-08-31），2026-09-01 复用于
+    # toggle-window-floating（替代 Mod+Ctrl+Space，避免与 Mod+Space 列宽循环相邻误触）。
+    assert_contains 'Mod+Ctrl+F repeat=false hotkey-overlay-title="切换窗口浮动" { toggle-window-floating; }' "$NIRI_COMMON_CONFIG"
+    assert_not_contains 'Mod+Ctrl+F repeat=false { expand-column-to-available-width; }' "$NIRI_COMMON_CONFIG"
 }
 
 test_niri_config_uses_wayland_replacements_not_x11_autostart() {

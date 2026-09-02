@@ -20,6 +20,15 @@
   ```
 
 
+## 2026-09-01 — niri 浮动切换改绑 Mod+Ctrl+F
+
+- 目的：回答用户对 niri 键位配置的合理性审查（Mod+`/Mod+Tab 无重复、waybar 左侧是 workspace 指示器 + 分隔符 + 窗口标题、J/K 双职保留），并按用户确认把浮动切换从 `Mod+Ctrl+Space` 改到 `Mod+Ctrl+F`。
+- 改动：① `.config/linux/niri/common.kdl` 的 `toggle-window-floating` 从 `Mod+Ctrl+Space` 改为 `Mod+Ctrl+F`（原 `Mod+Ctrl+F` 因与 `Mod+F` 重复于 2026-08-31 释放，现复用于浮动，无冲突）；② README 键位表同步；③ `tests/niri_config_test.sh` 两处断言更新（`assert_contains Mod+Ctrl+F`、`assert_not_contains Mod+Ctrl+F { expand-column... }`）；④ `memory/niri.md` 键位条同步补记复用缘由。
+- 验证：`./tests/niri_config_test.sh` PASS；`git diff --check` 干净。
+- 回滚信息：未提交。repo 侧改动均可 `git checkout -- <file>` 或后续 `git revert` 回滚；live `~/.config/niri/common.kdl` 未同步（niri 26.04 自动监视配置文件，如需热生效需手动把 common.kdl 复制到 live，复制前先做 `*.backup.<TS>` 快照）。
+- 后续可能方向：无。
+
+
 ## 2026-09-01 — foot.ini 实用配置与微优化（selection-target / bell / url style / alpha-mode / indicator-format / word-delimiters）
 
 - 目的：升级 1.27 后补充实用配置——框选同时进剪贴板历史（配合 wl-clip-persist/cliphist）、后台响铃 urgent、URL 实线下划线、整窗均匀透明、滚动位置百分比、双击选词追加代码字符；并纠正 memory/README 中"foot 无模糊能力"的过时描述（1.27 `+blur` 构建已支持 `ext-background-effect-v1`，但 niri 全局 window-rule 已对 foot 启用 blur，重复开启无额外效果；且经核实 niri 26.04 未实现 `xdg-toplevel-tag-v1`，故 blur / toplevel-tag 均不配置）。

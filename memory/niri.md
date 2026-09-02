@@ -36,7 +36,7 @@
 - niri 主导航偏好使用 `Mod+h/l` 左右聚焦窗口列、`Mod+j/k` 下/上聚焦窗口（到边界后切 workspace）；不要保留 `Mod+Left/Right/Up/Down` 方向键替代绑定。
 - niri workspace 导航只保留 `Mod+j/k`、数字键和 `Mod+滚轮`，不保留 `Page_Up/Page_Down` 及其 Shift 组合；左右切列只保留 `Mod+h/l` 和 `Mod+横向滚轮`，不保留重复的 `Mod+Alt+h/l`。
 - niri 使用 `Mod+Tab` 切换到焦点历史中的上一个窗口；暂不为不常用的列内上下窗口聚焦单独设置快捷键。
-- `Mod+Space` 只在 1/2 与 2/3 两档预设列宽间循环（2026-08-31 用户决策，收敛自 4 档），全宽由 `Mod+F` 的扩展列宽替代；`Mod+F` 绑 `expand-column-to-available-width`，全屏交给应用内 F11，不再占 niri 键位。原冗余绑定 `Mod+Ctrl+F` 已释放（同日决策，动作与 `Mod+F` 重复）。
+- `Mod+Space` 只在 1/2 与 2/3 两档预设列宽间循环（2026-08-31 用户决策，收敛自 4 档），全宽由 `Mod+F` 的扩展列宽替代；`Mod+F` 绑 `expand-column-to-available-width`，全屏交给应用内 F11，不再占 niri 键位。`Mod+Ctrl+F` 曾因动作与 `Mod+F` 重复而释放（2026-08-31），后复用于 `toggle-window-floating`（2026-09-01，替代原 `Mod+Ctrl+Space`：避免与 `Mod+Space` 列宽循环相邻误触）。
 - niri 26.04 默认监视配置文件，保存后自动重载；不要为热更新单独绑定 `Mod+Ctrl+r`。`niri msg action load-config-file` 只留给脚本，用来跳过 watcher 的短暂延迟。
 - niri 使用 `Mod+Shift+h/l` 左右移动当前列，以便调整同一 workspace 中窗口列的位置；锁屏使用 `Mod+Alt+l`，不再占用 `Mod+Shift+l`。
 - niri 中启动程序、壁纸切换、overview、退出、截图标注和关闭显示器等一次性动作应设置 `repeat=false`，音量、亮度和尺寸调整等连续动作继续允许按键重复。

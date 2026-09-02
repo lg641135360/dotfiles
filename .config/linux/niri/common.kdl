@@ -319,7 +319,7 @@ binds {
     Mod+M repeat=false { maximize-window-to-edges; }
     Mod+Ctrl+M repeat=false { maximize-column; }
     Mod+Ctrl+C repeat=false { center-column; }
-    Mod+Ctrl+Space repeat=false hotkey-overlay-title="切换窗口浮动" { toggle-window-floating; }
+    Mod+Ctrl+F repeat=false hotkey-overlay-title="切换窗口浮动" { toggle-window-floating; }
     Mod+Shift+V repeat=false hotkey-overlay-title="切换浮动/平铺焦点" { switch-focus-between-floating-and-tiling; }
     Mod+W repeat=false hotkey-overlay-title="切换列标签模式" { toggle-column-tabbed-display; }
 
