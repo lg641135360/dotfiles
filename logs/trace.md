@@ -20,6 +20,15 @@
   ```
 
 
+## 2026-09-02 — claude-code 升级源被墙，改由 npm 全局安装
+
+- 目的：brew cask `claude-code` 无法升级（`brew outdated` 显示 2.1.220 → 2.1.236），排查发现 `downloads.claude.ai`（原生二进制唯一源，Google Cloud IP 35.190.46.17）TCP 443 被阻断——`claude.ai` 主页可达但下载 CDN 不可达；无本地代理可用；官方 npm registry 与 npmmirror 均可达。经用户确认切换 npm 方案。
+- 改动（系统 + 仓库）：① `brew uninstall --cask claude-code`（移除 2.1.220 原生二进制，释放 271.8MB）；② `npm install -g @anthropic-ai/claude-code` → **2.1.258**（官方 registry 直装，22s；npm 包 `bin/claude.exe` 实为原生 ELF 二进制 215MB，非纯 Node 脚本）；③ `.config/linux/Brewfile` 移除 `cask "claude-code"` 并注释原因，保留 `cask "codex"`（其下载走 github 源可达）；④ `memory/organizing_preferences.md` 系统环境节补 claude-code 升级路径决策。
+- 验证：`claude --version` = `2.1.258 (Claude Code)`；`type -a claude` → `/usr/local/nodejs/bin/claude`（brew 链接已移除，npm 版自然接管，linuxbrew bin 在前但无冲突）；`brew outdated` 无输出（claude-code 已不在 brew 管理）；`brew missing` 无缺失；`tests/run.sh fast` PASS=46 FAIL=0。
+- 回滚信息：已提交 `b529c37`（Brewfile + memory）。恢复 brew 版：`brew install --cask claude-code` + `npm uninstall -g @anthropic-ai/claude-code`（并还原 Brewfile 的 `cask "claude-code"` 行）。
+- 后续可能方向：① 日后升级用 `npm update -g @anthropic-ai/claude-code`（不再走 brew）；② 若网络恢复且想回原生 brew 版，先卸 npm 版再装 brew cask，二者勿共存（PATH 遮蔽）；③ `~/Pictures` 无相关，claude 配置（`~/.claude/`）与安装形态无关，无需迁移。
+
+
 ## 2026-09-01 — niri 浮动切换改绑 Mod+Ctrl+F
 
 - 目的：回答用户对 niri 键位配置的合理性审查（Mod+`/Mod+Tab 无重复、waybar 左侧是 workspace 指示器 + 分隔符 + 窗口标题、J/K 双职保留），并按用户确认把浮动切换从 `Mod+Ctrl+Space` 改到 `Mod+Ctrl+F`。
