@@ -29,6 +29,15 @@
 - 后续可能方向：① 日后升级用 `npm update -g @anthropic-ai/claude-code`（不再走 brew）；② 若网络恢复且想回原生 brew 版，先卸 npm 版再装 brew cask，二者勿共存（PATH 遮蔽）；③ `~/Pictures` 无相关，claude 配置（`~/.claude/`）与安装形态无关，无需迁移。
 
 
+## 2026-09-02 — codex 改由 npm 全局安装（与 claude-code 对齐）
+
+- 目的：用户确认把 codex 也换成 npm 安装，与 claude-code 方案统一（brew cask 依赖 github 原生二进制，npm 版更新更快）。
+- 改动（系统 + 仓库）：① `brew uninstall --cask codex`（移除 0.152.0）；② 发现系统已存在被 brew 遮蔽的旧 npm 版 `@openai/codex@0.124.0`（170M），`npm install -g @openai/codex` 升级到 **0.152.1**；③ `.config/linux/Brewfile` 移除 `cask "codex"`（现无任何 cask），注释改为 claude-code/codex 均走 npm；④ `memory/organizing_preferences.md` 补 codex 升级路径决策。
+- 验证：`type -a codex` → `/usr/local/nodejs/bin/codex`（唯一来源，brew 链接已移除）；`npm ls -g @openai/codex` = 0.152.1；`brew outdated` 无输出、`brew missing` 无缺失。注：codex npm 包 `bin/codex.js` 为 Node 脚本（依赖 node 运行时），与 claude-code 的原生 ELF 二进制形态不同，但均可用；IDE 沙箱内 `codex --version` 会被拦截（node 子进程限制，code=13），真实终端正常。
+- 回滚信息：未提交（Brewfile + memory 待提交）。恢复 brew 版：`brew install --cask codex` + `npm uninstall -g @openai/codex`（并还原 Brewfile 的 `cask "codex"` 行）。
+- 后续可能方向：① 日后升级用 `npm update -g @openai/codex`；② brew cask 与 npm 版勿共存（PATH 遮蔽），二选一。
+
+
 ## 2026-09-01 — niri 浮动切换改绑 Mod+Ctrl+F
 
 - 目的：回答用户对 niri 键位配置的合理性审查（Mod+`/Mod+Tab 无重复、waybar 左侧是 workspace 指示器 + 分隔符 + 窗口标题、J/K 双职保留），并按用户确认把浮动切换从 `Mod+Ctrl+Space` 改到 `Mod+Ctrl+F`。

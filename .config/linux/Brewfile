@@ -27,7 +27,7 @@ brew "tmux"
 brew "zoxide"
 
 # brew 安装的全局 CLI cask（非 GUI 应用）
-# claude-code 不通过 brew 安装（2026-09-02）：其原生二进制源 downloads.claude.ai 在国内
-# 被阻断，brew cask 无法升级；改由 npm 全局安装 @anthropic-ai/claude-code（走官方/npmmirror
-# 源，/usr/local/nodejs/bin 已在共享 zsh PATH，与 path.zsh 的 nodejs 前缀对齐）。
-cask "codex"
+# claude-code / codex 均不通过 brew 安装（2026-09-02）：claude-code 原生二进制源
+# downloads.claude.ai 在国内被阻断，codex 与之一致改用 npm 全局安装
+# （@anthropic-ai/claude-code / @openai/codex，走官方/npmmirror 源，/usr/local/nodejs/bin
+# 已在共享 zsh PATH，与 path.zsh 的 nodejs 前缀对齐）。
