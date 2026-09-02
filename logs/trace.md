@@ -19,6 +19,17 @@
   cp ~/.config/niri/common.kdl.backup.<时间戳> ~/.config/niri/common.kdl
   ```
 
+## 2026-09-02 — Obsidian 迁移 deb 后修复 fuzzel 双入口与启动失效
+
+- 目的：fuzzel 出现两个 Obsidian 入口（系统 `md.obsidian.Obsidian.desktop` + 自建 `obsidian.desktop`）；且上午清理 AppImage 后，自建入口的 `obsidian-wayland` 仍指向已删除的 `~/Applications/Obsidian-*.AppImage`（exit 127），系统入口裸 exec `/opt/Obsidian/obsidian` 在 niri 下因 Vulkan 与 Wayland surface factory 不兼容而启动即退出（均实测复现）。
+- 改动：① `.config/scripts/obsidian-wayland` 重写为 deb 版入口：Wayland 会话 `exec /opt/Obsidian/obsidian --ozone-platform=wayland --enable-wayland-ime --disable-vulkan`（`--disable-vulkan` 必需否则不弹窗；新 Chromium 默认 text-input v3，去掉旧 `--wayland-text-input-version=3`），X11 透传；② `desktop-entries/obsidian.desktop` 更新注释、`StartupWMClass` 改为 `md.obsidian.Obsidian`（对齐实测 WM class）；③ `tests/wayland_scripts_test.sh` 重写 obsidian 用例为 `test_obsidian_wayland_forces_native_wayland_gl`；④ 文档：`desktop-entries/README.md` 收录补 obsidian、`niri/README.md` Obsidian 段改 deb、`memory/desktop.md` text-input 矩阵与落地记录更新。
+- 验证：`bash -n .config/scripts/obsidian-wayland` OK；`bash tests/wayland_scripts_test.sh` PASS；`./tests/run.sh fast` PASS=46 FAIL=0 SKIP=0；`git diff --check` 干净；实测 `/opt/Obsidian/obsidian --ozone-platform=wayland --enable-wayland-ime --disable-vulkan` 出窗口（niri App ID `md.obsidian.Obsidian`），裸 exec 与旧 wrapper 均失败。
+- 回滚信息：未提交；live 已同步桌面入口 `~/.local/share/applications/obsidian.desktop`（备份 `obsidian.desktop.backup.20260902_104905_3745355`），脚本 `~/.config/scripts/obsidian-wayland` 因沙箱限制未同步。恢复命令：
+  ```bash
+  cp ~/.local/share/applications/obsidian.desktop.backup.20260902_104905_3745355 ~/.local/share/applications/obsidian.desktop
+  ```
+- 后续：live 侧 `~/.config/scripts/obsidian-wayland` 仍是旧 AppImage 版（失效），需用户执行脚本同步命令（见收尾总结）；fuzzel 双入口去重已落地——新增 `.config/linux/desktop-entries/md.obsidian.Obsidian.desktop`（内容仅 `Hidden=true`）隐藏系统入口，同步 live `~/.local/share/applications/md.obsidian.Obsidian.desktop`（原无此文件，无需备份），并接入 install.sh 与 install_wayland_test.sh 断言。
+
 ## 2026-09-02 — 锁屏回退 swaylock，整体移除 gtklock 模块
 
 - 目的：用户决策锁屏回退 swaylock 简单版，放弃 gtklock 方案（2026-08-31 迁入的时钟/日期 + Mocha CSS 主题），并彻底移除 gtklock 模块痕迹。

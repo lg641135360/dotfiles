@@ -160,9 +160,9 @@ fuzzel（`Mod+c`）走 drun 模式，读的是 desktop 入口而不是直接调�
 
 Trae CN 是 Electron 应用，与 Chrome 同类：默认走 X11 平台，纯 Wayland 会话下直接启动报 `Missing X server or $DISPLAY`。`~/.config/scripts/trae-cn-wayland` 包装脚本在 Wayland 会话下追加 `--ozone-platform=wayland --enable-wayland-ime --enable-features=WaylandWindowDecorations`（`--enable-wayland-ime` 提供 Fcitx5/Rime 输入法支持，`WaylandWindowDecorations` 让合成器绘制标题栏），X11 会话原样透传。同样用 `.config/linux/desktop-entries/trae-cn.desktop` 覆盖系统入口，`Exec` 改调 `trae-cn-wayland`，部署到 `~/.local/share/applications/`，fuzzel 菜单即走 Wayland。
 
-### Obsidian（Electron AppImage）
+### Obsidian（Electron deb）
 
-Obsidian 1.8.7 基于 Electron 33 / Chromium 130，原生 Wayland 后端已可用。`~/.config/scripts/obsidian-wayland` 在 Wayland 会话下追加 `--no-sandbox --ozone-platform=wayland --enable-wayland-ime --wayland-text-input-version=3`：`--enable-wayland-ime` 提供 Fcitx5/Rime 输入法支持，`--wayland-text-input-version=3` 是关键差异——Chromium 130 仍默认 text-input v1，而 niri（26.04）只实现 v3，缺此 flag 时 fcitx5 中文输入静默失效（已实测复现并修复）。Chromium 较新的应用（Chrome 152、Trae 1.107）默认即 v3，无需该 flag。脚本按 `~/Applications/Obsidian-*.AppImage` glob 发现版本化文件名，AppImage 升级后无需改脚本；X11 会话原样透传。启动统一经 `/usr/bin/AppImageLauncher` 而非直接 exec AppImage——binfmt_misc 的 interpreter 转发 argv 有 bug（总参数 ≥4 时数组未 NULL 终止，execv EFAULT），直接 exec 会启动失败。`.config/linux/desktop-entries/obsidian.desktop` 提供 fuzzel 入口（`Exec` 走 wrapper）。注意 appimagelauncher 自动生成的 `Obsidian (版本号)` entry 仍指向裸 AppImage（XWayland），升级后可能重新出现，删掉即可。
+Obsidian 现为 deb 安装（`/opt/Obsidian/obsidian`，1.13.7）。`~/.config/scripts/obsidian-wayland` 在 Wayland 会话下追加 `--ozone-platform=wayland --enable-wayland-ime --disable-vulkan`：原生 Wayland 保留 HiDPI 缩放；`--enable-wayland-ime` 提供 Fcitx5/Rime 输入法支持；`--disable-vulkan` 为必需——新版在 Wayland 会话下自动选 ozone-wayland，但默认 Vulkan 路径与 Wayland surface factory 不兼容，gpu 进程报错后不弹窗（直接裸 exec `/opt/Obsidian/obsidian` 会启动即退出，已实测 2026-09-02）。新 Chromium（≥ 13x）默认 text-input v3，不再需要 AppImage 时代加的 `--wayland-text-input-version=3`。X11 会话原样透传。`.config/linux/desktop-entries/obsidian.desktop` 提供 fuzzel 入口（`Exec` 走 wrapper）。
 
 ## 窗口规则
 

@@ -20,3 +20,5 @@ desktop entry 中的 `Exec` 路径使用 `__HOME__` 占位符，由 `install.sh`
 
 - `google-chrome.desktop` — 走 `browser-wayland`
 - `trae-cn.desktop` — 走 `trae-cn-wayland`
+- `obsidian.desktop` — 走 `obsidian-wayland`（deb 版 `/opt/Obsidian`，原生 Wayland + 禁用 Vulkan）
+- `md.obsidian.Obsidian.desktop` — 同名的用户级覆盖文件，内容仅 `Hidden=true`，用于隐藏系统级 Obsidian 入口（官方 deb 安装生成，走 XWayland），避免 fuzzel 出现第二个 "Obsidian"；同 basename 用户级文件会覆盖系统级文件

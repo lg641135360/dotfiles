@@ -31,6 +31,7 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/linux/desktop-entries/google-chrome.desktop|~/.local/share/applications/google-chrome.desktop|Google Chrome Wayland desktop entry' "$INSTALL_FILE"
     assert_contains '|.config/linux/desktop-entries/trae-cn.desktop|~/.local/share/applications/trae-cn.desktop|Trae CN Wayland desktop entry' "$INSTALL_FILE"
     assert_contains '|.config/linux/desktop-entries/obsidian.desktop|~/.local/share/applications/obsidian.desktop|Obsidian Wayland desktop entry' "$INSTALL_FILE"
+    assert_contains '|.config/linux/desktop-entries/md.obsidian.Obsidian.desktop|~/.local/share/applications/md.obsidian.Obsidian.desktop|Hide system Obsidian desktop entry' "$INSTALL_FILE"
     # install.sh substitutes the __HOME__ placeholder in desktop entries with $HOME at deploy time.
     assert_contains '//__HOME__/$HOME' "$INSTALL_FILE"
     assert_contains '|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script' "$INSTALL_FILE"

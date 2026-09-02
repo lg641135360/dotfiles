@@ -394,6 +394,7 @@ linux_wayland_configs=(
     "|.config/linux/desktop-entries/google-chrome.desktop|~/.local/share/applications/google-chrome.desktop|Google Chrome Wayland desktop entry"
     "|.config/linux/desktop-entries/trae-cn.desktop|~/.local/share/applications/trae-cn.desktop|Trae CN Wayland desktop entry"
     "|.config/linux/desktop-entries/obsidian.desktop|~/.local/share/applications/obsidian.desktop|Obsidian Wayland desktop entry"
+    "|.config/linux/desktop-entries/md.obsidian.Obsidian.desktop|~/.local/share/applications/md.obsidian.Obsidian.desktop|Hide system Obsidian desktop entry"
     "|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script"
     "|.config/scripts/wallpaper-wayland-next|~/.config/scripts/wallpaper-wayland-next|Wayland wallpaper switcher"
     "|.config/linux/xdg-desktop-portal/niri-portals.conf|~/.local/share/xdg-desktop-portal/niri-portals.conf|niri desktop portal preferences"

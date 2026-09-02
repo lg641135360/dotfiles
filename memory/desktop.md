@@ -39,10 +39,10 @@
 
 ## Chromium/Electron 应用的 Wayland text-input 版本矩阵（x86_64 niri 26.04 实测）
 - niri 只实现 text-input v3；Chromium 系应用需显式或默认 v3，否则 fcitx5 中文输入**静默失效**（无报错，就是不响应）
-- 版本分界：Chromium 130（Electron 33，如 Obsidian 1.8.7）默认 text-input v1 → 必须 `--wayland-text-input-version=3`；Chrome 152 / Trae 1.107 默认已 v3，无需该 flag
+- 版本分界：Chromium 130（Electron 33，旧 AppImage 版 Obsidian 1.8.7）默认 text-input v1 → 必须 `--wayland-text-input-version=3`；Chrome 152 / Trae 1.107 默认已 v3，无需该 flag；Obsidian 1.13.7（2026-09-02 起 deb 版）同样默认 v3，无需该 flag
 - 判断某 Electron 应用是否需要：`strings <binary> | grep 'Chrome/[0-9]'` 查 Chromium 版本，≥ 大约 13x 默认 v3；不确定就直接加，新 Chromium 会忽略无害
 - 排障入口：先确认 `--ozone-platform=wayland --enable-wayland-ime` 已带，再怀疑 text-input 版本
-- 2026-08-27 已落地：Obsidian（AppImage，glob 发现）经 `~/.config/scripts/obsidian-wayland` + `desktop-entries/obsidian.desktop` 切原生 Wayland，fcitx5 输入实测正常；钉钉（CEF 109）与 corplink（Electron 22）保持 XWayland 不迁
+- 2026-08-27 落地并 2026-09-02 迁移：Obsidian 原 AppImage（glob 发现）经 `obsidian-wayland` 切原生 Wayland，后清 AppImage 改 deb（`/opt/Obsidian`，1.13.7），wrapper 改为加 `--ozone-platform=wayland --enable-wayland-ime --disable-vulkan`（Vulkan 与 Wayland surface factory 不兼容，裸 exec 不弹窗）；钉钉（CEF 109）与 corplink（Electron 22）保持 XWayland 不迁
 
 ## Trae 终端黑块（xterm.js WebGL glyph atlas）排障（x86_64 niri 实测）
 - 症状：终端随机位置整段文字渲染成**实心**黑色方块，缩放/最大化窗口时黑块分布变化（atlas 重新分页所致）；实心黑块 ≠ 空心 tofu，可排除字体缺字形

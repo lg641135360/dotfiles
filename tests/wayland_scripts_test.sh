@@ -716,30 +716,22 @@ test_trae_cn_forces_wayland_with_ime() {
     assert_not_contains 'Exec=/usr/share/trae-cn/trae-cn' "$TRAE_DESKTOP"
 }
 
-test_obsidian_wayland_forces_wayland_with_text_input_v3() {
+test_obsidian_wayland_forces_native_wayland_gl() {
     assert_executable "$OBSIDIAN_SCRIPT"
+    # deb install at /opt/Obsidian (1.13.7, Chromium 13x): the wrapper must
+    # force native Wayland ozone and disable Vulkan, which is incompatible with
+    # the Wayland surface factory (plain exec exits without a window).
     assert_contains '--ozone-platform=wayland' "$OBSIDIAN_SCRIPT"
-    # Fcitx5/Rime needs Wayland IME; must be present.
     assert_contains '--enable-wayland-ime' "$OBSIDIAN_SCRIPT"
-    # Obsidian 1.8.7 = Electron 33 / Chromium 130, which still defaults to
-    # text-input-v1; niri only implements v3, so IME is silently dead without
-    # this flag (verified on niri 26.04).
-    assert_contains '--wayland-text-input-version=3' "$OBSIDIAN_SCRIPT"
-    # AppImage filename embeds the version; the wrapper must discover it by
-    # glob so upgrades do not break the entry.
-    assert_contains "Obsidian-*.AppImage" "$OBSIDIAN_SCRIPT"
-    # Launch via /usr/bin/AppImageLauncher: direct exec hits the buggy
-    # binfmt interpreter (>=4 args -> unterminated argv -> execv EFAULT).
-    assert_contains '/usr/bin/AppImageLauncher' "$OBSIDIAN_SCRIPT"
-    assert_contains 'exec_appimage' "$OBSIDIAN_SCRIPT"
+    assert_contains '--disable-vulkan' "$OBSIDIAN_SCRIPT"
+    assert_contains '/opt/Obsidian/obsidian' "$OBSIDIAN_SCRIPT"
 
     # fuzzel launches the desktop entry, so its Exec must route through the wrapper.
     assert_file_exists "$OBSIDIAN_DESKTOP"
     assert_contains 'Exec=__HOME__/.config/scripts/obsidian-wayland %U' "$OBSIDIAN_DESKTOP"
-    # Exec must not hardcode the versioned AppImage path (glob-discovered in
-    # the wrapper); AppImage may still appear in comments.
-    exec_line=$(grep '^Exec=' "$OBSIDIAN_DESKTOP")
-    assert_not_contains 'AppImage' "$exec_line"
+    # The deb binary reports WM class md.obsidian.Obsidian (verified via
+    # `niri msg windows`); StartupWMClass must match for window grouping.
+    assert_contains 'StartupWMClass=md.obsidian.Obsidian' "$OBSIDIAN_DESKTOP"
 }
 
 test_wayland_autostart_checks_apps_and_separates_logs
@@ -760,6 +752,6 @@ test_browser_wayland_forces_native_wayland_ozone
 test_browser_wayland_passes_ozone_flag_only_under_wayland
 test_clipboard_wayland_persists_and_queries_history
 test_trae_cn_forces_wayland_with_ime
-test_obsidian_wayland_forces_wayland_with_text_input_v3
+test_obsidian_wayland_forces_native_wayland_gl
 
 printf 'PASS: wayland scripts tests\n'

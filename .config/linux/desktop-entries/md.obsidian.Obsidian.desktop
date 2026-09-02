@@ -1,0 +1,6 @@
+[Desktop Entry]
+# Override to hide the system-level Obsidian entry (official deb install at
+# /opt/Obsidian, md.obsidian.Obsidian.desktop): without it fuzzel shows a
+# second "Obsidian" that launches via XWayland. A user-level file with the
+# same basename overrides the system one; Hidden=true removes it from menus.
+Hidden=true
