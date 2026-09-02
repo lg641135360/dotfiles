@@ -20,7 +20,12 @@
 brew "bat"
 brew "fd"
 brew "fzf"
+brew "lsd"
 brew "neovim"
 brew "ripgrep"
-brew "yazi"
+brew "tmux"
 brew "zoxide"
+
+# brew 安装的全局 CLI cask（非 GUI 应用）
+cask "claude-code"
+cask "codex"
