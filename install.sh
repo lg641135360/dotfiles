@@ -332,6 +332,7 @@ shared_configs=(
     "command -v herdr|.config/shared/herdr/config.toml|~/.config/herdr/config.toml|Herdr"
     "command -v herdr|.config/scripts/herdr-report|~/.config/scripts/herdr-report|Herdr agent report script"
     "command -v trae-cli|.config/shared/trae-cli/trae_cli.yaml|~/.trae/trae_cli.yaml|Trae CLI"
+    "command -v npm|.config/scripts/update-ai-clis|~/.config/scripts/update-ai-clis|AI CLIs (claude-code/codex) npm updater"
 )
 
 # Directory configurations

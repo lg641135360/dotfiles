@@ -1,0 +1,65 @@
+#!/bin/sh
+# One-shot updater for the npm-installed AI CLIs (claude-code, codex).
+#
+# Both tools are managed via npm (not brew cask): claude-code's native binary
+# source downloads.claude.ai is blocked in CN, and we standardized both on npm
+# on 2026-09-02 (see memory/organizing_preferences.md). This script exists so
+# there is a single entry point to bring both up to date.
+#
+# Usage:
+#   update-ai-clis            # update both packages
+#   update-ai-clis --check    # print current versions without updating
+#   update-ai-clis --help     # show usage
+
+set -eu
+
+PACKAGES="@anthropic-ai/claude-code @openai/codex"
+
+usage() {
+    cat <<'EOF'
+用法: update-ai-clis [--check|--help]
+
+一键更新 npm 全局安装的 AI CLI（claude-code / codex）。
+
+  不带参数  更新两个包到最新
+  --check   仅打印当前版本，不做更新
+  --help    显示此帮助
+EOF
+}
+
+# Check a command exists without leaking stderr when it does.
+has_cmd() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+show_versions() {
+    if has_cmd npm; then
+        npm ls -g --depth=0 $PACKAGES 2>/dev/null || true
+    else
+        echo "npm not found; cannot list global packages" >&2
+    fi
+}
+
+case "${1:-}" in
+    --check)
+        show_versions
+        ;;
+    --help|-h)
+        usage
+        ;;
+    "")
+        if ! has_cmd npm; then
+            echo "error: npm not found; cannot update AI CLIs" >&2
+            exit 1
+        fi
+        echo "==> Updating: $PACKAGES"
+        npm update -g $PACKAGES
+        echo "==> Updated versions:"
+        show_versions
+        ;;
+    *)
+        echo "error: unknown argument '$1'" >&2
+        usage >&2
+        exit 1
+        ;;
+esac

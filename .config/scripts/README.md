@@ -18,6 +18,7 @@
 | `wallpaper-wayland` | Wayland 壁纸设置 |
 | `browser-wayland` | Google Chrome Wayland 启动器（Wayland 会话加 `--ozone-platform=wayland`，X11 原样透传） |
 | `trae-cn-wayland` | Trae CN (Electron) Wayland 启动器（Wayland 会话加 ozone-wayland + Wayland IME，X11 原样透传） |
+| `update-ai-clis` | 一键更新 npm 全局安装的 AI CLI（claude-code / codex） |
 
 ## 临时停止飞连系统服务
 
@@ -35,3 +36,14 @@
 ```
 
 飞连可能承担公司 VPN、终端安全或访问控制功能；禁用前应确认当前不依赖相关内网与合规能力。
+
+## 一键更新 AI CLI（claude-code / codex）
+
+claude-code 与 codex 均通过 npm 全局安装（不走 brew cask：claude-code 的原生二进制源
+`downloads.claude.ai` 在国内被阻断，且两者统一走 npm 便于同步更新），因此用 `update-ai-clis`
+作为一键升级入口，内部执行 `npm update -g @anthropic-ai/claude-code @openai/codex`。
+
+```sh
+~/.config/scripts/update-ai-clis            # 更新两个包到最新
+~/.config/scripts/update-ai-clis --check    # 仅查看当前版本
+```
