@@ -19,6 +19,13 @@
   cp ~/.config/niri/common.kdl.backup.<时间戳> ~/.config/niri/common.kdl
   ```
 
+## 2026-09-02 — 解决 main 变基冲突（memory/niri.md 键位段合并）
+
+- 目的：main 在变基到 origin/main（6f661ff）时 `memory/niri.md` 键位段冲突（UU）。
+- 改动：按实际 `common.kdl` 事实合并双方——保留 HEAD 侧最新的「`Mod+Ctrl+F` 复用于 `toggle-window-floating`（2026-09-01）」表述，并入 bef5e89 侧新增的 `Mod+grave`（focus-workspace-previous）、`Mod+Shift+N`（mako 免打扰）、`repeat-delay 300`/`repeat-rate 40` 三条；原 bef5e89 侧「`Mod+Ctrl+F` 已释放」为旧状态，弃用。无其它冲突文件。
+- 验证：`grep '^(<<<<<<<|=======|>>>>>>>)' memory/niri.md` 无匹配；`GIT_EDITOR=true git rebase --continue` 成功，rebase 完成；`git log --oneline -1` 为新提交 52826ea，`git status` 干净。
+- 回滚信息：52826ea（rebase 产出，HEAD 指向该提交）；未同步 live。main 领先 origin/main 1，是否推送由用户决定。
+
 ## 2026-09-01 — gtklock 双屏输入表单定位（monitor-priority + follow-focus）
 
 - 目的：修复"锁屏后必须挪鼠标到副屏才能输密码"——gtklock 输入框只显示在一块屏上（落在副屏 HDMI-A-2），niri 锁屏键盘焦点跟随指针（常在主屏 DP-1），按键落空。
