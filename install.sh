@@ -413,7 +413,6 @@ linux_wayland_dir_configs=(
     "command -v fuzzel|.config/linux/fuzzel|~/.config/fuzzel|Fuzzel"
     "command -v foot|.config/linux/foot|~/.config/foot|Foot"
     "command -v swaylock|.config/linux/swaylock|~/.config/swaylock|Swaylock"
-    "command -v gtklock|.config/linux/gtklock|~/.config/gtklock|Gtklock"
 )
 
 # Architecture and distro-specific configurations (awesome autostart only)

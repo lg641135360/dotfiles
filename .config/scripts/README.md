@@ -5,7 +5,7 @@
 | 脚本 | 用途 |
 |------|------|
 | `lock` | X11 锁屏（i3lock-color → i3lock --blur → i3lock 纯色降级） |
-| `lock-wayland` | Wayland 锁屏（gtklock 优先，swaylock 兜底） |
+| `lock-wayland` | Wayland 锁屏（swaylock，复用当前壁纸） |
 | `corplink-service` | 临时管理飞连 `corplink.service`；支持查看状态、停止到下次重启、立即恢复 |
 | `rofi-launch` | Rofi 应用启动器包装 |
 | `wayland-autostart` | Wayland 会话自启动；同步会话环境，等待 niri ScreenCast D-Bus 服务后修复 portal 启动顺序，并启动桌面组件；日志写入 `~/.local/state/niri/autostart/` |

@@ -59,7 +59,7 @@ niri validate -c ~/.config/niri/config.kdl
 | `Mod+e` | 打开文件管理器：Dolphin → 系统默认 → Nautilus/Thunar/PCManFM → Yazi |
 | `Mod+c` | 启动 launcher：优先 `fuzzel`，缺失时回退 `rofi-launch` |
 | `Mod+q` | 关闭当前窗口 |
-| `Mod+Alt+l` | 锁屏：优先 gtklock，缺失时回退 swaylock |
+| `Mod+Alt+l` | 锁屏：swaylock（复用当前壁纸） |
 | `Mod+Shift+w` | 随机切换 Wayland 壁纸 |
 | `Mod+o` | 显示/关闭 niri overview 总览 |
 | `Mod+Tab` | 切换到焦点历史中的上一个窗口 |
@@ -130,9 +130,7 @@ gammastep -m drm -p -l 30.6:114.3 -t 6500:5500 -b 1.0:1.0
 
 `gammastep` 通过 `wlr-gamma-control` 协议为每个输出注册 gamma 表，但进程启动后不会自动为新接入的输出补注册。`wayland-autostart` 在启动 `gammastep` 时会记录当前 niri 输出数量到 `~/.local/state/niri/autostart/gammastep.outputs`；再次执行时若输出数量变化（热插拔）则自动重启 `gammastep`。热插拔显示器后色温未生效时，手动重新执行 `~/.config/scripts/wayland-autostart` 即可修复。
 
-`lock-wayland` 优先使用 `gtklock`（时钟/日期 + Mocha CSS 主题，见 `.config/linux/gtklock/`），缺失时回退 `swaylock`。解锁密码来自系统 PAM 账户认证；它不是 GNOME Keyring/KWallet/浏览器保存密码。gtklock 4.0 基于 `ext-session-lock-v1`，niri 26.04 支持该协议；Ubuntu apt 包自带 `/etc/pam.d/gtklock`，装包即用。gtklock 的 `config.ini`（`time-format`/`date-format`，date(1) 语法）与 `style.css`（Catppuccin Mocha）由 install.sh 部署到 `~/.config/gtklock/`；背景壁纸与 style 路径由 lock-wayland 以 `--background`/`--style` 命令行传入（复用 `wallpaper-wayland` 记录的当前壁纸，缺失时 CSS 纯色 `#11111b` 兜底）。
-
-回退分支 `swaylock`（2026-08-29 起由 apt 提供，Nix profile 侧的 swaylock-effects 已移除）：脚本优先调用 `/usr/bin/swaylock`，锁屏背景优先复用 `wallpaper-wayland` 记录的当前壁纸；若记录缺失，会尝试从当前 `swaybg -i <图片>` 进程解析图片路径；两者都不可用时才退回 Catppuccin Mocha 的纯色背景 `11111b`。解锁环配色由 `.config/linux/swaylock/config` 提供：Catppuccin Mocha 蓝 `#89b4fa` 默认环 / 绿 `#a6e3a1` 验证中 / 红 `#f38ba8` 错误，与 niri focus-ring 对齐；swaylock 1.8 主线版不支持 `--effect-blur`（swaylock-effects fork 功能），背景模糊暂不可用。若手动补 `/etc/pam.d/swaylock`，使用 PAM 的 `include` 控制语法：
+`lock-wayland` 锁屏主线为 `swaylock`（2026-08-29 起由 apt 提供，Nix profile 侧的 swaylock-effects 已移除；gtklock 方案曾于 2026-08-31 迁入又于 2026-09-02 回退，原因见 logs/trace.md）。脚本优先调用 `/usr/bin/swaylock`，锁屏背景优先复用 `wallpaper-wayland` 记录的当前壁纸；若记录缺失，会尝试从当前 `swaybg -i <图片>` 进程解析图片路径；两者都不可用时才退回 Catppuccin Mocha 的纯色背景 `11111b`。解锁密码来自系统 PAM 账户认证；它不是 GNOME Keyring/KWallet/浏览器保存密码。解锁环配色由 `.config/linux/swaylock/config` 提供：Catppuccin Mocha 蓝 `#89b4fa` 默认环 / 绿 `#a6e3a1` 验证中 / 红 `#f38ba8` 错误，与 niri focus-ring 对齐；swaylock 1.8 主线版不支持 `--effect-blur`（swaylock-effects fork 功能），背景模糊暂不可用。若手动补 `/etc/pam.d/swaylock`，使用 PAM 的 `include` 控制语法：
 
 ```pam
 auth include common-auth

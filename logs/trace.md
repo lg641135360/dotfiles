@@ -19,6 +19,14 @@
   cp ~/.config/niri/common.kdl.backup.<时间戳> ~/.config/niri/common.kdl
   ```
 
+## 2026-09-02 — 锁屏回退 swaylock，整体移除 gtklock 模块
+
+- 目的：用户决策锁屏回退 swaylock 简单版，放弃 gtklock 方案（2026-08-31 迁入的时钟/日期 + Mocha CSS 主题），并彻底移除 gtklock 模块痕迹。
+- 改动：① `lock-wayland` 删除 gtklock 优先分支（`lock_with_gtklock()` 与 `command -v gtklock` 分发），直接用 swaylock 分支；② 删除 `.config/linux/gtklock/{README.md,config.ini,style.css}` 与 `tests/gtklock_config_test.sh`；③ `install.sh` `linux_wayland_dir_configs` 移除 gtklock 部署项；④ 测试：`wayland_scripts_test.sh` 删两条 gtklock 相关测试（prefers_gtklock / falls_back_without_gtklock）与 `test_launcher_and_lock_have_wayland_first_fallbacks` 内 4 条断言、`install_wayland_test.sh` 删 gtklock 部署断言、`repo_docs_test.sh` 删 gtklock README 存在断言；⑤ 文档：`.config/scripts/README.md` 锁屏描述、`.config/linux/niri/README.md` 快捷键表 + 锁屏段、`memory/niri.md` 锁屏决策改为回退 swaylock。
+- 验证：`sh -n .config/scripts/lock-wayland` OK；`bash tests/wayland_scripts_test.sh`、`swaylock_config_test.sh`、`install_wayland_test.sh`、`repo_docs_test.sh` 均 PASS；`./tests/run.sh fast` PASS=46 FAIL=0 SKIP=0；`git diff --check` 干净。全仓库 grep 无功能代码残留 gtklock（仅 trace 历史、memory/niri.md 与 niri README 的回退说明）。
+- 回滚信息：未提交；未同步 live。若需回滚到 gtklock 方案：`git revert <本轮 commit>`（提交后）即恢复 lock-wayland/install.sh/测试，再恢复 `.config/linux/gtklock/` 与 `tests/gtklock_config_test.sh`（0b0d049 引入，可从该 commit 检出）。
+- 后续：若 live 侧 `~/.config/scripts/lock-wayland` 仍是 gtklock 版或 `~/.config/gtklock/` 存在，重跑 `./install.sh` 即回退（install.sh 自动备份 `~/.config/gtklock`）；apt 的 gtklock 包是否卸载由用户决定。
+
 ## 2026-09-02 — 解决 main 变基冲突（memory/niri.md 键位段合并）
 
 - 目的：main 在变基到 origin/main（6f661ff）时 `memory/niri.md` 键位段冲突（UU）。
