@@ -5,6 +5,22 @@
 # zoxide — smart cd replacement
 if command -v zoxide &> /dev/null; then
     eval "$(zoxide init --cmd cd zsh)"
+
+    # 官方 __zoxide_z_complete 对「cd <前缀>」只跑 _cd -/；本地无匹配
+    # 时 return 0，Tab 像没反应。只包这一支：有匹配用本地，没有再
+    # query --list。空格后再 Tab 等其余分支走 orig，不复制上游。
+    functions[_zoxide_z_complete_orig]=$functions[__zoxide_z_complete]
+    function __zoxide_z_complete() {
+        if [[ ${#words[@]} -eq 2 && ${#words[@]} -eq $CURRENT ]]; then
+            _cd -/
+            (( compstate[nmatches] > 0 )) && return 0
+            local -a zoxide_matches
+            zoxide_matches=(${(f)"$(\command zoxide query --exclude "$(__zoxide_pwd || \builtin true)" --list -- "${words[2]}" 2>/dev/null)"})
+            (( ${#zoxide_matches} )) && compadd -U -Q -f -S / -- "${zoxide_matches[@]}"
+            return 0
+        fi
+        _zoxide_z_complete_orig
+    }
 fi
 
 # tmuxifier — tmux session layouts

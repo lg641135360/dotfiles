@@ -19,6 +19,60 @@
   cp ~/.config/niri/common.kdl.backup.<时间戳> ~/.config/niri/common.kdl
   ```
 
+## 2026-09-03 — zoxide 补全改包装、关闭 autocd、清理 live 死文件
+
+- 目的：收维护债。① zoxide 补全不要整函数复制；② live 残留不加载的 keybindings/p10k/旧主题；③ 关掉极少用的 `setopt autocd`。
+- 改动：`integrations.zsh` 备份官方 `__zoxide_z_complete` 为 `_zoxide_z_complete_orig`，仅在「cd + 一个词」时本地 `_cd` 无匹配才 `query --list`，其余走 orig。`options.zsh` 去掉 `setopt autocd`。live 删除 `keybindings.zsh`、`.p10k.zsh`、两份 tokyonight 主题（先 backup）。README 与 tests 同步。
+- 验证：`zsh_functions_test.sh` / `zsh_plugins_test.sh` / `zsh_history_test.sh` PASS。live：`autocd=off`，`_zoxide_z_complete_orig` 存在，`_comps[cd]=__zoxide_z_complete`。
+- 回滚信息：本轮 commit（见 `git log -1`，未推送）。live 同步备份时间戳 `20260903_152406_891525015`。恢复命令：
+  ```bash
+  cp ~/.config/zsh/integrations.zsh.backup.20260903_152406_891525015 ~/.config/zsh/integrations.zsh
+  cp ~/.config/zsh/options.zsh.backup.20260903_152406_891525015 ~/.config/zsh/options.zsh
+  cp ~/.config/zsh/keybindings.zsh.backup.20260903_152406_891525015 ~/.config/zsh/keybindings.zsh
+  cp ~/.config/zsh/.p10k.zsh.backup.20260903_152406_891525015 ~/.config/zsh/.p10k.zsh
+  cp ~/.config/zsh/zsh-syntax-highlighting-tokyonight.zsh.backup.20260903_152406_891525015 ~/.config/zsh/zsh-syntax-highlighting-tokyonight.zsh
+  cp ~/.config/zsh/zsh-syntax-highlightin-tokyonight.zsh.backup.20260903_152406_891525015 ~/.config/zsh/zsh-syntax-highlightin-tokyonight.zsh
+  ```
+- 后续：新开 foot 窗口生效。敲目录名不会再自动 cd，需 `cd` 或 zoxide。死文件已不加载，恢复它们也不会改变行为，除非重新 source。
+
+## 2026-09-03 — fzf 别名改名、fd 接 Ctrl-T、fzf-tab zstyle、关闭 correct
+
+- 目的：收掉「完美」清单里的 2–4 和 6：`alias fzf=` 污染集成路径；`Ctrl+T` 未接 `fd`；fzf-tab 缺少推荐 zstyle；`setopt correct` 和补全抢注意力。
+- 改动：① `aliases.zsh` 改为 `fzfp`，`preview()` 走 `command fzf`；② `env.zsh` 在 `fd` 存在时设 `FZF_CTRL_T_COMMAND` / `FZF_ALT_C_COMMAND`（当前机器未装 fd，保持 unset）；③ `plugins.zsh` 增加 git-checkout 不排序、`menu no`、`cd` 用 `lsd` 预览，并因不再 alias `fzf` 而改回 `source <(fzf --zsh)`；④ `options.zsh` 去掉 `setopt correct`。README 与 `tests/zsh_plugins_test.sh` 同步。
+- 验证：`sh tests/zsh_plugins_test.sh` PASS；`zsh_history` / `zsh_functions` / `zsh_path` PASS（path 三项 SKIP 为目录不存在）。live `zvm_init`：Tab=`fzf-tab-complete`，`fzfp` 别名存在，`alias fzf` 无，`correct=off`，`FZF_CTRL_T_COMMAND` unset。
+- 回滚信息：本轮 commit（见 `git log -1`，未推送）。live 已同步（备份时间戳 `20260903_144840_195949302`）。恢复命令：
+  ```bash
+  cp ~/.config/zsh/plugins.zsh.backup.20260903_144840_195949302 ~/.config/zsh/plugins.zsh
+  cp ~/.config/zsh/env.zsh.backup.20260903_144840_195949302 ~/.config/zsh/env.zsh
+  cp ~/.config/zsh/aliases.zsh.backup.20260903_144840_195949302 ~/.config/zsh/aliases.zsh
+  cp ~/.config/zsh/options.zsh.backup.20260903_144840_195949302 ~/.config/zsh/options.zsh
+  ```
+- 后续：新开 foot 窗口生效。带预览搜索改敲 `fzfp`。`Ctrl+T` 要用 `fd` 需先 `brew install fd`。locale 警告仍需本机 `locale-gen`。
+
+## 2026-09-03 — cd Tab 在本地无匹配时回落到 zoxide 历史
+
+- 目的：`cd ss` 按 Tab 仍无补全。根因是 `zoxide init --cmd cd` 的 `__zoxide_z_complete` 对「cd + 一个词」只跑 `_cd -/`（当前目录）；本地没有 `ss*` 时直接 return 0，fzf-tab 拿不到候选。zoxide 历史只在 `cd ss `（末尾空格）再 Tab 时走 `--interactive`。
+- 改动：`integrations.zsh` 在 zoxide init 之后覆盖 `__zoxide_z_complete`：本地 `_cd -/` 有匹配则用本地；否则 `zoxide query --list`，`compadd` 给 fzf-tab。空格后再 Tab 仍走 zoxide 交互选择。README 与 `tests/zsh_functions_test.sh` 同步。
+- 验证：`sh tests/zsh_functions_test.sh` PASS；live 加载后 `_comps[cd]=__zoxide_z_complete` 且函数含 `--list`。未在真实 TTY 里按 Tab 冒烟（zle 仅在交互行编辑中可用）。
+- 回滚信息：本轮 commit（见 `git log -1`，未推送）。live 已同步 `~/.config/zsh/integrations.zsh`（备份 `integrations.zsh.backup.20260903_140217_662706658`）。恢复命令：
+  ```bash
+  cp ~/.config/zsh/integrations.zsh.backup.20260903_140217_662706658 ~/.config/zsh/integrations.zsh
+  ```
+- 后续：必须新开 foot 窗口；`cd ss` + Tab 应列出 zoxide 库里匹配 `ss` 的目录（当前库里是 `.../zsh-autopair`）。当前目录若已有 `ss*` 仍优先本地。
+
+## 2026-09-03 — 修复 zsh Tab 补全被 fzf --zsh / zsh-vi-mode 抢走
+
+- 目的：foot 新开 zsh 按 Tab 无菜单、无反应。根因是 `fzf-tab` 在 `compinit` 之前加载，随后 `env.zsh` 的 `source <(fzf --zsh)` 把 Tab 绑成只认 `**` 的 `fzf-completion`，`zsh-vi-mode` 首次提示符再 `bindkey -v` 覆盖先前绑定；`aliases.zsh` 的 `fzf --preview` 别名还会让裸 `fzf --zsh` 失败。
+- 改动：① `plugins.zsh` 把 `fzf-tab` 挪到 `compinit` 之后、autosuggestions/syntax-highlighting 之前；② `zvm_after_init` 用 `whence -p fzf` 加载 `--zsh`，再 `enable-fzf-tab` 把 Tab 抢回，并 `zstyle ':fzf-tab:*' fzf-command` 指向真实二进制；③ `env.zsh` 不再提前 source `fzf --zsh`；④ README 与 `tests/zsh_plugins_test.sh` 同步加载顺序断言。
+- 验证：`sh tests/zsh_plugins_test.sh` PASS；`sh tests/zsh_history_test.sh` / `zsh_functions_test.sh` / `zsh_path_test.sh` PASS（path 三项 SKIP 为目录不存在）；`git diff --check` 干净。隔离 `ZDOTDIR` 与 live 同步后 `zvm_init`：viins/emacs/main 的 `^I` 均为 `fzf-tab-complete`，`^R`/`^T` 为 fzf widget，`fzf_default_completion=expand-or-complete`。
+- 回滚信息：本轮 commit（见 `git log -1`，未推送）。live 已同步（备份时间戳 `20260903_115416_514571439`）。恢复命令：
+  ```bash
+  cp ~/.config/zsh/plugins.zsh.backup.20260903_115416_514571439 ~/.config/zsh/plugins.zsh
+  cp ~/.config/zsh/env.zsh.backup.20260903_115416_514571439 ~/.config/zsh/env.zsh
+  cp ~/.config/zsh/.zshrc.backup.20260903_115416_514571439 ~/.config/zsh/.zshrc
+  ```
+- 后续：已打开的 zsh 需新开窗口才加载新配置；在 foot 输入 `ls ` 再按 Tab 应弹出 fzf-tab 菜单。Grok 输入框的 Tab 仍是切焦点，与本次无关。
+
 ## 2026-09-02 — Obsidian 迁移 deb 后修复 fuzzel 双入口与启动失效
 
 - 目的：fuzzel 出现两个 Obsidian 入口（系统 `md.obsidian.Obsidian.desktop` + 自建 `obsidian.desktop`）；且上午清理 AppImage 后，自建入口的 `obsidian-wayland` 仍指向已删除的 `~/Applications/Obsidian-*.AppImage`（exit 127），系统入口裸 exec `/opt/Obsidian/obsidian` 在 niri 下因 Vulkan 与 Wayland surface factory 不兼容而启动即退出（均实测复现）。

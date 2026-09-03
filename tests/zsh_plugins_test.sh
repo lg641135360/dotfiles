@@ -3,6 +3,9 @@ set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 PLUGINS_FILE=$REPO_ROOT/.config/shared/zsh/plugins.zsh
+ENV_FILE=$REPO_ROOT/.config/shared/zsh/env.zsh
+ALIASES_FILE=$REPO_ROOT/.config/shared/zsh/aliases.zsh
+OPTIONS_FILE=$REPO_ROOT/.config/shared/zsh/options.zsh
 
 . "$REPO_ROOT/tests/lib/assert.sh"
 
@@ -40,6 +43,7 @@ test_critical_plugins_load_immediately() {
     assert_contains 'zinit light zsh-users/zsh-syntax-highlighting' "$PLUGINS_FILE"
     assert_contains 'zinit light zsh-users/zsh-autosuggestions' "$PLUGINS_FILE"
     assert_contains 'zinit light Aloxaf/fzf-tab' "$PLUGINS_FILE"
+    assert_not_matches 'zinit ice wait.*Aloxaf/fzf-tab' "$PLUGINS_FILE"
 }
 
 # p10k 已弃用（gitstatus 二进制在 aarch64 版本不匹配导致初始化失败，拖慢
@@ -50,11 +54,64 @@ test_p10k_is_removed() {
     assert_not_contains 'p10k' "$PLUGINS_FILE"
 }
 
-# compinit 必须在所有 zinit light/snippet 之后、cdreplay 之前。
+# 会注册补全的 snippet 必须在 compinit 之前；cdreplay 紧跟 compinit。
+# fzf-tab 必须在 compinit 之后（官方要求），且在会包装 widget 的
+# autosuggestions / syntax-highlighting 之前。
 test_compinit_order_before_cdreplay() {
-    assert_order 'zinit light zsh-users/zsh-autosuggestions' 'compinit -u' "$PLUGINS_FILE"
     assert_order 'zinit snippet OMZP::command-not-found' 'compinit -u' "$PLUGINS_FILE"
     assert_order 'compinit -u' 'zinit cdreplay -q' "$PLUGINS_FILE"
+}
+
+test_fzf_tab_loads_after_compinit_before_widget_wrappers() {
+    assert_order 'compinit -u' 'zinit light Aloxaf/fzf-tab' "$PLUGINS_FILE"
+    assert_order 'zinit light Aloxaf/fzf-tab' 'zinit light zsh-users/zsh-autosuggestions' "$PLUGINS_FILE"
+    assert_order 'zinit light Aloxaf/fzf-tab' 'zinit light zsh-users/zsh-syntax-highlighting' "$PLUGINS_FILE"
+}
+
+# fzf --zsh 会 bindkey '^I' fzf-completion，且 zsh-vi-mode 在首次提示符
+# 覆盖先前绑定。必须放到 zvm_after_init，并在其后 enable-fzf-tab 把 Tab
+# 抢回给 fzf-tab。env.zsh 只保留 FZF_DEFAULT_OPTS，不再提前 source。
+test_fzf_integration_runs_in_zvm_after_init() {
+    assert_contains 'function zvm_after_init()' "$PLUGINS_FILE"
+    assert_contains 'source <(fzf --zsh)' "$PLUGINS_FILE"
+    assert_contains '(( $+functions[enable-fzf-tab] )) && enable-fzf-tab' "$PLUGINS_FILE"
+    assert_contains 'fzf_default_completion=expand-or-complete' "$PLUGINS_FILE"
+    assert_order 'function zvm_after_init()' 'source <(fzf --zsh)' "$PLUGINS_FILE"
+    assert_order 'source <(fzf --zsh)' '(( $+functions[enable-fzf-tab] )) && enable-fzf-tab' "$PLUGINS_FILE"
+    assert_order 'fzf_default_completion=expand-or-complete' 'source <(fzf --zsh)' "$PLUGINS_FILE"
+    assert_not_contains 'source <(fzf --zsh)' "$ENV_FILE"
+}
+
+# fzf 本身不再被 alias；带 preview 的入口是 fzfp，避免污染
+# command -v / fzf --zsh / fzf-tab。
+test_fzf_preview_alias_is_fzfp_not_fzf() {
+    assert_contains 'alias fzfp=' "$ALIASES_FILE"
+    assert_not_contains "alias fzf=" "$ALIASES_FILE"
+}
+
+# fzf-tab 官方推荐：git checkout 不按字母序、关掉 compsys 菜单、
+# cd 补全用 lsd 预览。不要 use-fzf-default-opts。
+test_fzf_tab_recommended_zstyles() {
+    assert_contains "zstyle ':completion:*:git-checkout:*' sort false" "$PLUGINS_FILE"
+    assert_contains "zstyle ':completion:*' menu no" "$PLUGINS_FILE"
+    assert_contains "zstyle ':fzf-tab:complete:cd:*' fzf-preview" "$PLUGINS_FILE"
+    assert_contains 'lsd -1 --color=always' "$PLUGINS_FILE"
+    assert_not_matches "zstyle ':fzf-tab[^']*' use-fzf-default-opts" "$PLUGINS_FILE"
+}
+
+# Ctrl-T / Alt-C 在 fd 可用时用它列文件，否则保持 fzf 默认 find。
+test_env_wires_fd_for_fzf_widgets() {
+    assert_contains 'command -v fd' "$ENV_FILE"
+    assert_contains 'FZF_CTRL_T_COMMAND=' "$ENV_FILE"
+    assert_contains 'FZF_ALT_C_COMMAND=' "$ENV_FILE"
+    assert_contains 'fd --hidden --follow --exclude .git' "$ENV_FILE"
+    assert_contains 'fd --type d --hidden --follow --exclude .git' "$ENV_FILE"
+}
+
+# setopt correct 会和补全抢注意力；autocd 会把目录名当 cd，误触多。
+test_options_does_not_enable_correct_or_autocd() {
+    assert_not_contains 'setopt correct' "$OPTIONS_FILE"
+    assert_not_contains 'setopt autocd' "$OPTIONS_FILE"
 }
 
 test_compinit_skips_compaudit
@@ -64,5 +121,11 @@ test_you_should_use_is_deferred
 test_critical_plugins_load_immediately
 test_p10k_is_removed
 test_compinit_order_before_cdreplay
+test_fzf_tab_loads_after_compinit_before_widget_wrappers
+test_fzf_integration_runs_in_zvm_after_init
+test_fzf_preview_alias_is_fzfp_not_fzf
+test_fzf_tab_recommended_zstyles
+test_env_wires_fd_for_fzf_widgets
+test_options_does_not_enable_correct_or_autocd
 
 printf 'PASS: zsh plugins tests\n'

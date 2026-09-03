@@ -53,8 +53,13 @@ if [[ -x "$(command -v fzf)" ]]; then
     "
 fi
 
-# fzf zsh integration
-if [[ -x "$(command -v fzf)" ]]; then
-    source <(fzf --zsh)
+# Ctrl-T / Alt-C 在 fd 可用时用它列文件（尊重隐藏文件、跳过 .git）。
+# fd 未安装时不设，fzf 回退默认 find。
+if [[ -x "$(command -v fd)" ]]; then
+    export FZF_CTRL_T_COMMAND='fd --hidden --follow --exclude .git'
+    export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
 fi
+
+# fzf --zsh（Tab / Ctrl-R / Ctrl-T）改在 plugins.zsh 的 zvm_after_init
+# 里加载：zsh-vi-mode 会覆盖先前 bindkey，提前 source 会让 Tab 失效。
 

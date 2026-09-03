@@ -15,11 +15,16 @@ test_histfile_follows_zdotdir() {
 }
 
 # 旧 keybindings.zsh 已合并到 history.zsh，arrow-key history search bindkey
-# 应在 history.zsh 末尾，且 .zshrc 不再 source keybindings.zsh。
+# 应在 history.zsh 末尾，且仓库不再保留该文件、.zshrc 也不再 source。
 test_keybindings_merged_into_history() {
     assert_contains 'history-beginning-search-backward' "$HISTORY_FILE"
     assert_contains 'history-beginning-search-forward' "$HISTORY_FILE"
     assert_not_contains 'keybindings.zsh' "$ZSHRC_FILE"
+    ZSH_DIR=$(dirname "$HISTORY_FILE")
+    if [ -e "$ZSH_DIR/keybindings.zsh" ]; then
+        echo "FAIL: leftover $ZSH_DIR/keybindings.zsh" >&2
+        exit 1
+    fi
 }
 
 test_histfile_follows_zdotdir

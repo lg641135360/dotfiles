@@ -42,13 +42,13 @@ if [[ -x "$(command -v evince)" ]]; then
     alias pdf='runfree evince'
 fi
 
-# fzf
+# fzf：不要 alias 掉 fzf 本身，否则 command -v / fzf --zsh / fzf-tab
+# 都会吃到 --preview。带预览的入口用 fzfp；preview() 内部走 command fzf。
 if [[ -x "$(command -v fzf)" ]]; then
-    alias fzf='fzf --preview "bat --style=numbers --color=always --line-range :500 {}"'
-    # Use functions instead of aliases to avoid eager $() expansion
+    alias fzfp='command fzf --preview "bat --style=numbers --color=always --line-range :500 {}"'
     if [[ -x "$(command -v xdg-open)" ]]; then
         function preview() {
-            open "$(fzf --info=inline --query="${@}")"
+            open "$(command fzf --info=inline --query="${@}")"
         }
     fi
 fi

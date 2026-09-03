@@ -38,7 +38,7 @@ chmod +x install.sh
 | [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting) | 命令语法高亮 |
 | [zsh-completions](https://github.com/zsh-users/zsh-completions) | 扩展补全 |
 | [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions) | 自动建议（按 → 接受） |
-| [fzf-tab](https://github.com/Aloxaf/fzf-tab) | fzf 风格的补全菜单 |
+| [fzf-tab](https://github.com/Aloxaf/fzf-tab) | fzf 风格的补全菜单（`compinit` 之后加载，Tab 由它最后绑定） |
 | [zsh-vi-mode](https://github.com/jeffreytse/zsh-vi-mode) | Vi 模式（ESC 进入 normal 模式） |
 | [zsh-autopair](https://github.com/hlissner/zsh-autopair) | 括号/引号自动配对（延迟加载） |
 | [zsh-you-should-use](https://github.com/MichaelAquilina/zsh-you-should-use) | 输入长命令时提醒已有别名（延迟加载） |
@@ -67,9 +67,12 @@ chmod +x install.sh
 |--------|------|
 | `↑` / `↓` | 按当前输入前缀搜索历史命令 |
 | `→` | 接受自动建议 |
-| `Tab` | 触发 fzf-tab 补全菜单 |
+| `Tab` | 触发 fzf-tab 补全菜单（任意前缀即可，不必输入 `**`） |
+| `cd ss` + `Tab` | 先补当前目录，没有再从 zoxide 历史里搜（不必先空格） |
+| `cd ss ` + `Tab` | 空格后再 Tab：zoxide 交互选择 |
 | `Ctrl+R` | fzf 历史搜索 |
-| `Ctrl+S` | fzf 文件搜索（需要 `fzf --zsh` 集成） |
+| `Ctrl+T` | fzf 文件搜索（有 `fd` 时用它列文件） |
+| `Alt+C` | fzf 选目录并 `cd`（有 `fd` 时用它列目录） |
 | `Ctrl+C` | 取消当前输入 |
 
 ### 光标样式
@@ -127,8 +130,8 @@ chmod +x install.sh
 |------|------|------|
 | `open` | `runfree xdg-open` | 后台打开文件/URL |
 | `pdf` | `runfree evince` | 后台打开 PDF |
-| `fzf` | `fzf --preview "bat ..."` | 带预览的模糊搜索 |
-| `preview` | 函数：`open $(fzf ...)` | fzf 搜索并打开文件 |
+| `fzfp` | `command fzf --preview "bat ..."` | 带预览的模糊搜索（不占用 `fzf` 命令名） |
+| `preview` | 函数：`open $(command fzf ...)` | fzf 搜索并打开文件 |
 | `grep` / `fgrep` / `egrep` | 加 `--color=auto` | 彩色输出 |
 
 ## Functions
@@ -148,10 +151,10 @@ chmod +x install.sh
 ```
 .zshenv             ← 系统级设置（skip_global_compinit=1，见下）
 .zshrc              ← 入口
-├── plugins.zsh     ← zinit + 8 个插件 + compinit（-u -d $ZSH_CONF/.zcompdump）
-├── options.zsh     ← setopt 选项（autocd, correct 等）
+├── plugins.zsh     ← zinit + 8 个插件 + compinit + zvm_after_init（fzf --zsh / fzf-tab）
+├── options.zsh     ← setopt 选项（已关闭 autocd / correct）
 ├── path.zsh        ← PATH 管理（pathappend/prepend）
-├── env.zsh         ← 环境变量（EDITOR, FZF_OPTS, PAGER）
+├── env.zsh         ← 环境变量（EDITOR, FZF_DEFAULT_OPTS, PAGER）
 ├── history.zsh     ← 历史配置（HISTSIZE, 去重规则, HISTFILE=$ZDOTDIR/.zsh_history）+ ↑↓ 历史搜索绑定
 ├── aliases.zsh     ← 命令别名（条件加载）
 ├── functions.zsh   ← 工具函数（y, cpp, mkdirg 等）
@@ -173,6 +176,25 @@ chmod +x install.sh
 3. **zsh-autopair / zsh-you-should-use 延迟加载**：这两个插件合计占 plugins.zsh 约 73% 耗时（autopair ~0.22s, you-should-use ~0.12s），但功能仅在按键时才需要。用 `zinit ice wait lucid` 延迟到首次提示符后异步加载，不阻塞首次提示符渲染。
 
 延迟加载的权衡：autopair 的括号配对、you-should-use 的别名提醒在首次提示符后约 50ms 才激活，极少数场景下首次按键可能未触发配对。实际无感知。
+
+## Tab 补全：fzf-tab 必须最后绑 `^I`
+
+`fzf-tab` 官方要求：在 `compinit` 之后加载，且是最后一个绑定 Tab 的插件。`zsh-vi-mode` 默认在首次提示符才 `bindkey -v`，会覆盖先前绑定；`fzf --zsh` 又会把 Tab 绑成只认 `**` 触发器的 `fzf-completion`。
+
+因此 [plugins.zsh](.config/shared/zsh/plugins.zsh) 固定为：
+
+1. `compinit` 之后加载 `fzf-tab`，再加载会包装 widget 的 `zsh-autosuggestions` / `zsh-syntax-highlighting`。
+2. `zvm_after_init` 里 `source <(fzf --zsh)`（Ctrl-R / Ctrl-T / `**`），再 `enable-fzf-tab` 把 Tab 抢回。
+3. `fzf_default_completion=expand-or-complete`，避免 `**` 未触发时回落到 `fzf-tab` 形成递归。
+4. fzf-tab zstyle：`git checkout` 不按字母序、关掉 compsys 菜单、`cd` 补全用 `lsd` 预览。不要 `use-fzf-default-opts`。
+
+`env.zsh` 只保留 `FZF_DEFAULT_OPTS`；有 `fd` 时再设 `FZF_CTRL_T_COMMAND` / `FZF_ALT_C_COMMAND`。带预览的手动入口是 `fzfp`，不占用 `fzf` 命令名。`setopt correct` / `setopt autocd` 已关闭：打错命令不再提示纠正，敲目录名也不会自动 cd。
+
+## `cd` Tab：zoxide 默认只补当前目录
+
+`zoxide init --cmd cd` 把 `cd` 换成函数，补全 `__zoxide_z_complete` 对 `cd ss` 只跑 `_cd -/`（当前目录下的 `ss*`）。本地没有匹配时直接成功返回，fzf-tab 拿不到候选，看起来像 Tab 没反应。zoxide 历史要用 `cd ss `（末尾空格）再 Tab。
+
+[integrations.zsh](.config/shared/zsh/integrations.zsh) 在 init 之后包装官方函数（备份为 `_zoxide_z_complete_orig`）：本地有匹配仍走 `_cd`；没有则 `zoxide query --list` 交给 fzf-tab。空格后再 Tab 等其余分支走 orig。
 
 ## 启动提速：弃用 p10k 改用 starship
 
