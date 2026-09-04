@@ -17,7 +17,7 @@
 - **cursor color**：foot 显式 `colors.cursor = 1e1e2e f5e0dc`（text/cursor，foot 1.25 起 `colors.cursor` 取代废弃的 `cursor.color`）以对齐 Catppuccin Mocha；alacritty 走主题默认反转。
 - **OSC52**：foot 默认仅允许写剪贴板方向，与 alacritty 的 `terminal.osc52 = "OnlyCopy"` 等价，无需显式配置。
 - **窗口模糊**：alacritty 在 Linux 启用 `blur = true`；foot 1.27 `+blur` 构建已支持 `colors.blur=yes`（`ext-background-effect-v1`），但 niri 全局 window-rule 已对 foot 启用 `background-effect { blur true }`，重复开启无额外效果，故 foot 自身不配 blur；透明度由 `colors.alpha = 0.82` 提供（与 alacritty 在 niri 下的实际表现一致）。
-- **选中与剪贴板**（2026-09-01）：`selection-target=both` 框选同时写 PRIMARY+CLIPBOARD，配合 wl-clip-persist/cliphist 自动进入剪贴板历史（foot 默认仅 PRIMARY）；代价是框选即写剪贴板。
+- **选中与剪贴板**（2026-09-04 改回 primary）：框选只写 PRIMARY，不覆盖 CLIPBOARD，避免 Chrome `Ctrl+C` 后切到 foot 框选就把内容冲掉。跨应用复制用 `Ctrl+Shift+C`；中键 / `Shift+Insert` 仍可贴刚选内容。框选不再自动进 cliphist。2026-09-01 曾用 `both` 换「选中即入历史」，该代价已撤回。
 - **响铃**（2026-09-01）：`[bell] urgent=yes` 后台窗口响铃触发 urgent（niri 指示器提示）。
 - **URL 下划线**（2026-09-01）：1.27 起默认点线 `dotted`，`[url] style=single` 改回实线保持旧观感。
 - **透明度应用范围**（2026-09-01）：`alpha-mode=all` 整窗均匀半透明，镜像 alacritty opacity（foot 默认仅"默认背景"单元格透明，彩色背景不透明）；代价是彩色高亮也变透。

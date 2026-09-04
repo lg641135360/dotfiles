@@ -100,8 +100,9 @@ test_terminal_wayland_prefers_foot() {
 }
 
 test_practical_additions() {
-    # 2026-09-01 新增实用配置：选中同时进剪贴板历史、后台响铃 urgent、URL 实线下划线。
-    assert_contains 'selection-target=both' "$FOOT_FILE"
+    # 框选只写 PRIMARY，避免冲掉 Chrome Ctrl+C 的 CLIPBOARD；跨应用复制用 Ctrl+Shift+C。
+    assert_contains 'selection-target=primary' "$FOOT_FILE"
+    # 2026-09-01 新增：后台响铃 urgent、URL 实线下划线。
     assert_contains 'urgent=yes' "$FOOT_FILE"
     assert_contains 'style=single' "$FOOT_FILE"
     # 微优化：整窗均匀透明（镜像 alacritty opacity）、滚动位置百分比、双击选词追加代码字符。

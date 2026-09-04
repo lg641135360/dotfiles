@@ -19,6 +19,17 @@
   cp ~/.config/niri/common.kdl.backup.<时间戳> ~/.config/niri/common.kdl
   ```
 
+## 2026-09-04 — foot 框选改回只写 PRIMARY，避免冲掉 Chrome 剪贴板
+
+- 目的：Chrome 复制文本到 foot 有时失败。现场 CLIPBOARD 被单字符覆盖，根因是 `selection-target=both`：foot 框选同时写 CLIPBOARD，冲掉 Chrome `Ctrl+C`。
+- 改动：`foot.ini` 改为 `selection-target=primary`；`tests/foot_config_test.sh` 断言同步；foot README 与 `memory/foot.md` 记录决策撤回（跨应用复制用 `Ctrl+Shift+C`，中键仍可贴刚选内容）。
+- 验证：`sh tests/foot_config_test.sh` PASS；`foot -c .config/linux/foot/foot.ini -C` exit 0；`git diff --check` 干净。未同步 live，已打开的 foot 窗口仍用旧配置。
+- 回滚信息：本轮 commit（见 `git log -1`）；未同步 live。`git revert HEAD` 即回滚仓库。live 若已同步，用 install.sh 备份恢复：
+  ```bash
+  cp ~/.config/foot/foot.ini.backup.<TS> ~/.config/foot/foot.ini
+  ```
+- 后续：live 同步走 `./install.sh` 或手动复制 `foot.ini`；**已打开的 foot 窗口需关掉重开**才加载。框选不再进 cliphist。若复制后立刻贴仍失败，再查 persist/cliphist 并发抢 Chrome 数据。
+
 ## 2026-09-03 — zoxide 补全改包装、关闭 autocd、清理 live 死文件
 
 - 目的：收维护债。① zoxide 补全不要整函数复制；② live 残留不加载的 keybindings/p10k/旧主题；③ 关掉极少用的 `setopt autocd`。
