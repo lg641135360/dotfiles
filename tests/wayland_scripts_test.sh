@@ -24,6 +24,8 @@ TRAE_SCRIPT=$REPO_ROOT/.config/scripts/trae-cn-wayland
 TRAE_DESKTOP=$REPO_ROOT/.config/linux/desktop-entries/trae-cn.desktop
 OBSIDIAN_SCRIPT=$REPO_ROOT/.config/scripts/obsidian-wayland
 OBSIDIAN_DESKTOP=$REPO_ROOT/.config/linux/desktop-entries/obsidian.desktop
+CHATGPT_SCRIPT=$REPO_ROOT/.config/scripts/chatgpt-wayland
+CHATGPT_DESKTOP=$REPO_ROOT/.config/linux/desktop-entries/chatgpt.desktop
 
 test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_executable "$AUTOSTART_SCRIPT"
@@ -757,6 +759,22 @@ test_obsidian_wayland_forces_native_wayland_gl() {
     assert_contains 'StartupWMClass=md.obsidian.Obsidian' "$OBSIDIAN_DESKTOP"
 }
 
+test_chatgpt_wayland_forces_native_wayland() {
+    assert_executable "$CHATGPT_SCRIPT"
+    # deb install at /usr/lib/chatgpt (26.901, Chromium 152): the Electron app
+    # defaults to --ozone-platform=x11, so under niri it runs on XWayland and
+    # fcitx5 can only reach it through XIM, which desyncs preedit (premature
+    # commit / stray spaces) in ChatGPT's React textarea. The wrapper must force
+    # native Wayland ozone + Wayland IME; Chromium 152 defaults to text-input v3.
+    assert_contains '--ozone-platform=wayland' "$CHATGPT_SCRIPT"
+    assert_contains '--enable-wayland-ime' "$CHATGPT_SCRIPT"
+    assert_contains '/usr/lib/chatgpt/ChatGPT' "$CHATGPT_SCRIPT"
+
+    # fuzzel launches the desktop entry, so its Exec must route through the wrapper.
+    assert_file_exists "$CHATGPT_DESKTOP"
+    assert_contains 'Exec=__HOME__/.config/scripts/chatgpt-wayland %U' "$CHATGPT_DESKTOP"
+}
+
 test_wayland_autostart_checks_apps_and_separates_logs
 test_wayland_autostart_logs_each_app_and_warns_for_missing_commands
 test_file_manager_wayland_uses_available_fallbacks
@@ -776,5 +794,6 @@ test_browser_wayland_passes_ozone_flag_only_under_wayland
 test_clipboard_wayland_persists_and_queries_history
 test_trae_cn_forces_wayland_with_ime
 test_obsidian_wayland_forces_native_wayland_gl
+test_chatgpt_wayland_forces_native_wayland
 
 printf 'PASS: wayland scripts tests\n'

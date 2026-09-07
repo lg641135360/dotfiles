@@ -1,0 +1,16 @@
+[Desktop Entry]
+Name=ChatGPT
+Comment=ChatGPT by OpenAI (native Wayland under niri)
+# Route through chatgpt-wayland so the Wayland session adds
+# --ozone-platform=wayland --enable-wayland-ime to the deb binary at
+# /usr/lib/chatgpt (Electron defaults to --ozone-platform=x11; under niri that
+# means XWayland + XIM, which desyncs preedit -> premature commit / stray
+# spaces in ChatGPT's React textarea). X11 passes through unchanged.
+# __HOME__ is rewritten to the real $HOME by install.sh at deploy time so the
+# entry is portable across machines/users.
+Exec=__HOME__/.config/scripts/chatgpt-wayland %U
+Icon=chatgpt
+Type=Application
+StartupNotify=true
+Categories=Utility;Development;
+MimeType=x-scheme-handler/codex;x-scheme-handler/http;x-scheme-handler/https;text/csv;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.openxmlformats-officedocument.presentationml.presentation;text/tab-separated-values;application/vnd.ms-excel;application/vnd.ms-excel.sheet.macroEnabled.12;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;

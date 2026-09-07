@@ -282,3 +282,17 @@
   ```
   旧 live 备份按"保留 3 份"清理（`ls -1t ~/.config/scripts/clipboard-wayland.backup.* | tail -n +4 | xargs rm -f`），agent 已尝试清理但同样被白名单拦截，需用户执行。
 - 后续可能方向：① live 重启守护后实测钉钉粘贴；② 观察桥轮询 CPU/功耗（0.5s 间隔，进程开销集中在 xclip/wl-paste 轮询）；③ 若卫星后续版本修复事件送达，可评估移除轮询桥。
+
+## 2026-09-07 — ChatGPT 桌面版迁原生 Wayland（live 实测通过后按 obsidian 链路入仓库）
+
+- 目的：ChatGPT 桌面版（deb chatgpt 26.901.51231，Electron/Chromium 152）默认 `--ozone-platform=x11`，在 niri 下以 XWayland 运行，fcitx5 只能走 XIM；XIM preedit 不同步导致输入框"半道上屏 + 多出空格"。用户要求先只改 live 验证有效再入仓库。
+- 改动（live 先落地，用户实测中文输入正常后入仓库）：
+  1. live：新增 `~/.config/scripts/chatgpt-wayland` wrapper（Wayland 会话 `exec /usr/lib/chatgpt/ChatGPT --ozone-platform=wayland --enable-wayland-ime "$@"`，X11 透传；Chromium 152 默认 text-input v3，未加 `--wayland-text-input-version=3`，实测也无需 `--disable-vulkan`，与 Obsidian 不同）+ `~/.local/share/applications/chatgpt.desktop` 覆盖系统入口（仅改 Exec，其余字段照抄系统文件）。
+  2. 仓库：`.config/scripts/chatgpt-wayland`（与 live 同内容）、`.config/linux/desktop-entries/chatgpt.desktop`（用 `__HOME__` 占位符 + 注释，按 obsidian.desktop 模式）、`install.sh` `linux_wayland_configs` 两条部署项、`tests/wayland_scripts_test.sh` 新增 `test_chatgpt_wayland_forces_native_wayland`、`tests/install_wayland_test.sh` 两条断言、`desktop-entries/README.md`/`scripts/README.md`/`niri/README.md` 收录、`memory/desktop.md` 矩阵补 XIM preedit 不同步根因条目。
+- 验证：live 侧——退出旧 X11 实例后经 `gtk-launch chatgpt` 从新入口拉起，renderer 进程 3 个均带 `--ozone-platform=wayland`、`--enable-wayland-ime` 命中；niri App ID 由 `Chatgpt`（X11 WM_CLASS）变 `chatgpt`（原生 Wayland）；`xlsclients` 不再列出（脱离 XWayland）。**用户实测 ChatGPT 输入框打中文：候选框正常弹出、无多余空格、无提前上屏**。仓库侧——`bash -n` wrapper、`desktop-file-validate` 通过；`tests/wayland_scripts_test.sh` / `install_wayland_test.sh` / `run.sh fast` PASS。
+- 回滚信息：未提交（仓库改动：`.config/scripts/chatgpt-wayland`、`.config/linux/desktop-entries/chatgpt.desktop`、`install.sh`、`tests/wayland_scripts_test.sh`、`tests/install_wayland_test.sh`、三份 README、`memory/desktop.md`）。`git checkout -- <file>` 即回滚；live 文件为新增（原 `~/.local/share/applications/chatgpt.desktop` 不存在、无旧备份），恢复命令：
+  ```bash
+  rm ~/.local/share/applications/chatgpt.desktop ~/.config/scripts/chatgpt-wayland
+  # 删除后系统入口 /usr/share/applications/chatgpt.desktop 自动接管（Exec=chatgpt → X11）
+  ```
+- 后续可能方向：① 若日后 app 渲染/GPU 异常，按 Obsidian 先例试 `--disable-vulkan`；② 终端 `chatgpt` 命令仍走 X11（走 codex-launcher 透传），如需统一可后续调整；③ live `~/.local/share/applications/chatgpt.desktop` 是手写绝对路径版，重跑 install.sh 会换成仓库的 `__HOME__` 占位符版（部署时重写为同一路径，行为不变）。踩坑：`pkill -f '/usr/lib/chatgpt/ChatGPT'` 会匹配到自身 shell 命令行（`-f` 匹配完整 argv），把执行命令的 shell 一起杀掉，需避免用与命令文本相同的模式。

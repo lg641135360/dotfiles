@@ -165,6 +165,10 @@ Trae CN 是 Electron 应用，与 Chrome 同类：默认走 X11 平台，纯 Way
 
 Obsidian 现为 deb 安装（`/opt/Obsidian/obsidian`，1.13.7）。`~/.config/scripts/obsidian-wayland` 在 Wayland 会话下追加 `--ozone-platform=wayland --enable-wayland-ime --disable-vulkan`：原生 Wayland 保留 HiDPI 缩放；`--enable-wayland-ime` 提供 Fcitx5/Rime 输入法支持；`--disable-vulkan` 为必需——新版在 Wayland 会话下自动选 ozone-wayland，但默认 Vulkan 路径与 Wayland surface factory 不兼容，gpu 进程报错后不弹窗（直接裸 exec `/opt/Obsidian/obsidian` 会启动即退出，已实测 2026-09-02）。新 Chromium（≥ 13x）默认 text-input v3，不再需要 AppImage 时代加的 `--wayland-text-input-version=3`。X11 会话原样透传。`.config/linux/desktop-entries/obsidian.desktop` 提供 fuzzel 入口（`Exec` 走 wrapper）。
 
+### ChatGPT（Electron deb）
+
+ChatGPT 桌面版为 deb 安装（`/usr/lib/chatgpt/ChatGPT`，26.901，Chromium 152）。Electron 默认 `--ozone-platform=x11`，在 niri 下以 XWayland 运行，fcitx5 只能走 XIM——XIM preedit 不同步会在 ChatGPT 的 React 输入框里出现"打一半就上屏"和多余空格（2026-09-07 实测）。`~/.config/scripts/chatgpt-wayland` 在 Wayland 会话下追加 `--ozone-platform=wayland --enable-wayland-ime` 走原生 Wayland（Chromium 152 默认 text-input v3，fcitx5 经 niri 正常服务），X11 原样透传。`.config/linux/desktop-entries/chatgpt.desktop` 覆盖系统入口，`Exec` 走 wrapper；与 Obsidian 不同，本应用无需 `--disable-vulkan`（已实测，2026-09-07）。
+
 ## 窗口规则
 
 - 全局窗口默认启用 0.88 透明度和 niri 背景模糊，并设置 `draw-border-with-background false`，避免半透明窗口聚焦时把蓝色 focus ring 背景透出来。透明由各应用自身透明度（如 alacritty 的 `background_opacity 0.82`）与全局 0.88 叠加。同一全局规则还通过 `popups { background-effect { blur true } }`（niri 26.04）为应用弹出菜单（下拉、右键菜单等）启用背景模糊；popup 效果默认 non-xray（模糊下层窗口而非壁纸），XWayland 应用是否生效取决于其 popup surface 类型。

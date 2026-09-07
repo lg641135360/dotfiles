@@ -18,6 +18,7 @@
 | `wallpaper-wayland` | Wayland 壁纸设置 |
 | `browser-wayland` | Google Chrome Wayland 启动器（Wayland 会话加 `--ozone-platform=wayland`，X11 原样透传） |
 | `trae-cn-wayland` | Trae CN (Electron) Wayland 启动器（Wayland 会话加 ozone-wayland + Wayland IME，X11 原样透传） |
+| `chatgpt-wayland` | ChatGPT 桌面版 (Electron) Wayland 启动器（Wayland 会话加 `--ozone-platform=wayland --enable-wayland-ime`，X11 原样透传；否则 XWayland 下 fcitx5 走 XIM 会 preedit 不同步） |
 | `update-ai-clis` | 一键更新 npm 全局安装的 AI CLI（claude-code / codex） |
 
 ## 临时停止飞连系统服务

@@ -43,6 +43,7 @@
 - 判断某 Electron 应用是否需要：`strings <binary> | grep 'Chrome/[0-9]'` 查 Chromium 版本，≥ 大约 13x 默认 v3；不确定就直接加，新 Chromium 会忽略无害
 - 排障入口：先确认 `--ozone-platform=wayland --enable-wayland-ime` 已带，再怀疑 text-input 版本
 - 2026-08-27 落地并 2026-09-02 迁移：Obsidian 原 AppImage（glob 发现）经 `obsidian-wayland` 切原生 Wayland，后清 AppImage 改 deb（`/opt/Obsidian`，1.13.7），wrapper 改为加 `--ozone-platform=wayland --enable-wayland-ime --disable-vulkan`（Vulkan 与 Wayland surface factory 不兼容，裸 exec 不弹窗）；钉钉（CEF 109）与 corplink（Electron 22）保持 XWayland 不迁
+- **XWayland 应用（Electron 默认 X11）走 XIM：preedit 不同步 = "输入一半就上屏 + 多余空格"**（2026-09-07 ChatGPT 桌面版实测定位）。判别：renderer/gpu 进程 cmdline 带 `--ozone-platform=x11` → 应用在 XWayland；XIM 的 preedit 与 app 侧 composition 状态不同步，React 类页面（textarea 自动增高/重渲染）触发 IC 重置时拼音被刷进输入框，提交时空格键被转发多插一次。修复：wrapper 强制 `--ozone-platform=wayland --enable-wayland-ime` 走 text-input-v3（Chromium 152 默认 v3）。2026-09-07 已给 ChatGPT 桌面版（`/usr/lib/chatgpt/ChatGPT`，deb 26.901）落地 `chatgpt-wayland` wrapper + desktop entry 覆盖，实测无需 `--disable-vulkan`（与 Obsidian 不同）；用户确认中文输入恢复正常后入仓库
 
 ## Trae 终端黑块（xterm.js WebGL glyph atlas）排障（x86_64 niri 实测）
 - 症状：终端随机位置整段文字渲染成**实心**黑色方块，缩放/最大化窗口时黑块分布变化（atlas 重新分页所致）；实心黑块 ≠ 空心 tofu，可排除字体缺字形

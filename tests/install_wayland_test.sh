@@ -25,6 +25,7 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/scripts/browser-wayland|~/.config/scripts/browser-wayland|Wayland browser script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/trae-cn-wayland|~/.config/scripts/trae-cn-wayland|Wayland Trae CN script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/obsidian-wayland|~/.config/scripts/obsidian-wayland|Wayland Obsidian script' "$INSTALL_FILE"
+    assert_contains '|.config/scripts/chatgpt-wayland|~/.config/scripts/chatgpt-wayland|Wayland ChatGPT script' "$INSTALL_FILE"
     assert_not_contains 'waybar-system-tooltip' "$INSTALL_FILE"
     # backlight 用 waybar 内置模块，不再部署独立 watcher 脚本。
     assert_not_contains 'waybar-backlight' "$INSTALL_FILE"
@@ -32,6 +33,7 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/linux/desktop-entries/trae-cn.desktop|~/.local/share/applications/trae-cn.desktop|Trae CN Wayland desktop entry' "$INSTALL_FILE"
     assert_contains '|.config/linux/desktop-entries/obsidian.desktop|~/.local/share/applications/obsidian.desktop|Obsidian Wayland desktop entry' "$INSTALL_FILE"
     assert_contains '|.config/linux/desktop-entries/md.obsidian.Obsidian.desktop|~/.local/share/applications/md.obsidian.Obsidian.desktop|Hide system Obsidian desktop entry' "$INSTALL_FILE"
+    assert_contains '|.config/linux/desktop-entries/chatgpt.desktop|~/.local/share/applications/chatgpt.desktop|ChatGPT Wayland desktop entry' "$INSTALL_FILE"
     # install.sh substitutes the __HOME__ placeholder in desktop entries with $HOME at deploy time.
     assert_contains '//__HOME__/$HOME' "$INSTALL_FILE"
     assert_contains '|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script' "$INSTALL_FILE"

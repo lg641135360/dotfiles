@@ -1,0 +1,23 @@
+#!/bin/sh
+# ChatGPT desktop app (deb, /usr/lib/chatgpt) Wayland entrypoint. Mirrors
+# obsidian-wayland's "Wayland session -> native ozone, else pass through
+# unchanged" contract.
+#
+# The Electron app defaults to --ozone-platform=x11, so under niri it runs on
+# XWayland and fcitx5 can only reach it through XIM, which desyncs preedit
+# (premature commit / stray spaces) in ChatGPT's React textarea. Forcing
+# native Wayland routes IME through niri's text-input-v3 instead. Chromium
+# 152 defaults to text-input v3, so --enable-wayland-ime is harmless
+# redundancy. Under X11 the flags are omitted and args pass through.
+
+wayland_session=0
+if [ -n "${WAYLAND_DISPLAY:-}" ] || [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
+    wayland_session=1
+fi
+
+if [ "$wayland_session" = "1" ]; then
+    exec /usr/lib/chatgpt/ChatGPT --ozone-platform=wayland \
+        --enable-wayland-ime "$@"
+fi
+
+exec /usr/lib/chatgpt/ChatGPT "$@"
