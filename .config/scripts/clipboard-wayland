@@ -1,6 +1,7 @@
 #!/bin/sh
-# Wayland 剪贴板管理入口（wl-clip-persist + cliphist）。
-# 无参数：启动 wl-clip-persist 常驻守护，持久化剪贴板（窗口关闭后内容不丢）。
+# Wayland 剪贴板管理入口（wl-clip-persist + cliphist + X11 轮询桥）。
+# 无参数：启动 wl-clip-persist 常驻守护，持久化剪贴板（窗口关闭后内容不丢）；
+# 并启动 X11 ↔ Wayland 轮询桥，让钉钉等 X11 应用也能粘贴图片/文本。
 # history：用 fuzzel 弹出剪贴板历史检索，选中项写回剪贴板。
 # 缺依赖时提示并退出，不中断会话（与 wayland-autostart 的跳过风格一致）。
 
@@ -9,8 +10,9 @@ warn() {
 }
 
 # 剪贴板守护：wl-clip-persist 自身就是常驻守护，直接启动；另用
-# wl-paste --watch cliphist store 记录历史。两者由本脚本共同监管，任一异常退出时
-# 清理另一进程，让 wayland-autostart 下次启动时可以完整恢复。
+# wl-paste --watch cliphist store 记录历史；再启动 X11 轮询桥。三者由本脚本
+# 共同监管，任一异常退出时清理其余进程，让 wayland-autostart 下次启动时
+# 可以完整恢复。
 start_persist() {
     if ! command -v wl-paste >/dev/null 2>&1; then
         warn "跳过剪贴板守护：未找到命令 wl-paste"
@@ -19,19 +21,25 @@ start_persist() {
 
     persist_pid=
     history_pid=
+    bridge_pid=
 
     cleanup() {
         trap - EXIT INT TERM HUP
-        [ -n "$persist_pid" ] && kill "$persist_pid" 2>/dev/null || true
-        [ -n "$history_pid" ] && kill "$history_pid" 2>/dev/null || true
-        [ -n "$persist_pid" ] && wait "$persist_pid" 2>/dev/null || true
-        [ -n "$history_pid" ] && wait "$history_pid" 2>/dev/null || true
+        for pid in "$persist_pid" "$history_pid" "$bridge_pid"; do
+            [ -n "$pid" ] && kill "$pid" 2>/dev/null || true
+        done
+        for pid in "$persist_pid" "$history_pid" "$bridge_pid"; do
+            [ -n "$pid" ] && wait "$pid" 2>/dev/null || true
+        done
     }
     trap cleanup EXIT
     trap 'exit 0' INT TERM HUP
 
     if command -v wl-clip-persist >/dev/null 2>&1; then
-        wl-clip-persist --clipboard regular &
+        # 0.5.0 无 --read-timeout / --restore-clipboard-on-error。
+        # --ignore-event-on-error：读新选区失败时丢掉这次事件，不要把上一份
+        # 文本写回当前剪贴板（否则截图刚复制成功，Ctrl+V 仍会贴出旧文本）。
+        wl-clip-persist --clipboard regular --ignore-event-on-error &
         persist_pid=$!
     else
         warn "剪贴板持久化不可用：未找到命令 wl-clip-persist（2026-08-29 起源码编译装 /usr/local/bin，不在 apt 源）"
@@ -44,7 +52,13 @@ start_persist() {
         warn "剪贴板历史记录不可用：未找到命令 cliphist（apt: sudo apt install cliphist）"
     fi
 
-    if [ -z "$persist_pid" ] && [ -z "$history_pid" ]; then
+    # X11 桥仅在具备 xclip 与 DISPLAY 时启动；否则跳过且不监管（守护降级运行）。
+    if command -v xclip >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
+        start_x11_bridge &
+        bridge_pid=$!
+    fi
+
+    if [ -z "$persist_pid" ] && [ -z "$history_pid" ] && [ -z "$bridge_pid" ]; then
         exit 0
     fi
 
@@ -57,7 +71,96 @@ start_persist() {
             warn "cliphist 监听已退出，停止剪贴板守护"
             exit 1
         fi
+        if [ -n "$bridge_pid" ] && ! kill -0 "$bridge_pid" 2>/dev/null; then
+            warn "X11 剪贴板桥已退出，停止剪贴板守护"
+            exit 1
+        fi
         sleep 5
+    done
+}
+
+# X11 ↔ Wayland 剪贴板轮询桥：niri + xwayland-satellite 不向 X11 应用送达
+# Wayland 剪贴板事件，钉钉（CEF 109，XWayland）等 X11 应用因此看不到截图图片
+# 和文本（2026-09-07 实测：X11 侧 TARGETS 只有 UTF8_STRING，无 image/png）。
+# 本桥每 0.5s 轮询两侧剪贴板，双向同步文本与图片（image/png|jpeg|gif），
+# 用内容哈希去抖：同步后把两侧"最后哈希"都记成同一值，避免双向回环。
+start_x11_bridge() {
+    if ! command -v xclip >/dev/null 2>&1; then
+        warn "跳过 X11 剪贴板桥：未找到命令 xclip"
+        return 0
+    fi
+    if [ -z "${DISPLAY:-}" ]; then
+        warn "跳过 X11 剪贴板桥：无 DISPLAY（纯 Wayland 会话）"
+        return 0
+    fi
+
+    last_x11_text=
+    last_wl_text=
+    last_x11_img=
+    last_wl_img=
+
+    # 快照单次读取：每轮把源剪贴板内容落到临时文件 1 次，判空/哈希/推送全部复用
+    # 同一份数据。源读取从每轮 2~3 次（判空+哈希+推送）降到 1 次；sha256 对空
+    # 输入仍输出非空哈希，判空用 -s（空选区跳过、下轮重试），避免误推空内容。
+    snap="/tmp/clipboard-wayland-bridge.snap.$$"
+    trap 'rm -f "$snap"' EXIT INT TERM HUP
+
+    while :; do
+        # ---- X11 → Wayland：图片 ----
+        x11_img=$(xclip -selection clipboard -t TARGETS -o 2>/dev/null | grep -oE 'image/(png|jpeg|gif)' | head -n1)
+        if [ -n "$x11_img" ]; then
+            xclip -selection clipboard -t "$x11_img" -o 2>/dev/null > "$snap"
+            if [ -s "$snap" ]; then
+                h=$(sha256sum < "$snap" | cut -d' ' -f1)
+                if [ "$h" != "$last_x11_img" ]; then
+                    cat "$snap" | wl-copy -t "$x11_img"
+                    last_x11_img=$h
+                    last_wl_img=$h
+                fi
+            fi
+        fi
+        # ---- Wayland → X11：图片 ----
+        wl_img=$(wl-paste --list-types 2>/dev/null | grep -oE 'image/(png|jpeg|gif)' | head -n1)
+        if [ -n "$wl_img" ]; then
+            wl-paste -t "$wl_img" 2>/dev/null > "$snap"
+            if [ -s "$snap" ]; then
+                h=$(sha256sum < "$snap" | cut -d' ' -f1)
+                if [ "$h" != "$last_wl_img" ]; then
+                    cat "$snap" | xclip -selection clipboard -t "$wl_img" -i
+                    last_wl_img=$h
+                    last_x11_img=$h
+                fi
+            fi
+        fi
+        # ---- X11 → Wayland：文本（仅当 X11 剪贴板确实有文本目标，避免把
+        # 图片字节当文本读出并覆盖另一侧）。快照读取同时保证字节保真（命令替换
+        # 会剥离尾部换行、丢弃 NUL）。
+        x11_text_targets=$(xclip -selection clipboard -t TARGETS -o 2>/dev/null)
+        if printf '%s' "$x11_text_targets" | grep -qE 'UTF8_STRING|STRING|TEXT|text/plain'; then
+            xclip -selection clipboard -o 2>/dev/null > "$snap"
+            if [ -s "$snap" ]; then
+                h=$(sha256sum < "$snap" | cut -d' ' -f1)
+                if [ "$h" != "$last_x11_text" ]; then
+                    cat "$snap" | wl-copy
+                    last_x11_text=$h
+                    last_wl_text=$h
+                fi
+            fi
+        fi
+        # ---- Wayland → X11：文本（仅当 Wayland 剪贴板有 text/* 类型）----
+        wl_text_types=$(wl-paste --list-types 2>/dev/null)
+        if printf '%s' "$wl_text_types" | grep -qE 'text/'; then
+            wl-paste 2>/dev/null > "$snap"
+            if [ -s "$snap" ]; then
+                h=$(sha256sum < "$snap" | cut -d' ' -f1)
+                if [ "$h" != "$last_wl_text" ]; then
+                    cat "$snap" | xclip -selection clipboard -i
+                    last_wl_text=$h
+                    last_x11_text=$h
+                fi
+            fi
+        fi
+        sleep 0.5
     done
 }
 

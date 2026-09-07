@@ -47,7 +47,7 @@ geometry=$(slurp) || exit 0
 tmp_file=${TMPDIR:-/tmp}/dotfiles-screenshot-wayland-$$.ppm
 grim -g "$geometry" -t ppm "$tmp_file"
 satty --filename "$tmp_file" --fullscreen --output-filename "$output_file" \
-    --copy-command wl-copy \
+    --copy-command 'wl-copy -t image/png' \
     --font-family "Noto Sans CJK SC" \
     --actions-on-enter save-to-file \
     --actions-on-escape exit

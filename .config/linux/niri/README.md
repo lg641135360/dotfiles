@@ -104,7 +104,8 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `swayidle`：空闲 10 分钟锁屏；锁屏后再空闲 5 分钟（timeout 900）用 `niri msg action power-off-monitors` 关闭显示器，唤醒输入时 `power-on-monitors` 恢复——只走 DPMS 关屏不挂起，无挂起唤醒的网络/显示风暴问题；waybar `idle_inhibitor` 激活期间锁屏/关屏整体被抑制。系统主动睡眠前也调用 `lock-wayland`（自动挂起已移除，原因见 logs/trace.md 2026-08-18：挂起唤醒瞬间的网络/显示风暴会让 Electron 应用以未捕获的 `net::ERR_INTERNET_DISCONNECTED` 静默退出）
 - KDE 或 GNOME polkit agent（若存在）
 - `blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。
-- `wl-clip-persist` + `cliphist` 剪贴板管理：`clipboard-wayland start` 直接启动 `wl-clip-persist --clipboard regular` 持有当前剪贴板，并以独立的 `wl-paste --watch cliphist store` 记录历史；父脚本监管并共同清理两个子进程。缺少其中一个依赖时，另一项功能仍可降级运行；`Mod+v` 调用 `clipboard-wayland history`，通过 fuzzel 检索历史并写回剪贴板。`wl-clip-persist` 不在 Ubuntu apt 源，2026-08-29 起由源码编译安装到 `/usr/local/bin`（更新方式：`git pull && cargo build --release` 后覆盖）；`cliphist` 用 apt 安装（0.5.0）。
+- `wl-clip-persist` + `cliphist` 剪贴板管理：`clipboard-wayland start` 直接启动 `wl-clip-persist --clipboard regular --ignore-event-on-error` 持有当前剪贴板，并以独立的 `wl-paste --watch cliphist store` 记录历史；父脚本监管并共同清理三个子进程。`--ignore-event-on-error` 避免 persist 读新选区失败时把上一份文本写回当前剪贴板（截图刚复制成功、Ctrl+V 仍贴旧文本）。安装版 persist 0.5.0 没有 `--read-timeout` / `--restore-clipboard-on-error`，不要写这两个参数。缺少其中一个依赖时，另一项功能仍可降级运行；`Mod+v` 调用 `clipboard-wayland history`，通过 fuzzel 检索历史并写回剪贴板。`wl-clip-persist` 不在 Ubuntu apt 源，2026-08-29 起由源码编译安装到 `/usr/local/bin`（更新方式：`git pull && cargo build --release` 后覆盖）；`cliphist` 用 apt 安装（0.5.0）。
+  - **X11 轮询剪贴板桥（2026-09-07）**：niri + xwayland-satellite 不向 X11 应用送达 Wayland 剪贴板事件，钉钉（CEF 109，XWayland）等 X11 应用粘贴不到截图图片/文本（实测 X11 侧 TARGETS 只有 `UTF8_STRING`，无 `image/png`）。`clipboard-wayland start` 在有 `xclip` + `DISPLAY` 时额外启动一个轮询守护：每 0.5s 探测两侧剪贴板，双向同步文本与 `image/png`、`image/jpeg`、`image/gif`，用内容哈希去抖防止双向回环；缺 `xclip` 或纯 Wayland 会话时自动跳过，不影响其它功能。
 
 缺依赖不会中断 niri 启动。
 
@@ -255,7 +256,7 @@ Qt 模块（系统托盘、文件选择器、通知）保留 `QT_QPA_PLATFORM=xc
 
 ## 截图标注
 
-`Mod+s` 调用 `~/.config/scripts/screenshot-wayland`：先用 `slurp` 选取区域，再用 `grim -t ppm` 截图，随后打开 Satty 做涂鸦、箭头、文字等标注，并默认把输出文件名指向 `~/Pictures/Screenshots`。Satty 分支里 `Enter` 保存到文件，复制命令使用 `wl-copy`，文字标注字体显式使用 `Noto Sans CJK SC`，避免 Satty 没有字体 fallback 时中文标注不可见。脚本启动 Satty 前会清掉 `GTK_IM_MODULE`，让 GTK4/Wayland 使用 text-input 输入法路径；不要在这里强制 `GTK_IM_MODULE=fcitx`。Satty 官方 README 说明 IME 已支持，但字体必须覆盖目标字符；如果缺少 `satty`、`grim`、`slurp` 或 `wl-copy`，脚本会直接失败并用通知提示缺少的依赖，不再回退到其它标注工具。`Ctrl+Print` 和 `Alt+Print` 继续保留 niri 原生的整屏/当前窗口截图。
+`Mod+s` 调用 `~/.config/scripts/screenshot-wayland`：先用 `slurp` 选取区域，再用 `grim -t ppm` 截图，随后打开 Satty 做涂鸦、箭头、文字等标注，并默认把输出文件名指向 `~/Pictures/Screenshots`。Satty 分支里 `Enter` 保存到文件，复制命令使用 `wl-copy -t image/png`（Satty 用 `sh -c` 执行该字符串，必须显式带 MIME，避免 persist/cliphist 接到无类型或半截数据后把旧文本写回当前剪贴板），文字标注字体显式使用 `Noto Sans CJK SC`，避免 Satty 没有字体 fallback 时中文标注不可见。脚本启动 Satty 前会清掉 `GTK_IM_MODULE`，让 GTK4/Wayland 使用 text-input 输入法路径；不要在这里强制 `GTK_IM_MODULE=fcitx`。Satty 官方 README 说明 IME 已支持，但字体必须覆盖目标字符；如果缺少 `satty`、`grim`、`slurp` 或 `wl-copy`，脚本会直接失败并用通知提示缺少的依赖，不再回退到其它标注工具。`Ctrl+Print` 和 `Alt+Print` 继续保留 niri 原生的整屏/当前窗口截图。
 
 ## 验证
 
