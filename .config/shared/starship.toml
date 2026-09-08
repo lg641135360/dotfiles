@@ -21,6 +21,7 @@ $nodejs\
 $bun\
 $docker_context\
 $conda\
+$jobs\
 $line_break\
 $character"""
 
@@ -74,19 +75,19 @@ behind = "↓"
 diverged = "↕"
 untracked = "?"
 stashed = '\$'
-modified = "!"
+modified = "~"
 staged = "+"
 renamed = "»"
 deleted = "✘"
 format = '[ $all_status$ahead_behind ]($style)'
 
 [nodejs]
-symbol = ""
+symbol = ""
 style = "fg:green"
 format = '[ $symbol( $version) ]($style)'
 
 [bun]
-symbol = ""
+symbol = "󰳘"
 style = "fg:sky"
 format = '[ $symbol( $version) ]($style)'
 
@@ -96,17 +97,17 @@ style = "fg:blue"
 format = '[ $symbol( $version) ]($style)'
 
 [rust]
-symbol = ""
+symbol = ""
 style = "fg:peach"
 format = '[ $symbol( $version) ]($style)'
 
 [python]
-symbol = ""
+symbol = ""
 style = "fg:yellow"
 format = '[ $symbol( $version)(\(#$virtualenv\)) ]($style)'
 
 [docker_context]
-symbol = ""
+symbol = ""
 style = "fg:teal"
 format = '[ $symbol( $context) ]($style)'
 
@@ -140,7 +141,12 @@ format = "[ 󰔛 $duration ]($style)"
 style = "fg:overlay1"
 disabled = false
 show_notifications = false
-min_time = 5000
+min_time = 2000
+
+[jobs]
+symbol = "󰜴 "
+style = "fg:lavender"
+format = "[$symbol$number]($style) "
 
 [palettes.catppuccin_mocha]
 rosewater = "#f5e0dc"

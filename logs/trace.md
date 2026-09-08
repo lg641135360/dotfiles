@@ -296,3 +296,10 @@
   # 删除后系统入口 /usr/share/applications/chatgpt.desktop 自动接管（Exec=chatgpt → X11）
   ```
 - 后续可能方向：① 若日后 app 渲染/GPU 异常，按 Obsidian 先例试 `--disable-vulkan`；② 终端 `chatgpt` 命令仍走 X11（走 codex-launcher 透传），如需统一可后续调整；③ live `~/.local/share/applications/chatgpt.desktop` 是手写绝对路径版，重跑 install.sh 会换成仓库的 `__HOME__` 占位符版（部署时重写为同一路径，行为不变）。踩坑：`pkill -f '/usr/lib/chatgpt/ChatGPT'` 会匹配到自身 shell 命令行（`-f` 匹配完整 argv），把执行命令的 shell 一起杀掉，需避免用与命令文本相同的模式。
+
+## 2026-09-08 — 优化 Starship 提示符信息辨识度
+- 目的：落实提示符优化建议，提升开发环境、Git 状态与后台任务的可读性。
+- 改动：`.config/shared/starship.toml` 为 Node/Bun/Rust/Python/Docker 增加 Nerd Font 图标，Git 修改状态改为 `~`，新增后台作业数模块，并将命令耗时阈值从 5 秒降至 2 秒；`.config/shared/zsh/README.md` 同步说明。
+- 验证：`sh tests/starship_config_test.sh` PASS；`starship explain`、`starship prompt` 均正常；`git diff --check` PASS。
+- live 同步：用户随后运行 `./install.sh`，已同步 `~/.config/starship.toml`；备份为 `~/.config/starship.toml.backup.20260908_204519_3469228`，未重载 shell。
+- 回滚信息：未提交；仓库可用 `git checkout -- .config/shared/starship.toml .config/shared/zsh/README.md logs/trace.md` 回退，live 可执行 `cp ~/.config/starship.toml.backup.20260908_204519_3469228 ~/.config/starship.toml` 恢复。
