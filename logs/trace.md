@@ -20,18 +20,6 @@
   ```
 
 
-## 2026-09-09 — 关闭 Starship Python 版本模块
-
-- 目的：用户确认提示符里的 ` v3.14.4` 无实际价值（TypeScript 优先、目录有 `.py` 就会冒出版本），要求关掉。
-- 改动：`.config/shared/starship.toml` 的 `[python]` 设 `disabled = true`；`tests/starship_config_test.sh` 新增段落断言；`.config/shared/zsh/README.md` 去掉 Python 模块说明；`memory/organizing_preferences.md` 记录该决策。
-- 验证：先补测试确认失败，再改配置后 `sh tests/starship_config_test.sh` PASS；`git diff --check` 干净。带 `.py` 的临时目录下 `starship explain` / `starship prompt` 均无 python 版本。
-- live 同步：用户执行 `./install.sh`，已同步 `~/.config/starship.toml`；备份为 `~/.config/starship.toml.backup.20260909_163316_447240`。已打开的 shell 需新开才加载。
-- 回滚信息：提交后见 `git log -1`。仓库 `git revert HEAD`；live 恢复：
-  ```bash
-  cp ~/.config/starship.toml.backup.20260909_163316_447240 ~/.config/starship.toml
-  ```
-
-
 ## 2026-09-09 — foot 字号从 12 调回 13
 
 - 目的：用户觉得 Starship 图标偏小。Starship 无独立字号，跟 foot 单元格走；当时为 aarch64 内屏 2x 紧凑把 foot 降到 12，x64 scale 1.25 上图标偏小。
@@ -44,6 +32,31 @@
   ```
 
 
+## 2026-09-09 — 关闭 Starship Python 版本模块
+
+- 目的：用户确认提示符里的 ` v3.14.4` 无实际价值（TypeScript 优先、目录有 `.py` 就会冒出版本），要求关掉。
+- 改动：`.config/shared/starship.toml` 的 `[python]` 设 `disabled = true`；`tests/starship_config_test.sh` 新增段落断言；`.config/shared/zsh/README.md` 去掉 Python 模块说明；`memory/organizing_preferences.md` 记录该决策。
+- 验证：先补测试确认失败，再改配置后 `sh tests/starship_config_test.sh` PASS；`git diff --check` 干净。带 `.py` 的临时目录下 `starship explain` / `starship prompt` 均无 python 版本。
+- live 同步：用户执行 `./install.sh`，已同步 `~/.config/starship.toml`；备份为 `~/.config/starship.toml.backup.20260909_163316_447240`。已打开的 shell 需新开才加载。
+- 回滚信息：提交后见 `git log -1`。仓库 `git revert HEAD`；live 恢复：
+  ```bash
+  cp ~/.config/starship.toml.backup.20260909_163316_447240 ~/.config/starship.toml
+  ```
+
+
+## 2026-09-09 — X11 剪贴板桥给 xclip/wl-copy 加 timeout，避免无限阻塞
+
+- 目的：钉钉再次贴不到刚复制的图片。现场 X11 桥从 9 月 8 日 15:12 起卡在 `xclip -t TARGETS -o`（PID 3082973，超过一天），Wayland 侧已有 `image/png`，X11 侧只剩 `UTF8_STRING`。
+- 改动：`clipboard-wayland` 的桥读写全部套 `timeout --foreground 2`（缺 timeout 则跳过桥）；超时当本轮空选区跳过。`--foreground` 避免 timeout 把已经 fork 出去持有剪贴板的 xclip/wl-copy 子进程一起杀掉。测试、scripts README、niri README、`memory/niri.md` 同步。
+- 验证：先改测试确认失败，再改脚本后 `bash -n` + `bash tests/wayland_scripts_test.sh` PASS。live 重启守护后 `wl-copy -t image/png` 1x1 PNG，X11 `TARGETS` 含 `image/png`，两侧 sha256 与源文件一致。
+- live 同步：已备份并覆盖 `~/.config/scripts/clipboard-wayland`，杀掉卡住的旧守护后重启。备份 `~/.config/scripts/clipboard-wayland.backup.20260909_170550_001263132`，旧 backup 已按保留 3 份清理。
+- 回滚信息：提交后见 `git log -1`。仓库 `git revert HEAD`；live 恢复：
+  ```bash
+  cp ~/.config/scripts/clipboard-wayland.backup.20260909_170550_001263132 ~/.config/scripts/clipboard-wayland
+  pkill -f 'clipboard-wayland start'; nohup "$HOME/.config/scripts/clipboard-wayland" start >>/tmp/clipboard-wayland.log 2>&1 &
+  ```
+
+
 ## 2026-09-08 — 优化 Starship 提示符信息辨识度
 
 - 目的：落实提示符优化建议，提升开发环境、Git 状态与后台任务的可读性。
@@ -51,21 +64,6 @@
 - 验证：`sh tests/starship_config_test.sh` PASS；`starship explain`、`starship prompt` 均正常；`git diff --check` PASS。
 - live 同步：用户随后运行 `./install.sh`，已同步 `~/.config/starship.toml`；备份为 `~/.config/starship.toml.backup.20260908_204519_3469228`，未重载 shell。
 - 回滚信息：未提交；仓库可用 `git checkout -- .config/shared/starship.toml .config/shared/zsh/README.md logs/trace.md` 回退，live 可执行 `cp ~/.config/starship.toml.backup.20260908_204519_3469228 ~/.config/starship.toml` 恢复。
-
-
-## 2026-09-07 — ChatGPT 桌面版迁原生 Wayland（live 实测通过后按 obsidian 链路入仓库）
-
-- 目的：ChatGPT 桌面版（deb chatgpt 26.901.51231，Electron/Chromium 152）默认 `--ozone-platform=x11`，在 niri 下以 XWayland 运行，fcitx5 只能走 XIM；XIM preedit 不同步导致输入框"半道上屏 + 多出空格"。用户要求先只改 live 验证有效再入仓库。
-- 改动（live 先落地，用户实测中文输入正常后入仓库）：
-  1. live：新增 `~/.config/scripts/chatgpt-wayland` wrapper（Wayland 会话 `exec /usr/lib/chatgpt/ChatGPT --ozone-platform=wayland --enable-wayland-ime "$@"`，X11 透传；Chromium 152 默认 text-input v3，未加 `--wayland-text-input-version=3`，实测也无需 `--disable-vulkan`，与 Obsidian 不同）+ `~/.local/share/applications/chatgpt.desktop` 覆盖系统入口（仅改 Exec，其余字段照抄系统文件）。
-  2. 仓库：`.config/scripts/chatgpt-wayland`（与 live 同内容）、`.config/linux/desktop-entries/chatgpt.desktop`（用 `__HOME__` 占位符 + 注释，按 obsidian.desktop 模式）、`install.sh` `linux_wayland_configs` 两条部署项、`tests/wayland_scripts_test.sh` 新增 `test_chatgpt_wayland_forces_native_wayland`、`tests/install_wayland_test.sh` 两条断言、`desktop-entries/README.md`/`scripts/README.md`/`niri/README.md` 收录、`memory/desktop.md` 矩阵补 XIM preedit 不同步根因条目。
-- 验证：live 侧——退出旧 X11 实例后经 `gtk-launch chatgpt` 从新入口拉起，renderer 进程 3 个均带 `--ozone-platform=wayland`、`--enable-wayland-ime` 命中；niri App ID 由 `Chatgpt`（X11 WM_CLASS）变 `chatgpt`（原生 Wayland）；`xlsclients` 不再列出（脱离 XWayland）。**用户实测 ChatGPT 输入框打中文：候选框正常弹出、无多余空格、无提前上屏**。仓库侧——`bash -n` wrapper、`desktop-file-validate` 通过；`tests/wayland_scripts_test.sh` / `install_wayland_test.sh` / `run.sh fast` PASS。
-- 回滚信息：未提交（仓库改动：`.config/scripts/chatgpt-wayland`、`.config/linux/desktop-entries/chatgpt.desktop`、`install.sh`、`tests/wayland_scripts_test.sh`、`tests/install_wayland_test.sh`、三份 README、`memory/desktop.md`）。`git checkout -- <file>` 即回滚；live 文件为新增（原 `~/.local/share/applications/chatgpt.desktop` 不存在、无旧备份），恢复命令：
-  ```bash
-  rm ~/.local/share/applications/chatgpt.desktop ~/.config/scripts/chatgpt-wayland
-  # 删除后系统入口 /usr/share/applications/chatgpt.desktop 自动接管（Exec=chatgpt → X11）
-  ```
-- 后续可能方向：① 若日后 app 渲染/GPU 异常，按 Obsidian 先例试 `--disable-vulkan`；② 终端 `chatgpt` 命令仍走 X11（走 codex-launcher 透传），如需统一可后续调整；③ live `~/.local/share/applications/chatgpt.desktop` 是手写绝对路径版，重跑 install.sh 会换成仓库的 `__HOME__` 占位符版（部署时重写为同一路径，行为不变）。踩坑：`pkill -f '/usr/lib/chatgpt/ChatGPT'` 会匹配到自身 shell 命令行（`-f` 匹配完整 argv），把执行命令的 shell 一起杀掉，需避免用与命令文本相同的模式。
 
 
 ## 2026-09-07 — 钉钉等 X11 应用粘贴不到截图图片：根因定位 + X11 轮询剪贴板桥（clipboard-wayland）

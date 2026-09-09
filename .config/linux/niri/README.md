@@ -105,7 +105,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - KDE 或 GNOME polkit agent（若存在）
 - `blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。
 - `wl-clip-persist` + `cliphist` 剪贴板管理：`clipboard-wayland start` 直接启动 `wl-clip-persist --clipboard regular --ignore-event-on-error` 持有当前剪贴板，并以独立的 `wl-paste --watch cliphist store` 记录历史；父脚本监管并共同清理三个子进程。`--ignore-event-on-error` 避免 persist 读新选区失败时把上一份文本写回当前剪贴板（截图刚复制成功、Ctrl+V 仍贴旧文本）。安装版 persist 0.5.0 没有 `--read-timeout` / `--restore-clipboard-on-error`，不要写这两个参数。缺少其中一个依赖时，另一项功能仍可降级运行；`Mod+v` 调用 `clipboard-wayland history`，通过 fuzzel 检索历史并写回剪贴板。`wl-clip-persist` 不在 Ubuntu apt 源，2026-08-29 起由源码编译安装到 `/usr/local/bin`（更新方式：`git pull && cargo build --release` 后覆盖）；`cliphist` 用 apt 安装（0.5.0）。
-  - **X11 轮询剪贴板桥（2026-09-07）**：niri + xwayland-satellite 不向 X11 应用送达 Wayland 剪贴板事件，钉钉（CEF 109，XWayland）等 X11 应用粘贴不到截图图片/文本（实测 X11 侧 TARGETS 只有 `UTF8_STRING`，无 `image/png`）。`clipboard-wayland start` 在有 `xclip` + `DISPLAY` 时额外启动一个轮询守护：每 0.5s 探测两侧剪贴板，双向同步文本与 `image/png`、`image/jpeg`、`image/gif`，用内容哈希去抖防止双向回环；缺 `xclip` 或纯 Wayland 会话时自动跳过，不影响其它功能。
+  - **X11 轮询剪贴板桥（2026-09-07）**：niri + xwayland-satellite 不向 X11 应用送达 Wayland 剪贴板事件，钉钉（CEF 109，XWayland）等 X11 应用粘贴不到截图图片/文本（实测 X11 侧 TARGETS 只有 `UTF8_STRING`，无 `image/png`）。`clipboard-wayland start` 在有 `xclip` + `DISPLAY` 时额外启动一个轮询守护：每 0.5s 探测两侧剪贴板，双向同步文本与 `image/png`、`image/jpeg`、`image/gif`，用内容哈希去抖防止双向回环；缺 `xclip` 或纯 Wayland 会话时自动跳过，不影响其它功能。2026-09-09：所有 `xclip`/`wl-paste`/`wl-copy` 读写套 `timeout --foreground 2`——xclip 在 selection owner 失联时会无限阻塞，桥曾卡在 `xclip -t TARGETS -o` 超过一天，Wayland 侧已有截图但钉钉贴不到。`--foreground` 避免 timeout 把已经 fork 出去持有剪贴板的 xclip/wl-copy 子进程一起杀掉。
 
 缺依赖不会中断 niri 启动。
 

@@ -84,6 +84,10 @@ start_persist() {
 # 和文本（2026-09-07 实测：X11 侧 TARGETS 只有 UTF8_STRING，无 image/png）。
 # 本桥每 0.5s 轮询两侧剪贴板，双向同步文本与图片（image/png|jpeg|gif），
 # 用内容哈希去抖：同步后把两侧"最后哈希"都记成同一值，避免双向回环。
+#
+# xclip 在 selection owner 失联时会无限阻塞（2026-09-09 实测：桥卡在
+# `xclip -t TARGETS -o` 超过一天，Wayland 侧已有 image/png 但钉钉贴不到）。
+# 所有剪贴板读写套 timeout --foreground 2，超时当本轮空选区跳过，下轮重试。
 start_x11_bridge() {
     if ! command -v xclip >/dev/null 2>&1; then
         warn "跳过 X11 剪贴板桥：未找到命令 xclip"
@@ -91,6 +95,10 @@ start_x11_bridge() {
     fi
     if [ -z "${DISPLAY:-}" ]; then
         warn "跳过 X11 剪贴板桥：无 DISPLAY（纯 Wayland 会话）"
+        return 0
+    fi
+    if ! command -v timeout >/dev/null 2>&1; then
+        warn "跳过 X11 剪贴板桥：未找到命令 timeout（coreutils）"
         return 0
     fi
 
@@ -105,28 +113,34 @@ start_x11_bridge() {
     snap="/tmp/clipboard-wayland-bridge.snap.$$"
     trap 'rm -f "$snap"' EXIT INT TERM HUP
 
+    clip_run() {
+        # --foreground：只杀卡住的命令本身，不连带着把 xclip -i / wl-copy
+        # 已经 fork 出去、负责持有剪贴板的子进程一起杀掉。
+        timeout --foreground 2 "$@"
+    }
+
     while :; do
         # ---- X11 → Wayland：图片 ----
-        x11_img=$(xclip -selection clipboard -t TARGETS -o 2>/dev/null | grep -oE 'image/(png|jpeg|gif)' | head -n1)
+        x11_img=$(clip_run xclip -selection clipboard -t TARGETS -o 2>/dev/null | grep -oE 'image/(png|jpeg|gif)' | head -n1)
         if [ -n "$x11_img" ]; then
-            xclip -selection clipboard -t "$x11_img" -o 2>/dev/null > "$snap"
+            clip_run xclip -selection clipboard -t "$x11_img" -o 2>/dev/null > "$snap"
             if [ -s "$snap" ]; then
                 h=$(sha256sum < "$snap" | cut -d' ' -f1)
                 if [ "$h" != "$last_x11_img" ]; then
-                    cat "$snap" | wl-copy -t "$x11_img"
+                    clip_run wl-copy -t "$x11_img" < "$snap"
                     last_x11_img=$h
                     last_wl_img=$h
                 fi
             fi
         fi
         # ---- Wayland → X11：图片 ----
-        wl_img=$(wl-paste --list-types 2>/dev/null | grep -oE 'image/(png|jpeg|gif)' | head -n1)
+        wl_img=$(clip_run wl-paste --list-types 2>/dev/null | grep -oE 'image/(png|jpeg|gif)' | head -n1)
         if [ -n "$wl_img" ]; then
-            wl-paste -t "$wl_img" 2>/dev/null > "$snap"
+            clip_run wl-paste -t "$wl_img" 2>/dev/null > "$snap"
             if [ -s "$snap" ]; then
                 h=$(sha256sum < "$snap" | cut -d' ' -f1)
                 if [ "$h" != "$last_wl_img" ]; then
-                    cat "$snap" | xclip -selection clipboard -t "$wl_img" -i
+                    clip_run xclip -selection clipboard -t "$wl_img" -i < "$snap"
                     last_wl_img=$h
                     last_x11_img=$h
                 fi
@@ -135,26 +149,26 @@ start_x11_bridge() {
         # ---- X11 → Wayland：文本（仅当 X11 剪贴板确实有文本目标，避免把
         # 图片字节当文本读出并覆盖另一侧）。快照读取同时保证字节保真（命令替换
         # 会剥离尾部换行、丢弃 NUL）。
-        x11_text_targets=$(xclip -selection clipboard -t TARGETS -o 2>/dev/null)
+        x11_text_targets=$(clip_run xclip -selection clipboard -t TARGETS -o 2>/dev/null)
         if printf '%s' "$x11_text_targets" | grep -qE 'UTF8_STRING|STRING|TEXT|text/plain'; then
-            xclip -selection clipboard -o 2>/dev/null > "$snap"
+            clip_run xclip -selection clipboard -o 2>/dev/null > "$snap"
             if [ -s "$snap" ]; then
                 h=$(sha256sum < "$snap" | cut -d' ' -f1)
                 if [ "$h" != "$last_x11_text" ]; then
-                    cat "$snap" | wl-copy
+                    clip_run wl-copy < "$snap"
                     last_x11_text=$h
                     last_wl_text=$h
                 fi
             fi
         fi
         # ---- Wayland → X11：文本（仅当 Wayland 剪贴板有 text/* 类型）----
-        wl_text_types=$(wl-paste --list-types 2>/dev/null)
+        wl_text_types=$(clip_run wl-paste --list-types 2>/dev/null)
         if printf '%s' "$wl_text_types" | grep -qE 'text/'; then
-            wl-paste 2>/dev/null > "$snap"
+            clip_run wl-paste 2>/dev/null > "$snap"
             if [ -s "$snap" ]; then
                 h=$(sha256sum < "$snap" | cut -d' ' -f1)
                 if [ "$h" != "$last_wl_text" ]; then
-                    cat "$snap" | xclip -selection clipboard -i
+                    clip_run xclip -selection clipboard -i < "$snap"
                     last_wl_text=$h
                     last_x11_text=$h
                 fi
