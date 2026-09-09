@@ -10,6 +10,7 @@
 
 ## 观感对齐
 - foot.ini 镜像 `.config/shared/alacritty` 的观感：MesloLGS Nerd Font Mono 13、Catppuccin Mocha 内嵌 palette、`csd.preferred=none`、`pad=12x12`、`colors.alpha=0.82`、`cursor.style=beam` + `blink=yes`、`mouse.hide-when-typing=yes`、`scrollback.lines=50000`、`scrollback.multiplier=3.0`、`term=xterm-256color`。
+- 字号与 alacritty 统一 13（2026-09-09 撤回 aarch64 内屏 2x 下的 12pt 紧凑实验）。Starship 没有独立字号，提示符图标跟终端单元格走；12pt 在 niri scale 1.25 上图标偏小。`dpi-aware` 保持默认 `no`，字号继续乘 compositor scale。
 - `[text-bindings]` 镜像 alacritty 的 `keys.linux.toml`：`Alt+hjkl` 发送 `Ctrl-a hjkl`（tmux 窗格切换），`Alt+方向键` / `Shift+Alt+上下` 发送 xterm 修饰序列供 Neovim 使用。foot 要求 modifier 用 XKB 名称，`Alt` 必须写成 `Mod1`（不能用字面量 `Alt`）。
 
 ## 与 alacritty 的差异

@@ -54,6 +54,18 @@ test_starship_config_has_core_modules() {
     assert_not_contains 'bg:' "$STARSHIP_FILE"
 }
 
+# python 模块已关闭：目录里有 .py 也不再显示解释器版本
+test_starship_python_disabled() {
+    if ! awk '
+        /^\[python\]/ { in_python=1; next }
+        /^\[/ { in_python=0 }
+        in_python && $0 == "disabled = true" { found=1 }
+        END { exit found ? 0 : 1 }
+    ' "$STARSHIP_FILE"; then
+        fail "expected [python] to set disabled = true"
+    fi
+}
+
 # starship.toml 用 Nerd Font 图标（与 foot/alacritty 字体配置一致）
 test_starship_uses_nerd_font_icons() {
     assert_contains 'symbol = ' "$STARSHIP_FILE"
@@ -65,6 +77,7 @@ test_zshrc_no_p10k_instant_prompt
 test_integrations_no_p10k_source
 test_install_deploys_starship_config
 test_starship_config_has_core_modules
+test_starship_python_disabled
 test_starship_uses_nerd_font_icons
 
 printf 'PASS: starship config tests\n'

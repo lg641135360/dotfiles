@@ -102,6 +102,7 @@ style = "fg:peach"
 format = '[ $symbol( $version) ]($style)'
 
 [python]
+disabled = true
 symbol = ""
 style = "fg:yellow"
 format = '[ $symbol( $version)(\(#$virtualenv\)) ]($style)'
