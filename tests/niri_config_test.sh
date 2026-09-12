@@ -176,17 +176,10 @@ test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal() {
 test_niri_config_uses_native_environment_cursor_and_animations() {
     # environment {} block: niri spawns inherit these directly.
     assert_contains 'environment {' "$NIRI_COMMON_CONFIG"
-    assert_contains 'QT_IM_MODULE "fcitx"' "$NIRI_COMMON_CONFIG"
-    assert_contains 'XMODIFIERS "@im=fcitx"' "$NIRI_COMMON_CONFIG"
-    assert_contains 'SDL_IM_MODULE "fcitx"' "$NIRI_COMMON_CONFIG"
-    assert_contains 'GLFW_IM_MODULE "ibus"' "$NIRI_COMMON_CONFIG"
-    assert_contains 'INPUT_METHOD "fcitx"' "$NIRI_COMMON_CONFIG"
-    assert_contains 'LC_CTYPE "zh_CN.UTF-8"' "$NIRI_COMMON_CONFIG"
     assert_contains 'XCURSOR_SIZE "32"' "$NIRI_COMMON_CONFIG"
     # niri spawn env must set ZDOTDIR so spawned shells use the optimized
     # ~/.config/zsh; otherwise they fall back to default config + global
     # compinit (interactive startup 4.2s vs 0.18s measured).
-    assert_contains 'ZDOTDIR "/home/rikoo/.config/zsh"' "$NIRI_COMMON_CONFIG"
     # Session runs as a proper Wayland/niri session: manual shell launch would
     # otherwise inherit XDG_SESSION_TYPE=tty / XDG_CURRENT_DESKTOP=awesome and
     # break text-input-v3 routing for fcitx5.
@@ -304,7 +297,7 @@ test_readme_documents_parallel_trial_and_fallback() {
     assert_contains './tests/niri_config_test.sh' "$NIRI_README"
     assert_not_contains 'niri_wayland_config_test.sh' "$NIRI_README"
     assert_contains '平台配置' "$NIRI_README"
-    assert_contains '仅 Ubuntu 部署本仓库的 Niri 配置' "$NIRI_README"
+    assert_contains '仅 Ubuntu 且未检测到 DMS（`command -v dms`）时部署本仓库的 Niri 配置' "$NIRI_README"
     assert_contains '`~/Pictures/wall`' "$NIRI_README"
     assert_not_contains '`~/Pictures` 优先' "$NIRI_README"
 }

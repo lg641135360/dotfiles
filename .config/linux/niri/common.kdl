@@ -7,18 +7,11 @@
 // Environment variables for niri and all processes it spawns. wayland-autostart
 // additionally syncs these to DBus / systemd user session for compatibility.
 environment {
-    QT_IM_MODULE "fcitx"
-    XMODIFIERS "@im=fcitx"
-    SDL_IM_MODULE "fcitx"
-    GLFW_IM_MODULE "ibus"
-    INPUT_METHOD "fcitx"
-    LC_CTYPE "zh_CN.UTF-8"
     XCURSOR_SIZE "32"
     // 必须设置 ZDOTDIR：否则 zsh 落到默认 ~/.zshrc 且无 .zshenv 的
     // skip_global_compinit，会跑 Ubuntu 全局 compinit（实测交互启动 4.2s vs 优化
     // 配置 0.18s）。全局设置使 Mod+Return 拉起的终端也走 ~/.config/zsh 优化配置。
     // 注意：niri 的 environment {} 不展开 ~，必须用绝对路径。
-    ZDOTDIR "/home/rikoo/.config/zsh"
     // 以纯 Wayland 会话身份运行：手动从 shell 启动 niri 时这些值会继承错误的
     // 会话环境（XDG_SESSION_TYPE=tty、XDG_CURRENT_DESKTOP=awesome），导致应用
     // /toolkit 无法正确走 text-input-v3 接入 fcitx5，表现为无法输入中文。

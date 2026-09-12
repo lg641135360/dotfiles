@@ -38,7 +38,15 @@ is_opensuse() {
 }
 
 is_repo_niri_platform() {
-    [[ "$os" == "Linux" && "${distro:-}" == "ubuntu" ]]
+    [[ "$os" == "Linux" && "${distro:-}" == "ubuntu" ]] && ! uses_dms_shell
+}
+
+# DMS (DankMaterialShell) owns the desktop shell when installed: it generates
+# ~/.config/niri (config.kdl + dms/*.kdl fragments), replaces the
+# waybar/mako/fuzzel/swaylock stack and rewrites the alacritty theme import.
+# The repo must not deploy its own desktop stack on those machines.
+uses_dms_shell() {
+    command -v dms >/dev/null 2>&1
 }
 
 # Logging functions (printf for cross-shell safety)
@@ -197,10 +205,14 @@ process_config() {
 
     target="${target/#\~/$HOME}"
 
-    if is_opensuse; then
+    if is_opensuse || uses_dms_shell; then
         case "$target" in
             "$HOME/.config/alacritty/alacritty.toml"|"$HOME/.config/alacritty/keys.toml"|"$HOME/.config/alacritty/window.toml")
-                log_info "openSUSE detected; skipping Alacritty configuration copy for $name"
+                if is_opensuse; then
+                    log_info "openSUSE detected; skipping Alacritty configuration copy for $name"
+                else
+                    log_info "DMS detected; skipping Alacritty configuration copy for $name"
+                fi
                 return 0
                 ;;
         esac
@@ -259,7 +271,11 @@ install_niri_config_for_platform() {
     command -v niri >/dev/null 2>&1 || return 0
 
     if ! is_repo_niri_platform; then
-        log_info "${distro:-unknown} detected; skipping niri configuration copy"
+        if uses_dms_shell; then
+            log_info "DMS detected; skipping niri configuration copy"
+        else
+            log_info "${distro:-unknown} detected; skipping niri configuration copy"
+        fi
         return 0
     fi
 
@@ -411,10 +427,23 @@ linux_dir_configs=(
     "command -v awesome|.config/linux/awesome|~/.config/awesome|AwesomeWM"
 )
 
+# Terminal config deployed on every niri machine, DMS-managed included:
+# foot is the repo-preferred terminal and DMS does not rewrite foot.ini
+# (it only drops an optional dank-colors.ini next to it). Deployed per-file
+# instead of whole-directory so third-party files inside ~/.config/foot
+# (e.g. DMS's dank-colors.ini) are preserved.
+linux_wayland_terminal_configs=(
+    "command -v foot|.config/linux/foot/foot.ini|~/.config/foot/foot.ini|Foot"
+    "command -v foot|.config/linux/foot/README.md|~/.config/foot/README.md|Foot README"
+)
+
+# Shell-stack configs (bar / notifications / launcher / lock) for the
+# repo-managed Wayland chain. Only deployed on repo niri platforms; DMS
+# machines keep their DMS-generated equivalents (DMS bar, notifications,
+# spotlight launcher and lock screen).
 linux_wayland_dir_configs=(
     "command -v mako|.config/linux/mako|~/.config/mako|Mako"
     "command -v fuzzel|.config/linux/fuzzel|~/.config/fuzzel|Fuzzel"
-    "command -v foot|.config/linux/foot|~/.config/foot|Foot"
     "command -v swaylock|.config/linux/swaylock|~/.config/swaylock|Swaylock"
 )
 
@@ -596,9 +625,14 @@ main() {
 
         process_configs linux_configs
 
+        # Wayland helper scripts, desktop entries, portal preferences, XDG
+        # autostart overrides and the foot terminal config deploy on every
+        # niri machine — DMS-managed ones included, since they wrap apps
+        # rather than the shell.
         if command -v niri >/dev/null 2>&1; then
             log_info "niri found, processing Wayland configurations..."
             process_configs linux_wayland_configs
+            process_configs linux_wayland_terminal_configs
 
             # Desktop entries embed a __HOME__ placeholder so the repo stays
             # portable across machines/users; substitute the real $HOME at
@@ -652,11 +686,13 @@ main() {
         log_info "Processing Linux directory configurations..."
         process_configs linux_dir_configs
 
-        if command -v niri >/dev/null 2>&1; then
+        if command -v niri >/dev/null 2>&1 && is_repo_niri_platform; then
             log_info "Processing Wayland directory configurations..."
             install_niri_config_for_platform
             process_configs linux_wayland_dir_configs
             install_waybar_config_for_platform
+        elif command -v niri >/dev/null 2>&1; then
+            log_info "DMS-managed or non-Ubuntu niri detected; keeping live niri, waybar, mako, fuzzel and swaylock configs"
         fi
 
         # Restore AwesomeWM external dependencies after copying

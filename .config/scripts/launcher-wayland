@@ -3,12 +3,6 @@
 
 # export GTK_IM_MODULE=fcitx
 unset GTK_IM_MODULE
-export QT_IM_MODULE=fcitx
-export XMODIFIERS=@im=fcitx
-export SDL_IM_MODULE=fcitx
-export GLFW_IM_MODULE=ibus
-export INPUT_METHOD=fcitx
-export LC_CTYPE=${LC_CTYPE:-zh_CN.UTF-8}
 
 # 仅当当前没有「Wayland 连接的 fcitx5」时才启动/接管。fcitx5 走 per-user 的
 # D-Bus/socket，fcitx5-remote --check 会命中其它会话（如 Awesome X11）残留的

@@ -49,7 +49,7 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_contains '${XDG_STATE_HOME:-$HOME/.local/state}/niri/autostart' "$AUTOSTART_SCRIPT"
     assert_contains 'log_file=$log_dir/$app.log' "$AUTOSTART_SCRIPT"
     assert_contains '>"$log_file" 2>&1 &' "$AUTOSTART_SCRIPT"
-    assert_contains 'export INPUT_METHOD=fcitx' "$AUTOSTART_SCRIPT"
+    assert_not_contains 'export INPUT_METHOD=fcitx' "$AUTOSTART_SCRIPT"
     assert_contains 'dbus-update-activation-environment --systemd' "$AUTOSTART_SCRIPT"
     assert_contains 'systemctl --user import-environment' "$AUTOSTART_SCRIPT"
     # GTK_IM_MODULE 必须从 systemd 用户环境清除：sddm/niri-session 会把
@@ -295,7 +295,7 @@ test_launcher_and_lock_have_wayland_first_fallbacks() {
         [ "$foot_line" -lt "$alacritty_line" ] ||
         fail "expected 'exec foot' before the alacritty fallback in $TERMINAL_SCRIPT"
     assert_contains '默认使用' "$NIRI_README"
-    assert_contains 'export INPUT_METHOD=fcitx' "$LAUNCHER_SCRIPT"
+    assert_not_contains 'export INPUT_METHOD=fcitx' "$LAUNCHER_SCRIPT"
     assert_contains 'fcitx5 -d --replace' "$LAUNCHER_SCRIPT"
     assert_contains 'exec fuzzel "$@"' "$LAUNCHER_SCRIPT"
     assert_contains 'exec "$HOME/.config/scripts/rofi-launch" "$@"' "$LAUNCHER_SCRIPT"
@@ -342,6 +342,16 @@ EOF
         WAYLAND_DISPLAY=wayland-1 sleep 30 &
     wayland_pid=$!
 
+    # 等待 exec 就绪：env(1) 尚未 exec sleep 时 /proc/$pid/environ 仍是旧
+    # 环境（无 WAYLAND_DISPLAY），launcher 立即读取会误判为 X11 实例并
+    # `fcitx5 -d --replace` 重启——这是本用例偶发失败的根因。
+    i=0
+    while [ $i -lt 200 ]; do
+        tr '\0' '\n' </proc/$wayland_pid/environ 2>/dev/null | grep -q '^WAYLAND_DISPLAY=' && break
+        i=$((i + 1))
+        sleep 0.01
+    done
+
     : >"$call_log"
     FAKE_FCITX5_PID=$wayland_pid FCITX5_CALL_LOG=$call_log \
         PATH=$bin_dir:/usr/bin /bin/sh "$LAUNCHER_SCRIPT" >/dev/null 2>&1 ||
@@ -352,6 +362,15 @@ EOF
     # `fcitx5 -d --replace` 接管。
     env -i sleep 30 &
     bare_pid=$!
+
+    # 同样等待 exec 完成（environ 清空），否则 runner 自带 WAYLAND_DISPLAY
+    # 时会在窗口期内被误读为 Wayland 实例。
+    i=0
+    while [ $i -lt 200 ]; do
+        tr '\0' '\n' </proc/$bare_pid/environ 2>/dev/null | grep -q '^WAYLAND_DISPLAY=' || break
+        i=$((i + 1))
+        sleep 0.01
+    done
 
     : >"$call_log"
     FAKE_FCITX5_PID=$bare_pid FCITX5_CALL_LOG=$call_log \

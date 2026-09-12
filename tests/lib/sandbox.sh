@@ -65,10 +65,11 @@ link_core_utils() {
     extra_cmds_var=${2:-}
 
     # Baseline set: install.sh check_dependencies + the utilities the
-    # script body actually invokes. Mirrors the smallest PATH that the
-    # existing tests have already validated.
+    # script body actually invokes (ls is used by copy_config's empty-dir
+    # guard). Mirrors the smallest PATH that the existing tests have
+    # already validated.
     for cmd in bash basename cp date diff dirname find grep head ln \
-        mkdir mv pwd rm sed sort tail uname; do
+        ls mkdir mv pwd rm sed sort tail uname; do
         link_cmd "$cmd" "$target_dir"
     done
 

@@ -88,7 +88,7 @@ test_keys_mirror_alacritty() {
 }
 
 test_installed_in_wayland_dir_configs() {
-    assert_contains 'command -v foot|.config/linux/foot|~/.config/foot|Foot' "$INSTALL_FILE"
+    assert_contains 'command -v foot|.config/linux/foot/foot.ini|~/.config/foot/foot.ini|Foot' "$INSTALL_FILE"
 }
 
 test_terminal_wayland_prefers_foot() {

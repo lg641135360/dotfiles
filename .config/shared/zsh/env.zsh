@@ -13,12 +13,12 @@ export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
 export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles"
 export HOMEBREW_API_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles/api"
 
-if [[ "$OSTYPE" == linux* && "${XDG_SESSION_TYPE:-}" != "wayland" ]]; then
+if [[ "$OSTYPE" == linux* ]]; then
+    export GTK_USE_PORTAL=1
+fi
+if [[ "$OSTYPE" == linux* && "${XDG_SESSION_TYPE:-}" == x11 && -n "${DISPLAY:-}" ]]; then
     export XDG_CURRENT_DESKTOP=awesome
     export XDG_SESSION_DESKTOP=awesome
-    export GTK_USE_PORTAL=1
-elif [[ "$OSTYPE" == linux* ]]; then
-    export GTK_USE_PORTAL=1
 fi
 
 # Use bat as pager
@@ -62,4 +62,3 @@ fi
 
 # fzf --zsh（Tab / Ctrl-R / Ctrl-T）改在 plugins.zsh 的 zvm_after_init
 # 里加载：zsh-vi-mode 会覆盖先前 bindkey，提前 source 会让 Tab 失效。
-

@@ -44,10 +44,21 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/linux/xdg-autostart/nm-applet.desktop|~/.config/autostart/nm-applet.desktop|XDG autostart override: nm-applet' "$INSTALL_FILE"
     assert_contains '|.config/linux/xdg-autostart/print-applet.desktop|~/.config/autostart/print-applet.desktop|XDG autostart override: print-applet' "$INSTALL_FILE"
     assert_contains '|.config/linux/xdg-autostart/geoclue-demo-agent.desktop|~/.config/autostart/geoclue-demo-agent.desktop|XDG autostart override: geoclue-demo-agent' "$INSTALL_FILE"
+    # Block 1 (scripts/entries/portal/overrides/foot) deploys on any niri machine.
     assert_contains 'if command -v niri >/dev/null 2>&1; then' "$INSTALL_FILE"
+    # Block 2 (niri KDL/shell stack) only on repo niri platforms.
+    assert_contains 'if command -v niri >/dev/null 2>&1 && is_repo_niri_platform; then' "$INSTALL_FILE"
     assert_contains 'install_niri_config_for_platform()' "$INSTALL_FILE"
     assert_contains 'niri_platform_key()' "$INSTALL_FILE"
     assert_contains 'is_repo_niri_platform()' "$INSTALL_FILE"
+    assert_contains 'uses_dms_shell()' "$INSTALL_FILE"
+    assert_contains 'command -v dms >/dev/null 2>&1' "$INSTALL_FILE"
+    assert_contains 'linux_wayland_terminal_configs=(' "$INSTALL_FILE"
+    assert_contains 'command -v foot|.config/linux/foot/foot.ini|~/.config/foot/foot.ini|Foot' "$INSTALL_FILE"
+    assert_contains 'command -v foot|.config/linux/foot/README.md|~/.config/foot/README.md|Foot README' "$INSTALL_FILE"
+    assert_contains 'DMS detected; skipping Alacritty configuration copy' "$INSTALL_FILE"
+    assert_contains 'DMS detected; skipping niri configuration copy' "$INSTALL_FILE"
+    assert_contains 'keeping live niri, waybar, mako, fuzzel and swaylock configs' "$INSTALL_FILE"
     assert_contains "printf 'ubuntu_x64'" "$INSTALL_FILE"
     assert_contains 'is_opensuse()' "$INSTALL_FILE"
     assert_contains 'skipping Alacritty configuration copy' "$INSTALL_FILE"
@@ -174,6 +185,66 @@ test_install_preserves_opensuse_dms_niri_and_alacritty_configs() {
     rm -rf "$tmpdir"
 }
 
+test_install_preserves_dms_configs_on_ubuntu_x64() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    # DMS plus the full shell-stack commands exist: deployment paths would
+    # run if not gated, so any leak below fails the assertions.
+    for fake in dms waybar foot mako fuzzel swaylock; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+
+    mkdir -p "$home_dir/.config/niri" "$home_dir/.config/alacritty"
+    printf 'include "dms/layout.kdl"\n' >"$home_dir/.config/niri/config.kdl"
+    printf '[general]\nimport = ["~/.config/alacritty/dank-theme.toml"]\n' >"$home_dir/.config/alacritty/alacritty.toml"
+    printf 'dms keys configuration\n' >"$home_dir/.config/alacritty/keys.toml"
+    printf 'dms window configuration\n' >"$home_dir/.config/alacritty/window.toml"
+    # DMS drops an optional dank-colors.ini next to foot.ini; per-file foot
+    # deployment must preserve it instead of replacing the whole directory.
+    mkdir -p "$home_dir/.config/foot"
+    printf 'DMS optional colors\n' >"$home_dir/.config/foot/dank-colors.ini"
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=ubuntu DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed on Ubuntu x64 with DMS"
+
+    # Helper scripts, desktop entries, portal prefs and autostart overrides
+    # still deploy: they wrap apps, not the shell.
+    assert_file_exists "$home_dir/.config/scripts/wayland-autostart"
+    assert_file_exists "$home_dir/.config/scripts/terminal-wayland"
+    assert_file_exists "$home_dir/.local/share/applications/google-chrome.desktop"
+    assert_file_exists "$home_dir/.local/share/xdg-desktop-portal/niri-portals.conf"
+    assert_file_exists "$home_dir/.config/autostart/nm-applet.desktop"
+    # foot is deployed per-file: foot.ini lands while a third-party
+    # dank-colors.ini in the same directory is preserved.
+    assert_file_exists "$home_dir/.config/foot/foot.ini"
+    assert_contains 'DMS optional colors' "$home_dir/.config/foot/dank-colors.ini"
+
+    # DMS-managed desktop shell stack must be preserved.
+    assert_contains 'include "dms/layout.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_file_not_exists "$home_dir/.config/niri/common.kdl"
+    assert_file_not_exists "$home_dir/.config/waybar/config"
+    assert_file_not_exists "$home_dir/.config/mako/config"
+    assert_file_not_exists "$home_dir/.config/fuzzel/fuzzel.ini"
+    assert_file_not_exists "$home_dir/.config/swaylock/config"
+    assert_contains 'dank-theme.toml' "$home_dir/.config/alacritty/alacritty.toml"
+    assert_contains 'dms keys configuration' "$home_dir/.config/alacritty/keys.toml"
+    assert_contains 'dms window configuration' "$home_dir/.config/alacritty/window.toml"
+
+    # Skip messages name DMS. (The "skipping niri configuration copy" guard
+    # lives inside install_niri_config_for_platform, which Block 2 never
+    # invokes on a DMS machine; the elif message covers it here.)
+    assert_contains 'DMS detected; skipping Alacritty configuration copy' "$output"
+    assert_contains 'keeping live niri, waybar, mako, fuzzel and swaylock configs' "$output"
+
+    rm -rf "$tmpdir"
+}
+
 test_install_keeps_live_niri_config_for_unmapped_platform() {
     tmpdir=$(mktemp -d)
     home_dir=$tmpdir/home
@@ -221,6 +292,7 @@ test_install_copies_wayland_files_when_niri_exists_outside_wayland_session
 test_install_copies_ubuntu_x64_niri_config
 test_install_preserves_arch_niri_config
 test_install_preserves_opensuse_dms_niri_and_alacritty_configs
+test_install_preserves_dms_configs_on_ubuntu_x64
 test_install_keeps_live_niri_config_for_unmapped_platform
 test_install_skips_niri_and_wayland_files_when_niri_is_missing
 

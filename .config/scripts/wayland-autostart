@@ -176,20 +176,13 @@ start_portal_after_niri() {
     fi
 }
 
-# export GTK_IM_MODULE=fcitx
+# GTK_IM_MODULE must remain unset for Wayland GTK text-input.
 unset GTK_IM_MODULE
-export QT_IM_MODULE=fcitx
-export XMODIFIERS=@im=fcitx
-export SDL_IM_MODULE=fcitx
-export GLFW_IM_MODULE=ibus
-export INPUT_METHOD=fcitx
-export LC_CTYPE=${LC_CTYPE:-zh_CN.UTF-8}
 export XCURSOR_SIZE=32
 
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     dbus-update-activation-environment --systemd \
         WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE \
-        QT_IM_MODULE XMODIFIERS SDL_IM_MODULE GLFW_IM_MODULE INPUT_METHOD LC_CTYPE \
         >/dev/null 2>&1 || warn "dbus 环境同步失败"
 else
     warn "跳过 DBus 环境同步：未找到命令 dbus-update-activation-environment"
@@ -198,7 +191,6 @@ fi
 if command -v systemctl >/dev/null 2>&1; then
     systemctl --user import-environment \
         WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE \
-        QT_IM_MODULE XMODIFIERS SDL_IM_MODULE GLFW_IM_MODULE INPUT_METHOD LC_CTYPE \
         >/dev/null 2>&1 || warn "systemd 用户环境同步失败"
     # sddm/niri-session 会把 im-config 注入的 GTK_IM_MODULE=fcitx 导入 systemd 用户
     # 会话；Wayland GTK 应走 text-input-v3，显式从 systemd 用户环境清除该变量，

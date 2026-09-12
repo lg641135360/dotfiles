@@ -88,3 +88,56 @@
   ```
   旧 live 备份按"保留 3 份"清理（`ls -1t ~/.config/scripts/clipboard-wayland.backup.* | tail -n +4 | xargs rm -f`），agent 已尝试清理但同样被白名单拦截，需用户执行。
 - 后续可能方向：① live 重启守护后实测钉钉粘贴；② 观察桥轮询 CPU/功耗（0.5s 间隔，进程开销集中在 xclip/wl-paste 轮询）；③ 若卫星后续版本修复事件送达，可评估移除轮询桥。
+
+## 2026-09-11 环境变量收敛
+- 目的：集中 Wayland fcitx 环境并减少重复导出。
+- 已做：安装器新增幂等 `ensure_fcitx_environment`，为 `~/.config/environment.d/fcitx.conf` 确保 `XMODIFIERS=@im=fcitx` 与 `QT_IM_MODULE=fcitx`；Wayland niri 配置和 launcher/autostart 删除重复输入法变量；保留 Wayland 下清除 `GTK_IM_MODULE`；共享 zsh 将 `GTK_USE_PORTAL=1` 作为 Linux 通用变量，并仅在 X11 图形会话设置 Awesome 标识；移除 niri 中硬编码 `ZDOTDIR`，继续由安装器写入 `~/.zshenv`。
+- 验证：`bash -n install.sh .config/scripts/wayland-autostart .config/scripts/launcher-wayland`、`tests/niri_config_test.sh`、`tests/wayland_scripts_test.sh`、`tests/install_zshenv_test.sh`、`git diff --check` 通过。
+- live/提交：未同步 live，未提交；回滚信息：工作区未提交。
+
+## 2026-09-11 环境变量收敛（收尾）
+- 目的：进一步收敛——删除 `ensure_fcitx_environment` 与 `environment.d` 注入。分析确认正常登录路径下 fcitx 变量由 im-config 写入 `/etc/environment`，经 niri-session 的 `import-environment`（无参数）进入 systemd 用户环境，仓库侧不再需要任何 fcitx 变量注入点。
+- 已做：`install.sh` 删除 `ensure_fcitx_environment()` 函数与其在 `main()` 的调用；`.config/scripts/wayland-autostart` 的 dbus/systemd 同步列表删除 `QT_IM_MODULE XMODIFIERS`（保留 XDG 会话标识同步与 `unset-environment GTK_IM_MODULE`）；`.config/linux/niri/README.md` 环境变量小节重写为当前实现（fcitx 变量走 `/etc/environment` + niri-session 注入，`environment {}` 仅保留 `XCURSOR_SIZE` 与会话标识，`ZDOTDIR` 由安装器写 `~/.zshenv`）。
+- 验证：`bash -n`、`git diff --check` 通过；`tests/niri_config_test.sh`、`tests/install_zshenv_test.sh` 通过。
+- 遗留失败（非本轮引入，需用户决策）：
+  - `tests/install_wayland_test.sh`：`is_repo_niri_platform` 收紧为 ubuntu+aarch64 后，测试 6 个场景仍用 x86_64/arch/fedora mock，断言 niri 文件应部署不再成立；与 README「Ubuntu x86_64 / aarch64 部署」描述矛盾，疑似上轮误改，需回退收紧或同步改测试+README。
+  - `tests/wayland_scripts_test.sh` 的 `test_launcher_wayland_respects_running_wayland_fcitx5` 场景1：`git stash` 后 HEAD 版通过、工作区版失败；HEAD 与工作区 launcher 唯一差异是删除的 6 行 fcitx exports（逻辑上不影响 fcitx5 存活检测），疑为 `/proc/<pid>/environ` 读取的测试环境敏感问题（Yama ptrace_scope / 容器），待确认。
+- live/提交：未同步 live，未提交；回滚信息：工作区未提交。
+
+## 2026-09-12 DMS 落地：mako 总线冲突修复（live 运行态）
+- 目的：用户在 x64 Ubuntu 26.04 安装 dms 1.6.1ppa1（avengemedia/danklinux PPA）后 shell 未生效，定位并修复。
+- 根因：`/usr/lib/systemd/user/dms.service` 与 `mako.service` 同抢 `BusName=org.freedesktop.Notifications`，systemd 拒绝加载 dms（"Two services allocated for the same bus name"），会话只剩裸 niri。
+- 已做（live 运行态）：`systemctl --user disable --now mako.service`（提示 mako 为全局 enabled，仅 user-scope disable 不足以阻止下次自启）→ `systemctl --user mask mako.service`（symlink → /dev/null，同 gammastep-indicator 手法）→ `daemon-reload` → `start dms.service`。
+- 验证：`dms.service` active (running)（PID 12377，quickshell `qs -p /run/user/1001/danklinux-shell/...` 子进程在位）；mako 无进程；fcitx5 正常运行（PID 12563）。
+- 现场变化：DMS 当日 10:22 重新生成 live `~/.config/niri/config.kdl`（内联 DMS 默认配置 + `include optional=true "dms/*.kdl"` 片段；旧 708B 仓库版已备份 `~/.config/niri/config.kdl.backup.2026-09-12_10-22-31`）。新配置无任何 `spawn-at-startup`，仓库 `wayland-autostart` 链（swaybg/swayidle/clipboard/polkit）不再自启，由 DMS 模块接管壁纸/锁屏/剪贴板/polkit；live `common.kdl`（仓库版）不再被 include。
+- 恢复命令（完整回退到 mako + waybar 链）：
+  ```
+  systemctl --user disable --now dms.service
+  systemctl --user unmask mako.service && systemctl --user daemon-reload && systemctl --user start mako.service
+  ```
+- 后续可能方向：① 仓库侧 mako/waybar 链清理（wayland-autostart 的 mako 行、install.sh mako 配置部署、对应测试与 README）待用户决策；② `memory/niri.md` 2026-08-29「不装 dms，waybar+脚本链不变」决策已被本轮实际安装推翻，待 DMS 稳定后更新；③ DMS 生成的 config.kdl 未含仓库键位/窗口规则（Mod+hjkl、钉钉浮动等），需评估 DMS 设置内重建或改回 include 仓库 common.kdl。
+- live/提交：仅运行态变更（mask/启停服务），仓库文件未同步 live；回滚信息：见上恢复命令。
+
+## 2026-09-12 仓库适配 niri + DMS 环境
+- 目的：x64 Ubuntu 已切 niri + DMS，调整 dotfiles 部署边界——DMS 机器保留 DMS 自管的外壳栈，仓库只部署与外壳无关的部分。
+- 已做：
+  - `install.sh`：`uses_dms_shell()` 改为 `command -v dms` 真探测（替换 2026-09-11 误收紧的 aarch64-only `is_repo_niri_platform`）；`is_repo_niri_platform = ubuntu && !dms`。部署拆两块：块1（Wayland 辅助脚本、桌面入口、portal 偏好、XDG autostart 覆盖 + 新数组 `linux_wayland_terminal_dir_configs`（foot，DMS 不改写 foot.ini））任何 niri 机器都部署；块2（niri 平台 KDL/common.kdl、waybar、mako、fuzzel、swaylock）仅 repo niri 平台部署，DMS/非 Ubuntu 走 elif 提示保留 live 配置。alacritty 跳过条件从仅 openSUSE 扩为 openSUSE||DMS（DMS 会重写 alacritty 主题导入）。
+  - `tests/install_wayland_test.sh`：静态断言更新（两块 gate、`uses_dms_shell`、foot 数组、DMS 跳过消息）；新增 `test_install_preserves_dms_configs_on_ubuntu_x64`（stub dms/waybar/foot/mako/fuzzel/swaylock，断言脚本/入口/portal/覆盖/foot 部署且 DMS 配置全保留）。
+  - `tests/lib/sandbox.sh`：baseline PATH 增补 `ls`——`copy_config` 空目录守卫调用 `ls`，旧沙箱缺它导致 foot 目录部署在最小 PATH 下误报"empty submodule"；此前无测试 stub 过 foot 所以未暴露。
+  - `tests/wayland_scripts_test.sh`：修复 `test_launcher_wayland_respects_running_wayland_fcitx5` 偶发失败（trace 2026-09-11 遗留项）。根因实证：`env ... sleep &` 后立即读 `/proc/$pid/environ`，env(1) 未 exec sleep 前读到旧环境（无 WAYLAND_DISPLAY），300/300 复现；launcher 误判为 X11 实例触发 `--replace`。修复：两个场景 spawn 后加 exec 就绪等待循环（≤2s）。
+  - `tests/niri_config_test.sh`：README 部署边界断言同步新措辞。
+  - 文档：`README.md` 使用方式段、`.config/linux/niri/README.md` 定位/部署边界段、`memory/niri.md` 平台与部署规则、`memory/organizing_preferences.md` alacritty 归 DMS 说明，均改为「Ubuntu 且无 dms 才部署外壳栈，DMS 机器全保留」。
+- 验证：`bash -n install.sh`、`git diff --check` 通过；`./tests/run.sh fast` PASS=46 FAIL=0（含新 DMS 用例与 wayland scripts 连跑 5 次稳定）。
+- live/提交：未同步 live（本轮只改仓库部署逻辑，live DMS 配置已是目标态，无需动）；未提交；回滚信息：工作区未提交（连同 2026-09-11 环境变量收敛轮，建议分两个 commit）。
+- 后续可能方向：① 工作区另有 2026-09-11 环境变量收敛轮未提交，提交时先提交该轮再提交本轮；② DMS 键位未含仓库肌肉记忆键（Mod+hjkl 等）且 Mod+T spawn 未安装的 ghostty，待用户在 DMS 设置内调整；③ waybar/wayland-autostart 链的仓库清理（或保留为 aarch64 回退）待 DMS 稳定使用后决策；④ `memory/niri.md` 2026-08-29 包来源条目「不装 dms」已成历史，随下轮 memory 整理更新。
+
+## 2026-09-12 foot 目录改单文件部署（保留第三方文件）
+- 目的：规避整目录复制把 live `~/.config/foot` 中 DMS 放入的 `dank-colors.ini` 归档/替换掉的问题；用户决策：仅 foot 改逐文件部署，其它目录部署（git/nvim/awesome/mako/fuzzel/swaylock）保持整目录替换不变。
+- 已做：
+  - `install.sh`：`linux_wayland_terminal_dir_configs`（整目录）改为 `linux_wayland_terminal_configs` 逐文件数组（`foot.ini` + `README.md`），`main()` 对应调用更新；块1 任何 niri 机器部署不变。
+  - `tests/install_wayland_test.sh`：静态断言改为逐文件条目；DMS 用例预置 `~/.config/foot/dank-colors.ini` 并断言安装后保留 + `foot.ini` 部署。
+  - `tests/foot_config_test.sh`：install 行断言同步。
+  - 文档：`README.md` 安装说明、`.config/linux/niri/README.md` 部署边界段、`memory/niri.md` 部署段补充 foot 单文件部署说明。
+- 验证：`bash -n`、`tests/install_wayland_test.sh`、`tests/foot_config_test.sh`、`tests/install_submodule_test.sh` 通过；`./tests/run.sh fast` PASS=46 FAIL=0。
+- live/提交：未同步 live、未提交；回滚信息：工作区未提交（与 2026-09-11/12 各轮同处工作区，建议分 commit）。
+- 后续可能方向：① 若 DMS 的 `dank-colors.ini` 需要纳入仓库配色，可后续引入；② 其它目录若也出现第三方文件冲突，可评估通用合并部署。
