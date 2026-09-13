@@ -141,3 +141,20 @@
 - 验证：`bash -n`、`tests/install_wayland_test.sh`、`tests/foot_config_test.sh`、`tests/install_submodule_test.sh` 通过；`./tests/run.sh fast` PASS=46 FAIL=0。
 - live/提交：未同步 live、未提交；回滚信息：工作区未提交（与 2026-09-11/12 各轮同处工作区，建议分 commit）。
 - 后续可能方向：① 若 DMS 的 `dank-colors.ini` 需要纳入仓库配色，可后续引入；② 其它目录若也出现第三方文件冲突，可评估通用合并部署。
+
+## 2026-09-13 Mod+Enter 开 foot 加载 zsh 慢：skip_global_compinit 回归修复
+- 目的：aarch64 niri 会话 Mod+Return 拉起的 foot 里 zsh 交互启动实测 4.8s（优化基线 ~0.3s），定位并修复。
+- 根因：4302f3b（2026-09-12 环境变量收敛）从 niri `common.kdl` 的 `environment {}` 删掉预置 `ZDOTDIR`，注释却保留。zsh 只在启动最初读一次 `${ZDOTDIR:-$HOME}/.zshenv`：环境无 ZDOTDIR 时读 `~/.zshenv`（当时仅一行 `export ZDOTDIR`），随后 Ubuntu `/etc/zsh/zshrc` 检查 `skip_global_compinit` 时该变量为空（`$ZDOTDIR/.zshenv` 永远不会再被读）→ 全局 compinit 用默认 fpath 跑（xtrace 实证单次的 3.9s），并与 `plugins.zsh` 的 `compinit -u -d` 写同一 `$ZDOTDIR/.zcompdump`、fpath 不同互判过期，每次启动双重重整。
+- 已做：
+  - `install.sh` `ensure_zdotdir()`：改为逐行幂等确保 `~/.zshenv` 含 `export ZDOTDIR=$HOME/.config/zsh` 和 `skip_global_compinit=1` 两条（原逻辑 export 已存在即整体 return，不会补 skip 行）。
+  - `tests/install_zshenv_test.sh`：新增 `test_ensure_zdotdir_backfills_skip_global_compinit` 回归用例（单行 ~/.zshenv 补 skip），既有用例补 skip 行幂等断言。
+  - 文档：`.config/shared/zsh/README.md` 安装段与「跳过全局 compinit」段（补 2026-09-13 回归说明）；`memory/organizing_preferences.md` 「~/.zshenv 只含一条」旧偏好改为两条及理由。
+  - live：备份后更新 `/home/rikoo/.zshenv`（追加 `skip_global_compinit=1`），备份 `/home/rikoo/.zshenv.backup.20260913_095528_1754579`（无更旧备份，保留 3 份规则无需清理）；删除 `~/.config/zsh/.zcompdump.rikoo-AIBOOK-ABA14104.1627485` 孤儿 dump。
+- 验证：`bash -n install.sh` 通过；`tests/install_*_test.sh` 全部 7 个 PASS；模拟 niri spawn 干净环境 `env -i ... zsh -i -c exit` 从 4.8s 降到 0.275s；`git diff --check` 通过。
+- 未完成（需用户执行）：Trae CN 内置 ripgrep 再次丢失可执行位（Grep/Glob 全报 EACCES，文件日期 2026-09-08），agent 无 sudo 密码，需用户跑：`sudo chmod 755 /usr/share/trae-cn/resources/app/node_modules/@vscode/ripgrep/bin/rg /usr/share/trae-cn/resources/app/node_modules/@byted-fe/ripgrep-linux-arm64/bin/rg`（无需重启 Trae）。
+- 恢复命令（live ~/.zshenv 出问题时）：
+  ```bash
+  cp -p ~/.zshenv.backup.20260913_095528_1754579 ~/.zshenv
+  ```
+- live/提交：live ~/.zshenv 已同步（见上备份）；本轮已提交 `f478738`（fix(install): backfill skip_global_compinit into ~/.zshenv，5 文件，未推送）；回滚：`git revert f478738` 或从备份恢复 ~/.zshenv。
+- 后续可能方向：① 若其它机器（x64 DMS/macOS）曾跑过旧安装器，重跑 `./install.sh` 即可幂等补 skip 行；② niri README 环境变量段的「否则没有 skip_global_compinit」描述与现状一致（~/.zshenv 现含该行），未改。

@@ -6,7 +6,7 @@
 ## 通用工作流
 - 当用户要求把当前桌面配置改动提交到 GitHub 时，通常优先先复跑轻量回归测试，并确认仓库文件与 live `~/.config` 已同步，再执行提交和推送。
 - 对 `install.sh` 里的 `redshift` 处理，通常保留缺失检查即可；缺失时只提示用户手动安装，不要在安装脚本里自动执行提权安装。
-- 安装器在检测到 Zsh 时，应确保 `~/.zshenv` 包含且只包含一条 `export ZDOTDIR=$HOME/.config/zsh`，使模块化 Zsh 配置可被默认加载。
+- 安装器在检测到 Zsh 时，应确保 `~/.zshenv` 逐行幂等包含两条：`export ZDOTDIR=$HOME/.config/zsh` 和 `skip_global_compinit=1`。后者必须在 `~/.zshenv` 而非仅 `$ZDOTDIR/.zshenv`：ZDOTDIR 未预置时 zsh 只读 `~/.zshenv`，随后 `/etc/zsh/zshrc` 就检查该开关（2026-09-13 回归实证：缺它时 niri spawn 的终端每次交互启动跑 Ubuntu 全局 compinit，4.8s vs 修复后 0.28s）。
 
 ## 系统环境
 - 在 Ubuntu aarch64 上，X11-sensitive 桌面工具通常优先使用系统二进制（尤其是 `redshift`）。

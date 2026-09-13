@@ -9,7 +9,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-安装器会在检测到 Zsh 时向 `~/.zshenv` 写入 `export ZDOTDIR=$HOME/.config/zsh`；已有相同行时跳过，不会重复追加。
+安装器会在检测到 Zsh 时向 `~/.zshenv` 写入两行：`export ZDOTDIR=$HOME/.config/zsh` 与 `skip_global_compinit=1`（理由见下文「启动提速：跳过全局 compinit」）；逐行幂等检查，已有相同行时跳过，不会重复追加。
 
 ## 依赖
 
@@ -166,6 +166,8 @@ chmod +x install.sh
 `.zshenv` 中的 `skip_global_compinit=1` 用于跳过 Ubuntu 系统级 `/etc/zsh/zshrc` 里的 `compinit`（该开关是 `/etc/zsh/zshrc` 官方注释指定的退出机制）。
 
 原因：全局 `compinit` 会先用默认 fpath 跑一次，随后 [plugins.zsh](.config/shared/zsh/plugins.zsh) 加载 zinit 改变 fpath 后又跑一次，导致每次启动都全量重建完成缓存（实测约 3.4s 惩罚）。跳过全局那次、只保留 `plugins.zsh` 里 fpath 就绪后的 `compinit`，可使交互式启动从 ~4.7s 降到 ~0.35s。
+
+注意 `skip_global_compinit=1` 必须同时出现在 `~/.zshenv`（安装器 `ensure_zdotdir` 已保证）：zsh 只在启动最初读一次 `${ZDOTDIR:-$HOME}/.zshenv`，ZDOTDIR 未预置时读的是 `~/.zshenv`，随后 `/etc/zsh/zshrc` 就检查该开关，`$ZDOTDIR/.zshenv` 不会再被读取。2026-09-13 回归：niri `common.kdl` 移除预置的 `ZDOTDIR` 环境变量后，`~/.zshenv` 缺少该行，全局 compinit 每次交互启动重建 dump（aarch64 实测 4.8s，修复后 0.28s）。
 
 ## 启动提速：compinit 跳过 compaudit + 插件延迟加载
 

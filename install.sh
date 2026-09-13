@@ -240,17 +240,30 @@ process_configs() {
 ensure_zdotdir() {
     local zshenv="$HOME/.zshenv"
     local export_line='export ZDOTDIR=$HOME/.config/zsh'
+    # skip_global_compinit 必须进 ~/.zshenv，不能只放 $ZDOTDIR/.zshenv：
+    # ZDOTDIR 未预置时 zsh 只读 ~/.zshenv，随后 /etc/zsh/zshrc（Ubuntu）
+    # 就检查 skip_global_compinit，$ZDOTDIR/.zshenv 不会再被读取。缺了这行，
+    # 全局 compinit 与 plugins.zsh 的 compinit 每次交互启动互踢 dump
+    # （aarch64 实测 +3.9s，见 logs/trace.md 2026-09-13）。
+    local skip_line='skip_global_compinit=1'
+    local line added=0
 
-    if [ -f "$zshenv" ] && grep -Fxq -- "$export_line" "$zshenv"; then
-        log_info "ZDOTDIR is already configured in $zshenv"
-        return 0
-    fi
+    for line in "$export_line" "$skip_line"; do
+        if [ -f "$zshenv" ] && grep -Fxq -- "$line" "$zshenv"; then
+            continue
+        fi
+        if [ -s "$zshenv" ] && [ "$added" -eq 0 ]; then
+            printf '\n' >>"$zshenv"
+        fi
+        printf '%s\n' "$line" >>"$zshenv"
+        added=$((added + 1))
+    done
 
-    if [ -s "$zshenv" ]; then
-        printf '\n' >>"$zshenv"
+    if [ "$added" -gt 0 ]; then
+        log_info "Configured ZDOTDIR/skip_global_compinit in $zshenv"
+    else
+        log_info "ZDOTDIR and skip_global_compinit are already configured in $zshenv"
     fi
-    printf '%s\n' "$export_line" >>"$zshenv"
-    log_info "Configured ZDOTDIR in $zshenv"
 }
 
 niri_platform_key() {
