@@ -26,7 +26,7 @@
 - 改动：`dingtalk-wayland` 去掉启动/preload/restart 路径，仅保留 `status` 与 `stop|kill`；无参数或未知子命令打印帮助并退出 2。同步 `install.sh` 部署说明、niri/scripts README、`memory/dingtalk.md` 与两组测试。
 - 验证：先改测试确认失败，再改实现后 `sh tests/dingtalk_wayland_test.sh`、`tests/wayland_scripts_test.sh`、`tests/install_wayland_test.sh`、`tests/niri_config_test.sh`、`tests/repo_docs_test.sh`、`sh -n`、`git diff --check` 均 PASS。无参数 / `restart` 现返回 2。
 - live 同步：已覆盖 `~/.config/scripts/dingtalk-wayland`，备份 `~/.config/scripts/dingtalk-wayland.backup.20260916_105709_873739`；旧 backup 按保留 3 份清理。autostart 覆盖仍 `Hidden=true`，Comment 改为不再指向仓库启动脚本，备份 `~/.config/autostart/com.alibabainc.dingtalk.desktop.backup.20260916_105730_873953`。
-- 回滚信息：未提交。live 恢复：
+- 回滚信息：commit `c830724`（已提交，未推送）。live 恢复：
   ```bash
   cp ~/.config/scripts/dingtalk-wayland.backup.20260916_105709_873739 ~/.config/scripts/dingtalk-wayland
   ```
@@ -35,9 +35,9 @@
 
 - 目的：用户实测 `DINGTALK_FORCE_X11_CAPTURE=0 ~/.config/scripts/dingtalk-wayland restart` 后，钉钉 `8.2.8.260904001` 在 x86_64 + niri 上可正常共享；仓库不再需要 X11 LD_PRELOAD hook。
 - 改动：删除 `tools/dingtalk-wayland-screenshare/` 与 `tests/dingtalk_hook_test.sh`；`dingtalk-wayland` 去掉 hook 注入和 `XDG_SESSION_TYPE=x11` 伪装，默认保留真实 Wayland 会话走会议 SDK 原生 PipeWire 捕获。测试改为 `tests/dingtalk_wayland_test.sh`，并同步 niri/scripts README、`memory/dingtalk.md`、`AGENTS.md`、`.gitignore`。
-- 验证：先改测试确认失败，再改实现后 `sh tests/dingtalk_wayland_test.sh`、`tests/wayland_scripts_test.sh`、`tests/niri_config_test.sh`、`tests/install_wayland_test.sh`、`tests/repo_docs_test.sh`、`sh -n .config/scripts/dingtalk-wayland`、`git diff --check` 均 PASS。`tests/install_backup_test.sh` 仍报 `install.sh: Bad substitution`，与本轮无关。
+- 验证：先改测试确认失败，再改实现后 `sh tests/dingtalk_wayland_test.sh`、`tests/wayland_scripts_test.sh`、`tests/niri_config_test.sh`、`tests/install_wayland_test.sh`、`tests/repo_docs_test.sh`、`sh -n .config/scripts/dingtalk-wayland`、`git diff --check` 均 PASS；提交前补跑 `tests/run.sh fast` PASS=46 FAIL=0。`tests/install_backup_test.sh` 用 bash（其 shebang）跑 PASS，此前用 `sh` 调用产生的 `Bad substitution` 是 dash 解析不了 bash 版 `install.sh` 的假失败。
 - live 同步：已同步 `~/.config/scripts/dingtalk-wayland`；备份 `~/.config/scripts/dingtalk-wayland.backup.20260916_100940_826682`；旧 backup 已按保留 3 份清理。已删除 `~/.local/lib/dingtalk-wayland-screenshare/`（含 `libdingtalkhook.so`）。live 脚本与仓库 diff 为空，无 hook 引用。live desktop entry `~/.local/share/applications/com.alibabainc.dingtalk.desktop` 已改回官方 `Exec=/opt/apps/com.alibabainc.dingtalk/files/Elevator.sh %u`（与系统入口一致），备份 `...desktop.backup.20260916_102452_856277` 与更早的 Comment 备份 `...desktop.backup.20260916_102211_855500`。仓库无对应 desktop entry，未纳入 install.sh。未重启钉钉。
-- 回滚信息：未提交。仓库 `git checkout --` 上述文件即可回退；hook 源码需从 `git checkout HEAD -- tools/dingtalk-wayland-screenshare tests/dingtalk_hook_test.sh` 恢复。live 恢复：
+- 回滚信息：commit `c830724`（已提交，未推送）。仓库 `git checkout --` 上述文件即可回退；hook 源码需从 `git checkout HEAD -- tools/dingtalk-wayland-screenshare tests/dingtalk_hook_test.sh` 恢复。live 恢复：
   ```bash
   cp ~/.config/scripts/dingtalk-wayland.backup.20260916_100940_826682 ~/.config/scripts/dingtalk-wayland
   cp ~/.local/share/applications/com.alibabainc.dingtalk.desktop.backup.20260916_102452_856277 ~/.local/share/applications/com.alibabainc.dingtalk.desktop
