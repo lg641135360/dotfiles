@@ -21,7 +21,6 @@ CLAUDE.md
 docs
 
 # Local build outputs
-tools/dingtalk-wayland-screenshare/build/
 /build/
 
 # OMX runtime state

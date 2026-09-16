@@ -17,7 +17,7 @@ test_install_deploys_wayland_trial_files() {
     assert_contains 'linux_wayland_dir_configs=(' "$INSTALL_FILE"
     assert_contains '|.config/scripts/wayland-autostart|~/.config/scripts/wayland-autostart|Wayland autostart script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/file-manager-wayland|~/.config/scripts/file-manager-wayland|Wayland file manager selector' "$INSTALL_FILE"
-    assert_contains '|.config/scripts/dingtalk-wayland|~/.config/scripts/dingtalk-wayland|DingTalk Wayland script' "$INSTALL_FILE"
+    assert_contains '|.config/scripts/dingtalk-wayland|~/.config/scripts/dingtalk-wayland|DingTalk troubleshooting script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/terminal-wayland|~/.config/scripts/terminal-wayland|Wayland terminal script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/launcher-wayland|~/.config/scripts/launcher-wayland|Wayland launcher script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/lock-wayland|~/.config/scripts/lock-wayland|Wayland lock script' "$INSTALL_FILE"

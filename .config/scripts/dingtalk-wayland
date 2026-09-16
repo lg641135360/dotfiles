@@ -1,7 +1,6 @@
 #!/bin/sh
-# DingTalk/niri 维护与兼容入口。aarch64 日常启动使用系统 desktop entry 的
-# Elevator.sh；本脚本保留 portal 检查、安全 restart、日志和显式 hook 回退。
-# `restart` 会先终止当前用户名下所有钉钉进程，再走兼容启动流程。
+# 钉钉排障脚本。日常启动用官方 Elevator.sh（Mod+C / desktop entry）。
+# 本脚本只检查 ScreenCast/PipeWire 状态，并精确清理当前用户的钉钉/tblive。
 
 notify_problem() {
     title=$1
@@ -58,6 +57,18 @@ signal_dingtalk_processes() {
     done
 }
 
+require_process_tools() {
+    for dep in id readlink; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            notify_problem \
+                "DingTalk troubleshooting unavailable" \
+                "缺少基础命令 $dep，无法安全检查或清理钉钉。"
+            exit 127
+        fi
+    done
+    dingtalk_user_uid=$(id -u)
+}
+
 portal_backend_has_screencast() {
     busctl --user introspect \
         org.freedesktop.impl.portal.desktop.gnome \
@@ -65,195 +76,101 @@ portal_backend_has_screencast() {
         grep -F 'org.freedesktop.impl.portal.ScreenCast' >/dev/null 2>&1
 }
 
-wait_for_portal_screencast() {
-    [ "${XDG_SESSION_TYPE:-}" = wayland ] || return 0
-    command -v busctl >/dev/null 2>&1 || return 0
+print_status() {
+    require_process_tools
 
-    attempt=0
-    while [ "$attempt" -lt 50 ]; do
-        portal_backend_has_screencast && return 0
-        sleep 0.1
-        attempt=$((attempt + 1))
+    if [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
+        printf 'session: wayland (%s)\n' "${WAYLAND_DISPLAY:-unset}"
+    else
+        printf 'session: %s\n' "${XDG_SESSION_TYPE:-unknown}"
+    fi
+
+    if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] && [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+        if [ -S "$XDG_RUNTIME_DIR/pipewire-0" ] || pgrep -u "$(id -u)" -x pipewire >/dev/null 2>&1; then
+            printf 'pipewire: running\n'
+        else
+            notify_problem \
+                "PipeWire is not running" \
+                "DingTalk screen sharing needs PipeWire, WirePlumber, and xdg-desktop-portal."
+            printf 'pipewire: missing\n'
+        fi
+    else
+        printf 'pipewire: skipped (not a Wayland session)\n'
+    fi
+
+    if command -v busctl >/dev/null 2>&1 && [ "${XDG_SESSION_TYPE:-}" = wayland ]; then
+        if portal_backend_has_screencast; then
+            printf 'screencast portal: ready\n'
+        else
+            printf 'screencast portal: missing\n'
+        fi
+    else
+        printf 'screencast portal: skipped\n'
+    fi
+
+    found=0
+    for proc_dir in /proc/[0-9]*; do
+        pid=${proc_dir##*/}
+        is_owned_dingtalk_process "$pid" || continue
+        executable=$(readlink "$proc_dir/exe" 2>/dev/null) || continue
+        printf 'process: %s %s\n' "$pid" "${executable##*/}"
+        found=1
     done
+    if [ "$found" -eq 0 ]; then
+        printf 'process: none\n'
+    fi
+}
 
-    notify_problem \
-        "DingTalk screen sharing unavailable" \
-        "等待 ScreenCast portal 就绪超时；钉钉仍会启动，但本次屏幕共享可能不可用。"
-    return 0
+stop_dingtalk_processes() {
+    require_process_tools
+    # 通过 /proc/<pid>/exe 精确匹配可执行文件，避免按完整命令行匹配时把
+    # 恰好包含钉钉路径的 shell、测试或诊断工具一起终止。
+    # tblive 的 PPID 会在主进程退出后变成 1，因此每轮都重新扫描当前用户的
+    # com.alibabainc.dingtalk 与 tblive，而不是依赖父子关系。
+    signal_dingtalk_processes TERM
+    i=0
+    while [ "$i" -lt 5 ]; do
+        dingtalk_processes_running || break
+        sleep 1
+        i=$((i + 1))
+    done
+    # SIGTERM 5 秒后仍未退出则 SIGKILL 强杀（钉钉作为 Electron 应用常响应慢）
+    if dingtalk_processes_running; then
+        signal_dingtalk_processes KILL
+        sleep 1
+    fi
+    if dingtalk_processes_running; then
+        notify_problem "DingTalk still running" "精确清理后仍有钉钉/tblive 进程。"
+        exit 1
+    fi
+    printf 'DingTalk processes stopped.\n'
 }
 
 print_usage() {
     cat <<'EOF'
-用法: dingtalk-wayland [子命令] [-- 钉钉参数...]
-  (无参数)      使用兼容入口启动钉钉（aarch64 日常使用 Mod+C 即可）
-  restart       精确清理钉钉/tblive 后，通过兼容入口重新启动
+用法: dingtalk-wayland <子命令>
+  status        检查会话、PipeWire、ScreenCast portal 和钉钉进程
+  stop|kill     精确清理当前用户的钉钉/tblive
   usage|--help  显示此帮助
 
-环境变量:
-  DINGTALK_WAYLAND_HOOK  hook 库路径（默认从 ~/.local/lib/... 查找）
-  DINGTALK_WAYLAND_LOG   日志路径（默认 /tmp/dingtalk-wayland.log）
-  DINGTALK_FORCE_X11_CAPTURE  0/1 切换 X11 LD_PRELOAD 抓屏回退；x86_64 默认 1，
-                              其它架构默认 0；显式设置优先于架构默认
-  DINGTALK_BASE          钉钉安装根（默认 /opt/apps/com.alibabainc.dingtalk/files）
-  DINGTALK_DIR           钉钉版本目录（默认自动查找 *Release）
-
-示例:
-  dingtalk-wayland
-  dingtalk-wayland restart
-  dingtalk-wayland -- --some-dingtalk-flag=value
+日常启动请用 Mod+C 选择钉钉（官方 Elevator.sh）。本脚本只用于排障。
 EOF
 }
 
 case "${1:-}" in
-    usage|--help|-h)
+    usage|--help|-h|"")
         print_usage
+        [ -n "${1:-}" ] || exit 2
         exit 0
         ;;
-    restart)
-        # 通过 /proc/<pid>/exe 精确匹配可执行文件，避免按完整命令行匹配时把
-        # 恰好包含钉钉路径的 shell、测试或诊断工具一起终止。
-        for dep in id readlink; do
-            if ! command -v "$dep" >/dev/null 2>&1; then
-                notify_problem \
-                    "DingTalk restart unavailable" \
-                    "缺少基础命令 $dep，无法安全重启钉钉。"
-                exit 127
-            fi
-        done
-        dingtalk_user_uid=$(id -u)
-        # tblive 的 PPID 会在主进程退出后变成 1，因此每轮都重新扫描当前用户的
-        # com.alibabainc.dingtalk 与 tblive，而不是依赖父子关系。
-        signal_dingtalk_processes TERM
-        # 最多等待 5 秒让进程响应 SIGTERM 退出，避免新实例与旧实例同时持有 Wayland 资源
-        i=0
-        while [ "$i" -lt 5 ]; do
-            dingtalk_processes_running || break
-            sleep 1
-            i=$((i + 1))
-        done
-        # SIGTERM 5 秒后仍未退出则 SIGKILL 强杀（钉钉作为 Electron 应用常响应慢）
-        if dingtalk_processes_running; then
-            signal_dingtalk_processes KILL
-            sleep 1
-        fi
-        shift
+    status)
+        print_status
+        ;;
+    stop|kill)
+        stop_dingtalk_processes
+        ;;
+    *)
+        print_usage >&2
+        exit 2
         ;;
 esac
-
-# 支持 `--` 分隔符：之后的所有参数原样透传给钉钉，不再解释为子命令
-if [ "${1:-}" = "--" ]; then
-    shift
-fi
-
-# x86_64 + 钉钉 8.1.0 的 libmeeting_sdk.so 只编译了 X11 capturer，原生
-# Wayland 捕获路径不可用，默认走 hook 回退；aarch64 + 8.1.1 原生捕获已
-# 验证可用，默认不走 hook。显式设置 DINGTALK_FORCE_X11_CAPTURE 优先级最高。
-if [ -n "${DINGTALK_FORCE_X11_CAPTURE:-}" ]; then
-    force_x11_capture=$DINGTALK_FORCE_X11_CAPTURE
-elif [ "$(uname -m)" = "x86_64" ]; then
-    force_x11_capture=1
-else
-    force_x11_capture=0
-fi
-hook_lib=${DINGTALK_WAYLAND_HOOK:-}
-log_file=${DINGTALK_WAYLAND_LOG:-/tmp/dingtalk-wayland.log}
-
-if [ "$force_x11_capture" = 1 ]; then
-    if [ -z "$hook_lib" ]; then
-        for candidate in \
-            "$HOME/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so" \
-            "$HOME/.local/lib/dingtalk-wayland-screenshare/libdingtalkhook.so" \
-            "/opt/dingtalk/release/libdingtalkhook.so"; do
-            if [ -r "$candidate" ]; then
-                hook_lib=$candidate
-                break
-            fi
-        done
-    fi
-
-    if [ -z "$hook_lib" ] || [ ! -r "$hook_lib" ]; then
-        notify_problem \
-            "DingTalk Wayland hook unavailable" \
-            "Build dingtalk-wayland-screenshare and set DINGTALK_WAYLAND_HOOK or install libdingtalkhook.so under ~/.local/lib/dingtalk-wayland-screenshare/."
-        exit 127
-    fi
-fi
-
-if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] && [ -n "${XDG_RUNTIME_DIR:-}" ]; then
-    if [ ! -S "$XDG_RUNTIME_DIR/pipewire-0" ] && ! pgrep -u "$(id -u)" -x pipewire >/dev/null 2>&1; then
-        notify_problem \
-            "PipeWire is not running" \
-            "DingTalk screen sharing needs PipeWire, WirePlumber, and xdg-desktop-portal."
-    fi
-fi
-
-# wayland-autostart 负责按 niri ScreenCast → portal backend/frontend 的顺序
-# 修复服务；启动器只等待并告警，避免应用级脚本擅自重启桌面会话服务。
-wait_for_portal_screencast
-
-dingtalk_base=${DINGTALK_BASE:-/opt/apps/com.alibabainc.dingtalk/files}
-dingtalk_dir=${DINGTALK_DIR:-}
-
-if [ -z "$dingtalk_dir" ]; then
-    dingtalk_dir=$(find "$dingtalk_base" -maxdepth 1 -type d -name "*Release*" 2>/dev/null | sort -V | tail -1)
-fi
-
-if [ -z "$dingtalk_dir" ] || [ ! -x "$dingtalk_dir/com.alibabainc.dingtalk" ]; then
-    notify_problem "DingTalk unavailable" "Could not find com.alibabainc.dingtalk under $dingtalk_base."
-    exit 127
-fi
-
-# Qt/CEF 界面通过 xcb/XWayland 运行。hook 回退路径把 XDG_SESSION_TYPE 伪装为
-# x11，强制钉钉会议 SDK 使用 X11 capturer；x86_64 + 8.1.0 的 libmeeting_sdk.so
-# 只编译了 X11 后端，native Wayland/PipeWire capture 不可用，因此 x86_64 默认
-# 走该回退，其它架构默认保留真实 Wayland 环境走 native Wayland/PipeWire capture。
-if [ "$force_x11_capture" = 1 ] && [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
-    export XDG_SESSION_TYPE=x11
-    unset WAYLAND_DISPLAY
-fi
-
-export QT_QPA_PLATFORM=xcb
-export QT_PLUGIN_PATH="$dingtalk_dir"
-export QT_XCB_GL_INTEGRATION=xcb_egl
-export QT_QUICK_BACKEND=opengl
-export LD_LIBRARY_PATH="$dingtalk_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
-libc_minor=$(ldd --version 2>/dev/null | awk 'NR == 1 { split($NF, version, "."); print version[2] }')
-preload_libs="./libgbm.so"
-if [ -n "$libc_minor" ] && [ "$libc_minor" -lt 28 ] 2>/dev/null; then
-    preload_libs="./envlib.so ./libharfbuzz.so.0.20301.0 ./libgbm.so ./libidn2.so.0 ./libunistring.so.2 ./libz.so.1"
-fi
-if [ "$force_x11_capture" = 1 ]; then
-    preload_libs="$hook_lib $preload_libs"
-fi
-preload_libs="$preload_libs ./plugins/dtwebview/libcef.so"
-
-export LD_PRELOAD="$preload_libs${LD_PRELOAD:+ $LD_PRELOAD}"
-
-cd "$dingtalk_dir" || exit 1
-
-# 钉钉基于 CEF 109（Chromium 109），默认 ozone=x11 走 XWayland。
-# 曾尝试在 Wayland 会话下切原生 Wayland 后端解决双屏混 DPI 坐标错位，
-# 但实测 CEF 109 Wayland 后端有两个不可接受的缺陷：
-# 1. 搜索功能创建新 webview 时渲染进程必崩（crash dump 在 dump/8.1.1-Release.6020301/），
-#    日志见 CefExecuteProcess exit_code<<0 + active_to_render_terminated
-# 2. 多 output 混 DPI 下 deviceScaleFactor 不动态更新，内屏 scale 2.0 不生效
-# 因此保持 XWayland 模式。坐标错位问题改为通过使用习惯规避（避免窗口跨屏）。
-# aarch64 mtgpu 在缩放输出下 GPU 合成会撕裂，保留 --disable-gpu-compositing（XWayland 下同样有效）。
-gpu_flags=""
-if [ "$(uname -m)" = "aarch64" ]; then
-    gpu_flags="--disable-gpu-compositing"
-fi
-
-nohup ./com.alibabainc.dingtalk \
-    $gpu_flags \
-    --enable-gpu-rasterization \
-    --enable-zero-copy \
-    --ignore-gpu-blocklist \
-    --enable-accelerated-video-decode \
-    --enable-features=VaapiVideoDecoder,OverrideSoftwareRenderingList,GpuRasterization,ZeroCopy \
-    --disable-features=UseChromeOSDirectVideoDecoder \
-    --use-gl=auto \
-    "$@" >>"$log_file" 2>&1 </dev/null &
-
-exit 0

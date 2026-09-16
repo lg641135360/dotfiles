@@ -7,7 +7,6 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 NIRI_README=$REPO_ROOT/.config/linux/niri/README.md
 NIRI_COMMON_CONFIG=$REPO_ROOT/.config/linux/niri/common.kdl
 PORTAL_CONFIG=$REPO_ROOT/.config/linux/xdg-desktop-portal/niri-portals.conf
-DINGTALK_SOURCE=$REPO_ROOT/tools/dingtalk-wayland-screenshare
 AUTOSTART_SCRIPT=$REPO_ROOT/.config/scripts/wayland-autostart
 CLIPBOARD_SCRIPT=$REPO_ROOT/.config/scripts/clipboard-wayland
 FILE_MANAGER_SCRIPT=$REPO_ROOT/.config/scripts/file-manager-wayland
@@ -538,70 +537,45 @@ EOF
     rm -rf "$tmpdir"
 }
 
-test_dingtalk_wayland_entrypoint_preserves_preload_contract() {
+test_dingtalk_wayland_is_troubleshooting_only() {
     assert_executable "$DINGTALK_SCRIPT"
-    assert_file_exists "$DINGTALK_SOURCE/CMakeLists.txt"
-    assert_file_exists "$DINGTALK_SOURCE/payload.hpp"
-    assert_file_exists "$DINGTALK_SOURCE/hook.cpp"
-    assert_contains 'DINGTALK_WAYLAND_HOOK' "$DINGTALK_SCRIPT"
-    assert_contains 'libdingtalkhook.so' "$DINGTALK_SCRIPT"
+    assert_file_not_exists "$REPO_ROOT/tools/dingtalk-wayland-screenshare"
+    assert_contains '排障' "$DINGTALK_SCRIPT"
+    assert_contains 'status)' "$DINGTALK_SCRIPT"
+    assert_contains 'stop|kill)' "$DINGTALK_SCRIPT"
     assert_contains 'PipeWire is not running' "$DINGTALK_SCRIPT"
-    assert_contains 'export QT_QPA_PLATFORM=xcb' "$DINGTALK_SCRIPT"
-    assert_contains 'DINGTALK_FORCE_X11_CAPTURE' "$DINGTALK_SCRIPT"
-    assert_contains 'preload_libs="$hook_lib $preload_libs"' "$DINGTALK_SCRIPT"
-    assert_contains 'preload_libs="$preload_libs ./plugins/dtwebview/libcef.so"' "$DINGTALK_SCRIPT"
-    assert_contains 'export LD_PRELOAD="$preload_libs${LD_PRELOAD:+ $LD_PRELOAD}"' "$DINGTALK_SCRIPT"
-    assert_contains 'DINGTALK_WAYLAND_LOG' "$DINGTALK_SCRIPT"
-    assert_contains '/tmp/dingtalk-wayland.log' "$DINGTALK_SCRIPT"
-    assert_contains 'nohup ./com.alibabainc.dingtalk' "$DINGTALK_SCRIPT"
-    assert_contains '>>"$log_file" 2>&1 </dev/null &' "$DINGTALK_SCRIPT"
-    assert_contains 'exit 0' "$DINGTALK_SCRIPT"
-    # restart 子命令：先终止当前用户名下钉钉进程，再继续走启动流程
-    assert_contains 'restart)' "$DINGTALK_SCRIPT"
     assert_contains 'is_owned_dingtalk_process()' "$DINGTALK_SCRIPT"
     assert_contains 'readlink "$proc_dir/exe"' "$DINGTALK_SCRIPT"
     assert_contains 'kill -TERM "$pid"' "$DINGTALK_SCRIPT"
     assert_contains 'kill -KILL "$pid"' "$DINGTALK_SCRIPT"
     assert_not_contains 'pkill -f' "$DINGTALK_SCRIPT"
     assert_not_contains 'pgrep -f' "$DINGTALK_SCRIPT"
-    assert_contains '通过 `/proc/<pid>/exe` 精确查找' "$NIRI_README"
-    # 问题1：id/readlink 缺失时不得静默跳过（必须 notify+exit）
+    assert_not_contains 'nohup ./com.alibabainc.dingtalk' "$DINGTALK_SCRIPT"
+    assert_not_contains '/opt/apps/com.alibabainc.dingtalk/files/Elevator.sh' "$DINGTALK_SCRIPT"
+    assert_not_contains 'export QT_QPA_PLATFORM=xcb' "$DINGTALK_SCRIPT"
+    assert_not_contains 'export LD_PRELOAD=' "$DINGTALK_SCRIPT"
+    assert_not_contains 'DINGTALK_WAYLAND_HOOK' "$DINGTALK_SCRIPT"
+    assert_not_contains 'libdingtalkhook.so' "$DINGTALK_SCRIPT"
+    assert_not_contains 'DINGTALK_FORCE_X11_CAPTURE' "$DINGTALK_SCRIPT"
     assert_contains '缺少基础命令' "$DINGTALK_SCRIPT"
     assert_contains 'for dep in id readlink' "$DINGTALK_SCRIPT"
-    # 问题2：SIGTERM 5 秒未退出则 SIGKILL 兜底（restart 语义是必须重启）
     assert_contains 'SIGKILL' "$DINGTALK_SCRIPT"
-    # 问题3：提供 usage 帮助
     assert_contains 'print_usage' "$DINGTALK_SCRIPT"
     assert_contains 'usage|--help|-h' "$DINGTALK_SCRIPT"
-    assert_contains 'dingtalk-wayland restart' "$DINGTALK_SCRIPT"
     assert_contains '显示此帮助' "$DINGTALK_SCRIPT"
-    # 问题4：-- 分隔符支持（usage 中承诺，实际也要处理）
-    assert_contains '"${1:-}" = "--"' "$DINGTALK_SCRIPT"
-    assert_contains '原样透传给钉钉' "$DINGTALK_SCRIPT"
-    assert_contains 'SPA_FORMAT_VIDEO_modifier' "$DINGTALK_SOURCE/payload.hpp"
-    assert_contains 'SPA_POD_PROP_FLAG_MANDATORY' "$DINGTALK_SOURCE/payload.hpp"
-    assert_contains 'DRM_FORMAT_MOD_LINEAR' "$DINGTALK_SOURCE/payload.hpp"
-    assert_contains 'SPA_DATA_DmaBuf' "$DINGTALK_SOURCE/payload.hpp"
-    assert_contains 'DMA_BUF_IOCTL_SYNC' "$DINGTALK_SOURCE/payload.hpp"
-    assert_contains 'mmap(nullptr, mapped_size, PROT_READ, MAP_SHARED, pw_data.fd, pw_data.mapoffset)' "$DINGTALK_SOURCE/payload.hpp"
-    assert_contains 'dingtalk_debug_log' "$DINGTALK_SOURCE/helpers.hpp"
-    assert_contains 'tools/dingtalk-wayland-screenshare' "$NIRI_README"
+    assert_contains '通过 `/proc/<pid>/exe` 精确查找' "$NIRI_README"
+    assert_not_contains 'tools/dingtalk-wayland-screenshare' "$NIRI_README"
+    assert_not_contains 'libdingtalkhook.so' "$NIRI_README"
     assert_contains 'Mod+C' "$NIRI_README"
     assert_contains 'Elevator.sh' "$NIRI_README"
-    assert_contains '维护与兼容入口' "$NIRI_README"
-    assert_contains '~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so' "$NIRI_README"
-    assert_contains 'no more input formats' "$NIRI_README"
-    assert_contains 'DmaBuf' "$NIRI_README"
+    assert_contains '8.2.8.260904001' "$NIRI_README"
     # 钉钉保持 XWayland 模式：CEF 109 Wayland 后端有搜索崩溃和 scale 不动态更新两个缺陷
     assert_not_contains '--ozone-platform=wayland' "$DINGTALK_SCRIPT"
     assert_not_contains '--enable-wayland-ime' "$DINGTALK_SCRIPT"
-    assert_contains 'CEF 109' "$DINGTALK_SCRIPT"
-    assert_contains 'active_to_render_terminated' "$DINGTALK_SCRIPT"
-    assert_contains 'deviceScaleFactor' "$DINGTALK_SCRIPT"
-    # aarch64 mtgpu 缩放输出撕裂，保留 --disable-gpu-compositing
-    assert_contains 'gpu_flags' "$DINGTALK_SCRIPT"
-    assert_contains 'uname -m' "$DINGTALK_SCRIPT"
-    assert_contains '--disable-gpu-compositing' "$DINGTALK_SCRIPT"
+    assert_contains 'CEF 109' "$NIRI_README"
+    assert_contains 'active_to_render_terminated' "$NIRI_README"
+    assert_contains 'deviceScaleFactor' "$NIRI_README"
+    assert_contains '--disable-gpu-compositing' "$NIRI_README"
 }
 
 test_browser_wayland_forces_native_wayland_ozone() {
@@ -810,7 +784,7 @@ test_lock_wayland_uses_recorded_wallpaper_when_available
 test_lock_wayland_falls_back_to_color_without_wallpaper
 test_wayland_screenshot_uses_selection_and_annotation
 test_wayland_screenshot_uses_satty
-test_dingtalk_wayland_entrypoint_preserves_preload_contract
+test_dingtalk_wayland_is_troubleshooting_only
 test_browser_wayland_forces_native_wayland_ozone
 test_browser_wayland_passes_ozone_flag_only_under_wayland
 test_clipboard_wayland_persists_and_queries_history

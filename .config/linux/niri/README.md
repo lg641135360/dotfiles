@@ -198,54 +198,26 @@ org.freedesktop.impl.portal.FileChooser=gtk;
 
 这样可以继续使用 GNOME portal 的截图/屏幕共享等能力，同时把文件选择器固定到 GTK backend，避免当前机器缺少 Nautilus 时出现文件选择器不可用。
 
-主 niri 会话必须通过 `niri --session` 启动；该参数会把会话环境导入 systemd/D-Bus 并启动 niri 需要的 D-Bus 服务。仅使用 `Exec=niri` 会让 GNOME portal 只注册 Settings、缺少 ScreenCast 接口，表现为 `CreateSession failed`，钉钉 hook 也无法取得 PipeWire 流。修改 display manager 的 session entry 后需要注销并重新登录才能生效。
+主 niri 会话必须通过 `niri --session` 启动；该参数会把会话环境导入 systemd/D-Bus 并启动 niri 需要的 D-Bus 服务。仅使用 `Exec=niri` 会让 GNOME portal 只注册 Settings、缺少 ScreenCast 接口，表现为 `CreateSession failed`，钉钉会议 SDK 的原生 Wayland/PipeWire 捕获也会失败。修改 display manager 的 session entry 后需要注销并重新登录才能生效。
 
 `wayland-autostart` 不再直接按进程是否存在来启动 portal：旧 portal 可能跨会话存活，或者在 niri 注册 ScreenCast 兼容服务前过早启动并永久停留在 Settings-only 状态。脚本会等待 `org.gnome.Mutter.ScreenCast` D-Bus 名称出现，再依次重启 `xdg-desktop-portal-gnome.service` 和 `xdg-desktop-portal.service`，最后确认 backend 已暴露 ScreenCast 接口。处理结果按 `NIRI_SOCKET` 记录在 `~/.local/state/niri/autostart/portal.niri-session`，同一 niri 会话重复执行脚本时不会无故中断正在使用的 portal；详细日志在同目录的 `portal.log`。
 
 ## 钉钉屏幕共享
 
-Wayland 下钉钉会议共享只显示鼠标、画面全黑时，优先确认 PipeWire / WirePlumber / xdg-desktop-portal 正常运行。两条共享路径在不同架构上可用性不同：
+Wayland 下钉钉会议共享只显示鼠标、画面全黑时，优先确认 PipeWire / WirePlumber / xdg-desktop-portal 正常运行。钉钉 `8.2.8.260904001` 起，x86_64 与 aarch64 的会议 SDK `libmeeting_sdk.so` 都内置了原生 Wayland/PipeWire 捕获；保留真实 `XDG_SESSION_TYPE=wayland` 与 `WAYLAND_DISPLAY` 即可。x86_64 + `8.2.8.260904001` 已实测可用，仓库不再保留旧的 X11 LD_PRELOAD 抓屏回退。
 
-- **aarch64 + 钉钉 8.1.1**：会议 SDK `libmeeting_sdk.so` 同时内置 X11 和原生 Wayland/PipeWire 捕获后端。`dingtalk-wayland` 默认保留真实 `XDG_SESSION_TYPE=wayland` 与 `WAYLAND_DISPLAY`，让会议 SDK 直接使用原生 portal/PipeWire 捕获。该路径已实测通过，不需要注入 `libdingtalkhook.so`。
-- **x86_64 + 钉钉 8.1.0**：会议 SDK `libmeeting_sdk.so` 只编译了 X11 capturer（`ldd` 无 wayland/portal/pipewire 依赖），原生 Wayland 捕获路径不可用（tblive 不发 portal CreateSession，pipewire 无 video 节点，共享黑屏只有鼠标）。脚本在 x86_64 上默认就走 hook 回退路径（基于 `uname -m` 判断），直接 `~/.config/scripts/dingtalk-wayland restart` 即可，无需显式设置 `DINGTALK_FORCE_X11_CAPTURE=1`。
+Qt/CEF 界面仍由 `QT_QPA_PLATFORM=xcb` 和默认 ozone=x11 跑在 XWayland，不会切换 CEF 的原生 Wayland 后端。这与会议 SDK 的原生捕获互不干扰。
 
-Qt/CEF 界面在两种架构下都由 `QT_QPA_PLATFORM=xcb` 和默认 ozone=x11 保持在 XWayland，不会切换 CEF 的原生 Wayland 后端。
+日常启动可直接使用 `Mod+C` 打开应用启动器并选择钉钉。系统 desktop entry 会执行官方 `/opt/apps/com.alibabainc.dingtalk/files/Elevator.sh`；该入口已经设置 `QT_QPA_PLATFORM=xcb`、钉钉运行库路径及自带 `libgbm.so`/`libcef.so` preload，实测可配合 niri portal 时序修复完成原生 Wayland/PipeWire 共享。
 
-旧 `libdingtalkhook.so` 路径在 x86_64 + 8.1.0 是默认且唯一可用共享路径（脚本基于 `uname -m` 自动启用），在 aarch64 + 8.1.1 仅作显式排障回退（`DINGTALK_FORCE_X11_CAPTURE=1`）。可用 `DINGTALK_FORCE_X11_CAPTURE=0/1` 显式覆盖架构默认。
-
-### hook 源码版本约束（x86_64 关键）
-
-x86_64 + 钉钉 8.1.0 必须使用 6 月 4 日 hook 源码版本（commit `13537e2`）。8 月 14 日 commit `3323b5e` 为解决 aarch64 tblive 内嵌 GLib main context 问题改动了 hook 源码（XShmAttach 从 `return false` 改为委托真实函数、mainloop 创建时序调整、引入 cancellable 和 60 秒超时），但在 x86_64 上会导致钉钉启动即崩（`CefExecuteProcess exit_code<<0`，hook 未触发）。详细差异和约束见 `memory/dingtalk.md`。
-
-本仓库在 `tools/dingtalk-wayland-screenshare` 保留了一份最小化、已修好的 hook 源码。它不随 `install.sh` 复制到 niri 配置目录，也不在仓库里保留 build 目录；需要更新 hook 时，从 dotfiles 根目录一次性编译并安装到 `~/.local/lib`：
+`dingtalk-wayland` 只保留为排障脚本，不再启动钉钉。需要检查 ScreenCast/PipeWire 或安全清理残留进程时使用：
 
 ```bash
-cmake -S tools/dingtalk-wayland-screenshare -B /tmp/dingtalk-wayland-screenshare-build -GNinja -DCMAKE_BUILD_TYPE=Release
-cmake --build /tmp/dingtalk-wayland-screenshare-build
-install -Dm755 /tmp/dingtalk-wayland-screenshare-build/libdingtalkhook.so ~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so
+~/.config/scripts/dingtalk-wayland status
+~/.config/scripts/dingtalk-wayland stop
 ```
 
-当前 niri/PipeWire 截屏流需要两个兼容点：第一，format negotiation 必须把 `SPA_FORMAT_VIDEO_modifier` 声明为 mandatory `DRM_FORMAT_MOD_LINEAR`，否则 niri 日志会出现 `no more input formats`；第二，niri 提供的是 linear `DmaBuf`，PipeWire 不会把它映射成普通 `data` 指针，hook 必须对 `spa_data.fd` 做 `mmap` 后再复制到 framebuffer。仅强行请求 `SPA_PARAM_Buffers` 的 `MemFd` 会触发 `error alloc buffers: 无效的参数`，不要走这条路。
-
-构建完成后默认 hook 路径是：
-
-```bash
-~/.local/lib/dingtalk-wayland-screenshare/build/libdingtalkhook.so
-```
-
-当前 aarch64 日常启动直接使用 `Mod+C` 打开应用启动器并选择钉钉。系统 desktop entry 会执行官方 `/opt/apps/com.alibabainc.dingtalk/files/Elevator.sh`；该入口已经设置 `QT_QPA_PLATFORM=xcb`、钉钉运行库路径及自带 `libgbm.so`/`libcef.so` preload，实测可配合上述 niri portal 时序修复完成原生 Wayland/PipeWire 共享，不需要仓库脚本参与。
-
-`dingtalk-wayland` 仅保留为维护与兼容入口：需要安全清理残留进程、检查 portal、集中记录启动日志或显式复现旧 hook 路径时再使用：
-
-```bash
-~/.config/scripts/dingtalk-wayland
-```
-
-钉钉长期运行会出现内存累积（主进程可达数 GB），需要重启时执行 `~/.config/scripts/dingtalk-wayland restart`：脚本会通过 `/proc/<pid>/exe` 精确查找当前用户的 `com.alibabainc.dingtalk` 与 `tblive`，先发送 SIGTERM 并最多等待 5 秒；仍存活时再发送 SIGKILL（钉钉作为 Electron 应用常响应慢）。无参数时仅启动，不检查已有实例。执行 `~/.config/scripts/dingtalk-wayland usage` 可查看帮助。
-
-该辅助脚本默认不加载 hook，只保留钉钉依赖的 `libgbm.so` 和 `plugins/dtwebview/libcef.so` preload。需要复现旧 hook 路径时，使用 `DINGTALK_FORCE_X11_CAPTURE=1 ~/.config/scripts/dingtalk-wayland`；如 hook 位于其它位置，可同时设置 `DINGTALK_WAYLAND_HOOK=/path/to/libdingtalkhook.so`。hook 排障日志位于 `/tmp/dingtalk-wayland-debug.log`。
-
-启动器在 Wayland 会话中会等待最多 5 秒，确认 GNOME portal backend 已暴露 ScreenCast 接口；超时只发送告警并继续启动钉钉，不会自行重启 portal。portal 的启动顺序仍由 `wayland-autostart` 统一管理，避免多个应用级脚本竞争桌面服务。`restart` 子命令通过 `/proc/<pid>/exe` 精确匹配当前用户的 `com.alibabainc.dingtalk` 与 `tblive`，不再使用可能误杀诊断 shell 的宽泛 `pkill -f`。
+`stop` 会通过 `/proc/<pid>/exe` 精确查找当前用户的 `com.alibabainc.dingtalk` 与 `tblive`，先发送 SIGTERM 并最多等待 5 秒；仍存活时再发送 SIGKILL（钉钉作为 Electron 应用常响应慢）。清理后请再用 Mod+C / 官方 `Elevator.sh` 启动。portal 的启动顺序仍由 `wayland-autostart` 统一管理，排障脚本不会自行重启 portal，也不再使用可能误杀诊断 shell 的宽泛 `pkill -f`。
 
 ### 钉钉保持 XWayland 模式
 
@@ -254,7 +226,7 @@ install -Dm755 /tmp/dingtalk-wayland-screenshare-build/libdingtalkhook.so ~/.loc
 1. **搜索崩溃**：点击搜索创建新 webview 时渲染进程必崩，crash dump 在 `~/.config/DingTalk/dump/8.1.1-Release.6020301/`，日志表现为 `CefExecuteProcess exit_code<<0` + `active_to_render_terminated`。
 2. **缩放不动态更新**：多 output 混 DPI 下 `deviceScaleFactor` 不动态更新，内屏 scale 2.0 不生效，钉钉内容在外屏正常、在内屏过小且 `--force-device-scale-factor` 在 Wayland 下无效。
 
-因此钉钉保持 XWayland 模式（不追加 ozone/wayland 相关 flag），坐标错位问题改为通过使用习惯规避（避免窗口跨屏）。这不妨碍会议 SDK 在已验证的 aarch64 环境中使用原生 portal/PipeWire 捕获；`libdingtalkhook.so` 只在显式回退时截获 `XGetImage`/`XShmGetImage`。aarch64 额外保留 `--disable-gpu-compositing`（与 Chrome 一致，规避 mtgpu 缩放输出撕裂，XWayland 下同样有效）。
+因此钉钉保持 XWayland 模式（不追加 ozone/wayland 相关 flag），坐标错位问题改为通过使用习惯规避（避免窗口跨屏）。这不妨碍会议 SDK 使用原生 portal/PipeWire 捕获。aarch64 额外保留 `--disable-gpu-compositing`（与 Chrome 一致，规避 mtgpu 缩放输出撕裂，XWayland 下同样有效）。
 
 Qt 模块（系统托盘、文件选择器、通知）保留 `QT_QPA_PLATFORM=xcb`：钉钉自带的 Qt 插件依赖 xcb，切到 wayland 会导致托盘和文件对话框失效。
 

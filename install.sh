@@ -412,7 +412,7 @@ linux_wayland_configs=(
     "|.config/scripts/wayland-autostart|~/.config/scripts/wayland-autostart|Wayland autostart script"
     "|.config/scripts/clipboard-wayland|~/.config/scripts/clipboard-wayland|Wayland clipboard manager"
     "|.config/scripts/file-manager-wayland|~/.config/scripts/file-manager-wayland|Wayland file manager selector"
-    "|.config/scripts/dingtalk-wayland|~/.config/scripts/dingtalk-wayland|DingTalk Wayland script"
+    "|.config/scripts/dingtalk-wayland|~/.config/scripts/dingtalk-wayland|DingTalk troubleshooting script"
     "|.config/scripts/terminal-wayland|~/.config/scripts/terminal-wayland|Wayland terminal script"
     "|.config/scripts/launcher-wayland|~/.config/scripts/launcher-wayland|Wayland launcher script"
     "|.config/scripts/lock-wayland|~/.config/scripts/lock-wayland|Wayland lock script"

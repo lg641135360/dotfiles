@@ -117,7 +117,7 @@
 | git 配置 | `tests/git_config_test.sh` |
 | x11 | `tests/x11_config_test.sh` |
 | ssh 配置 | `tests/ssh_config_test.sh` |
-| dingtalk / corplink | `tests/dingtalk_hook_test.sh` / `tests/corplink_service_test.sh` |
+| dingtalk / corplink | `tests/dingtalk_wayland_test.sh` / `tests/corplink_service_test.sh` |
 | install.sh | `tests/install_*_test.sh` |
 | archive_trace | `tests/archive_trace_test.sh` + `npm --prefix scripts run typecheck` |
 | 跨模块改动 | `tests/run.sh` 或涉及模块的全部测试 |
