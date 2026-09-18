@@ -183,3 +183,14 @@
   ```
 - live/提交：live ~/.zshenv 已同步（见上备份）；本轮已提交 `f478738`（fix(install): backfill skip_global_compinit into ~/.zshenv，5 文件，未推送）；回滚：`git revert f478738` 或从备份恢复 ~/.zshenv。
 - 后续可能方向：① 若其它机器（x64 DMS/macOS）曾跑过旧安装器，重跑 `./install.sh` 即可幂等补 skip 行；② niri README 环境变量段的「否则没有 skip_global_compinit」描述与现状一致（~/.zshenv 现含该行），未改。
+
+## 2026-09-17 zed 命令无法启动：wrapper 指向不存在的 /usr/bin/zed
+- 目的：`zed` 报 `exec: /usr/bin/zed: not found`，终端与桌面图标均无法启动；定位并修复。
+- 根因：`~/.local/bin/zed`（自写 wrapper，含 fcitx/EGL 环境变量，非仓库管理）末行 `exec /usr/bin/zed`；apt 包 `zed` 1.17.2 的命令名是 `zeditor`（主程序 `/usr/libexec/zed-editor`，`/usr/bin/zed.app` 只是空目录），`/usr/bin/zed` 从未存在。用户级 `~/.local/share/applications/dev.zed.Zed.desktop` 也指向该 wrapper，故桌面入口同样失败。
+- 改动（live-only）：wrapper 末行改为 `exec /usr/bin/zeditor "$@"`，其余环境变量不变；备份 `~/.local/bin/zed.backup.20260917095351`（首个备份，无需清理）。仓库无对应文件，未做仓库改动。
+- 验证：`sh -n ~/.local/bin/zed` 通过；`zed --version` → `Zed 1.17.2`（修复前为 `exec: /usr/bin/zed: not found`）。GUI 实际启动未由 agent 触发，待用户点开验证。
+- 回滚信息：未提交（仅 live 文件）。live 恢复：
+  ```bash
+  cp -p ~/.local/bin/zed.backup.20260917095351 ~/.local/bin/zed
+  ```
+- 后续可能方向：① `~/.local/zed.app`（1.12.0）与 `~/.local/zed-preview.app`（1.14.1）两套旧版安装仍在，若确认不再使用可清理；② 若后续 apt 包再改命令名，wrapper 会再次失效，可考虑改为 `command -v zeditor` 兜底探测。
