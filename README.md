@@ -42,21 +42,24 @@
 │       ├── corplink-service/  # 飞连服务临时管理
 │       ├── rofi-launch/       # Rofi 启动脚本
 │       ├── wayland-autostart/ # Wayland 自启动
-│       ├── dingtalk-wayland/  # 钉钉 Wayland 屏幕共享
+│       ├── dingtalk-wayland/  # 钉钉排障入口（启动走官方 Elevator.sh）
 │       ├── terminal-wayland/  # Wayland 终端
 │       ├── file-manager-wayland/ # Wayland 文件管理器选择
 │       ├── launcher-wayland/  # Wayland 启动器
+│       ├── clipboard-wayland/ # Wayland/X11 剪贴板持久化与桥接
 │       ├── screenshot-wayland/ # Wayland 截图
 │       ├── wallpaper-wayland/ # Wayland 壁纸
 │       ├── wallpaper-wayland-next/ # Wayland 壁纸（下一张）
 │       ├── browser-wayland/   # Wayland Chrome 启动器
 │       ├── trae-cn-wayland/   # Wayland Trae CN 启动器
+│       ├── chatgpt-wayland/   # Wayland ChatGPT 启动器
+│       ├── obsidian-wayland/  # Wayland Obsidian 启动器
+│       ├── update-ai-clis/    # 更新 claude-code / codex
 │       ├── herdr-report/      # Trae CLI 生命周期 → herdr 状态上报桥接
 ├── scripts/          # TypeScript 工具（trace 归档等）
 ├── tests/            # 回归测试
 │   ├── run.sh        # 测试运行器
 │   └── lib/          # 测试工具库（assert.sh / sandbox.sh）
-├── tools/            # 构建工具源码（钉钉 Wayland 屏幕共享 hook）
 ├── memory/           # 长期偏好和模块特化记录
 └── logs/             # 操作日志
 ```
@@ -78,7 +81,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-安装脚本采用复制部署，不会创建符号链接；目标文件已存在时会先备份再覆盖。脚本通过自身路径定位仓库，因此可从任意工作目录执行。它不会自动安装桌面软件：仅在对应命令可用时复制配置，缺失时打印提示并跳过；例外是已安装 `tmux` 或 Alacritty 时，可通过 Git 获取缺失的 TPM 或 Alacritty 主题。Linux 上检测到 `niri` 后会部署 Wayland 辅助脚本、桌面入口、portal 偏好、XDG autostart 覆盖与 Foot 终端配置，不判断当前会话类型；其中 Foot 按单文件部署，保留 `~/.config/foot` 中其它第三方文件（如 DMS 的 `dank-colors.ini`）。Niri KDL 与 Waybar、Mako、Fuzzel、Swaylock 桌面外壳栈仅在 Ubuntu 且未检测到 DMS 时部署——DMS（`command -v dms`）机器保留其自管的 Niri 配置与外壳栈，非 Ubuntu 发行版保留现有 live 配置；Alacritty 配置在 openSUSE 与 DMS 机器上跳过复制以保留 DMS 管理。
+安装脚本采用复制部署，不会创建符号链接；目标文件已存在时会先备份再覆盖。脚本通过自身路径定位仓库，因此可从任意工作目录执行。它不会自动安装桌面软件：仅在对应命令可用时复制配置，缺失时打印提示并跳过；例外是已安装 `tmux` 或 Alacritty 时，可通过 Git 获取缺失的 TPM 或 Alacritty 主题。Linux 上检测到 `niri` 后会部署 Wayland 辅助脚本、桌面入口、portal 偏好、XDG autostart 覆盖与 Foot 终端配置，不判断当前会话类型；其中 Foot 按单文件部署，保留 `~/.config/foot` 中其它第三方文件（如 DMS 的 `dank-colors.ini`）。Niri KDL 与 Waybar、Mako、Fuzzel、Swaylock 桌面外壳栈仅在 Ubuntu 且未检测到 DMS 时部署——DMS（`command -v dms`）机器保留其自管的 Niri 配置与外壳栈，非 Ubuntu 发行版保留现有 live 配置；Alacritty 配置在 openSUSE 与 DMS 机器上跳过复制以保留 DMS 管理。钉钉日常启动使用官方 `Elevator.sh`，仓库中的 `dingtalk-wayland` 只保留排障功能。
 
 当 `claude` 和 `jq` 同时可用时，还会安装 `.config/shared/cc/statusline.sh` 到
 `~/.config/cc/statusline.sh`，并配置 `~/.claude/settings.json` 指向该脚本。

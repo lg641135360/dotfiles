@@ -1,62 +1,75 @@
 # niri / Wayland
 
-## 平台与部署
-- 桌面首选：x86_64 与 aarch64 均以 niri + Wayland 为首选与积极演进方向；aarch64 显示会话已迁移到 niri 并接入 GDM（解决双屏混 DPI），AwesomeWM + X11 进入维护模式仅作回退（mtgpu 驱动异常时的逃生路径）。
-- 仅 Ubuntu 且未检测到 DMS（`command -v dms`）时，`install.sh` 才部署本仓库的 `~/.config/niri` KDL 与 Waybar/Mako/Fuzzel/Swaylock 外壳栈；DMS 机器（openSUSE、装了 dms 的 Ubuntu）由 DMS 接管 `~/.config/niri` 与 `~/.config/alacritty`，必须跳过这两类配置复制，保留 DMS 的生成文件和动态主题。Wayland 辅助脚本、桌面入口、portal 偏好、XDG autostart 覆盖与 foot 配置在所有 niri 机器上照常部署（包装应用而非桌面外壳）；foot 按单文件部署（`foot.ini`/`README.md`），保留 `~/.config/foot` 内第三方额外文件（如 DMS 的 `dank-colors.ini`），不做整目录替换。
-- niri 配置不复用 `picom`、`xrandr`、`xinput`、`feh`、`xautolock`；分别由 niri output/input、Wayland 合成、`swaybg`、`swayidle`/`swaylock` 等替代。
-- niri 配置维护 `.config/linux/niri/ubuntu_x64/config.kdl` 与 `.config/linux/niri/ubuntu_aarch64/config.kdl`；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，平台文件只保留 output 段、`include "../common.kdl"`，以及必要的硬件覆盖。安装器仅在 Ubuntu（x86_64 / aarch64）按 `niri_platform_key()` 把对应平台 KDL 复制为 `~/.config/niri/config.kdl`、把 `common.kdl` 复制到 `~/.config/niri/common.kdl`，并把 include 路径从仓库的 `../common.kdl` 改写成 live 扁平布局的 `common.kdl`；不要把 README 或整个平台目录复制到 live。
-- 包来源终态（2026-08-29，x64 Ubuntu 26.04 全量去 Nix）：Nix profile 已清空，niri 链路不再依赖 Nix。① niri 26.04ppa3 + xwayland-satellite 0.8.2ppa1 走 avengemedia/danklinux PPA（不装 dms，waybar+脚本链不变）；SDDM 会话入口在 `/usr/local/share/wayland-sessions/niri.desktop` 钉死 `Exec=/usr/bin/niri-session`（apt 包安装时曾静默覆盖用户手写的 nix 版 .desktop；相对路径 `niri-session` 在登录 shell PATH 下仍会解析到 Nix，绝对路径防漂移）。② 用户级 systemd 覆盖 unit `~/.config/systemd/user/niri.service`（`niri-nixgl-session` 包装，Nix 时代套 nixGL 用）已退役，备份 `*.backup.20260829_*`；不删则用户级 unit 优先于包 unit，合成器永远走 Nix——排查"装了 apt niri 但跑的还是 Nix"先查 `systemctl --user show niri.service -p FragmentPath`。③ satty 0.22.0 用 `cargo install --git https://github.com/Satty-org/Satty --locked`（仓库 Cargo.lock 含 yanked 的 xml-rs 0.7，必须 `--locked`；构建需 libgtk-4-dev/libadwaita-1-dev/libgtk4-layer-shell-dev/libepoxy-dev/libfontconfig1-dev + rustc ≥1.92）；symlink `~/.local/bin/satty` 命中 screenshot-wayland 的 PATH 补丁。④ wl-clip-persist 0.5.0 源码编译装 `/usr/local/bin`；clipboard-wayland 的 Nix PATH 补丁已移除。⑤ niri 官方源无包，Ubuntu 官方指南对 25.10+ 只推该 PPA（第三方信任面）；blur 为 26.04 特性，PPA niri 必须 ≥26.04。
+## 当前有效基线
 
-## output / 外接屏
-- Ubuntu aarch64 双屏（niri/Wayland）布局：内屏 eDP-1 `2880x1800@120` scale 2.0（逻辑 1440x900）放左侧 `x=0`；外接屏 DP-2 `3840x2160@29.981`（4K30）scale 2.0（逻辑 1920x1080）放右侧 `x=1440`。
-- Ubuntu x64 双屏（2026-08-29）：DP-1 (Dell D2421DS) 左 `x=0`、HDMI-A-2 (AOC Q24P1W1) 右 `x=2048`，均 2560x1440@59.951、scale 1.25（逻辑 2048x1152）。接口名会随显卡/接线漂移（此前为 DP-4 / HDMI-A-3），配置匹配不到输出时 niri 全部回落 scale 1——排查缩放异常先对比 `niri msg outputs` 实际接口名与配置。
-- 外接屏 2026-08-31 起为 AOC U27U2G6R4B（4K 面板、60Hz 上限）。DP 链路当前只给到 `3840x2160@29.981`（EDID preferred）、`2560x1440@59.951`、`1920x1080@60.000`，无 ≥60Hz 原生高刷。**不要**再用旧 Dell S2721DGF 时代的 120Hz modeline（`497.75 2560 2608 2640 2720 1440 1445 1448 1525`）：往 60Hz 面板灌 120Hz 信号会导致黑屏/无信号，且 niri 不会收到面板反馈、`niri msg outputs` 仍显示 current custom。当前配置用 `mode "3840x2160@29.981"`（4K30，EDID preferred，用户选定默认档；此前试过 1440p60、1080p60 均正常显示）+ `scale 2.0`（用户要求 2x，逻辑 1920x1080）。若日后要 4K60，先排查 DP 线缆/接口带宽。
-- aarch64 modeline 历史：Dell S2721DGF（上限 165Hz）曾用 120Hz modeline 强制（MediaTek mtdisp 不暴露 CEA 120Hz），失效时回落 59.951Hz 不损坏显示；该 modeline 随换屏移除，不再适用。
+### 平台与部署
 
-## autostart / launcher
-- Wayland 启动入口保持脚本化：`wayland-autostart` 只静默启动存在的 Waybar、Mako、fcitx5、壁纸、idle lock 和 polkit agent；`launcher-wayland` 优先 fuzzel，rofi 仅作 fallback。
-- swayidle 空闲链（2026-09-01 扩展）：`timeout 600` 锁屏 → `timeout 900` 追加 `niri msg action power-off-monitors`（resume 时 power-on）DPMS 关屏——只关屏不挂起，无 2026-08-18 挂起唤醒的网络/显示风暴问题；锁屏与关屏在 waybar `idle_inhibitor` 激活期间整体被抑制。自动挂起仍不恢复。
-- Wayland 色温固定使用更接近 Redshift 继承者、发行版覆盖更广的 `gammastep`；缺失时打印提示并跳过，不回退 `wlsunset`，也不在 niri autostart 里沿用 X11 主线的 `redshift`。
-- gammastep 只跑后台守护进程，不启用托盘指示器：`gammastep-indicator.service` 需 mask（该 unit 全局 enabled，仅 disable 无效；用 `systemctl --user mask gammastep-indicator.service`）。原因：niri 纯 Wayland 无 XSETTINGS 时其 `Gtk.IconTheme.get_default()` 返回 `None` 导致崩溃循环、空耗 CPU，且用户不想要托盘图标。
-- aarch64 恢复 gammastep 自动夜览（2026-08-23）：曾因 4800K 夜览经 wlr-gamma-control 压低色温把外接屏压得过暗而禁用；现改用温和夜间色温 5500K 减小蓝通道衰减、降低变暗幅度，并把亮度保持上限 `-b 1.0:1.0`（gammastep 亮度范围 0.1~1.0，无法用它提亮补偿），全平台统一启用。
-- niri 会话下 launcher 主线为 Fuzzel + Catppuccin Mocha + CJK 字体；Rofi 保留为 fallback，不作为 Wayland 主力入口。
-- niri autostart 可启动与 Awesome 对齐的可选托盘/辅助服务：`blueman-applet`、`udiskie -t`；缺命令时由 `run_once` 静默跳过；`pot` 不再默认自启动。`pasystray` 自启已移除（2026-08-13）：其音量控制由 waybar `pulseaudio` 模块 + 右键 `pavucontrol` 覆盖，移除后 niri 会话不再残留 XWayland 客户端；若日后需要托盘快速切音源，可重新加入。
-- niri 会话下禁用 GNOME/X11 遗留 XDG autostart（2026-08-26）：niri 经 systemd 集成拉起 `xdg-desktop-autostart.target`，发行版条目用 `NotShowIn=` 排除法（排除 KDE/GNOME 等）时 niri 会被命中。仓库以 `Hidden=true` 同名覆盖文件（`.config/linux/xdg-autostart/` → `~/.config/autostart/`）禁用 `evolution-alarm-notify`、`nm-applet`、`print-applet`、`geoclue-demo-agent`；`X-GNOME-Autostart-enabled=false` 对 systemd 无效，必须用 `Hidden=true`。`nm-applet` 脚本侧启动行一并移除（waybar network 模块覆盖，不留双路径）。`at-spi-dbus-bus` 保留：freedesktop 无障碍总线，有 D-Bus 二次激活路径，硬禁需 mask 两个单元且伤及 GTK/Chromium 无障碍功能。2026-08-29 追加：flameshot（截图主线 satty）、yakuake（X11 遗留）两个 live 独有 autostart 条目，以及钉钉/飞连（Elevator.sh 在 niri 下启动失败，实际入口为脚本）、picom/pulseaudio（X11/PA 遗留）均已 Hidden=true 覆盖；这些覆盖文件仅存 live，picom/pulseaudio 是否纳入仓库（xdg-autostart 覆盖 + install.sh 注册）待定；ghostty 包自带 unit（graphical-session.target 挂靠）需 disable/mask。
-- EDS 三件套（evolution-source-registry / addressbook-factory / calendar-factory）是 D-Bus activated 的 static 单元（`/usr/share/dbus-1/services/*.service` 指向），disable 无效、只 stop 会被任意 EDS 客户端再次激活，须 `systemctl --user mask` + stop；主要触发源是 evolution-alarm-notify autostart，禁用覆盖文件是组合拳的前半段。
-- 剪贴板管理（2026-08-28）：`wl-clip-persist` 持久化 + `cliphist` 历史检索，入口统一为 `clipboard-wayland`。`start` 直接启动 `wl-clip-persist --clipboard regular`，并独立运行 `wl-paste --watch cliphist store`；父脚本监管两个子进程，任一异常退出时共同清理，避免半失效状态。`wayland-autostart` 检测 `clipboard-wayland start` 监管进程，niri 用 `Mod+V`（V=粘贴直觉，当时空余）调 `clipboard-wayland history`，`Mod+Shift+V` 已固定给「切换浮动/平铺焦点」不得占用。`history` 使用 `cliphist list | fuzzel --dmenu --prompt "剪贴板 >"` → `cliphist decode | wl-copy`。`wl-clip-persist` 不在 Ubuntu 24.04/26.04 apt 源，走 Nix（nix-profile）；`cliphist` 用 apt（0.5.0）。`clipboard-wayland` 顶部对 Nix profile PATH 做补丁（niri environment{} 固定环境不含 `~/.nix-profile/bin`）。fuzzel 2026-08-29 起走 apt 1.12.0（曾为 apt 1.9.2），勿引入 1.12 之后版本才有的选项。2026-09-07：`start` 增加 X11 轮询剪贴板桥 `start_x11_bridge`——niri + xwayland-satellite 不向 X11 应用送达 Wayland 剪贴板事件（实测卫星桥双向失效、X11 侧只有 UTF8_STRING），钉钉（CEF 109/XWayland）等 X11 应用粘贴不到截图。桥每 0.5s 轮询两侧，双向同步文本与 image/png、jpeg、gif，内容哈希去抖防回环；文本方向带目标守卫（X11 需 UTF8_STRING/STRING/TEXT/text/plain，Wayland 需 text/*），否则会把图片字节当文本推回覆盖另一侧。仅在有 `xclip` + `DISPLAY` 时启动，缺依赖降级跳过。守卫迭代：① 内容非空判断用 `-s`（快照文件字节 > 0）——sha256 对空输入仍输出非空哈希，复制瞬间读到空选区会误推空内容；② 文本分支用快照/管道读而非 `$(...)`（命令替换剥离尾部换行、丢 NUL，文本不保真）。2026-09-07 第三轮：改为**快照单次读取**——每轮把源剪贴板内容落到 `/tmp/clipboard-wayland-bridge.snap.$$` 临时文件 1 次，判空/哈希/推送全部复用同一份数据（`trap` 清理），源读取从每轮 2~3 次降到 1 次；大截图（1-4MB）停留剪贴板时每轮仍会全量读 1 次用于变更检测，此开销为轮询模式固有。`xclip -i` 内部会 exec `cat`，测试桥时最小 PATH 必须含 cat。2026-09-09：所有剪贴板读写套 `timeout --foreground 2`（缺 `timeout` 则跳过桥）。现场 xclip 在 selection owner 失联时无限阻塞，桥卡在 `xclip -t TARGETS -o` 超过一天（PID 3082973，9 月 8 日 15:12 起），Wayland 侧已有 `image/png`、X11 侧只剩 `UTF8_STRING`，钉钉因此贴不到刚复制的图。超时后当本轮空选区跳过，下轮重试。`--foreground` 只杀卡住的命令，不连带着把已经 fork 出去持有剪贴板的 xclip/wl-copy 子进程一起杀掉。
+- 桌面主线是 niri + Wayland，覆盖 x86_64 与 aarch64；AwesomeWM + X11 进入维护模式，仅作 mtgpu 或 Wayland 故障时的回退路径。
+- `install.sh` 的部署矩阵：
+  - 检测到 `niri` 的机器：部署 Wayland 辅助脚本、desktop entry、portal 偏好、XDG autostart 覆盖和 Foot 配置；这些属于应用包装/会话辅助，不等同于外壳栈。
+  - Ubuntu 且未检测到 `dms`：额外部署仓库维护的 niri KDL、Waybar、Mako、Fuzzel、Swaylock 外壳栈。
+  - 检测到 `dms` 的 Ubuntu，以及非 Ubuntu 发行版：保留现有 live 的 niri/外壳栈配置，避免覆盖 DMS 或发行版自管文件；Alacritty 同样由 DMS/openSUSE 自管时跳过复制。
+  - Foot 始终按单文件部署（`foot.ini`、`README.md`），保留 `~/.config/foot` 内第三方文件，例如 DMS 的 `dank-colors.ini`。
+- niri 配置维护 `.config/linux/niri/ubuntu_x64/config.kdl`、`.config/linux/niri/ubuntu_aarch64/config.kdl` 和公共 `.config/linux/niri/common.kdl`。平台文件主要保存 output 与硬件覆盖；安装器将平台文件复制为 `~/.config/niri/config.kdl`，并把仓库中的 `../common.kdl` 改写为 live 布局的 `common.kdl`。
+- 仓库只负责配置部署，不安装 niri、DMS 或其它桌面软件，也不创建显示管理器 session entry。当前会话类型不影响安装器是否部署 niri 辅助文件。
 
-## portal / polkit
-- niri portal 偏好使用用户级 `~/.local/share/xdg-desktop-portal/niri-portals.conf`，默认 `gnome;gtk`，但 `FileChooser` 显式指定 `gtk`，避免缺少 Nautilus 时文件选择器失效；polkit agent 候选需覆盖 Ubuntu 的 `/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1`。
+### 包来源与组件边界
 
-## 窗口规则 / 视觉
-- niri 钉钉主窗口由 `window-rule` 管理列宽与不透明度：匹配 `com.alibabainc.dingtalk`，默认 2/3 列宽并覆盖为 1.0 不透明，避免 Qt/CEF 经 XWayland 在 mtgpu 上叠透明出黑块；不强制聚焦、不固定输出。不匹配 `tblive`。2026-08-29 浮动决策四次迭代后定稿：exclude 主窗口（标题「钉钉」，`^钉钉|钉钉$` 兼容未读数前后缀）+ `open-floating true`，其余钉钉窗口全部浮动——背景是表情面板等 resizable 弹窗平铺成新列（Wayland/xwayland-satellite 不翻译 X11 EWMH 窗口类型提示，niri 只自动浮动固定尺寸窗口；社区对弹窗大户的标准做法即 exclude 主窗口全浮动）。迭代轨迹：exclude 浮动 → 全浮动 → 全回退 → 表情面板平铺问题后恢复 exclude 浮动。残余：偶发同名「钉钉」弹窗陪主窗口平铺。同日另立钉钉弹窗规则：app-id 级 `open-focused false`（修复 @ 候选框等弹窗 map 时被 niri 聚焦、收到意外 FocusIn 自毁的问题，详见 memory/dingtalk.md；只作用于新 map 窗口，代价是重启钉钉/新开窗口不自动聚焦）。同日 `focus-follows-mouse` 从 input 段移除并保持 niri 默认关闭（用户决策）：曾怀疑 hover 夺焦导致钉钉 @ 候选框出现即消失，实测禁用后问题依旧、两者无关；关闭仅为使用偏好。2026-08-29：Flatpak 版钉钉（`com.dingtalk.DingTalk`，1.3G 冗余）已卸载，fuzzel 双入口收敛；`dingtalk://` 与 `dingtalk_std_ind://` handler 统一指向 deb 包装条目 `com.alibabainc.dingtalk.desktop`（dingtalk-wayland），钉钉只保留 deb 版单一路径。2026-08-31：`focus-follows-mouse` 按用户决策重新启用（hover 聚焦配合横向滑动顺手）；当日禁用仅为使用偏好、与 @ 问题无关的结论不变，`tests/niri_config_test.sh` 断言已同步反转。同日第二次迭代：加 `max-scroll-amount="0%"`（用户反馈"focus 不要跟随鼠标"）——禁止聚焦引发的视图滚动跟随，鼠标靠边不滚视图，仅 hover 激活完全可见的窗口；测试断言锁定完整参数行。
-- niri 全局窗口效果使用 `opacity 0.88` + `background-effect { blur true }`，并配合 `draw-border-with-background false` 避免半透明窗口聚焦时透出蓝色 focus ring 背景；Chrome 不再单独覆盖透明度或背景模糊，保持全局统一。2026-08-31 起同一全局 window-rule 增加 `popups { background-effect { blur true } }`（26.04 特性；popup 效果默认 non-xray，模糊下层窗口而非壁纸，x64 Ubuntu 实机已启用；aarch64 因平台 `blur` 全局关闭不受影响）。
-- aarch64 平台在 include `common.kdl` 之后覆盖全局为 `opacity 0.90` + `blur false`（mtgpu 模糊几乎不可见），并再次把钉钉覆盖为 1.0，避免被后置全局透明规则盖掉。
-- Chrome 画中画（app-id `^google-chrome$` + title `^(Picture in picture|画中画)$`）`open-floating true`（2026-09-01）：PiP 是可缩放窗口，不浮动会平铺成新列，与既有 firefox PiP 规则同理。标题随 Chrome UI 语言本地化（本机 zh_CN 为「画中画」，aerospace.toml 有同款先例），Firefox PiP 标题不做本地化无需此处理。残余风险：若 PiP 窗口 map 时标题未就绪，`open-floating` 只在开窗时评估会留在平铺态，实测不浮动时用 `niri msg windows` 核对实际标题。
+- Ubuntu x64 当前 niri / xwayland-satellite 走 avengemedia/danklinux PPA；niri session entry 使用绝对路径 `/usr/bin/niri-session`，避免 PATH 命中旧 Nix 版本。
+- niri 不复用 `picom`、`xrandr`、`xinput`、`feh`、`xautolock`；对应职责由 niri output/input、Wayland 合成、`swaybg`、`swayidle`/`swaylock` 承担。
+- Wayland 主线使用 Fuzzel + Catppuccin Mocha + CJK 字体，Rofi 仅作 fallback。终端统一优先 Foot，缺失时回退 Alacritty。
+- Satty 通过 `cargo install --git https://github.com/Satty-org/Satty --locked` 安装；`wl-clip-persist` 以源码方式安装到 `/usr/local/bin`，`cliphist` 使用系统包。仓库不再依赖 Nix profile 提供 niri 链路组件。
 
-## 键位 / 导航
-- niri 主导航偏好使用 `Mod+h/l` 左右聚焦窗口列、`Mod+j/k` 下/上聚焦窗口（到边界后切 workspace）；不要保留 `Mod+Left/Right/Up/Down` 方向键替代绑定。
-- niri workspace 导航只保留 `Mod+j/k`、数字键和 `Mod+滚轮`，不保留 `Page_Up/Page_Down` 及其 Shift 组合；左右切列只保留 `Mod+h/l` 和 `Mod+横向滚轮`，不保留重复的 `Mod+Alt+h/l`。
-- niri 使用 `Mod+Tab` 切换到焦点历史中的上一个窗口；暂不为不常用的列内上下窗口聚焦单独设置快捷键。`Mod+grave`（2026-09-01）聚焦焦点历史中的上一个 workspace（focus-workspace-previous，窗口级回跳的 workspace 级互补）。
-- `Mod+Shift+N`（2026-09-01）调 `makoctl mode -t do-not-disturb` 切换 mako 免打扰：mako config 定义 `[mode=do-not-disturb] invisible=1` + `[mode=do-not-disturb urgency=critical] invisible=0`，普通/低优先级弹窗隐藏但仍进历史，critical 保持可见。
-- 键盘重复速率 `repeat-delay 300` + `repeat-rate 40`（2026-09-01）：niri 默认 600ms/25 偏慢，长按 hjkl 导航与编辑器内移动迟钝。
-- `Mod+Space` 只在 1/2 与 2/3 两档预设列宽间循环（2026-08-31 用户决策，收敛自 4 档），全宽由 `Mod+F` 的扩展列宽替代；`Mod+F` 绑 `expand-column-to-available-width`，全屏交给应用内 F11，不再占 niri 键位。`Mod+Ctrl+F` 曾因动作与 `Mod+F` 重复而释放（2026-08-31），后复用于 `toggle-window-floating`（2026-09-01，替代原 `Mod+Ctrl+Space`：避免与 `Mod+Space` 列宽循环相邻误触）。
-- niri 26.04 默认监视配置文件，保存后自动重载；不要为热更新单独绑定 `Mod+Ctrl+r`。`niri msg action load-config-file` 只留给脚本，用来跳过 watcher 的短暂延迟。
-- niri 使用 `Mod+Shift+h/l` 左右移动当前列，以便调整同一 workspace 中窗口列的位置；锁屏使用 `Mod+Alt+l`，不再占用 `Mod+Shift+l`。
-- niri 中启动程序、壁纸切换、overview、退出、截图标注和关闭显示器等一次性动作应设置 `repeat=false`，音量、亮度和尺寸调整等连续动作继续允许按键重复。
+### 输出布局
 
-## overview
-- niri overview 使用 `Mod+o` 打开/关闭，作为查看全局窗口/workspace 的主入口。
-- niri overview 美化：`layout { background-color "transparent" }` 保持日常桌面干净无毛玻璃；`overview {}` 用暗底色 `#1e1e2e` + workspace 卡片阴影制造 overview 层次。`place-within-backdrop` 在 niri 26.04 上 `load-config-file` 后不生效（无论存量还是新 surface），双壁纸方案（awwww+swaybg）暂不可行，待 niri 更新后重试。
+- aarch64：内屏 eDP-1 为 `2880x1800@120`、scale 2.0、逻辑坐标左侧 `x=0`；外接 DP-2 当前使用 `3840x2160@29.981`、scale 2.0、逻辑坐标 `x=1440`。
+- x86_64：当前双屏配置为 DP-1 左、HDMI-A-2 右，均为 `2560x1440@59.951`、scale 1.25，右屏逻辑坐标 `x=2048`。接口名漂移时先用 `niri msg outputs` 对照实际名称。
+- 当前 aarch64 外屏 AOC U27U2G6R4B 只稳定提供 4K30；不要复用旧 Dell S2721DGF 的 120Hz modeline，否则可能黑屏或无信号。若需要 4K60，先排查 DP 线缆和接口带宽。
 
-## 壁纸 / 锁屏 / 截图
-- Wayland 壁纸来源优先 `~/Pictures/wall`，回退系统 `/usr/share/backgrounds`（镜像 Awesome 会话的 `randomize_wallpaper` 来源，保证两会话壁纸一致）；不纳入 `~/Pictures`（只含截图）。
-- Wayland 锁屏使用 `swaylock` 时优先复用当前 `wallpaper-wayland` 记录或正在运行的 `swaybg -i` 壁纸，并用 `-s fill` 填充；找不到当前壁纸时才回退纯色 `11111b`。
-- **锁屏主线回退 swaylock（2026-09-02 用户决策）**：gtklock 方案（2026-08-31 迁入，时钟/日期 + Mocha CSS 主题，配置在 `.config/linux/gtklock/`）整体回退——`lock-wayland` 移除 gtklock 优先分支、直接用 swaylock 简单版；删除 `.config/linux/gtklock/` 模块、`tests/gtklock_config_test.sh` 与 install.sh 部署项。gtklock 期间的双屏表单定位决策（`monitor-priority=DP-1;eDP-1` + `follow-focus=true`，2026-09-01）随之废弃。
-- swaylock 解锁环配色走仓库 `.config/linux/swaylock/config`（install.sh 的 `linux_wayland_dir_configs` 部署到 `~/.config/swaylock/config`）：Catppuccin Mocha 蓝 `#89b4fa` 默认环（与 niri focus-ring 对齐）、绿 `#a6e3a1` 验证中、红 `#f38ba8` 密码错误、黄 `#f9e2af` 按键高亮；`indicator-radius 80` / `thickness 8`，字体 Maple Mono NF CN。壁纸/纯色仍由 lock-wayland 命令行控制，配置文件只管解锁环。swaylock 1.8 apt 主线版不支持 `--effect-blur`（swaylock-effects fork 功能，已随 Nix 移除）；若日后想要背景模糊再评估替代品。
-- niri/Wayland 选区截图标注入口使用 `Mod+s`，并只使用 Satty；缺少 `satty`、`grim`、`slurp` 或 `wl-copy` 时脚本直接失败提示，不回退到 `swappy` / `ksnip`。不要再绑定裸 `F1`。
-- Satty 文字标注显式使用 `Noto Sans CJK SC`；Satty 支持 IME，但没有可靠字体 fallback，未指定 CJK 字体时中文标注可能看起来像无法输入。
-- Satty 在 niri/Wayland 下启动前应显式 `unset GTK_IM_MODULE`，让 GTK4 走 Wayland text-input/fcitx 路径；不要为 Satty 强制 `GTK_IM_MODULE=fcitx`。
+## 会话组件与运行规则
 
-## 终端
-- niri/Wayland 会话默认终端统一为 foot（2026-08-31 起含 x86_64）：`terminal-wayland` 直接 `exec foot`，`alacritty` 仅在 foot 缺失时回退。历史上 aarch64 曾因 MediaTek mtgpu 下 alacritty 0.18.0-dev 在缩放输出（内屏 2x）字形渲染损坏（文字丢失）而优先 foot（2026-08-15 起特化：kitty → alacritty → foot）；现全平台统一 foot 优先，aarch64 行为不变。内屏 2x 下 alacritty 的字形问题仍未根治，留待后续定位（见 logs/trace.md）。foot 配置 `.config/linux/foot/foot.ini` 镜像 `.config/shared/alacritty` 观感（MesloLGS Nerd Font Mono 13、Catppuccin Mocha 内嵌 palette、`csd.preferred=none`、`pad=12x12`、`colors.alpha=0.82`、Beam 闪烁光标、滚动 50000、`term=xterm-256color`、Alt 导航键），并由 install.sh 的 `linux_wayland_dir_configs` 复制到 `~/.config/foot/`。foot 的 0.82 透明度与 alacritty Linux 一致；若后续在 aarch64 内屏 2x 下复现 mtgpu 半透明渲染 bug，再单独评估是否在该硬件上降回不透明（参见 `memory/foot.md`）。
+### 自启动与外壳
+
+- niri 只调用 `~/.config/scripts/wayland-autostart`。该脚本按命令存在性启动 Waybar、Mako、fcitx5、壁纸、gammastep、swayidle、polkit agent、可选的 blueman/udiskie，并把最近一次启动日志写入 `~/.local/state/niri/autostart/`。
+- gammastep 使用 5500K 的温和夜间色温和 `-b 1.0:1.0`；不启用托盘 indicator。`gammastep-indicator.service` 若全局 enabled，需用 `systemctl --user mask`，仅 disable 不足以阻止冲突。
+- swayidle 在空闲 600 秒后锁屏，900 秒后用 `niri msg action power-off-monitors` 关屏，恢复输入时重新打开显示器；waybar idle inhibitor 会整体抑制这条链。自动挂起不作为当前方案。
+- niri 通过 systemd 集成拉起 XDG autostart，因此仓库用 `Hidden=true` 覆盖 GNOME/X11 遗留入口。当前仓库覆盖 Evolution alarm、nm-applet、print-applet 和 geoclue demo agent；`at-spi-dbus-bus` 保留。EDS 的 D-Bus activated 单元需要 live 侧 mask + stop，单纯 disable/stop 不可靠。
+
+### 剪贴板与输入法
+
+- `clipboard-wayland start` 统一管理 `wl-clip-persist`、`cliphist` watcher 和 X11 轮询桥；`Mod+V` 打开历史，`Mod+Shift+V` 保留给浮动/平铺焦点切换。
+- 在有 `xclip` 和 `DISPLAY` 时，轮询桥每 0.5 秒双向同步文本及 PNG/JPEG/GIF，使用内容哈希去抖；读写统一套 `timeout --foreground 2`，防止 X11 selection owner 失联时无限阻塞。纯 Wayland 或缺依赖时桥自动跳过。
+- Wayland 输入法变量主要由 im-config 写入 `/etc/environment`，经 `niri-session` 导入 systemd 用户环境；仓库不再重复注入 `QT_IM_MODULE` 等变量。`GTK_IM_MODULE` 由 `wayland-autostart` 从 systemd 用户环境清除，让 GTK 走 Wayland text-input；Satty 启动前也必须 `unset GTK_IM_MODULE`。
+- `ZDOTDIR` 和 `skip_global_compinit=1` 由安装器幂等写入 `~/.zshenv`，避免 niri spawn 的终端触发 Ubuntu 全局 compinit。
+
+### 应用包装与入口
+
+- Chrome、Trae CN、Obsidian、ChatGPT 通过 Wayland wrapper 在 Wayland 会话添加 ozone/IME 参数；X11 会话原样透传。对应 desktop entry 也走 wrapper。
+- 钉钉保持 CEF 109 的 XWayland 模式，以规避多屏混 DPI 下原生 Wayland 的坐标和缩放问题；会议 SDK 仍使用原生 portal/PipeWire 捕获。日常启动走官方 `Elevator.sh`，仓库的 `dingtalk-wayland` 只用于检查 ScreenCast/PipeWire 状态和精确清理残留进程。
+- niri 侧对钉钉设置 2/3 列宽、1.0 不透明度和 `open-focused false`；除主窗口外的钉钉弹窗浮动。aarch64 关闭 blur 并使用 0.90 全局透明度，钉钉再次覆盖为 1.0。
+
+## 当前键位与视觉约定
+
+- 主导航：`Mod+h/l` 切列，`Mod+j/k` 切窗口/到边界后切 workspace；`Mod+Tab` 返回焦点历史窗口，`Mod+grave` 返回焦点历史 workspace。
+- `Mod+Space` 在 1/2 与 2/3 列宽间循环；`Mod+F` 扩展列宽；`Mod+Ctrl+F` 切换浮动；`Mod+Shift+h/l` 移动列；`Mod+Alt+l` 锁屏；`Mod+s` Satty 截图；`Mod+o` overview；`Mod+Shift+N` 切换 Mako 免打扰。
+- niri 26.04 已默认监视配置文件并自动重载，不增加专用热重载键。一次性动作应设置 `repeat=false`，连续的音量、亮度和尺寸调整保留按键重复。
+- 全局窗口默认 `opacity 0.88` + blur；弹出菜单、Waybar 和 Fuzzel 使用背景模糊。aarch64 平台关闭 blur，以降低 mtgpu 负担。
+- 壁纸优先 `~/Pictures/wall`，回退 `/usr/share/backgrounds`；锁屏使用当前壁纸，找不到时回退 `11111b`。锁屏主线为 swaylock，不再使用 gtklock。
+
+## 历史决策与已废弃方案
+
+- DMS 适配前曾以“Ubuntu x64 不装 DMS、Waybar + Mako + 脚本链”为基线；该决策已被 2026-09 的实际 DMS 环境取代。现在应以“Ubuntu 且无 DMS 部署外壳，DMS 机器保留自管配置”为准。
+- niri 链路曾依赖 Nix/nixGL；2026-08-29 已迁移到 Ubuntu 包/PPA 和手工安装的 Satty、wl-clip-persist。排查运行版本时优先检查 session entry 和 `systemctl --user show niri.service -p FragmentPath`。
+- gtklock 方案曾短期加入，后因用户决策于 2026-09-02 整体回退到 swaylock；不要恢复 gtklock 的配置或测试。
+- aarch64 外屏曾使用 Dell S2721DGF 的 120Hz modeline；显示器更换为 AOC U27U2G6R4B 后该 modeline 已废弃。
+- `focus-follows-mouse` 曾因钉钉弹窗问题短暂关闭，实测与问题无关；当前按用户偏好重新启用，并用 `max-scroll-amount="0%"` 禁止 hover 导致视图滚动。
+- 钉钉旧版本曾需要 X11 LD_PRELOAD 屏幕共享 hook；当前版本已内置 Wayland/PipeWire capturer，hook 源码已删除，不应重新加入排障主线。
+
+## 排障入口
+
+- niri 配置：`niri validate -c ~/.config/niri/config.kdl`。
+- 输出缩放：`niri msg outputs`，确认接口名、当前 mode 和 scale 是否命中平台 KDL。
+- portal/屏幕共享：确认 `niri --session`、PipeWire、WirePlumber 和 xdg-desktop-portal；钉钉排障使用 `~/.config/scripts/dingtalk-wayland status`，不要用它作为日常启动器。
+- gammastep：查看 `~/.local/state/niri/autostart/gammastep.log`；热插拔输出后可重新执行 `~/.config/scripts/wayland-autostart`。
+- 剪贴板：检查 `clipboard-wayland start`、`wl-clip-persist`、`cliphist` 和 X11 桥；桥只在 `xclip + DISPLAY` 条件满足时运行。
+- fcitx/GTK：先查 `systemctl --user show-environment`、`/etc/environment` 和 `niri-session` 导入链，再确认 `GTK_IM_MODULE` 是否已由 autostart 清除。

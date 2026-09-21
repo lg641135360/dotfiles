@@ -20,6 +20,13 @@
   ```
 
 
+## 2026-09-19 — 同步仓库结构文档并整理 niri/DMS memory
+
+- 目的：修复 README 仍引用已删除的 `tools/` 钉钉 hook 目录，并收敛 niri/DMS 当前基线与历史决策，避免把已废弃方案误当现行配置。
+- 改动：README 删除 `tools/`，补齐当前 Wayland 脚本清单，并说明钉钉日常启动走官方 `Elevator.sh`、仓库脚本只用于排障；`memory/niri.md` 重组为当前有效基线、会话组件与运行规则、键位/视觉约定、历史决策/废弃方案、排障入口；`tests/repo_docs_test.sh` 增加 README 结构、脚本清单和 `tools/` 不存在的回归断言。
+- 验证：`sh tests/repo_docs_test.sh`、`sh tests/niri_config_test.sh`、`git diff --check` 均 PASS。
+- live/提交：未同步 live，未提交；回滚信息：仓库执行 `git checkout -- README.md memory/niri.md tests/repo_docs_test.sh logs/trace.md`。
+
 ## 2026-09-16 — dingtalk-wayland 改为只排障、不再启动钉钉
 
 - 目的：日常启动已走官方 `Elevator.sh`；用户确认不再用仓库脚本启动钉钉，只留排障入口。
