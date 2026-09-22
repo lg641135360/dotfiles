@@ -42,4 +42,5 @@ elif [[ "$(uname)" == "Linux" ]]; then
     pathappend "$HOME/.local/opt/node-current/bin"
     pathappend "$HOME/.npm-global/bin"
     pathappend "/usr/local/nodejs/bin"
+    pathappend "$HOME/.bun/bin"
 fi

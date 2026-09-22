@@ -111,6 +111,27 @@ test_linux_path_includes_local_node_current_bin() {
     assert_path_contains "$HOME/.local/opt/node-current/bin" "$path_value"
 }
 
+test_linux_path_includes_user_bun_bin() {
+    if [ "$(uname)" != "Linux" ]; then
+        printf 'SKIP: zsh path test requires Linux\n'
+        return 0
+    fi
+
+    if [ ! -d "$HOME/.bun/bin" ]; then
+        printf 'SKIP: %s/.bun/bin is not present\n' "$HOME"
+        return 0
+    fi
+
+    if [ -z "$ZSH_BIN" ]; then
+        printf 'SKIP: zsh is not installed\n'
+        return 0
+    fi
+
+    path_value=$(run_path_zsh)
+
+    assert_path_contains "$HOME/.bun/bin" "$path_value"
+}
+
 test_linux_path_includes_linuxbrew_sbin() {
     if [ "$(uname)" != "Linux" ]; then
         printf 'SKIP: zsh path test requires Linux\n'
@@ -196,6 +217,7 @@ test_linux_wayland_environment_preserves_current_desktop() {
 test_linux_path_includes_usr_local_nodejs_bin
 test_linux_path_includes_user_npm_global_bin
 test_linux_path_includes_local_node_current_bin
+test_linux_path_includes_user_bun_bin
 test_linux_path_includes_linuxbrew_sbin
 test_linux_path_keeps_system_bin_before_linuxbrew_bin
 test_linux_desktop_portal_environment_targets_awesome
