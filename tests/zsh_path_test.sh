@@ -27,8 +27,11 @@ run_path_zsh() {
 
 run_env_zsh() {
     tmpdir=$(mktemp -d)
+    # Fix DISPLAY explicitly: env.zsh only sets the Awesome portal identity for
+    # X11 sessions that have a DISPLAY, so relying on the ambient value made the
+    # test pass or fail depending on whether the runner had a live X session.
     env_value=$(
-        PATH=/usr/bin:/bin HOME="$HOME" ZDOTDIR="$tmpdir" XDG_SESSION_TYPE=x11 \
+        PATH=/usr/bin:/bin HOME="$HOME" ZDOTDIR="$tmpdir" XDG_SESSION_TYPE=x11 DISPLAY=:0 \
             "$ZSH_BIN" -fc \
             ". \"$ENV_FILE\"; printf '%s|%s|%s\n' \"\$XDG_CURRENT_DESKTOP\" \"\$XDG_SESSION_DESKTOP\" \"\$GTK_USE_PORTAL\""
     )

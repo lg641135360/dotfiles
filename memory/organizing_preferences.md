@@ -26,4 +26,7 @@
 
 ## 仓库管理
 - `.omx/` 属于本地 OMX 运行状态目录；按当前仓库惯例，通常放入 `.gitignore`，不进入远端仓库。
+- 回归测试依赖外部解释器时，用 `tests/lib/assert.sh` 的 `resolve_tool` / `resolve_python` / `resolve_lua` 解析首个可用候选（如 `python3`/`python`、`lua`/`luajit`），缺失时返回 SKIP（exit 77）；不要在测试里硬编码 `python`/`lua`，否则只有装了传统命令名的机器能跑。测试也不得隐式依赖运行环境（如 X11 断言应显式设 `DISPLAY`），无头环境会误报失败。
+- `README.md` 的结构树与 `.config/{shared,linux,macos,scripts}` 的实际条目（子目录 + 顶层文件，排除 README.md）由 `tests/repo_docs_test.sh` 漂移守卫校验；新增模块目录或脚本必须同步 README 树，否则 `tests/run.sh docs` 失败。注意 `.config/scripts/` 下是单文件可执行脚本而非目录，README 沿用 `名字/` 记法。
+- 需要按机器替换占位符（如 desktop entry 的 `__HOME__`）的部署，替换应在 `copy_config` **之前**写入临时副本再复制，使部署目标与变换后的源一致、重复运行可被 identical 短路跳过；否则每次安装都会备份+覆盖。用 `$(<file)` 读入再 `printf '%s\n'` 写回会丢/补末尾换行，需显式补回。
 - Codex CLI 配置基线与版本特化经验见 `memory/codex.md`。

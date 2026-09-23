@@ -3,6 +3,8 @@ set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$REPO_ROOT/tests/lib/assert.sh"
+resolve_python || exit $?
+resolve_lua || exit $?
 RC_FILE=$REPO_ROOT/.config/linux/awesome/rc.lua
 BINDINGS_FILE=$REPO_ROOT/.config/linux/awesome/bindings.lua
 WIBAR_FILE=$REPO_ROOT/.config/linux/awesome/ui/wibar.lua
@@ -49,7 +51,7 @@ test_rc_wires_shared_modules() {
     assert_not_contains 'local lain_ok = pcall(require, "lain")' "$RC_FILE"
     assert_not_contains 'Please install lain' "$RC_FILE"
 
-    python - "$RC_FILE" <<'PY' || fail "expected rc.lua to stop passing actions into wibar.setup"
+    "$PYTHON_BIN" - "$RC_FILE" <<'PY' || fail "expected rc.lua to stop passing actions into wibar.setup"
 from pathlib import Path
 import sys
 
@@ -86,7 +88,7 @@ test_rc_refreshes_runtime_display_layout_on_screen_topology_changes() {
     assert_contains 'screen.connect_signal("removed", queue_display_layout_refresh)' "$RC_FILE"
     assert_contains 'awesome.connect_signal("screen::change", queue_display_layout_refresh)' "$RC_FILE"
 
-    python - "$RC_FILE" <<'PY' || fail "expected rc.lua to apply the display layout once at startup"
+    "$PYTHON_BIN" - "$RC_FILE" <<'PY' || fail "expected rc.lua to apply the display layout once at startup"
 from pathlib import Path
 import sys
 
@@ -122,7 +124,7 @@ test_bindings_leave_bare_f1_to_snipaste() {
 }
 
 test_bindings_do_not_duplicate_shortcuts() {
-    python - "$BINDINGS_FILE" <<'PY' || fail "expected Awesome keybindings to avoid duplicate modifier/key combinations"
+    "$PYTHON_BIN" - "$BINDINGS_FILE" <<'PY' || fail "expected Awesome keybindings to avoid duplicate modifier/key combinations"
 from pathlib import Path
 import re
 import sys
@@ -156,7 +158,7 @@ PY
 }
 
 test_bindings_use_shared_occupied_tag_helper() {
-    python - "$BINDINGS_FILE" <<'PY' || fail "expected occupied-tag navigation to use one shared directional helper"
+    "$PYTHON_BIN" - "$BINDINGS_FILE" <<'PY' || fail "expected occupied-tag navigation to use one shared directional helper"
 from pathlib import Path
 import re
 import sys
@@ -207,7 +209,7 @@ test_client_module_is_split_into_focused_submodules() {
     assert_contains 'rules.setup({' "$CLIENT_INIT_FILE"
     assert_contains 'decorations.setup()' "$CLIENT_INIT_FILE"
 
-    lua - "$CLIENT_INIT_FILE" <<'LUA' || fail "expected client init setup to delegate to rules and decorations setup"
+    "$LUA_BIN" - "$CLIENT_INIT_FILE" <<'LUA' || fail "expected client init setup to delegate to rules and decorations setup"
 local init_file = arg[1]
 local calls = {
     rules = 0,
@@ -275,7 +277,7 @@ test_client_rules_use_data_driven_policy_lists() {
 
 
 test_actions_check_prerequisites_and_notify_failures() {
-    lua - "$ACTIONS_FILE" <<'LUA' || fail "expected desktop actions to notify when prerequisites are missing"
+    "$LUA_BIN" - "$ACTIONS_FILE" <<'LUA' || fail "expected desktop actions to notify when prerequisites are missing"
 local actions_file = arg[1]
 local notifications = {}
 local shell_commands = {}
@@ -354,7 +356,7 @@ test_tasklist_sources_screen_local_current_tag_client() {
     assert_contains 'filter = screen_task_filter,' "$TASKLIST_FILE"
     assert_not_contains 'filter = awful.widget.tasklist.filter.currenttags' "$TASKLIST_FILE"
 
-    lua - "$TASKLIST_FILE" <<'LUA' || fail "expected tasklist source/filter to expose one screen-local current-tag client"
+    "$LUA_BIN" - "$TASKLIST_FILE" <<'LUA' || fail "expected tasklist source/filter to expose one screen-local current-tag client"
 local tasklist_file = arg[1]
 local history_candidate
 
@@ -524,7 +526,7 @@ test_hidden_window_indicator_tracks_and_restores_hidden_clients() {
     assert_contains 'indicator:update(true)' "$HIDDEN_WINDOWS_FILE"
     assert_contains 'client.connect_signal(signal, queue_update)' "$HIDDEN_WINDOWS_FILE"
 
-    lua - "$HIDDEN_WINDOWS_FILE" <<'LUA' || fail "expected hidden indicator to count, render, and restore hidden taskbar clients"
+    "$LUA_BIN" - "$HIDDEN_WINDOWS_FILE" <<'LUA' || fail "expected hidden indicator to count, render, and restore hidden taskbar clients"
 local hidden_windows_file = arg[1]
 local connected_signals = {}
 local tooltip_config
@@ -871,7 +873,7 @@ test_wibar_owns_bar_widget_creation() {
 }
 
 test_wibar_status_items_do_not_draw_individual_backgrounds() {
-    if ! python - "$WIBAR_FILE" "$SYSTEM_WIDGETS_FILE" <<'PY'
+    if ! "$PYTHON_BIN" - "$WIBAR_FILE" "$SYSTEM_WIDGETS_FILE" <<'PY'
 from pathlib import Path
 import sys
 
@@ -974,7 +976,7 @@ test_wibar_exposes_probe_state_for_runtime_visibility_checks() {
 }
 
 test_wibar_widget_fit_size_materializes_specs() {
-    lua - "$WIBAR_FILE" <<'LUA' || fail "expected wibar probe to measure declarative widget specs"
+    "$LUA_BIN" - "$WIBAR_FILE" <<'LUA' || fail "expected wibar probe to measure declarative widget specs"
 local wibar_file = arg[1]
 
 package.preload["awful"] = function()
@@ -1100,7 +1102,7 @@ test_wibar_keeps_status_widgets_on_primary_only() {
     assert_contains 'local right_widgets = materialize_widget(right_widget_data.right_widgets)' "$WIBAR_FILE"
     assert_not_contains 'local system_bundle = create_sysinfo_bundle(config, s)' "$WIBAR_FILE"
 
-    python - "$STATUS_AREA_FILE" <<'PY' || fail "expected non-primary right side to only add the clock widget"
+    "$PYTHON_BIN" - "$STATUS_AREA_FILE" <<'PY' || fail "expected non-primary right side to only add the clock widget"
 from pathlib import Path
 import sys
 
@@ -1133,7 +1135,7 @@ test_wibar_hides_promptbox_on_secondary_screens() {
     assert_not_contains 'lock_button,' "$WIBAR_FILE"
     assert_not_contains 'table.insert(left_widgets, status_area.create_separator(ctpp))' "$WIBAR_FILE"
 
-    python - "$WIBAR_FILE" <<'PY' || fail "expected secondary left side to omit the promptbox"
+    "$PYTHON_BIN" - "$WIBAR_FILE" <<'PY' || fail "expected secondary left side to omit the promptbox"
 from pathlib import Path
 import sys
 
@@ -1163,7 +1165,7 @@ test_status_area_owns_compact_screen_policy() {
 }
 
 test_wibar_uses_physical_size_before_width_fallback() {
-    lua - "$STATUS_AREA_FILE" <<'LUA' || fail "expected physical monitors larger than 15 inches to use full wibar mode"
+    "$LUA_BIN" - "$STATUS_AREA_FILE" <<'LUA' || fail "expected physical monitors larger than 15 inches to use full wibar mode"
 local status_area_file = arg[1]
 
 package.preload["awful"] = function()
@@ -1227,7 +1229,7 @@ LUA
 }
 
 test_wibar_scales_task_title_width_by_screen_size() {
-    lua - "$WIBAR_FILE" <<'LUA' || fail "expected task title width to adapt to screen width"
+    "$LUA_BIN" - "$WIBAR_FILE" <<'LUA' || fail "expected task title width to adapt to screen width"
 local wibar_file = arg[1]
 
 package.preload["awful"] = function()
@@ -1283,7 +1285,7 @@ LUA
 }
 
 test_tasklist_expands_title_when_only_one_visible_window() {
-    lua - "$TASKLIST_FILE" <<'LUA' || fail "expected single visible current-tag task to use available tasklist width"
+    "$LUA_BIN" - "$TASKLIST_FILE" <<'LUA' || fail "expected single visible current-tag task to use available tasklist width"
 local tasklist_file = arg[1]
 
 package.preload["awful"] = function()
@@ -1380,7 +1382,7 @@ test_semantic_tag_definitions_exist() {
     assert_line_before 'key = "dev"' 'key = "browser"' "$CLIENT_POLICIES_FILE"
     assert_contains '标签顺序：开发、浏览器、文档、沟通、杂项' "$README_FILE"
 
-    python - "$WIBAR_FILE" "$CLIENT_POLICIES_FILE" <<'PY' || fail "expected tag definitions to be looked up by screen tag index and to carry a description"
+    "$PYTHON_BIN" - "$WIBAR_FILE" "$CLIENT_POLICIES_FILE" <<'PY' || fail "expected tag definitions to be looked up by screen tag index and to carry a description"
 from pathlib import Path
 import re
 import sys

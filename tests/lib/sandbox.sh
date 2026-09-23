@@ -69,7 +69,7 @@ link_core_utils() {
     # guard). Mirrors the smallest PATH that the existing tests have
     # already validated.
     for cmd in bash basename cp date diff dirname find grep head ln \
-        ls mkdir mv pwd rm sed sort tail uname; do
+        ls mkdir mktemp mv pwd rm sed sort tail uname; do
         link_cmd "$cmd" "$target_dir"
     done
 

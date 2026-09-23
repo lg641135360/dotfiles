@@ -220,6 +220,23 @@ process_config() {
 
     [[ "$source" != /* ]] && source="$cur_path/$source"
 
+    # Desktop entries embed a __HOME__ placeholder so the repo stays portable
+    # across machines/users. Expand it into a temp copy BEFORE copy_config so
+    # the deployed target has no placeholder left: otherwise source and target
+    # never compare equal and every install would back up and rewrite entries.
+    if [ -f "$source" ] && grep -q '__HOME__' "$source" 2>/dev/null; then
+        local tmp_source content
+        tmp_source=$(mktemp)
+        register_temp "$tmp_source"
+        cp -p "$source" "$tmp_source"
+        content=$(< "$tmp_source")
+        # $(<) strips every trailing newline; printf '%s\n' restores exactly
+        # one, matching the repo's desktop entries and avoiding a trailing-
+        # newline regression on deploy.
+        printf '%s\n' "${content//__HOME__/$HOME}" >"$tmp_source"
+        source="$tmp_source"
+    fi
+
     copy_config "$source" "$target" "$name"
 }
 
@@ -246,8 +263,31 @@ ensure_zdotdir() {
     # 全局 compinit 与 plugins.zsh 的 compinit 每次交互启动互踢 dump
     # （aarch64 实测 +3.9s，见 logs/trace.md 2026-09-13）。
     local skip_line='skip_global_compinit=1'
-    local line added=0
+    local line needs_change=0
 
+    for line in "$export_line" "$skip_line"; do
+        if [ -f "$zshenv" ] && grep -Fxq -- "$line" "$zshenv"; then
+            continue
+        fi
+        needs_change=1
+        break
+    done
+
+    if [ "$needs_change" -eq 0 ]; then
+        log_info "ZDOTDIR and skip_global_compinit are already configured in $zshenv"
+        return 0
+    fi
+
+    # Back up the existing file before editing it in place, mirroring
+    # copy_config's timestamped backups so a broken ~/.zshenv stays recoverable.
+    if [ -f "$zshenv" ]; then
+        local backup_path="$zshenv.backup.$timestamp"
+        cp -p "$zshenv" "$backup_path"
+        clean_old_backups "$zshenv"
+        log_info "Backed up existing $zshenv to $(basename "$backup_path")"
+    fi
+
+    local added=0
     for line in "$export_line" "$skip_line"; do
         if [ -f "$zshenv" ] && grep -Fxq -- "$line" "$zshenv"; then
             continue
@@ -259,11 +299,7 @@ ensure_zdotdir() {
         added=$((added + 1))
     done
 
-    if [ "$added" -gt 0 ]; then
-        log_info "Configured ZDOTDIR/skip_global_compinit in $zshenv"
-    else
-        log_info "ZDOTDIR and skip_global_compinit are already configured in $zshenv"
-    fi
+    log_info "Configured ZDOTDIR/skip_global_compinit in $zshenv"
 }
 
 niri_platform_key() {
@@ -545,7 +581,7 @@ main() {
     # cmp, chmod, sed, awk) are checked at their call sites; mapfile is a
     # bash builtin. Failing branch-specific commands degrade gracefully via
     # process_configs' error handling.
-    check_dependencies find cp mv diff date dirname basename sort grep tail
+    check_dependencies find cp mv diff date dirname basename sort grep tail mktemp
 
     # Ensure the nvim submodule is initialized; an empty source dir would
     # otherwise clobber the user's existing ~/.config/nvim with nothing.
@@ -644,25 +680,11 @@ main() {
         # rather than the shell.
         if command -v niri >/dev/null 2>&1; then
             log_info "niri found, processing Wayland configurations..."
+            # __HOME__ expansion for desktop entries happens inside
+            # process_config (before copy_config), so it covers exactly the
+            # managed targets and stays idempotent.
             process_configs linux_wayland_configs
             process_configs linux_wayland_terminal_configs
-
-            # Desktop entries embed a __HOME__ placeholder so the repo stays
-            # portable across machines/users; substitute the real $HOME at
-            # deploy time (mirrors the niri include-path rewrite above).
-            # Walk any deployed *.desktop under ~/.local/share/applications/
-            # rather than hardcoding names, so new entries are picked up
-            # automatically from linux_wayland_configs.
-            local _de _de_tmp _de_content
-            for _de in "$HOME"/.local/share/applications/*.desktop; do
-                [ -f "$_de" ] || continue
-                grep -q '__HOME__' "$_de" 2>/dev/null || continue
-                # Use bash builtin string replacement to avoid sed/awk
-                # metacharacter issues with $HOME (e.g. '&', '#', '\').
-                _de_content=$(< "$_de")
-                _de_content=${_de_content//__HOME__/$HOME}
-                printf '%s' "$_de_content" >"$_de"
-            done
         else
             log_warn "niri not found, skipping niri and Wayland helper configurations"
         fi

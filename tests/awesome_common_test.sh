@@ -3,11 +3,12 @@ set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$REPO_ROOT/tests/lib/assert.sh"
+resolve_lua || exit $?
 COMMON_FILE=$REPO_ROOT/.config/linux/awesome/lib/common.lua
 
 [ -f "$COMMON_FILE" ] || fail "expected common helper module to exist"
 
-lua - "$COMMON_FILE" <<'LUA' || fail "expected common helper module behavior to match contract"
+"$LUA_BIN" - "$COMMON_FILE" <<'LUA' || fail "expected common helper module behavior to match contract"
 local common_file = arg[1]
 local common = assert(loadfile(common_file))()
 

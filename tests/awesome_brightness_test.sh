@@ -3,6 +3,8 @@ set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$REPO_ROOT/tests/lib/assert.sh"
+resolve_python || exit $?
+resolve_lua || exit $?
 CONFIG_FILE=$REPO_ROOT/.config/linux/awesome/config.lua
 BRIGHTNESS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/brightness.lua
 STATUS_AREA_FILE=$REPO_ROOT/.config/linux/awesome/ui/status_area.lua
@@ -17,7 +19,7 @@ test_brightness_widget_uses_native_backlight_sysfs() {
 }
 
 test_brightness_widget_calculates_percent_and_exposes_private_helpers() {
-    lua - "$BRIGHTNESS_FILE" <<'LUA' || fail "expected brightness helpers to round percentages and quote device names safely"
+    "$LUA_BIN" - "$BRIGHTNESS_FILE" <<'LUA' || fail "expected brightness helpers to round percentages and quote device names safely"
 local brightness_file = arg[1]
 package.path = brightness_file:gsub("/widgets/brightness%.lua$", "/?.lua") .. ";" .. package.path
 
@@ -122,7 +124,7 @@ test_brightness_widget_is_aarch64_only_in_config_and_status_area() {
     assert_contains 'brightness_bundle = require("widgets.brightness").create({' "$STATUS_AREA_FILE"
     assert_contains 'if brightness_bundle then' "$STATUS_AREA_FILE"
     assert_contains 'brightness_bundle.widget' "$STATUS_AREA_FILE"
-    python - "$STATUS_AREA_FILE" <<'PY' || fail "expected status area to gate brightness by config and append it before volume"
+    "$PYTHON_BIN" - "$STATUS_AREA_FILE" <<'PY' || fail "expected status area to gate brightness by config and append it before volume"
 from pathlib import Path
 import sys
 

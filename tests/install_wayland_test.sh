@@ -266,6 +266,60 @@ test_install_keeps_live_niri_config_for_unmapped_platform() {
     rm -rf "$tmpdir"
 }
 
+test_install_desktop_entries_are_idempotent() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+
+    run=1
+    while [ "$run" -le 2 ]; do
+        PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=ubuntu DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland \
+            /bin/bash "$REPO_ROOT/install.sh" >/dev/null 2>&1 ||
+            fail "install.sh run $run should succeed"
+        run=$((run + 1))
+    done
+
+    app_dir=$home_dir/.local/share/applications
+    assert_file_exists "$app_dir/google-chrome.desktop"
+    assert_contains "Exec=$home_dir/.config/scripts/browser-wayland %U" "$app_dir/google-chrome.desktop"
+    assert_not_contains '__HOME__' "$app_dir/google-chrome.desktop"
+
+    # Re-running must not treat the substituted target as changed: the
+    # placeholder is expanded before copy_config, so its identical-target
+    # short-circuit applies and no backup/rewrite churn is created.
+    [ -z "$(find "$app_dir" -maxdepth 1 -name '*.backup.*' 2>/dev/null)" ] ||
+        fail "re-running install.sh must not back up unchanged desktop entries"
+
+    # The placeholder substitution must preserve the final newline.
+    last_byte=$(tail -c 1 "$app_dir/google-chrome.desktop" | od -An -tu1 | tr -d ' \n')
+    assert_equals 10 "$last_byte"
+
+    rm -rf "$tmpdir"
+}
+
+test_install_preserves_unmanaged_desktop_entries() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+
+    mkdir -p "$home_dir/.local/share/applications" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    printf 'Exec=__HOME__/third-party-binary\n' >"$home_dir/.local/share/applications/third-party.desktop"
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=ubuntu DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland \
+        /bin/bash "$REPO_ROOT/install.sh" >/dev/null 2>&1 ||
+        fail "install.sh should succeed with an unmanaged desktop entry present"
+
+    # Only repo-managed entries get the placeholder expanded; unrelated files
+    # under ~/.local/share/applications must be left untouched.
+    assert_contains '__HOME__' "$home_dir/.local/share/applications/third-party.desktop"
+
+    rm -rf "$tmpdir"
+}
+
 test_install_skips_niri_and_wayland_files_when_niri_is_missing() {
     tmpdir=$(mktemp -d)
     home_dir=$tmpdir/home
@@ -294,6 +348,8 @@ test_install_preserves_arch_niri_config
 test_install_preserves_opensuse_dms_niri_and_alacritty_configs
 test_install_preserves_dms_configs_on_ubuntu_x64
 test_install_keeps_live_niri_config_for_unmapped_platform
+test_install_desktop_entries_are_idempotent
+test_install_preserves_unmanaged_desktop_entries
 test_install_skips_niri_and_wayland_files_when_niri_is_missing
 
 printf 'PASS: install wayland tests\n'

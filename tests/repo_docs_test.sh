@@ -38,6 +38,25 @@ assert_file_not_exists "$REPO_ROOT/SETUP.md"
 assert_contains '不会自动安装桌面软件' "$ROOT_README"
 assert_contains '不判断当前会话类型' "$ROOT_README"
 
+# Structure-tree drift guard: every config entry must be listed, so a new
+# module cannot be added without also documenting it in the README tree.
+# Subdirectories are matched with the README's trailing slash; top-level files
+# are matched by name (README.md itself is not part of the tree listing).
+for parent in "$REPO_ROOT/.config/shared" "$REPO_ROOT/.config/linux" \
+    "$REPO_ROOT/.config/macos" "$REPO_ROOT/.config/scripts"; do
+    for entry in "$parent"/*/; do
+        [ -d "$entry" ] || continue
+        entry_name=$(basename -- "$entry")
+        assert_contains "$entry_name/" "$ROOT_README"
+    done
+    for entry in "$parent"/*; do
+        [ -f "$entry" ] || continue
+        entry_name=$(basename -- "$entry")
+        [ "$entry_name" = "README.md" ] && continue
+        assert_contains "$entry_name" "$ROOT_README"
+    done
+done
+
 # Test runner docs
 assert_contains './tests/run.sh' "$ROOT_README"
 assert_contains 'tests/run.sh docs' "$ROOT_README"

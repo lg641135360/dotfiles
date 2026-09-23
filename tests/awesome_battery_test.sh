@@ -3,6 +3,8 @@ set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$REPO_ROOT/tests/lib/assert.sh"
+resolve_python || exit $?
+resolve_lua || exit $?
 SYSTEM_WIDGETS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/system.lua
 
 test_system_widgets_detect_battery_devices() {
@@ -19,7 +21,7 @@ test_system_widgets_hide_battery_when_missing() {
 
 test_battery_widget_appended_after_volume_in_status_area() {
     STATUS_AREA_FILE=$REPO_ROOT/.config/linux/awesome/ui/status_area.lua
-    python - "$STATUS_AREA_FILE" <<'PY' || fail "expected BAT to be appended after VOL in status_area"
+    "$PYTHON_BIN" - "$STATUS_AREA_FILE" <<'PY' || fail "expected BAT to be appended after VOL in status_area"
 from pathlib import Path
 import sys
 
@@ -42,7 +44,7 @@ test_system_widgets_aggregate_multiple_batteries() {
     grep -F 'summary.count > 1' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected battery tooltip to mention multiple battery packs when present"
 
-    lua - "$SYSTEM_WIDGETS_FILE" <<'LUA' || fail "expected battery aggregation helpers to combine multiple batteries correctly"
+    "$LUA_BIN" - "$SYSTEM_WIDGETS_FILE" <<'LUA' || fail "expected battery aggregation helpers to combine multiple batteries correctly"
 local system_file = arg[1]
 package.path = system_file:gsub("/widgets/system%.lua$", "/?.lua") .. ";" .. package.path
 

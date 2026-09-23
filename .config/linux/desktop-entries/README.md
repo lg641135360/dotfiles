@@ -12,6 +12,8 @@
 
 desktop entry 中的 `Exec` 路径使用 `__HOME__` 占位符，由 `install.sh` 在部署时替换为真实的 `$HOME`。这样 entry 可跨机器/用户移植，无需硬编码绝对路径。
 
+替换发生在 `copy_config` **之前**（先写入临时副本再复制），因此部署目标不含占位符，重复运行 `./install.sh` 时能与源内容比对一致而跳过，不产生多余备份；同时保留文件末尾换行。替换只作用于 `linux_wayland_configs` 中仓库管理的 entry，不会改写 `~/.local/share/applications/` 下的其它第三方文件。
+
 ## 部署
 
 `install.sh` 的 `linux_wayland_configs` 数组收录这些 entry，部署目标为 `~/.local/share/applications/`。fuzzel / GNOME Shell 等会优先读取用户级 `~/.local/share/applications/`，覆盖系统级同名 entry。

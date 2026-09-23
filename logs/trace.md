@@ -125,7 +125,7 @@
 - 目的：集中 Wayland fcitx 环境并减少重复导出。
 - 已做：安装器新增幂等 `ensure_fcitx_environment`，为 `~/.config/environment.d/fcitx.conf` 确保 `XMODIFIERS=@im=fcitx` 与 `QT_IM_MODULE=fcitx`；Wayland niri 配置和 launcher/autostart 删除重复输入法变量；保留 Wayland 下清除 `GTK_IM_MODULE`；共享 zsh 将 `GTK_USE_PORTAL=1` 作为 Linux 通用变量，并仅在 X11 图形会话设置 Awesome 标识；移除 niri 中硬编码 `ZDOTDIR`，继续由安装器写入 `~/.zshenv`。
 - 验证：`bash -n install.sh .config/scripts/wayland-autostart .config/scripts/launcher-wayland`、`tests/niri_config_test.sh`、`tests/wayland_scripts_test.sh`、`tests/install_zshenv_test.sh`、`git diff --check` 通过。
-- live/提交：未同步 live，未提交；回滚信息：工作区未提交。
+- live/提交：未同步 live；本轮未单独提交（2026-09-23 更正：与 2026-09-11 收尾、2026-09-12 两轮最终合并提交为 `4302f3b`，已推送）；回滚：`git revert 4302f3b`。
 
 ## 2026-09-11 环境变量收敛（收尾）
 - 目的：进一步收敛——删除 `ensure_fcitx_environment` 与 `environment.d` 注入。分析确认正常登录路径下 fcitx 变量由 im-config 写入 `/etc/environment`，经 niri-session 的 `import-environment`（无参数）进入 systemd 用户环境，仓库侧不再需要任何 fcitx 变量注入点。
@@ -134,7 +134,7 @@
 - 遗留失败（非本轮引入，需用户决策）：
   - `tests/install_wayland_test.sh`：`is_repo_niri_platform` 收紧为 ubuntu+aarch64 后，测试 6 个场景仍用 x86_64/arch/fedora mock，断言 niri 文件应部署不再成立；与 README「Ubuntu x86_64 / aarch64 部署」描述矛盾，疑似上轮误改，需回退收紧或同步改测试+README。
   - `tests/wayland_scripts_test.sh` 的 `test_launcher_wayland_respects_running_wayland_fcitx5` 场景1：`git stash` 后 HEAD 版通过、工作区版失败；HEAD 与工作区 launcher 唯一差异是删除的 6 行 fcitx exports（逻辑上不影响 fcitx5 存活检测），疑为 `/proc/<pid>/environ` 读取的测试环境敏感问题（Yama ptrace_scope / 容器），待确认。
-- live/提交：未同步 live，未提交；回滚信息：工作区未提交。
+- live/提交：未同步 live；本轮未单独提交（2026-09-23 更正：与 2026-09-11 环境变量收敛轮、2026-09-12 仓库适配轮最终合并提交为 `4302f3b`，已推送）；回滚：`git revert 4302f3b`。
 
 ## 2026-09-12 DMS 落地：mako 总线冲突修复（live 运行态）
 - 目的：用户在 x64 Ubuntu 26.04 安装 dms 1.6.1ppa1（avengemedia/danklinux PPA）后 shell 未生效，定位并修复。
@@ -160,7 +160,7 @@
   - `tests/niri_config_test.sh`：README 部署边界断言同步新措辞。
   - 文档：`README.md` 使用方式段、`.config/linux/niri/README.md` 定位/部署边界段、`memory/niri.md` 平台与部署规则、`memory/organizing_preferences.md` alacritty 归 DMS 说明，均改为「Ubuntu 且无 dms 才部署外壳栈，DMS 机器全保留」。
 - 验证：`bash -n install.sh`、`git diff --check` 通过；`./tests/run.sh fast` PASS=46 FAIL=0（含新 DMS 用例与 wayland scripts 连跑 5 次稳定）。
-- live/提交：未同步 live（本轮只改仓库部署逻辑，live DMS 配置已是目标态，无需动）；未提交；回滚信息：工作区未提交（连同 2026-09-11 环境变量收敛轮，建议分两个 commit）。
+- live/提交：未同步 live（本轮只改仓库部署逻辑，live DMS 配置已是目标态，无需动）；本轮未单独提交（2026-09-23 更正：连同 2026-09-11 环境变量收敛两轮与 foot 轮合并提交为 `4302f3b`，已推送，未按原计划拆分）；回滚：`git revert 4302f3b`。
 - 后续可能方向：① 工作区另有 2026-09-11 环境变量收敛轮未提交，提交时先提交该轮再提交本轮；② DMS 键位未含仓库肌肉记忆键（Mod+hjkl 等）且 Mod+T spawn 未安装的 ghostty，待用户在 DMS 设置内调整；③ waybar/wayland-autostart 链的仓库清理（或保留为 aarch64 回退）待 DMS 稳定使用后决策；④ `memory/niri.md` 2026-08-29 包来源条目「不装 dms」已成历史，随下轮 memory 整理更新。
 
 ## 2026-09-12 foot 目录改单文件部署（保留第三方文件）
@@ -171,7 +171,7 @@
   - `tests/foot_config_test.sh`：install 行断言同步。
   - 文档：`README.md` 安装说明、`.config/linux/niri/README.md` 部署边界段、`memory/niri.md` 部署段补充 foot 单文件部署说明。
 - 验证：`bash -n`、`tests/install_wayland_test.sh`、`tests/foot_config_test.sh`、`tests/install_submodule_test.sh` 通过；`./tests/run.sh fast` PASS=46 FAIL=0。
-- live/提交：未同步 live、未提交；回滚信息：工作区未提交（与 2026-09-11/12 各轮同处工作区，建议分 commit）。
+- live/提交：未同步 live；本轮未单独提交（2026-09-23 更正：实际以 `4302f3b` 与 2026-09-11/12 各轮合并提交，已推送）；回滚：`git revert 4302f3b`。
 - 后续可能方向：① 若 DMS 的 `dank-colors.ini` 需要纳入仓库配色，可后续引入；② 其它目录若也出现第三方文件冲突，可评估通用合并部署。
 
 ## 2026-09-13 Mod+Enter 开 foot 加载 zsh 慢：skip_global_compinit 回归修复
@@ -188,7 +188,7 @@
   ```bash
   cp -p ~/.zshenv.backup.20260913_095528_1754579 ~/.zshenv
   ```
-- live/提交：live ~/.zshenv 已同步（见上备份）；本轮已提交 `f478738`（fix(install): backfill skip_global_compinit into ~/.zshenv，5 文件，未推送）；回滚：`git revert f478738` 或从备份恢复 ~/.zshenv。
+- live/提交：live ~/.zshenv 已同步（见上备份）；本轮已提交 `7d1a102`（fix(install): backfill skip_global_compinit into ~/.zshenv，5 文件，已推送）。原记录 hash f478738 因后续 rebase 被改写而失效（2026-09-23 按实际仓库历史更正）；回滚：`git revert 7d1a102` 或从备份恢复 ~/.zshenv。
 - 后续可能方向：① 若其它机器（x64 DMS/macOS）曾跑过旧安装器，重跑 `./install.sh` 即可幂等补 skip 行；② niri README 环境变量段的「否则没有 skip_global_compinit」描述与现状一致（~/.zshenv 现含该行），未改。
 
 ## 2026-09-17 zed 命令无法启动：wrapper 指向不存在的 /usr/bin/zed
@@ -201,3 +201,30 @@
   cp -p ~/.local/bin/zed.backup.20260917095351 ~/.local/bin/zed
   ```
 - 后续可能方向：① `~/.local/zed.app`（1.12.0）与 `~/.local/zed-preview.app`（1.14.1）两套旧版安装仍在，若确认不再使用可清理；② 若后续 apt 包再改命令名，wrapper 会再次失效，可考虑改为 `command -v zeditor` 兜底探测。
+
+## 2026-09-23 — 修复 trace 失效锚点、README 结构漂移与回归测试可移植性
+- 目的：把上一轮只读分析发现的四类问题全部落到仓库：① trace 中失效的提交 hash 破坏可回滚承诺；② README 结构树漂移（缺 `swaylock/`、`xdg-autostart/`，niri 定位过时）；③ 文档测试没有覆盖结构树漂移；④ 回归测试硬编码 `python`/`lua` 且隐式依赖 `DISPLAY`，在无头/精简环境误报失败。
+- 已做：
+  - `logs/trace.md`：2026-09-13 条目回滚 hash `f478738`（rebase 后被改写、已失效）更正为实际提交 `7d1a102`，并标注已推送；2026-09-11 环境变量收敛两轮、2026-09-12 仓库适配轮与 foot 轮的「未提交」更正为实际合并提交 `4302f3b`（各附 `git revert` 回滚命令）。
+  - `README.md`：Linux 结构树补 `swaylock/`、`xdg-autostart/`；`niri/` 注释由「Wayland 合成器（平行试用）」改为「Wayland 合成器（主力桌面，AwesomeWM 为回退）」。
+  - `tests/repo_docs_test.sh`：新增结构树漂移守卫——遍历 `.config/{shared,linux,macos,scripts}` 的实际条目（子目录用 `名字/` 匹配、顶层文件用名字匹配，跳过 `README.md`），要求 README 全部列出（与既有 memory 索引守卫同思路）。验证时发现 `.config/scripts/` 下实为单文件可执行脚本而非目录，初版只看目录会漏掉 scripts，已改为同时校验文件并补负向用例。
+  - `tests/lib/assert.sh`：新增 `resolve_tool <var> <candidates...>` / `resolve_python`（`python3`→`python`）/ `resolve_lua`（`lua`→`luajit`），缺失时打印 SKIP 并返回 exit 77。
+  - `tests/awesome_{battery,brightness,common,layout,net,ui_architecture}_test.sh`：头部改用 `resolve_python`/`resolve_lua`，全部裸 `python`/`lua` 调用改为 `"$PYTHON_BIN"` / `"$LUA_BIN"`（含 `if ! python` 变体）。
+  - `tests/zsh_path_test.sh`：`run_env_zsh` 显式设 `DISPLAY=:0`，不再隐式依赖运行环境的环境变量。
+  - `memory/organizing_preferences.md`：仓库管理段补两条可复用规则（测试解释器解析 + 无头环境不得隐式依赖环境变量；README 结构树漂移守卫）。
+- 验证：`sh -n` 全部改动测试 + `tests/lib/assert.sh` 通过；`git diff --check` 通过；`tests/repo_docs_test.sh` PASS；`./tests/run.sh fast` 从改动前 PASS=39 FAIL=7 变为 PASS=46 FAIL=0；逐个复跑原 7 个失败测试全部 PASS；trace 中带反引号的 commit hash 全部可在仓库解析。
+- live/提交：未同步 live（本轮只改仓库文档/测试/memory）；未提交。回滚信息：工作区未提交，回滚锚点为改动前 `HEAD=0b9a80b`，可用 `git checkout -- <file>` 还原各文件。
+- 后续可能方向：① 若希望严格保留历史修订痕迹，可考虑把 trace 更正改为追加勘误条目而非就地改写，但当前就地更正便于 `git revert` 直接可用；② 其它模块 README（如 `.config/linux/niri/README.md`）未纳入结构树守卫，如需可扩展；③ nvim 启动类测试未在 `fast` 中执行，本轮未触及 nvim 逻辑，`./tests/run.sh full` 待需要时全量回归。
+
+## 2026-09-23 — install.sh A 组修复：desktop entry 幂等、末尾换行、作用域与 ~/.zshenv 备份
+- 目的：修只读分析列出的 A1–A4：① desktop entry 每次安装都备份+覆盖（identical 短路失效）；② `__HOME__` 替换丢末尾换行；③ 替换循环误改非仓库的 `~/.local/share/applications/*.desktop`；④ `ensure_zdotdir` 直接改 live `~/.zshenv` 无备份。
+- 已做：
+  - `install.sh` `process_config()`：在 `copy_config` **之前**把含 `__HOME__` 的源写入临时副本（`mktemp` + `cp -p` 保模式 + `printf '%s\n'` 恢复单个尾换行）再复制；同时覆盖 A1（幂等）、A2（换行）、A3（只处理受管源）。
+  - `install.sh` main：删除原先遍历 `~/.local/share/applications/*.desktop` 的后置替换循环。
+  - `install.sh` `ensure_zdotdir()`：追加前先 `cp -p` 时间戳备份 + `clean_old_backups`；无变更时直接返回，不产生备份。
+  - `install.sh` `check_dependencies`：补 `mktemp`（新路径在前置阶段使用）。
+  - 测试：`tests/install_wayland_test.sh` 新增 `test_install_desktop_entries_are_idempotent`（二次运行无备份、保留尾换行）与 `test_install_preserves_unmanaged_desktop_entries`；`tests/install_zshenv_test.sh` 新增备份/幂等/缺失文件三例；`tests/lib/sandbox.sh` baseline 补 `mktemp`；`tests/awesome_lock_test.sh`、`tests/install_redshift_test.sh` 的硬编码 PATH 列表补 `mktemp`。
+  - 文档：`README.md` 使用方式段补「同类备份保留 3 份 + `~/.zshenv` 先备份 + `__HOME__` 复制前展开」；`.config/linux/desktop-entries/README.md` 说明替换时机与幂等/换行/作用域；`memory/organizing_preferences.md` 补「占位符替换应在 copy 之前」规则。
+- 验证：改动前两个新测试用例已复现失败（备份 churn / 未生成备份）；`bash -n install.sh`、`sh -n` 改动测试通过；`git diff --check` clean；`tests/install_*_test.sh` 全部 PASS（含新用例）；`./tests/run.sh fast` PASS=46 FAIL=0。
+- live/提交：未同步 live（只改仓库）；未提交。回滚信息：工作区未提交，回滚锚点为改动前 `HEAD=0b9a80b`。
+- 后续可能方向：① 同属分析结论的 B/C/D 组（bash≥4.3 守卫、未用依赖 `tail`、重复 `command -v` 缓存、分支失败不中止、`--dry-run` 等）尚未处理；② 若将 desktop entry 收集改为数组驱动，可进一步消除 `process_config` 中的魔数探测。

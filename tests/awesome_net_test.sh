@@ -3,6 +3,8 @@ set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$REPO_ROOT/tests/lib/assert.sh"
+resolve_python || exit $?
+resolve_lua || exit $?
 CONFIG_FILE=$REPO_ROOT/.config/linux/awesome/config.lua
 SYSTEM_WIDGETS_FILE=$REPO_ROOT/.config/linux/awesome/widgets/system.lua
 VOLUME_FILE=$REPO_ROOT/.config/linux/awesome/widgets/volume.lua
@@ -21,7 +23,7 @@ test_system_widgets_parse_cpu_and_memory_without_lain() {
         fail "expected system widgets to avoid the lain runtime dependency"
     fi
 
-    lua - "$SYSTEM_WIDGETS_FILE" <<'LUA' || fail "expected native CPU/MEM parser helpers to behave correctly"
+    "$LUA_BIN" - "$SYSTEM_WIDGETS_FILE" <<'LUA' || fail "expected native CPU/MEM parser helpers to behave correctly"
 local system_file = arg[1]
 package.path = system_file:gsub("/widgets/system%.lua$", "/?.lua") .. ";" .. package.path
 
@@ -105,7 +107,7 @@ test_net_widget_seeds_previous_counters_before_speed_display() {
 test_net_widget_moves_before_cpu() {
     grep -F 'local system_items = {' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected system_items declaration"
-    python - <<'INNERPY' "$SYSTEM_WIDGETS_FILE"
+    "$PYTHON_BIN" - <<'INNERPY' "$SYSTEM_WIDGETS_FILE"
 from pathlib import Path
 text = Path(__import__('sys').argv[1]).read_text()
 start = text.index('local system_items = {')
@@ -121,7 +123,7 @@ test_sysinfo_keeps_mem_visible_in_compact_mode() {
     if grep -F 'if not compact then' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1; then
         fail "expected compact mode to shorten the MEM label instead of dropping the item"
     fi
-    python - <<'INNERPY' "$SYSTEM_WIDGETS_FILE"
+    "$PYTHON_BIN" - <<'INNERPY' "$SYSTEM_WIDGETS_FILE"
 from pathlib import Path
 import sys
 
@@ -138,7 +140,7 @@ INNERPY
 
 test_status_labels_use_one_shared_palette() {
     for status_file in "$SYSTEM_WIDGETS_FILE" "$VOLUME_FILE" "$BRIGHTNESS_FILE"; do
-        python - <<'INNERPY' "$status_file"
+        "$PYTHON_BIN" - <<'INNERPY' "$status_file"
 from pathlib import Path
 import sys
 
@@ -244,7 +246,7 @@ test_net_widget_has_hover_tooltip() {
         fail "expected NET offline state to clear previous download counters"
     grep -F 'net_prev.sent = nil' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected NET offline state to clear previous upload counters"
-    python - "$SYSTEM_WIDGETS_FILE" <<'PY' || fail "expected NET update loop to switch to offline when totals are unavailable"
+    "$PYTHON_BIN" - "$SYSTEM_WIDGETS_FILE" <<'PY' || fail "expected NET update loop to switch to offline when totals are unavailable"
 from pathlib import Path
 import sys
 
@@ -343,7 +345,7 @@ test_status_widgets_use_hover_details_only() {
     grep -F 'local summary = is_cpu' "$SYSTEM_WIDGETS_FILE" >/dev/null 2>&1 ||
         fail "expected CPU/MEM hover details to use section-specific summaries"
 
-    python - "$SYSTEM_WIDGETS_FILE" <<'PY' || fail "expected CPU/MEM hover tooltip to read cached details without spawning commands"
+    "$PYTHON_BIN" - "$SYSTEM_WIDGETS_FILE" <<'PY' || fail "expected CPU/MEM hover tooltip to read cached details without spawning commands"
 from pathlib import Path
 import sys
 

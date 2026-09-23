@@ -25,11 +25,13 @@
 │   │   ├── fuzzel/      # Wayland 启动器
 │   │   ├── foot/        # foot 终端模拟器配置（Alacritty 的 Wayland 兜底）
 │   │   ├── mako/        # Wayland 通知守护进程
-│   │   ├── niri/        # Wayland 合成器（平行试用）
+│   │   ├── niri/        # Wayland 合成器（主力桌面，AwesomeWM 为回退）
 │   │   ├── picom/       # X11 合成器
 │   │   ├── rofi/        # 应用启动器
+│   │   ├── swaylock/    # Wayland 锁屏
 │   │   ├── waybar/      # Wayland 状态栏
 │   │   ├── x11/         # X11 会话配置（resources / xsessionrc）
+│   │   ├── xdg-autostart/ # 覆盖 XDG autostart 入口（禁用 GNOME/X11 遗留项）
 │   │   └── xdg-desktop-portal/ # 桌面门户配置
 │   ├── macos/           # macOS 桌面环境配置
 │   │   ├── aerospace/   # 窗口管理器
@@ -81,7 +83,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-安装脚本采用复制部署，不会创建符号链接；目标文件已存在时会先备份再覆盖。脚本通过自身路径定位仓库，因此可从任意工作目录执行。它不会自动安装桌面软件：仅在对应命令可用时复制配置，缺失时打印提示并跳过；例外是已安装 `tmux` 或 Alacritty 时，可通过 Git 获取缺失的 TPM 或 Alacritty 主题。Linux 上检测到 `niri` 后会部署 Wayland 辅助脚本、桌面入口、portal 偏好、XDG autostart 覆盖与 Foot 终端配置，不判断当前会话类型；其中 Foot 按单文件部署，保留 `~/.config/foot` 中其它第三方文件（如 DMS 的 `dank-colors.ini`）。Niri KDL 与 Waybar、Mako、Fuzzel、Swaylock 桌面外壳栈仅在 Ubuntu 且未检测到 DMS 时部署——DMS（`command -v dms`）机器保留其自管的 Niri 配置与外壳栈，非 Ubuntu 发行版保留现有 live 配置；Alacritty 配置在 openSUSE 与 DMS 机器上跳过复制以保留 DMS 管理。钉钉日常启动使用官方 `Elevator.sh`，仓库中的 `dingtalk-wayland` 只保留排障功能。
+安装脚本采用复制部署，不会创建符号链接；目标文件已存在时会先备份再覆盖（同类备份保留最近 3 份）。对 `~/.zshenv` 追加 `ZDOTDIR` / `skip_global_compinit` 前也会先建时间戳备份。桌面入口中的 `__HOME__` 占位符在复制前展开，因此重复运行不会产生多余备份。脚本通过自身路径定位仓库，因此可从任意工作目录执行。它不会自动安装桌面软件：仅在对应命令可用时复制配置，缺失时打印提示并跳过；例外是已安装 `tmux` 或 Alacritty 时，可通过 Git 获取缺失的 TPM 或 Alacritty 主题。Linux 上检测到 `niri` 后会部署 Wayland 辅助脚本、桌面入口、portal 偏好、XDG autostart 覆盖与 Foot 终端配置，不判断当前会话类型；其中 Foot 按单文件部署，保留 `~/.config/foot` 中其它第三方文件（如 DMS 的 `dank-colors.ini`）。Niri KDL 与 Waybar、Mako、Fuzzel、Swaylock 桌面外壳栈仅在 Ubuntu 且未检测到 DMS 时部署——DMS（`command -v dms`）机器保留其自管的 Niri 配置与外壳栈，非 Ubuntu 发行版保留现有 live 配置；Alacritty 配置在 openSUSE 与 DMS 机器上跳过复制以保留 DMS 管理。钉钉日常启动使用官方 `Elevator.sh`，仓库中的 `dingtalk-wayland` 只保留排障功能。
 
 当 `claude` 和 `jq` 同时可用时，还会安装 `.config/shared/cc/statusline.sh` 到
 `~/.config/cc/statusline.sh`，并配置 `~/.claude/settings.json` 指向该脚本。

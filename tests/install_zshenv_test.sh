@@ -69,9 +69,71 @@ test_install_invokes_zdotdir_setup_with_zsh() {
     assert_contains 'ensure_zdotdir' "$REPO_ROOT/install.sh"
 }
 
+# ensure_zdotdir 直接改 live ~/.zshenv，必须与 copy_config 一致先做时间戳备份，
+# 否则改坏了 zsh 启动没有回退入口。
+test_ensure_zdotdir_backs_up_before_modifying() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    zshenv=$home_dir/.zshenv
+
+    mkdir -p "$home_dir"
+    printf 'export PATH=$HOME/bin:$PATH\n' >"$zshenv"
+
+    HOME=$home_dir ensure_zdotdir
+
+    backup_count=$(find "$home_dir" -maxdepth 1 -name '.zshenv.backup.*' | wc -l)
+    assert_equals 1 "$backup_count"
+    backup_file=$(find "$home_dir" -maxdepth 1 -name '.zshenv.backup.*')
+    assert_contains 'export PATH=$HOME/bin:$PATH' "$backup_file"
+
+    # A second run has nothing to add and must not create another backup.
+    HOME=$home_dir ensure_zdotdir
+    backup_count=$(find "$home_dir" -maxdepth 1 -name '.zshenv.backup.*' | wc -l)
+    assert_equals 1 "$backup_count"
+
+    rm -rf "$tmpdir"
+}
+
+test_ensure_zdotdir_does_not_back_up_when_already_configured() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    zshenv=$home_dir/.zshenv
+
+    mkdir -p "$home_dir"
+    printf '%s\n%s\n' "$ZDOTDIR_EXPORT" "$SKIP_COMPINIT" >"$zshenv"
+
+    HOME=$home_dir ensure_zdotdir
+
+    backup_count=$(find "$home_dir" -maxdepth 1 -name '.zshenv.backup.*' | wc -l)
+    assert_equals 0 "$backup_count"
+
+    rm -rf "$tmpdir"
+}
+
+test_ensure_zdotdir_creates_zshenv_without_backup_when_missing() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    zshenv=$home_dir/.zshenv
+
+    mkdir -p "$home_dir"
+
+    HOME=$home_dir ensure_zdotdir
+
+    assert_file_exists "$zshenv"
+    assert_contains "$ZDOTDIR_EXPORT" "$zshenv"
+    assert_contains "$SKIP_COMPINIT" "$zshenv"
+    backup_count=$(find "$home_dir" -maxdepth 1 -name '.zshenv.backup.*' | wc -l)
+    assert_equals 0 "$backup_count"
+
+    rm -rf "$tmpdir"
+}
+
 test_ensure_zdotdir_preserves_existing_zshenv
 test_ensure_zdotdir_skips_existing_export
 test_ensure_zdotdir_backfills_skip_global_compinit
+test_ensure_zdotdir_backs_up_before_modifying
+test_ensure_zdotdir_does_not_back_up_when_already_configured
+test_ensure_zdotdir_creates_zshenv_without_backup_when_missing
 test_install_invokes_zdotdir_setup_with_zsh
 
 printf 'PASS: install zshenv tests\n'

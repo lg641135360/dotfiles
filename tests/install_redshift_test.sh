@@ -19,7 +19,7 @@ test_install_warns_when_redshift_missing_on_ubuntu() {
 
     mkdir -p "$home_dir" "$bin_dir"
 
-    for cmd in bash basename cp date diff dirname find grep head ln mkdir mv pwd rm sed sort tail uname; do
+    for cmd in bash basename cp date diff dirname find grep head ln mkdir mktemp mv pwd rm sed sort tail uname; do
         link_cmd "$cmd" "$bin_dir"
     done
 

@@ -3,6 +3,7 @@ set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$REPO_ROOT/tests/lib/assert.sh"
+resolve_python || exit $?
 CLIENT_FILE=$REPO_ROOT/.config/linux/awesome/client.lua
 CLIENT_RULES_FILE=$REPO_ROOT/.config/linux/awesome/client/rules.lua
 CLIENT_DECORATIONS_FILE=$REPO_ROOT/.config/linux/awesome/client/decorations.lua
@@ -73,7 +74,7 @@ test_titlebar_stays_fallback_only_for_select_floating_windows() {
     assert_contains '普通 `utility` 窗口不会仅因为 `type=utility` 就自动出现标题栏' "$README_FILE"
     assert_contains '不会再因为通用 role 自动命中 fallback titlebar' "$README_FILE"
 
-    python - "$CLIENT_RULES_FILE" <<'PY' || fail "expected titlebar fallback rule to rely on explicit class whitelist only"
+    "$PYTHON_BIN" - "$CLIENT_RULES_FILE" <<'PY' || fail "expected titlebar fallback rule to rely on explicit class whitelist only"
 from pathlib import Path
 import sys
 

@@ -12,7 +12,7 @@ test_install_copies_lock_script_without_i3lock() {
 
     mkdir -p "$home_dir" "$bin_dir"
 
-    for cmd in bash basename cp date diff dirname find grep head ln mkdir mv pwd rm sed sort tail uname; do
+    for cmd in bash basename cp date diff dirname find grep head ln mkdir mktemp mv pwd rm sed sort tail uname; do
         link_cmd "$cmd" "$bin_dir"
     done
 
@@ -39,7 +39,7 @@ test_install_repairs_lock_script_exec_bit() {
 
     mkdir -p "$home_dir" "$bin_dir"
 
-    for cmd in bash basename cp date diff dirname find grep head ln mkdir mv pwd rm sed sort tail uname; do
+    for cmd in bash basename cp date diff dirname find grep head ln mkdir mktemp mv pwd rm sed sort tail uname; do
         link_cmd "$cmd" "$bin_dir"
     done
 

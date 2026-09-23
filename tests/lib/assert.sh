@@ -148,3 +148,39 @@ skip_unless_platform() {
     fi
     return 0
 }
+
+# resolve_tool <var-name> <candidate>...
+# Sets the named global shell variable to the first candidate found on PATH
+# and unsets it when none is available, printing a SKIP marker and returning
+# SKIP_EXIT_CODE in that case. Callers forward the status explicitly:
+#
+#   resolve_tool PYTHON_BIN python3 python || exit $?
+#   "$PYTHON_BIN" script.py
+resolve_tool() {
+    _resolve_tool_name=$1
+    shift
+
+    for _resolve_tool_candidate in "$@"; do
+        if command -v "$_resolve_tool_candidate" >/dev/null 2>&1; then
+            eval "$_resolve_tool_name=\$_resolve_tool_candidate"
+            unset _resolve_tool_name _resolve_tool_candidate
+            return 0
+        fi
+    done
+
+    printf 'SKIP: none of [%s] available\n' "$*" >&2
+    unset _resolve_tool_name _resolve_tool_candidate
+    return "$SKIP_EXIT_CODE"
+}
+
+# resolve_python / resolve_lua
+# Try the preferred command name first, then an alternative spelling
+# (`python3`/`python`, `lua`/`luajit`) so the suite also runs on machines that
+# only ship one of them.
+resolve_python() {
+    resolve_tool PYTHON_BIN python3 python
+}
+
+resolve_lua() {
+    resolve_tool LUA_BIN lua luajit
+}
