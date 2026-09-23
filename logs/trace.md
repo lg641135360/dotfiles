@@ -213,7 +213,7 @@
   - `tests/zsh_path_test.sh`：`run_env_zsh` 显式设 `DISPLAY=:0`，不再隐式依赖运行环境的环境变量。
   - `memory/organizing_preferences.md`：仓库管理段补两条可复用规则（测试解释器解析 + 无头环境不得隐式依赖环境变量；README 结构树漂移守卫）。
 - 验证：`sh -n` 全部改动测试 + `tests/lib/assert.sh` 通过；`git diff --check` 通过；`tests/repo_docs_test.sh` PASS；`./tests/run.sh fast` 从改动前 PASS=39 FAIL=7 变为 PASS=46 FAIL=0；逐个复跑原 7 个失败测试全部 PASS；trace 中带反引号的 commit hash 全部可在仓库解析。
-- live/提交：未同步 live（本轮只改仓库文档/测试/memory）；未提交。回滚信息：工作区未提交，回滚锚点为改动前 `HEAD=0b9a80b`，可用 `git checkout -- <file>` 还原各文件。
+- live/提交：未同步 live（本轮只改仓库文档/测试/memory）；已提交并推送 `a498742`（与下一轮 install.sh A 组因改同一批文件合并为一个 commit）。回滚：`git revert a498742`，或从改动前锚点 `0b9a80b` 逐文件 `git checkout`。
 - 后续可能方向：① 若希望严格保留历史修订痕迹，可考虑把 trace 更正改为追加勘误条目而非就地改写，但当前就地更正便于 `git revert` 直接可用；② 其它模块 README（如 `.config/linux/niri/README.md`）未纳入结构树守卫，如需可扩展；③ nvim 启动类测试未在 `fast` 中执行，本轮未触及 nvim 逻辑，`./tests/run.sh full` 待需要时全量回归。
 
 ## 2026-09-23 — install.sh A 组修复：desktop entry 幂等、末尾换行、作用域与 ~/.zshenv 备份
@@ -226,5 +226,5 @@
   - 测试：`tests/install_wayland_test.sh` 新增 `test_install_desktop_entries_are_idempotent`（二次运行无备份、保留尾换行）与 `test_install_preserves_unmanaged_desktop_entries`；`tests/install_zshenv_test.sh` 新增备份/幂等/缺失文件三例；`tests/lib/sandbox.sh` baseline 补 `mktemp`；`tests/awesome_lock_test.sh`、`tests/install_redshift_test.sh` 的硬编码 PATH 列表补 `mktemp`。
   - 文档：`README.md` 使用方式段补「同类备份保留 3 份 + `~/.zshenv` 先备份 + `__HOME__` 复制前展开」；`.config/linux/desktop-entries/README.md` 说明替换时机与幂等/换行/作用域；`memory/organizing_preferences.md` 补「占位符替换应在 copy 之前」规则。
 - 验证：改动前两个新测试用例已复现失败（备份 churn / 未生成备份）；`bash -n install.sh`、`sh -n` 改动测试通过；`git diff --check` clean；`tests/install_*_test.sh` 全部 PASS（含新用例）；`./tests/run.sh fast` PASS=46 FAIL=0。
-- live/提交：未同步 live（只改仓库）；未提交。回滚信息：工作区未提交，回滚锚点为改动前 `HEAD=0b9a80b`。
+- live/提交：未同步 live（只改仓库）；已提交并推送 `a498742`（与上一轮文档/测试轮合并）。回滚：`git revert a498742`。
 - 后续可能方向：① 同属分析结论的 B/C/D 组（bash≥4.3 守卫、未用依赖 `tail`、重复 `command -v` 缓存、分支失败不中止、`--dry-run` 等）尚未处理；② 若将 desktop entry 收集改为数组驱动，可进一步消除 `process_config` 中的魔数探测。
