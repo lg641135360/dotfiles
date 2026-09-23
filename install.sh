@@ -41,6 +41,26 @@ is_repo_niri_platform() {
     [[ "$os" == "Linux" && "${distro:-}" == "ubuntu" ]] && ! uses_dms_shell
 }
 
+# TPM (Tmux Plugin Manager) only clones the plugins declared with `set -g
+# @plugin` when the user runs `prefix + I` inside tmux; deploying TPM itself
+# installs nothing. Without them catppuccin/tmux is absent, so tmux falls back
+# to its default status bar (and tmux-resurrect keybindings stay inert).
+# TPM names plugin directories after the repo basename (catppuccin/tmux ->
+# ~/.tmux/plugins/tmux), so any entry besides tpm itself means the plugin
+# install has run at least once.
+tmux_plugins_missing() {
+    local plugin_root="$HOME/.tmux/plugins"
+    local entry
+
+    for entry in "$plugin_root"/*/; do
+        [ -d "$entry" ] || continue
+        [ "$(basename "$entry")" = "tpm" ] && continue
+        return 1
+    done
+
+    return 0
+}
+
 # DMS (DankMaterialShell) owns the desktop shell when installed: it generates
 # ~/.config/niri (config.kdl + dms/*.kdl fragments), replaces the
 # waybar/mako/fuzzel/swaylock stack and rewrites the alacritty theme import.
@@ -624,6 +644,13 @@ main() {
             else
                 log_warn "git not found, cannot install TPM automatically"
             fi
+        fi
+
+        # Cloning TPM does not install the plugins from ~/.tmux.conf; only the
+        # user can trigger that, from inside tmux.
+        if [ -f "$tpm_dir/tpm" ] && tmux_plugins_missing; then
+            log_warn "tmux plugins are not installed yet — start tmux and press C-a I (prefix + I) to install them"
+            log_info "  Until then the Catppuccin theme and tmux-resurrect stay inactive (default status bar)."
         fi
     fi
 

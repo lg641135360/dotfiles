@@ -228,3 +228,14 @@
 - 验证：改动前两个新测试用例已复现失败（备份 churn / 未生成备份）；`bash -n install.sh`、`sh -n` 改动测试通过；`git diff --check` clean；`tests/install_*_test.sh` 全部 PASS（含新用例）；`./tests/run.sh fast` PASS=46 FAIL=0。
 - live/提交：未同步 live（只改仓库）；已提交并推送 `a498742`（与上一轮文档/测试轮合并）。回滚：`git revert a498742`。
 - 后续可能方向：① 同属分析结论的 B/C/D 组（bash≥4.3 守卫、未用依赖 `tail`、重复 `command -v` 缓存、分支失败不中止、`--dry-run` 等）尚未处理；② 若将 desktop entry 收集改为数组驱动，可进一步消除 `process_config` 中的魔数探测。
+
+## 2026-09-23 — install.sh 提示用户按 C-a I 安装 tmux 插件
+- 目的：修「新机器 tmux 无主题」的根因链条——`install.sh` 只 clone TPM 本体，从不触发插件安装；插件（catppuccin/tmux、tmux-resurrect 等）只有用户在 tmux 内按 `C-a I` 才会克隆，导致状态栏退回 tmux 默认绿底且 resurrect 快捷键为空绑定。本轮只补提示，不自动联网装插件。
+- 已做：
+  - `install.sh` 新增 `tmux_plugins_missing()`（`~/.tmux/plugins` 下除 `tpm` 外无目录即视为未装；TPM 按仓库 basename 落盘，`catppuccin/tmux` → `plugins/tmux`）。
+  - `install.sh` main 的 TPM 块末尾：TPM 已就位且插件缺失时打印 `log_warn`（提示 `C-a I` / `prefix + I`）+ `log_info`（说明主题与 resurrect 未生效）；无 tmux 或插件已装时不打印。
+  - 测试：新增 `tests/install_tpm_test.sh`（沙箱 `link_core_utils` + fake `tmux`）：① 只有 TPM → 必须出现 `C-a I`；② `plugins/tmux` 存在 → 不得出现；③ 无 tmux → 不得出现。
+  - 文档：`README.md` 使用方式段补「TPM 只装管理器、插件需 `Ctrl+a + I`、脚本会在只剩 TPM 时提示」；`.config/shared/tmux/README.md` 已有「插件安装 → `Ctrl+a + I`」章节，无需改动；`memory/tmux.md` 新增「插件」小节记录该环境事实与 basename 落盘规则。
+- 验证：改动前 `tests/install_tpm_test.sh` 复现失败（expected 'C-a I' in install.output）；实现后 PASS；沙箱实跑输出确认为 `[WARN] tmux plugins are not installed yet — start tmux and press C-a I (prefix + I) to install them` + 后续 INFO 行；`bash -n install.sh`、`sh -n tests/install_tpm_test.sh` 通过；`git diff --check` clean；`./tests/run.sh fast`（见本轮结论）。未在 live 真机执行 `C-a I`（联网装插件属用户操作）。
+- live/提交：未同步 live（只改仓库，live `~/.tmux.conf` 与仓库一致，无需同步）；未提交。回滚：`git checkout -- install.sh README.md memory/tmux.md && rm tests/install_tpm_test.sh`（或提交后 `git revert <hash>`）。
+- 后续可能方向：① 当前环境 `~/.tmux/plugins` 只有 tpm，需用户按一次 `C-a I` 才会出现主题；② 可选：install.sh 在用户明确授权下直接调 `~/.tmux/plugins/tpm/bin/install_plugins` 免按键安装（本轮刻意未做自动化）。

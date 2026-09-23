@@ -26,6 +26,10 @@
 - Sync 实测有效：mtgpu 驱动下 tmux 内快速滚动（如 `seq 1 50000`）的撕裂明显改善（2026-08-23 用户确认），Sync 规则保留，勿因"理论收益小"移除。
 - kitty 已退役（配置移除），不再写 kitty 规则。
 
+## 插件
+- TPM 本体 ≠ 插件已装：新机器上 `install.sh` 只 clone TPM，声明在 `~/.tmux.conf` 的插件（catppuccin/tmux、tmux-resurrect 等）必须在 tmux 内按 `C-a I` 才会克隆。未装时状态栏退回 tmux 默认绿底（`@thm_*` 未定义、`#{E:@catppuccin_status_*}` 展开为空），resurrect 快捷键也是空绑定。`install.sh` 现在会在 `~/.tmux/plugins` 下除 `tpm` 外无目录时打印该按键提示（2026-09-23）。
+- TPM 按仓库 basename 落盘：`catppuccin/tmux` → `~/.tmux/plugins/tmux`，排查插件是否安装时别去找 `plugins/catppuccin`。
+
 ## Live 同步
 - `~/.tmux.conf` 在 IDE 路径白名单外：直接 cp 会被拒绝；通过 `/tmp` 脚本中转的 cp 会被静默拦截（退出码 0 但目标文件不变，勿用）。
 - 2026-08-23 复测：requires_approval + 新终端的 cp 同样失败——新建备份文件名（`~/.tmux.conf.backup.*`）被沙箱直接拒绝；写 `~/.tmux.conf` 静默失败（退出码 0 但文件不变）。此前"单独 cp 命令经用户授权可成功"的方式已失效；live 同步（含备份）应直接把命令交给用户手动执行。
