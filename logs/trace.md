@@ -239,3 +239,24 @@
 - 验证：改动前 `tests/install_tpm_test.sh` 复现失败（expected 'C-a I' in install.output）；实现后 PASS；沙箱实跑输出确认为 `[WARN] tmux plugins are not installed yet — start tmux and press C-a I (prefix + I) to install them` + 后续 INFO 行；`bash -n install.sh`、`sh -n tests/install_tpm_test.sh` 通过；`git diff --check` clean；`./tests/run.sh fast`（见本轮结论）。未在 live 真机执行 `C-a I`（联网装插件属用户操作）。
 - live/提交：未同步 live（只改仓库，live `~/.tmux.conf` 与仓库一致，无需同步）；未提交。回滚：`git checkout -- install.sh README.md memory/tmux.md && rm tests/install_tpm_test.sh`（或提交后 `git revert <hash>`）。
 - 后续可能方向：① 当前环境 `~/.tmux/plugins` 只有 tpm，需用户按一次 `C-a I` 才会出现主题；② 可选：install.sh 在用户明确授权下直接调 `~/.tmux/plugins/tpm/bin/install_plugins` 免按键安装（本轮刻意未做自动化）。
+
+## 2026-09-26 — Obsidian 打不开：wrapper 指向本机不存在的 /opt/Obsidian，改为安装官方 arm64 构建 + 缺失守卫
+
+- 目的：用户报"现在无法打开 Obsidian"；定位根因、恢复可用，并把"静默失败"这一类回归堵掉。
+- 根因（实测）：`~/.local/share/applications/obsidian.desktop` → `~/.config/scripts/obsidian-wayland` → `exec /opt/Obsidian/obsidian`，本机（aarch64）该二进制不存在 → 点开即 `exec: /opt/Obsidian/obsidian: not found` + exit 127；entry 的 `StartupNotify=false` 让失败完全不可见（只能靠 `sh -x` 手动复现）。该 wrapper 是 2026-09-02 在 **x86_64 机器**上按 deb 口径改写的（该轮 trace 明写"x64 niri 会话"），2026-09-04 起被 `install.sh` 铺到本机 arm64 笔记本；而上游 arm64 **根本不发 deb**（v1.13.7 资产只有 `obsidian_1.13.7_amd64.deb` + `Obsidian-1.13.7-arm64.AppImage` + `obsidian-1.13.7-arm64.tar.gz`），本机从未有过该安装（dpkg/apt 全量日志无 obsidian 记录；`/opt` 目录项最后变更停在 2026-08-11；`/etc/apparmor.d/obsidian` 是镜像 apparmor 包自带的 unconfined profile）。
+- 次要发现：本机遗留的 `~/AppImages/obsidian.appimage`（4 月旧构建，Electron 33 / Chromium 130，asar 虽被自更新到 1.13.7）在当前 mtgpu EGL 上必崩：ANGLE `eglCreateContext failed`（EGL_BAD_MATCH）→ GPU 进程反复崩 → `FATAL: GPU process isn't usable. Goodbye.`，无窗口。共试 11 组参数（原生 Wayland、XWayland、`--disable-gpu-compositing`、`--use-angle=gl|swiftshader`、`--disable-gpu`、`--no-sandbox`、`--in-process-gpu`、Mesa EGL 覆盖、`--render-node-override=/dev/dri/renderD128`）全部无窗口，X11 路径还 core dump；故"把 wrapper 指回旧 AppImage"不成立，必须换新构建。
+- 已做（live/system）：
+  - 下载官方 `obsidian-1.13.7-arm64.tar.gz`（127,754,080 B，与上游 size 一致）并解压安装到 `/opt/Obsidian`（Chromium 150；`/opt` 属主 rikoo，无需 sudo）。
+  - 同步新 wrapper 到 live：备份 `~/.config/scripts/obsidian-wayland.backup.20260926_102547_909478`（替换前内容，1024 前另有 `backup.20260904_234146_7663`；保留 2 份，未触发清理）。
+- 已做（仓库）：
+  - `.config/scripts/obsidian-wayland`：exec 前加 `[ ! -x "$obsidian_bin" ]` 守卫 → `notify-send` + stderr + `exit 127`；加 `OBSIDIAN_WAYLAND_BIN` 测试钩子（对齐 `corplink-service` 的 `CORPLINK_SYSTEMCTL` 惯例）；头注释改 x86_64 deb / aarch64 官方 tar.gz 口径。
+  - `tests/wayland_scripts_test.sh`：obsidian 用例从纯文本断言升级为行为测试——stub 二进制断言 Wayland 下追加 `--ozone-platform=wayland --enable-wayland-ime --disable-vulkan` 且透传参数、X11 下不加 flag、二进制缺失时 stderr 含 `Obsidian unavailable` 且 rc=127。
+  - 文档：`.config/scripts/README.md` 补 `obsidian-wayland` 行；`.config/linux/desktop-entries/README.md` 两行改口径；`.config/linux/niri/README.md` §Obsidian 重写并补 arm64 安装命令；`memory/desktop.md` 更新 text-input 矩阵版本号 + 新增"跨机器 wrapper 必须自带目标缺失守卫"与"mtgpu 上旧 Electron 必崩、新 Electron 回退软件渲染"两条长期事实。
+- 验证：`sh -n .config/scripts/obsidian-wayland tests/wayland_scripts_test.sh` 通过；守卫行为用 `unshare -rm` + tmpfs 覆盖 `/opt/Obsidian` 复现——新 wrapper 输出 `Obsidian unavailable: /opt/Obsidian/obsidian not found.` rc=127，`git show HEAD:` 的旧 wrapper 同条件只有 `exec: /opt/Obsidian/obsidian: not found`（证明新增断言能抓住回归）；`sh tests/wayland_scripts_test.sh` PASS；`strings /opt/Obsidian/obsidian | grep Chrome/` → `Chrome/150.0.7871.212`；live 实跑 `~/.config/scripts/obsidian-wayland` → `niri msg windows` 出现 `md.obsidian.Obsidian`（标题 `obs_dir - Obsidian 1.13.7`），t=20s/40s 复核窗口与 8 个进程仍在（GPU 进程仍在 EGL 初始化失败后回退软件渲染，不再致命）。
+- 未通过项（与本轮无关，按既有约定只报告不批量修）：本机 `./tests/run.sh fast` = PASS=46 FAIL=1，唯一 FAIL 为 `tests/repo_docs_test.sh` 报 `expected 'swaync/' in README.md`——原因是工作树里存在 2026-08-31 遗留的**空目录** `.config/linux/swaync`（未跟踪、无内容）被 README 结构树守卫扫到；把本轮 6 个改动文件复制进 HEAD 干净 clone 后 `./tests/run.sh fast` 为 PASS=47 FAIL=0 SKIP=0（含 `repo_docs_test.sh` PASS）。
+- live/提交：live wrapper 已同步（备份见上）；本轮已提交 `8c7e118`（fix(obsidian): guard missing /opt/Obsidian, document arm64 install，6 文件，已推送；`logs/trace.md` 由紧随其后的回填提交入库）。回滚：`git revert 8c7e118`，或 `git checkout 5cd5ee1 -- .config/scripts/obsidian-wayland .config/scripts/README.md .config/linux/desktop-entries/README.md .config/linux/niri/README.md memory/desktop.md tests/wayland_scripts_test.sh`；live wrapper 恢复：
+  ```bash
+  cp -p ~/.config/scripts/obsidian-wayland.backup.20260926_102547_909478 ~/.config/scripts/obsidian-wayland
+  ```
+  如需回到"本机没有 /opt/Obsidian"的原状：`rm -rf /opt/Obsidian`（安装物可随时用官方 tar.gz 重解压）。
+- 后续可能方向：① 空目录 `.config/linux/swaync` 要么 `rmdir`，要么补进仓库并列进 README 结构树，否则 fast 套件在本机常红；② 4 月旧 AppImage（`~/AppImages/obsidian.appimage`，Chromium 130 已确认在本机起不来）可清理，避免下次误用；③ mtgpu EGL 与旧 Chromium 的不兼容目前靠"换新构建"绕过，若将来再遇 Electron 应用无窗口，先 `strings <binary> | grep Chrome/` 比版本，再怀疑 wrapper 路径。
