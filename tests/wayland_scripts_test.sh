@@ -739,20 +739,64 @@ test_trae_cn_forces_wayland_with_ime() {
 
 test_obsidian_wayland_forces_native_wayland_gl() {
     assert_executable "$OBSIDIAN_SCRIPT"
-    # deb install at /opt/Obsidian (1.13.7, Chromium 13x): the wrapper must
-    # force native Wayland ozone and disable Vulkan, which is incompatible with
-    # the Wayland surface factory (plain exec exits without a window).
-    assert_contains '--ozone-platform=wayland' "$OBSIDIAN_SCRIPT"
-    assert_contains '--enable-wayland-ime' "$OBSIDIAN_SCRIPT"
-    assert_contains '--disable-vulkan' "$OBSIDIAN_SCRIPT"
+    # /opt/Obsidian install (1.13.7): the wrapper must force native Wayland
+    # ozone and disable Vulkan, which is incompatible with the Wayland surface
+    # factory (plain exec exits without a window). The path is shared by both
+    # platforms but the artifact differs — x86_64 uses the official deb,
+    # aarch64 extracts the official obsidian-<ver>-arm64.tar.gz there because
+    # upstream publishes no arm64 deb.
+    # The default install path must stay /opt/Obsidian/obsidian: that is where
+    # the x86_64 deb puts the binary, so the guard must not move it. The
+    # override is only a test hook and stays unset in real sessions.
+    assert_contains 'obsidian_bin=${OBSIDIAN_WAYLAND_BIN:-/opt/Obsidian/obsidian}' "$OBSIDIAN_SCRIPT"
     assert_contains '/opt/Obsidian/obsidian' "$OBSIDIAN_SCRIPT"
 
     # fuzzel launches the desktop entry, so its Exec must route through the wrapper.
     assert_file_exists "$OBSIDIAN_DESKTOP"
     assert_contains 'Exec=__HOME__/.config/scripts/obsidian-wayland %U' "$OBSIDIAN_DESKTOP"
-    # The deb binary reports WM class md.obsidian.Obsidian (verified via
+    # The binary reports WM class md.obsidian.Obsidian (verified via
     # `niri msg windows`); StartupWMClass must match for window grouping.
     assert_contains 'StartupWMClass=md.obsidian.Obsidian' "$OBSIDIAN_DESKTOP"
+
+    tmpdir=$(mktemp -d)
+    trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
+    fake_bin=$tmpdir/obsidian
+    obsidian_args=$tmpdir/obsidian.args
+
+    cat >"$fake_bin" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" >"$OBSIDIAN_ARGS_LOG"
+EOF
+    chmod +x "$fake_bin"
+
+    # Wayland session: native ozone + Wayland IME + no Vulkan, extra args pass through.
+    OBSIDIAN_WAYLAND_BIN=$fake_bin OBSIDIAN_ARGS_LOG=$obsidian_args \
+        WAYLAND_DISPLAY=wayland-1 XDG_SESSION_TYPE=wayland \
+        /bin/sh "$OBSIDIAN_SCRIPT" "obsidian://open" || fail "obsidian-wayland should run under Wayland"
+    assert_contains '--ozone-platform=wayland' "$obsidian_args"
+    assert_contains '--enable-wayland-ime' "$obsidian_args"
+    assert_contains '--disable-vulkan' "$obsidian_args"
+    assert_contains 'obsidian://open' "$obsidian_args"
+
+    # X11 session: args pass through unchanged.
+    OBSIDIAN_WAYLAND_BIN=$fake_bin OBSIDIAN_ARGS_LOG=$obsidian_args \
+        WAYLAND_DISPLAY= XDG_SESSION_TYPE=x11 \
+        /bin/sh "$OBSIDIAN_SCRIPT" "obsidian://open" || fail "obsidian-wayland should run under X11"
+    assert_not_contains '--ozone-platform=wayland' "$obsidian_args"
+    assert_not_contains '--enable-wayland-ime' "$obsidian_args"
+    assert_not_contains '--disable-vulkan' "$obsidian_args"
+    assert_contains 'obsidian://open' "$obsidian_args"
+
+    # Missing install must fail loudly instead of dying silently inside exec:
+    # before 2026-09-26 every fuzzel launch on a machine without /opt/Obsidian
+    # exited 127 with nothing on screen (StartupNotify=false). The empty PATH
+    # keeps notify-send out of the test so only the stderr contract is asserted.
+    mkdir -p "$tmpdir/empty-bin"
+    rc=0
+    OBSIDIAN_WAYLAND_BIN=$tmpdir/missing PATH=$tmpdir/empty-bin \
+        /bin/sh "$OBSIDIAN_SCRIPT" >"$tmpdir/stdout" 2>"$tmpdir/stderr" || rc=$?
+    assert_equals 127 "$rc"
+    assert_contains 'Obsidian unavailable' "$tmpdir/stderr"
 }
 
 test_chatgpt_wayland_forces_native_wayland() {

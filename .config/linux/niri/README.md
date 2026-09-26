@@ -161,9 +161,20 @@ fuzzel（`Mod+c`）走 drun 模式，读的是 desktop 入口而不是直接调�
 
 Trae CN 是 Electron 应用，与 Chrome 同类：默认走 X11 平台，纯 Wayland 会话下直接启动报 `Missing X server or $DISPLAY`。`~/.config/scripts/trae-cn-wayland` 包装脚本在 Wayland 会话下追加 `--ozone-platform=wayland --enable-wayland-ime --enable-features=WaylandWindowDecorations`（`--enable-wayland-ime` 提供 Fcitx5/Rime 输入法支持，`WaylandWindowDecorations` 让合成器绘制标题栏），X11 会话原样透传。同样用 `.config/linux/desktop-entries/trae-cn.desktop` 覆盖系统入口，`Exec` 改调 `trae-cn-wayland`，部署到 `~/.local/share/applications/`，fuzzel 菜单即走 Wayland。
 
-### Obsidian（Electron deb）
+### Obsidian（Electron，`/opt/Obsidian`）
 
-Obsidian 现为 deb 安装（`/opt/Obsidian/obsidian`，1.13.7）。`~/.config/scripts/obsidian-wayland` 在 Wayland 会话下追加 `--ozone-platform=wayland --enable-wayland-ime --disable-vulkan`：原生 Wayland 保留 HiDPI 缩放；`--enable-wayland-ime` 提供 Fcitx5/Rime 输入法支持；`--disable-vulkan` 为必需——新版在 Wayland 会话下自动选 ozone-wayland，但默认 Vulkan 路径与 Wayland surface factory 不兼容，gpu 进程报错后不弹窗（直接裸 exec `/opt/Obsidian/obsidian` 会启动即退出，已实测 2026-09-02）。新 Chromium（≥ 13x）默认 text-input v3，不再需要 AppImage 时代加的 `--wayland-text-input-version=3`。X11 会话原样透传。`.config/linux/desktop-entries/obsidian.desktop` 提供 fuzzel 入口（`Exec` 走 wrapper）。
+Obsidian 位于 `/opt/Obsidian/obsidian`（1.13.7）。两平台共用该路径但安装物不同：x86_64 用官方 deb（`/opt` 归 root，需 sudo 安装），aarch64 上游**不发 deb**（obsidian-releases 的 arm64 只有 AppImage / tar.gz），由官方 `obsidian-<ver>-arm64.tar.gz` 解压到同一路径填充（本机 `/opt` 属主是 rikoo，解压无需 sudo）：
+
+```bash
+curl -L -o /tmp/obsidian.tar.gz \
+  https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7-arm64.tar.gz
+tar -xzf /tmp/obsidian.tar.gz -C /tmp
+mkdir -p /opt/Obsidian && cp -a /tmp/obsidian-1.13.7-arm64/. /opt/Obsidian/
+```
+
+`~/.config/scripts/obsidian-wayland` 在 Wayland 会话下追加 `--ozone-platform=wayland --enable-wayland-ime --disable-vulkan`：原生 Wayland 保留 HiDPI 缩放；`--enable-wayland-ime` 提供 Fcitx5/Rime 输入法支持；`--disable-vulkan` 为必需——新版在 Wayland 会话下自动选 ozone-wayland，但默认 Vulkan 路径与 Wayland surface factory 不兼容，gpu 进程报错后不弹窗（直接裸 exec `/opt/Obsidian/obsidian` 会启动即退出，已实测 2026-09-02）。新 Chromium（≥ 13x）默认 text-input v3，不再需要 AppImage 时代加的 `--wayland-text-input-version=3`。X11 会话原样透传。二进制缺失时 wrapper 会 `notify-send` + stderr 提示并退出 127，不再静默失败（`OBSIDIAN_WAYLAND_BIN` 是给测试用的路径覆盖钩子）。`.config/linux/desktop-entries/obsidian.desktop` 提供 fuzzel 入口（`Exec` 走 wrapper）；`.config/linux/desktop-entries/md.obsidian.Obsidian.desktop`（`Hidden=true`）隐藏系统入口，避免 fuzzel 出现第二个 "Obsidian"。
+
+2026-09-26 本机（aarch64 / MediaTek mtgpu）实测两件事：① **静默无窗口的根因**是 wrapper 指向本机不存在的 `/opt/Obsidian`——该版本 wrapper 在 x86_64 机器写入仓库（2026-09-02），2026-09-04 起被 `install.sh` 铺到本机，于是 fuzzel 点开只得到 `exec: /opt/Obsidian/obsidian: not found` + exit 127，而 entry 里 `StartupNotify=false` 让失败完全不可见；② **旧 AppImage 是另一个问题**：4 月的 `~/AppImages/obsidian.appimage`（Electron 33 / Chromium 130，asar 虽被自动更新到 1.13.7）在 mtgpu 的 EGL 上 ANGLE `eglCreateContext failed` → GPU 进程反复崩溃 → `GPU process isn't usable. Goodbye.` 直接退出（试过原生 Wayland、XWayland、`--disable-gpu-compositing`、`--use-angle=gl`/`swiftshader`、`--disable-gpu`、`--no-sandbox`、`--in-process-gpu`、Mesa EGL 覆盖、`--render-node-override` 均无窗口，X11 路径还 core dump）；换官方 1.13.7 arm64 构建（Chromium 150）后 GPU 进程仍初始化失败但 Chromium 会回退软件渲染，窗口正常出现（`niri msg windows` App ID `md.obsidian.Obsidian`）。结论：**wrapper 的 flag 组合不变，换成官方新构建即可用**。
 
 ### ChatGPT（Electron deb）
 

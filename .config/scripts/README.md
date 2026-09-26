@@ -17,6 +17,7 @@
 | `screenshot-wayland` | Wayland 选区截图（Mod+s：slurp → grim → Satty；复制走 `wl-copy -t image/png`） |
 | `wallpaper-wayland` | Wayland 壁纸设置 |
 | `browser-wayland` | Google Chrome Wayland 启动器（Wayland 会话加 `--ozone-platform=wayland`，X11 原样透传） |
+| `obsidian-wayland` | Obsidian (Electron) Wayland 启动器（Wayland 会话加 `--ozone-platform=wayland --enable-wayland-ime --disable-vulkan`，X11 原样透传）；二进制固定为 `/opt/Obsidian/obsidian`（x86_64 官方 deb；aarch64 上游无 deb，用官方 `obsidian-<ver>-arm64.tar.gz` 解压到同一路径），缺失时通知 + stderr + 退出 127 而非静默失败；`OBSIDIAN_WAYLAND_BIN` 可覆盖路径（测试钩子） |
 | `trae-cn-wayland` | Trae CN (Electron) Wayland 启动器（Wayland 会话加 ozone-wayland + Wayland IME，X11 原样透传） |
 | `chatgpt-wayland` | ChatGPT 桌面版 (Electron) Wayland 启动器（Wayland 会话加 `--ozone-platform=wayland --enable-wayland-ime`，X11 原样透传；否则 XWayland 下 fcitx5 走 XIM 会 preedit 不同步） |
 | `update-ai-clis` | 一键更新 npm 全局安装的 AI CLI（claude-code / codex） |

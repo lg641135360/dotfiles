@@ -1,9 +1,14 @@
 #!/bin/sh
-# Obsidian (deb, /opt/Obsidian) Wayland entrypoint. Kept as the single desktop
-# entry Exec so launch flags stay centralized; mirrors browser-wayland's
-# "Wayland session -> native ozone, else pass through unchanged" contract.
+# Obsidian Wayland entrypoint. Kept as the single desktop entry Exec so launch
+# flags stay centralized; mirrors browser-wayland's "Wayland session -> native
+# ozone, else pass through unchanged" contract.
 #
-# Obsidian 1.13.7 (Chromium 13x) auto-selects ozone-wayland on a Wayland
+# Install path /opt/Obsidian/obsidian is shared by both platforms, but the
+# upstream artifact differs: x86_64 uses the official deb, aarch64 has no deb
+# at all (obsidian-releases publishes arm64 only as AppImage / tar.gz), so on
+# aarch64 the same path holds the extracted obsidian-<ver>-arm64.tar.gz.
+#
+# Obsidian 1.13.7 (Chromium 150) auto-selects ozone-wayland on a Wayland
 # session, but its default Vulkan path is incompatible with the Wayland
 # surface factory: the gpu process errors out and no window appears. Plain
 # `exec /opt/Obsidian/obsidian` exits without a window (verified on niri
@@ -11,6 +16,25 @@
 # --enable-wayland-ime gives Fcitx5/Rime input method support on Wayland.
 # Newer Chromium (>= 13x) already defaults to text-input v3, so the old
 # --wayland-text-input-version=3 flag is no longer required.
+#
+# 2026-09-26: the 2026-09-02 rewrite exec'd /opt/Obsidian/obsidian with no
+# existence check, so on a machine without that install every launch died
+# silently (fuzzel -> wrapper -> `exec: ... not found`, exit 127, and
+# StartupNotify=false hides the failure). Fail loudly instead.
+#
+# OBSIDIAN_WAYLAND_BIN overrides the binary path so tests can point the wrapper
+# at a stub without appending to the fixed install location (same test-hook
+# convention as corplink-service's CORPLINK_SYSTEMCTL).
+
+obsidian_bin=${OBSIDIAN_WAYLAND_BIN:-/opt/Obsidian/obsidian}
+if [ ! -x "$obsidian_bin" ]; then
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "Obsidian unavailable" \
+            "Not found: $obsidian_bin — install the official build there (see .config/scripts/README.md)." || true
+    fi
+    printf '%s\n' "Obsidian unavailable: $obsidian_bin not found." >&2
+    exit 127
+fi
 
 wayland_session=0
 if [ -n "${WAYLAND_DISPLAY:-}" ] || [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
@@ -18,8 +42,8 @@ if [ -n "${WAYLAND_DISPLAY:-}" ] || [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; the
 fi
 
 if [ "$wayland_session" = "1" ]; then
-    exec /opt/Obsidian/obsidian --ozone-platform=wayland \
+    exec "$obsidian_bin" --ozone-platform=wayland \
         --enable-wayland-ime --disable-vulkan "$@"
 fi
 
-exec /opt/Obsidian/obsidian "$@"
+exec "$obsidian_bin" "$@"
