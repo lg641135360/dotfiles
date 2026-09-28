@@ -266,7 +266,7 @@
 - 根因（静态证据链）：DMS 于 2026-09-12 重新生成的 `~/.config/niri/config.kdl` 只 include `dms/*.kdl`，不含仓库 `common.kdl`；而 2026-08-29 定案的钉钉 `open-focused false` 规则只存在于 `~/.config/niri/common.kdl`。`dms config windowrules list niri` 的生效规则集（`dmsStatus.effective=true`）里没有任何 dingtalk 条目；`niri validate -c ~/.config/niri/config.kdl` 通过但规则缺席；`niri msg windows` 确认 app-id 仍为 `com.alibabainc.dingtalk`（DMS `appIdSubstitutions` 为空）。即 2026-09-12 trace 已标注的隐患（DMS 生成配置未含仓库窗口规则）实际发作。
 - 已做（live）：备份 `~/.config/niri/dms/windowrules.kdl` → `windowrules.kdl.backup.20260928_100943_3398336`（该目标首个备份，无需清理）；`dms config windowrules add niri '{"name":"DingTalk popups keep keyboard focus","matchCriteria":{"appId":"^com\\.alibabainc\\.dingtalk$"},"actions":{"openFocused":false},"enabled":true}'` → id `wr_1790561384874988781`，niri 于 10:09:45 自动重载配置（journal `niri_config: loaded config`）。仓库文档同步：`.config/linux/niri/README.md`（窗口规则段增 DMS 例外与命令）、`memory/niri.md`（钉钉规则与排障入口）、`memory/dingtalk.md`（回归条目）。
 - 验证：`dms config windowrules list niri` 含该规则且 `open-focused false` 已写入 KDL；用户实机确认 `@` 候选框正常显示不再消失；`niri msg event-stream` 抓取显示 9 个钉钉弹窗（title `Form`）全部 `is_focused: false`、`focus_timestamp: None`，主窗口焦点全程保持。次要变量：钉钉已由 `8.2.8.260904001` 升到 `8.3.1-Release.260917001`，规则恢复后 @ 正常，排除版本因素。
-- 回滚信息：未提交（本轮仅改仓库文档 + live 规则）；live 恢复：
+- 回滚信息：已提交并推送 `69af4fc`（docs(niri): DMS 机器重建钉钉窗口规则；与下一条合并为同一个 commit）；仓库回滚 `git revert 69af4fc`；live 恢复：
   ```bash
   dms config windowrules remove niri wr_1790561384874988781
   # 或整文件恢复
@@ -280,7 +280,7 @@
 - 已做（live）：再次备份 `~/.config/niri/dms/windowrules.kdl` → `windowrules.kdl.backup.20260928_101538_3405249`；新增 `wr_1790561738805679306`（appId dingtalk → `open-floating true`）与 `wr_1790561738813023192`（appId + title `^钉钉|钉钉$` → `open-floating false`）。利用 niri「规则按顺序处理、后者覆盖前者」语义表达仓库的 exclude 语义；同一 `match` 节点内 `app-id`+`title` 为 AND（`niri-config/src/window_rule.rs` 的 `Match` 结构体按属性解码，已核对源码）。
 - 验证：`niri msg event-stream` 抓取到钉钉弹窗（title `Form`）`is_floating: true`、`is_focused: false`、浮层位置 `(852, 383)`，主窗口 1349 保持 `is_floating: false`；用户实机确认 `Mod+F` 展开主窗口后 @ 候选框作为浮层可见。
 - 仓库文档同步：`.config/linux/niri/README.md`（三条命令与语义说明）、`memory/niri.md`、`memory/dingtalk.md`。
-- 回滚信息：未提交（仅仓库文档 + live 规则）。live 恢复：
+- 回滚信息：已提交并推送 `69af4fc`（与上一条合并为同一个 commit，live 规则由 DMS CLI 写入、不在仓库内）；仓库回滚 `git revert 69af4fc`；live 恢复：
   ```bash
   dms config windowrules remove niri wr_1790561738805679306
   dms config windowrules remove niri wr_1790561738813023192
