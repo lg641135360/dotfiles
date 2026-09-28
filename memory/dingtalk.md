@@ -22,11 +22,12 @@
 - 实锤手段（下次失效时）：`fcitx5 -d --replace --verbose xim=4` 后观察日志是否出现"连续 `FORWARD_EVENT` 无处理行"特征。
 - 后续：等 xcb-imdkit 上游修复合并随发行版更新；届时验证钉钉不再随机失效即可关闭本条。
 
-## @ 候选框出现后立即消失（已修复：弹窗不抢焦点，2026-08-29 定案）
+## @ 候选框出现后立即消失（已修复：弹窗不抢焦点，2026-08-29 定案；DMS 机器见 2026-09-28 条目）
 - 症状：钉钉聊天输入 `@` 后成员候选框出现即消失；鼠标悬停在候选框上/完全不动鼠标都一样，与鼠标无关。曾怀疑 niri `focus-follows-mouse`，禁用后问题依旧（无关）。
 - 根因（`niri msg event-stream` 实测）：@ 弹窗是**受管 XWayland 窗口**（非 override-redirect）。niri 对新 map 窗口默认给键盘焦点 → 钉钉弹窗（Qt/CEF）收到意外 FocusIn 后自毁（伴随弹窗重建/乒乓），表现为候选框闪现即消失。**修复：niri window-rule 对钉钉 app-id 整体 `open-focused false`**——该属性只作用于新 map 窗口，已开主窗口不受影响；所有新弹窗从出生起不持有焦点（`is_focused: false` + `focus_timestamp: None`，X11 弹窗「不带输入焦点」的正常模式），候选框稳定显示。
 - 实验迭代记录：第一版按 title 匹配 `MainMenuPanelView` 无效——钉钉弹窗的 X 窗口标题不稳定（实测同一场景轮换 MainMenuPanelView / Form / com.alibabainc.dingtalk / 钉钉 / 分享的图片），必须用 app-id 级匹配。代价：重启钉钉或新开钉钉窗口时不自动聚焦，需手动点一下。
 - 判别工具：`niri msg event-stream` 后台记录到 /tmp 后复现，看弹窗 `is_focused` 与开/关时序即可区分 niri 焦点行为与应用层自毁；日志为纯文本格式（事件名形如 `Window opened or changed:`，非 JSON）。
+- **2026-09-28 回归与再修复（x64 DMS）**：DMS 重新生成的 live `~/.config/niri/config.kdl` 只 include `dms/*.kdl`，上面这条仓库 `common.kdl` 规则不再被加载，@ 候选框再次闪现即消失；`dms config windowrules list niri` 的生效规则集里当时没有任何 dingtalk 条目。钉钉同期已升到 `8.3.1-Release.260917001`，规则恢复后 @ 正常，排除版本因素。修复走 DMS 自管通道（不会被子系统重生成覆盖）：`dms config windowrules add niri '{"name":"DingTalk popups keep keyboard focus","matchCriteria":{"appId":"^com\\.alibabainc\\.dingtalk$"},"actions":{"openFocused":false},"enabled":true}'` → id `wr_1790561384874988781`，写入 `~/.config/niri/dms/windowrules.kdl`；撤销用 `dms config windowrules remove niri wr_1790561384874988781`。实测 9 个钉钉弹窗（title `Form`）全部 `is_focused: false` + `focus_timestamp: None`，主窗口焦点不变。同日补回弹窗浮动（仓库 `exclude title` 语义）：`wr_1790561738805679306`（appId → `open-floating true`）+ `wr_1790561738813023192`（appId + title `^钉钉|钉钉$` → `open-floating false`，必须排在通用浮动规则之后，后者覆盖前者）；实测弹窗 `is_floating: true`、浮层位置 `(852, 383)`，主窗口保持平铺，`Mod+F` 展开主窗口后 @ 候选框仍作为浮层可见。
 
 ## 已知问题
 - 共享屏幕时必须接受 portal 选择窗口/屏幕的对话框，不能取消

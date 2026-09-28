@@ -194,6 +194,19 @@ ChatGPT 桌面版为 deb 安装（`/usr/lib/chatgpt/ChatGPT`，26.901，Chromium
 - VS Code 默认列宽为 1.0，适合代码、终端和侧边栏同时展开。
 - Trae（`trae-cn`）默认列宽为 1.0，与 VS Code 一致，占满整个 workspace 宽度。
 
+钉钉规则在 DMS 机器上的例外（2026-09-28）：DMS 重新生成的 `~/.config/niri/config.kdl` 只 include `dms/*.kdl`，上面钉钉规则所在的 `common.kdl` 不再被加载（`install.sh` 在 DMS 机器也按设计跳过 niri 配置部署），@ 候选框会退化为「闪现即消失」，弹窗也会平铺成新列（主窗口 `Mod+F` 展开后弹窗落到可视区外）。DMS 机器改用 DMS 自管通道重建这套规则（不会被子系统重生成覆盖）：
+
+```bash
+# 弹窗不抢焦点（@ 候选框不消失）
+dms config windowrules add niri '{"name":"DingTalk popups keep keyboard focus","matchCriteria":{"appId":"^com\\.alibabainc\\.dingtalk$"},"actions":{"openFocused":false},"enabled":true}'
+# 钉钉窗口默认浮动（弹窗作为浮层覆盖主窗口）
+dms config windowrules add niri '{"name":"DingTalk windows float","matchCriteria":{"appId":"^com\\.alibabainc\\.dingtalk$"},"actions":{"openFloating":true},"enabled":true}'
+# 主窗口再改回平铺（必须放在上一条之后）
+dms config windowrules add niri '{"name":"DingTalk main window stays tiled","matchCriteria":{"appId":"^com\\.alibabainc\\.dingtalk$","title":"^钉钉|钉钉$"},"actions":{"openFloating":false},"enabled":true}'
+```
+
+DMS 规则模型暂无 `exclude` 编辑入口，所以用「通用浮动 + 主窗口标题改回平铺」表达仓库那条 `exclude title` 的语义：niri 按出现顺序处理规则、后面的规则覆盖前面的，而同一条 `match` 节点内的 `app-id` 与 `title` 是 AND 关系。代价与仓库配置相同：标题以「钉钉」开头/结尾的弹窗仍会平铺，主窗口进入标题不含「钉钉」的页面时会浮动。用 `dms config windowrules list niri` 查看、`dms config windowrules remove niri <id>` 撤销；规则文件是 `~/.config/niri/dms/windowrules.kdl`（改动前先备份）。
+
 ## Portal
 
 `niri-portals.conf` 使用 GNOME/GTK portal 组合：

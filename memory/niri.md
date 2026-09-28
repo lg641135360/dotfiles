@@ -47,6 +47,7 @@
 - Chrome、Trae CN、Obsidian、ChatGPT 通过 Wayland wrapper 在 Wayland 会话添加 ozone/IME 参数；X11 会话原样透传。对应 desktop entry 也走 wrapper。
 - 钉钉保持 CEF 109 的 XWayland 模式，以规避多屏混 DPI 下原生 Wayland 的坐标和缩放问题；会议 SDK 仍使用原生 portal/PipeWire 捕获。日常启动走官方 `Elevator.sh`，仓库的 `dingtalk-wayland` 只用于检查 ScreenCast/PipeWire 状态和精确清理残留进程。
 - niri 侧对钉钉设置 2/3 列宽、1.0 不透明度和 `open-focused false`；除主窗口外的钉钉弹窗浮动。aarch64 关闭 blur 并使用 0.90 全局透明度，钉钉再次覆盖为 1.0。
+- DMS 机器上 live `config.kdl` 由 DMS 重新生成、只 include `dms/*.kdl`，仓库 `common.kdl` 不参与，上面这些钉钉规则默认全部缺席；改用 DMS 自管通道维护（`dms config windowrules add niri ...`，落在 `~/.config/niri/dms/windowrules.kdl`）。2026-09-28 已重建三条：弹窗不抢焦点 `wr_1790561384874988781`（`open-focused false`）、窗口默认浮动 `wr_1790561738805679306`（`open-floating true`）、主窗口标题 `^钉钉|钉钉$` 改回平铺 `wr_1790561738813023192`（必须排在通用浮动规则之后——niri 按顺序处理、后者覆盖前者）；DMS 无 `exclude` 编辑入口，用后两条正向规则表达仓库 `exclude title` 语义。
 
 ## 当前键位与视觉约定
 
@@ -67,7 +68,7 @@
 
 ## 排障入口
 
-- niri 配置：`niri validate -c ~/.config/niri/config.kdl`。
+- niri 配置：`niri validate -c ~/.config/niri/config.kdl`。钉钉 @ 候选框闪现即消失时，先跑 `dms config windowrules list niri` 确认钉钉 `open-focused false` 规则在生效集里（DMS 机器规则在 `~/.config/niri/dms/windowrules.kdl`，仓库 `common.kdl` 已被 DMS 配置取代、不再被 include）。
 - 输出缩放：`niri msg outputs`，确认接口名、当前 mode 和 scale 是否命中平台 KDL。
 - portal/屏幕共享：确认 `niri --session`、PipeWire、WirePlumber 和 xdg-desktop-portal；钉钉排障使用 `~/.config/scripts/dingtalk-wayland status`，不要用它作为日常启动器。
 - gammastep：查看 `~/.local/state/niri/autostart/gammastep.log`；热插拔输出后可重新执行 `~/.config/scripts/wayland-autostart`。

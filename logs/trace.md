@@ -260,3 +260,31 @@
   ```
   如需回到"本机没有 /opt/Obsidian"的原状：`rm -rf /opt/Obsidian`（安装物可随时用官方 tar.gz 重解压）。
 - 后续可能方向：① 空目录 `.config/linux/swaync` 要么 `rmdir`，要么补进仓库并列进 README 结构树，否则 fast 套件在本机常红；② 4 月旧 AppImage（`~/AppImages/obsidian.appimage`，Chromium 130 已确认在本机起不来）可清理，避免下次误用；③ mtgpu EGL 与旧 Chromium 的不兼容目前靠"换新构建"绕过，若将来再遇 Electron 应用无窗口，先 `strings <binary> | grep Chrome/` 比版本，再怀疑 wrapper 路径。
+
+## 2026-09-28 — 钉钉 @ 候选框回归：DMS 接管 niri 后 common.kdl 失联，改用 DMS 窗口规则修复
+- 目的：x64 Ubuntu niri + DMS 会话里钉钉聊天输入 `@` 的成员候选框再次「闪现即消失」；定位并修复。
+- 根因（静态证据链）：DMS 于 2026-09-12 重新生成的 `~/.config/niri/config.kdl` 只 include `dms/*.kdl`，不含仓库 `common.kdl`；而 2026-08-29 定案的钉钉 `open-focused false` 规则只存在于 `~/.config/niri/common.kdl`。`dms config windowrules list niri` 的生效规则集（`dmsStatus.effective=true`）里没有任何 dingtalk 条目；`niri validate -c ~/.config/niri/config.kdl` 通过但规则缺席；`niri msg windows` 确认 app-id 仍为 `com.alibabainc.dingtalk`（DMS `appIdSubstitutions` 为空）。即 2026-09-12 trace 已标注的隐患（DMS 生成配置未含仓库窗口规则）实际发作。
+- 已做（live）：备份 `~/.config/niri/dms/windowrules.kdl` → `windowrules.kdl.backup.20260928_100943_3398336`（该目标首个备份，无需清理）；`dms config windowrules add niri '{"name":"DingTalk popups keep keyboard focus","matchCriteria":{"appId":"^com\\.alibabainc\\.dingtalk$"},"actions":{"openFocused":false},"enabled":true}'` → id `wr_1790561384874988781`，niri 于 10:09:45 自动重载配置（journal `niri_config: loaded config`）。仓库文档同步：`.config/linux/niri/README.md`（窗口规则段增 DMS 例外与命令）、`memory/niri.md`（钉钉规则与排障入口）、`memory/dingtalk.md`（回归条目）。
+- 验证：`dms config windowrules list niri` 含该规则且 `open-focused false` 已写入 KDL；用户实机确认 `@` 候选框正常显示不再消失；`niri msg event-stream` 抓取显示 9 个钉钉弹窗（title `Form`）全部 `is_focused: false`、`focus_timestamp: None`，主窗口焦点全程保持。次要变量：钉钉已由 `8.2.8.260904001` 升到 `8.3.1-Release.260917001`，规则恢复后 @ 正常，排除版本因素。
+- 回滚信息：未提交（本轮仅改仓库文档 + live 规则）；live 恢复：
+  ```bash
+  dms config windowrules remove niri wr_1790561384874988781
+  # 或整文件恢复
+  cp -p ~/.config/niri/dms/windowrules.kdl.backup.20260928_100943_3398336 ~/.config/niri/dms/windowrules.kdl
+  ```
+- 后续可能方向：① DMS 规则模型暂无 `exclude` 编辑入口（上游 #2996 仅做透传），钉钉「主窗口平铺、其余弹窗浮动」规则在 DMS 机器上暂缺——同日已用两条正向规则补回，见下一条；② 仓库 `common.kdl` 的其它规则（键位等）在 DMS 机器同样缺席，DMS 侧重建属长期事项。
+
+## 2026-09-28 — 钉钉弹窗平铺：DMS 机器重建浮动策略（主窗口保持平铺）
+- 目的：用户反馈钉钉弹窗（@ 候选框、表情面板等）全部平铺，主窗口 `Mod+F` 展开后弹窗落到可视区外；恢复仓库原有的「除主窗口外全部浮动」策略。
+- 根因：同上一条——DMS 机器 `common.kdl` 不参与，仓库 `exclude title=... + open-floating true` 缺失；DMS 规则模型无 `exclude` 编辑入口。
+- 已做（live）：再次备份 `~/.config/niri/dms/windowrules.kdl` → `windowrules.kdl.backup.20260928_101538_3405249`；新增 `wr_1790561738805679306`（appId dingtalk → `open-floating true`）与 `wr_1790561738813023192`（appId + title `^钉钉|钉钉$` → `open-floating false`）。利用 niri「规则按顺序处理、后者覆盖前者」语义表达仓库的 exclude 语义；同一 `match` 节点内 `app-id`+`title` 为 AND（`niri-config/src/window_rule.rs` 的 `Match` 结构体按属性解码，已核对源码）。
+- 验证：`niri msg event-stream` 抓取到钉钉弹窗（title `Form`）`is_floating: true`、`is_focused: false`、浮层位置 `(852, 383)`，主窗口 1349 保持 `is_floating: false`；用户实机确认 `Mod+F` 展开主窗口后 @ 候选框作为浮层可见。
+- 仓库文档同步：`.config/linux/niri/README.md`（三条命令与语义说明）、`memory/niri.md`、`memory/dingtalk.md`。
+- 回滚信息：未提交（仅仓库文档 + live 规则）。live 恢复：
+  ```bash
+  dms config windowrules remove niri wr_1790561738805679306
+  dms config windowrules remove niri wr_1790561738813023192
+  # 或整文件恢复
+  cp -p ~/.config/niri/dms/windowrules.kdl.backup.20260928_101538_3405249 ~/.config/niri/dms/windowrules.kdl
+  ```
+- 后续可能方向：① 标题以「钉钉」开头/结尾的弹窗仍会平铺（与仓库配置同残余），若 DMS 后续支持 `exclude` 编辑入口可换成单条 exclude 规则；② 仓库 `common.kdl` 的其它规则（键位等）在 DMS 机器仍缺席，DMS 侧重建属长期事项。
