@@ -10,6 +10,8 @@
 
 ## 系统环境
 - 在 Ubuntu aarch64 上，X11-sensitive 桌面工具通常优先使用系统二进制（尤其是 `redshift`）。
+- macOS x86_64 上 `install.sh` 依赖 Bash ≥ 4.3（`local -n` / `mapfile`），但系统 `/bin/bash` 只有 3.2：脚本在检测到过旧 Bash 时会自动 re-exec 现代 Bash（优先 `/opt/local/bin/bash`，即 MacPorts，本机用 MacPorts 而非 Homebrew；装一次 `sudo port install bash`）。查找路径可用 `DOTFILES_BASH` 覆盖（测试用 stub 断言分派）。Bash 版本由脚本 shebang 决定，与登录 shell 是 zsh 无关。`.config/macos/defaults.sh` 按当前值幂等（`defaults read` 比对，不同才写；仅确有变化才 `killall Finder/Dock/SystemUIServer`），避免 `install.sh` 每次重复应用偏好并打断 UI。
+- 黑苹果 x86 笔记本（i5-8250U，macOS 15.x）电池已被用户物理拆除：`ioreg` 显示 `BatteryInstalled = No`、容量/循环计数全 0、`pmset -g batt` 无电池行均属预期状态，健康检查时勿报电池异常；机器常年 AC 供电。
 - 主力 AI 编辑器为 Trae CN（aarch64 + niri/Wayland）。已知问题：Trae CN 升级（如 2026-08-10）会丢失内置 ripgrep 二进制的可执行权限（变为 `-rw-r--r--`），导致 IDE 的 Grep 工具在任意路径（含单文件）均报「权限不够 (os error 13)」；rg 由每次搜索临时 spawn，修复后无需重启 Trae。修复：`sudo chmod 755 /usr/share/trae-cn/resources/app/node_modules/@vscode/ripgrep/bin/rg /usr/share/trae-cn/resources/app/node_modules/@byted-fe/ripgrep-linux-arm64/bin/rg`。Trae 升级后 Grep 失效时优先怀疑此问题。
 - Trae CN 终端 shell 集成会注入 `safe_rm_aliases.sh`（cp/mv 变为 shell 函数并渗入子 bash），使 `command -v cp` 返回裸名而非路径；依赖 `command -v` 解析真实二进制的测试沙箱会因此造出自引用死链（`tests/lib/sandbox.sh` 的 `link_cmd` 已于 2026-08-29 加 PATH 回退防护）。另：IDE 沙箱会拦截删除解析目标在 allowlist 外的 symlink（如 coreutils-rs 的 `uname → /usr/lib/cargo/...`），`install_macos_test.sh` 在 Trae 终端内因此无法完整运行，属环境限制而非仓库问题。
 - 当 Linuxbrew 包遮蔽工作系统二进制且不需要时，通常优先删除包，而不是加防御逻辑。

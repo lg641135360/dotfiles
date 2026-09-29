@@ -816,7 +816,39 @@ main() {
     log_info "Installation completed in $duration seconds"
 }
 
+# install.sh needs Bash >= 4.3: process_configs uses a nameref (`local -n`)
+# and clean_old_backups uses `mapfile`. macOS ships Bash 3.2 at /bin/bash, so a
+# plain `./install.sh` dies before deploying anything with
+# "local: -n: invalid option". When the running interpreter is too old, hand
+# off to a modern Bash instead of failing; on Intel macOS with MacPorts that is
+# /opt/local/bin/bash (`sudo port install bash`). DOTFILES_BASH overrides the
+# lookup (also used by tests to stub the interpreter).
+ensure_modern_bash() {
+    [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] && return 0
+
+    local candidate modern_bash=""
+    for candidate in "${DOTFILES_BASH:-}" /opt/local/bin/bash /usr/local/bin/bash /opt/homebrew/bin/bash; do
+        [ -n "$candidate" ] || continue
+        if [ -x "$candidate" ]; then
+            modern_bash=$candidate
+            break
+        fi
+    done
+
+    if [ -n "$modern_bash" ]; then
+        log_info "Bash ${BASH_VERSION} is too old; re-executing with $modern_bash"
+        exec "$modern_bash" "$script_path" "$@"
+    fi
+
+    log_error "install.sh requires Bash >= 4.3, but found ${BASH_VERSION:-unknown}"
+    log_error "Install a modern Bash and re-run, e.g. on Intel macOS:"
+    log_error "  sudo port install bash"
+    log_error "  /opt/local/bin/bash ./install.sh"
+    exit 1
+}
+
 # Run main function
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    ensure_modern_bash "$@"
     main "$@"
 fi

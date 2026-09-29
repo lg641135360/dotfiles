@@ -20,6 +20,37 @@
   ```
 
 
+## 2026-09-29 — 黑苹果全组件健康检查 + 记录电池已拆除为预期
+
+- 目的：用户要求检查黑苹果各类组件；检查中 `BatteryInstalled = No` 先报为异常，用户确认电池已物理拆除，记录为机器事实避免后续误报。
+- 结果：硬件全绿（UHD620 Metal3 / AppleALC 音频 / itlwm WiFi 5GHz / Intel BT / USB 映射 / TRIM / Lilu+VirtualSMC+VoodooI2C 等 kext 全链加载）；`./tests/run.sh fast` PASS=41 FAIL=7 SKIP=1，7 个 FAIL 均为 Linux 导向测试的 macOS 可移植性问题（py3.9 无 tomllib / BSD awk / source 路径下 bash 3.2 无 mapfile / 沙箱缺 defaults+killall），不影响 live；live 与仓库工作区无漂移。
+- 改动：`memory/organizing_preferences.md` 系统环境新增"黑苹果电池已拆除属预期"一条。
+- 验证：`git diff --check` OK；测试套件未触碰 live（依赖 defaults 的用例在沙箱 PATH 下安全失败）。
+- live/提交：无 live 变更；未提交。回滚：`git checkout -- memory/organizing_preferences.md logs/trace.md`。
+- 后续：① 测试可移植性加固（source 型 install 测试解析现代 bash 或 bash<4 SKIP；tomllib/awk 缺失 SKIP）；② 本文件已 24 条超维护上限（5 条/150 行），提交前宜跑 `npm --prefix scripts run archive-trace`。
+
+## 2026-09-29 — 修 path.zsh 语法错误 + macOS defaults 幂等
+
+- 目的：装完配置后新开 zsh 报 `~/.config/zsh/path.zsh:43: parse error near 'elif'`；并追问为何 `install.sh` 每次都重设 macOS 偏好。
+- 根因：工作区 `.config/shared/zsh/path.zsh` 有未提交改动（12:37），在 Darwin 分支补 `/opt/local/bin`、`/opt/local/sbin`、`$HOME/.npm-global/bin` 时于 `elif` 前多写一个 `fi`，形成 `if…fi / elif…fi`（HEAD 版本本身合法）；坏文件被 install.sh 复制到 live，故每个新 shell 都报错。`tests/zsh_path_test.sh` 全为 Linux-only 且无语法检查，未拦住。defaults 每次重设是因为 `install.sh` 无条件执行 `.config/macos/defaults.sh`，原脚本无幂等判断，每次全量 `defaults write` + `killall Finder/Dock`。
+- 改动：`path.zsh` 删除多余 `fi`（保留用户新增的 MacPorts / npm-global 路径）；`.config/macos/defaults.sh` 重写为按值幂等——`set_bool`/`set_value` 先 `defaults read` 比对，仅不同才写，仅当有变化才 `killall`，并打印 `macOS defaults set (N change(s))` 或 `already up to date; nothing changed`；`tests/zsh_path_test.sh` 新增跨平台 `test_zsh_configs_are_syntactically_valid`（`.zshenv`/`.zshrc`/`.zshrc.pre`/`*.zsh` 跑 `zsh -n`）；新增 `tests/macos_defaults_test.sh`（stub `defaults`/`killall`，断言首跑全写+重启、二次 no-op、仅改动键重写）；README/memory 同步。
+- 验证：改动前 `sh tests/zsh_path_test.sh` FAIL、`sh tests/macos_defaults_test.sh` 复现“第二次仍写 18 键”FAIL；实现后两者 PASS；`repo_docs_test.sh` PASS；`zsh -n` 手工确认 macOS PATH 正确前置 `/opt/local/bin`、`/opt/local/sbin`、`~/.npm-global/bin`；`bash -n defaults.sh`、`sh -n` 两个测试、`git diff --check` 均 OK。
+- live/提交：live `~/.config/zsh/path.zsh` 仍是坏的（与工作区 12:37 同版本），待同步；未提交。回滚：`git checkout -- .config/shared/zsh/path.zsh .config/macos/defaults.sh README.md memory/organizing_preferences.md tests/zsh_path_test.sh logs/trace.md && rm tests/macos_defaults_test.sh`。
+
+## 2026-09-29 — macOS x86：install.sh 检测过旧 Bash 时 re-exec MacPorts Bash
+
+- 目的：macOS 自带 `/bin/bash` 为 3.2，而 `install.sh` 用了 Bash ≥ 4.3 的 `local -n`（`process_configs`）与 `mapfile`（`clean_old_backups`），导致 `./install.sh` 在部署任何文件前就以 `local: -n: invalid option` 退出（沙箱实测 exit 2，临时 HOME 零文件）。为 macOS x86 补兼容。
+- 改动：`install.sh` 新增 `ensure_modern_bash()`，在执行入口（`BASH_SOURCE==$0` 分支内、`main` 之前）检测 `BASH_VERSINFO[0] < 4` 时，按 `DOTFILES_BASH` → `/opt/local/bin/bash` → `/usr/local/bin/bash` → `/opt/homebrew/bin/bash` 顺序找现代 Bash 并 `exec` 重跑；都没有则打印含 `sudo port install bash` 的错误并 exit 1。新增 `tests/install_bash_reexec_test.sh`（用 stub 冒充现代 Bash，在只有 Bash 3.2 的机器上断言 re-exec 分派；Bash ≥ 4 主机 SKIP 77）。README「使用方式」与 `memory/organizing_preferences.md` 系统环境同步说明。
+- 验证：先写测试在 Bash 3.2 下复现 FAIL；实现后 `./tests/install_bash_reexec_test.sh` PASS、`./tests/repo_docs_test.sh` PASS、`./tests/install_submodule_test.sh` PASS（确认 source install.sh 不触发 re-exec）、`/bin/bash -n install.sh`、`sh -n tests/install_bash_reexec_test.sh`、`git diff --check` 均 PASS。手工 stub 实测 re-exec 与缺 Bash 报错两条路径输出符合预期。
+- 后续/未验证：① 用户已 `sudo port install bash`（`/opt/local/bin/bash` 5.3.15）并补跑验证：临时副本 + 临时 HOME + stub `defaults.sh` 端到端 `HOME=… DOTFILES_OS=Darwin /bin/bash install.sh` → 自动 re-exec、exit 0、配置落入临时 HOME（未碰 live）。② install 系列用 `/opt/local/bin/bash` 复跑：`install_backup`/`install_redshift`/`install_submodule`/`install_tpm`/`install_wayland` PASS；`install_macos_test` SKIP（仅 Linux）；`install_claude_statusline` 与 `install_zshenv` 仍 FAIL，属测试自身的 macOS 移植问题（前者 macOS 分支会真跑 `defaults.sh`，沙箱 PATH 缺 `defaults`/`killall` → `set -e` 退出；后者 BSD `wc -l` 输出带前导空格），均非本轮安装器改动引入，本次未处理。
+- live 同步（用户授权“1”，黑苹果 x86 真机）：执行 `./install.sh`，自动 re-exec `/opt/local/bin/bash`，exit 0。首次部署，新建：`~/.config/zsh/`（11 个 zsh 文件）、`~/.config/git/`、`~/.config/scripts/update-ai-clis`、`~/.ssh/config`、`~/.ssh/config.base`、`~/.zshenv`（含 `ZDOTDIR`/`skip_global_compinit`）；以上目标部署前均不存在，按 install.sh 惯例仅在已存在时才备份，故本轮无 `*.backup.*`。二次运行 15 项 `identical` 跳过、无新备份；live 与仓库 diff 为空（仅 `.zshrc.pre`/`README.md` 按设计未部署）。`~/.config/macos/defaults.sh` 已真实执行（键重复/Dock/Finder/截图/触控板等 + `killall Finder/Dock/SystemUIServer`），未预存旧值快照。非交互 `zsh -c` 验证已继承 `ZDOTDIR`/`skip_global_compinit`。
+- 回滚：仓库未提交，`git checkout -- install.sh README.md memory/organizing_preferences.md logs/trace.md && rm tests/install_bash_reexec_test.sh`。live（新建文件、原本不存在，无备份可还原）：
+  ```bash
+  rm -rf ~/.config/zsh ~/.config/git ~/.config/scripts/update-ai-clis ~/.ssh/config ~/.ssh/config.base ~/.zshenv
+  # defaults 无快照，逐项回退或到“系统设置”手动改回，例如：
+  defaults delete com.apple.dock autohide; defaults delete NSGlobalDomain KeyRepeat
+  ```
+
 ## 2026-09-19 — 同步仓库结构文档并整理 niri/DMS memory
 
 - 目的：修复 README 仍引用已删除的 `tools/` 钉钉 hook 目录，并收敛 niri/DMS 当前基线与历史决策，避免把已废弃方案误当现行配置。

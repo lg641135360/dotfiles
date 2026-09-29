@@ -51,6 +51,22 @@ run_wayland_env_zsh() {
     printf '%s\n' "$env_value"
 }
 
+test_zsh_configs_are_syntactically_valid() {
+    if [ -z "$ZSH_BIN" ]; then
+        printf 'SKIP: zsh is not installed\n'
+        return 0
+    fi
+
+    for file in "$REPO_ROOT"/.config/shared/zsh/.zshenv \
+                "$REPO_ROOT"/.config/shared/zsh/.zshrc \
+                "$REPO_ROOT"/.config/shared/zsh/.zshrc.pre \
+                "$REPO_ROOT"/.config/shared/zsh/*.zsh; do
+        [ -e "$file" ] || continue
+        "$ZSH_BIN" -n "$file" ||
+            fail "zsh syntax error in ${file#"$REPO_ROOT"/}"
+    done
+}
+
 test_linux_path_includes_usr_local_nodejs_bin() {
     if [ "$(uname)" != "Linux" ]; then
         printf 'SKIP: zsh path test requires Linux\n'
@@ -217,6 +233,7 @@ test_linux_wayland_environment_preserves_current_desktop() {
         fail "expected Wayland desktop environment to be preserved, got: $env_value"
 }
 
+test_zsh_configs_are_syntactically_valid
 test_linux_path_includes_usr_local_nodejs_bin
 test_linux_path_includes_user_npm_global_bin
 test_linux_path_includes_local_node_current_bin

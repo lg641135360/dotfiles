@@ -33,9 +33,12 @@ pathappend "$HOME/.config/tmux/plugins/tmuxifier/bin"
 
 # Platform-specific
 if [[ "$(uname)" == "Darwin" ]]; then
-    # Apple Silicon Homebrew
+    # Homebrew (Apple Silicon + Intel) and MacPorts
     pathprepend "/opt/homebrew/bin"
     pathprepend "/usr/local/bin"
+    pathprepend "/opt/local/bin"
+    pathprepend "/opt/local/sbin"
+    pathprepend "$HOME/.npm-global/bin"
 elif [[ "$(uname)" == "Linux" ]]; then
     pathappend "/home/linuxbrew/.linuxbrew/bin"
     pathappend "/home/linuxbrew/.linuxbrew/sbin"
