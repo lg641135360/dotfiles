@@ -430,3 +430,15 @@
 - live/提交：live **未同步**（见发现 ②，等用户确认后再重新应用新版）；仓库改动已提交 `c4e41cb`（本行为提交后回填）。
 - 回滚信息：**已提交 `c4e41cb`**；本轮只需 `git checkout -- install.sh tests/install_macos_test.sh tests/yabai_config_test.sh logs/trace.md` 即可丢弃（但与同任务其它改动同属一个 commit，整轮回滚见上条）。
 - 后续可能方向：① 待用户确认 live 回退来源后，重新 `./install.sh`（附带真机验证该 PATH 修复）+ 清掉多出的 2 个空间与 4 个标签 + 重启；② `~/.npm-global/bin`、`~/.local/opt/node-current/bin` 等平台专属目录在 bash 下同样不在 PATH，install.sh 目前只补了共享的 `~/.local/bin`，需要时再扩。
+
+## 2026-09-30 — live 重新应用新版 yabai 配置 + 清掉多余空空间（收尾）
+- 目的：按用户「执行吧」完成上个条目的遗留项——把 live 从被回退的旧版恢复成仓库新版、清理旧配置遗留的空空间，并用真机验证 `install.sh` 的 PATH 修复。
+- 执行前惊发现：live **已是新版且与仓库 `diff -q` identical** —— 是**用户在 22:16:47 自己跑过 `./install.sh`**：live 目录多出一对 `*.backup.20260930_221647_2477`，末尾 `_2477` 是 **PID 后缀**，正是 install.sh 的时间戳格式（`date +%Y%m%d_%H%M%S)_$$`；我手工同步用的是 `_<纳秒>`（9 位数字）⇒ **可据此区分 live 改动是 install.sh 还是手工同步**。运行时也已是新配置（焦点色 `0xff89b4fa`、规则 5 条），标签已清空，只剩 6/7 两个空空间（旧 `label_spaces` 建到 7 的遗留）。
+- 已做（live/运行态）：
+  1. **真机验证 PATH 修复**：`env -u PATH PATH="/usr/bin:/bin:/usr/sbin:/sbin" HOME=$HOME /bin/bash install.sh` → 输出 `[INFO] Skipping yabai: Target is identical to source`（修复前此处是 `[WARN] yabai not found; skipping its configuration`），且 **Backed up 次数 0、零改动**。注：该最小 PATH 同时排除了 `/opt/local/bin`，所以 skhd/tmux/nvim/starship 报 not found 是预期，本实验只用来隔离 `~/.local/bin` 这一项。
+  2. 逐个确认窗口数后 `space --destroy` 掉空空间 7、6 → 空间回到 **5 个**（1/2/3 各有 1 个窗口：Chrome / 微信 / cmux；4/5 空）。
+  3. `yabai --restart-service` + `skhd --restart-service`：空间恒 5、焦点色 `0xff89b4fa`、规则 5 条、`dock_did_restart` signal 在、微信 `is-floating=true`、yabai out 新增 1 行 `yabai configuration loaded..`、yabai err 无新增。
+- 排查（重要）：`/tmp/skhd_rikoo.err.log` 里有一条 `skhd: could not open file '~/.config/skhd/skhdrc'`。再重启一次 skhd **新增 0 行** ⇒ 该错误是历史，时间点只能是 install.sh 备份+覆盖的那一瞬间：`copy_config` 先 `mv` 目标为 backup 再 `cp` 回来，文件短暂不存在，而 skhd 会监视配置文件并热重载。**不是配置损坏**，当前 skhd 已正常加载。
+- 提交：本轮只有 live 与运行态变更，**仓库侧无改动**（trace 本条除外）；未提交。
+- 回滚信息：本轮**无仓库改动需回滚**（trace 本条除外）。live 侧现为期望状态（5 个空间）不需回退；若要回到「7 空间 + C/B/N/W 标签」的旧模型，可 `cp -p ~/.config/yabai/yabairc.backup.20260930_215333_090108000 ~/.config/yabai/yabairc` + `cp -p ~/.config/skhd/skhdrc.backup.20260930_215333_090108000 ~/.config/skhd/skhdrc` 后重启（仍需手动把空间补回 7 个）。
+- 后续可能方向：① `logs/trace.md` 已超 430 行，远超文件内建议的 ≤150 行，归档（`npm --prefix scripts run archive-trace`）仍未做；② trace 里 `c8e393f` 那条（他人 entry）仍写「未提交」，实际已提交，未擅自改；③ live 已与仓库一致，yabai/skhd 这套部署至此完整落地。
