@@ -320,6 +320,36 @@
   ```
 - 后续可能方向：① 标题以「钉钉」开头/结尾的弹窗仍会平铺（与仓库配置同残余），若 DMS 后续支持 `exclude` 编辑入口可换成单条 exclude 规则；② 仓库 `common.kdl` 的其它规则（键位等）在 DMS 机器仍缺席，DMS 侧重建属长期事项。
 
+## 2026-09-30 — 黑苹果 macOS 装 Nerd Font（MesloLGS Nerd Font Mono）
+- 目的：本机（macOS 15.8 / Apple Terminal / port 版 CLI）starship、tmux、nvim、lsd、yazi 的 Nerd Font 图标全缺字，补齐终端图标字体。
+- 根因：该机无 brew（黑苹果 x86_64 走 MacPorts），MacPorts 只有 `ttf-nerd-fonts-symbols`（纯图标字体，Terminal.app 不保证回退命中），从未装过任何 Nerd Font；`fc-list ':charset=f02dc'` 等图标码位仅命中 `.LastResort`。Terminal.app `Basic` 描述符当前字体为 `SFMono-Regular`。
+- 已做（live/system，仓库外）：从官方 Nerd Fonts v3.5.1 下载 `Meslo.tar.xz`（5 MB；`Meslo.zip` 111 MB 多打 OTF，不必下），解压后取 4 个 `MesloLGSNerdFontMono-{Regular,Bold,Italic,BoldItalic}.ttf` 复制进 `~/Library/Fonts/`（原目录为空，无覆盖、无需备份）。
+- 验证：`fc-list | grep MesloLGS` 列出 4 个 face；`fc-scan` 确认 family 为 `MesloLGS Nerd Font Mono`（与 `.config/shared/alacritty` 一致）；`fc-list ':charset=f02dc|f03d8|f051c|f0734'` 命中新字体；`system_profiler SPFontsDataType` 可见，CoreText 已注册。未改 Terminal.app 描述符（字体是 NSKeyedArchiver blob，无 AppleScript / `defaults` 安全入口），字体切换留待 GUI。
+- live/提交：仅本机 `~/Library/Fonts` 变更；未动仓库、未同步 `~/.config`、未提交；trace 随下次仓库改动入库。
+- 回滚：`rm ~/Library/Fonts/MesloLGSNerdFontMono-*.ttf`；若已切 Terminal 字体，在「设置 → 描述文件 → 文本 → 字体」改回 `SF Mono`。
+- 后续可能方向：① 在 Terminal.app 手动把 Basic 描述符字体改为 `MesloLGS Nerd Font Mono`（建议 13pt），新开窗口验证图标；② 该机无 brew，字体进不了 `.config/macos/Brewfile`，如需可复现可补一段 `~/Library/Fonts` 下载脚本；③ `memory/organizing_preferences.md` 已由用户补记「黑苹果走 MacPorts」，是否再记「Nerd Font 手动装 `~/Library/Fonts`」待定。
+
+## 2026-09-30 — macOS 窗口管理器按机型分治：黑苹果 yabai + skhd，白苹果 AeroSpace
+- 目的：用户确认「yabai + skhd 是 mac x86（黑苹果）首选，白苹果依旧 AeroSpace 首选」，并在仓库落地 yabai/skhd 配置与部署/测试链路（此前仓库只有 AeroSpace 一套）。
+- 环境结论（只读勘察）：macOS 15.8 / Intel x86_64 黑苹果（MacBookPro15,2，i5-8250U）；无 Homebrew，MacPorts 2.12.6 在 `/opt/local`；`nvram csr-active-config=%ff%0f%00%00`（0x0FFF 全关，`csrutil status` 报 `unknown (Custom Configuration)`）→ yabai scripting addition 前提已满足，不需改 SIP；`com.apple.spaces spans-displays` 未设置（分离空间已开）；`mru-spaces` 与 `EnableStandardClickToShowDesktop` 未设置，需补默认值。
+- 关键实测（决定走官方预编译而非 MacPorts）：下载 `yabai-v7.1.25.tar.gz` 校验 sha256 与官方脚本一致；`codesign -dvvv` 得 `Identifier=com.asmvik.yabai` / `Authority=yabai-cert` / `TeamIdentifier=not set`；`codesign -v` = valid on disk + satisfies its Designated Requirement；`spctl -a` = rejected（自签名，无 quarantine 时无害，`curl` 不写 quarantine）。故本机无需自建证书/重签，TCC 辅助功能授权可跨 yabai 升级保留；MacPorts 版（7.1.24，源码编译未签名）要求每次 `port upgrade` 后重签 + 重算 sudoers 哈希，故不采用。
+- 已做（仓库，未提交）：新增 `.config/macos/yabai/{yabairc,skhdrc,README.md}`（SA 加载 + dock_did_restart 信号、全局配置对齐 AeroSpace 的 gaps 5 与主题色、浮动窗口规则、幂等空间标签 1/2/3/C/B/N/W、alt=Mod 键位表；标点键用大写十六进制 keycode，因 skhd 字面量只认 return/tab/escape/方向键等，依据 `src/tokenize.h`）；`install.sh` 的 `macos_configs` 增 `command -v yabai`/`skhd` 两条部署项；`.config/macos/defaults.sh` 补 `mru-spaces=false`、`EnableStandardClickToShowDesktop=false`、`StandardHideDesktopIcons=false`；`.config/macos/aerospace/README.md` 与根 `README.md`（结构树 + 机型分治段 + 「升级已安装的工具」段的 yabai 升级入口）标注首选关系与升级路径；`memory/desktop.md` 新增「macOS 窗口管理器」决策段，`memory/organizing_preferences.md` 同步包管理例外条款。
+- 验证：新增 `tests/yabai_config_test.sh`（yabairc `sh -n`、SA/配置/规则/幂等守卫断言、skhd 绑定断言、标点键不得写 `minus/equal/esc/slash/comma` 且十六进制不得小写、README 机型分治与 install.sh 部署项断言、根 README 升级入口断言）；`tests/install_macos_test.sh` 增 yabai/skhd stub 与部署断言；实测 `./tests/run.sh fast` 得 `PASS=41 FAIL=7 SKIP=1`（同日 `c8e393f` 删除 `update_ai_clis_test.sh` 后复测；该 commit 前为 PASS=43），7 个 FAIL 与本机既有 macOS 可移植性基线一致（无新增失败）；`repo_docs_test`/`macos_defaults_test`/`aerospace_config_test`/`yabai_config_test` 单跑均 PASS；`sh -n`/`bash -n`/`git diff --check` 均 OK。
+- live/提交（用户二次确认「把 yabai+skhd 这套部署落地」后执行，**未提交**）：① 官方安装脚本装 yabai v7.1.25 → `~/.local/bin/yabai`（sha256 `372ad557a7c54a6199a78dcbcefe5b60fd0224e5c1f5139cfaed00dfdaa44501`，`codesign -dvvv` 复核 `Identifier=com.asmvik.yabai` / `Authority=yabai-cert` / `TeamIdentifier=not set`）+ man 页 → `~/.local/share/man/man1/yabai.1`（该目录本轮新建）；② 手工部署 `~/.config/yabai/yabairc` 与 `~/.config/skhd/skhdrc`（两个目标均不存在 → 按惯例无 `*.backup.*`；`diff` 确认与仓库逐字节一致）；③ `bash .config/macos/defaults.sh` 写入 3 个 WM 前提键（`com.apple.dock mru-spaces=0`、`com.apple.WindowManager EnableStandardClickToShowDesktop=0`、`StandardHideDesktopIcons=0`，输出 `3 change(s)`，其余键已幂等跳过）并重启 Finder/Dock/SystemUIServer；④ 用户写入 `/private/etc/sudoers.d/yabai`（哈希与实测一致：`372ad557…`；`visudo -c` 报 `/etc/sudoers: parsed OK` + `bad permissions, should be mode 0440`——`sudo tee` 按 umask 022 建出 0644，但 sudo 1.9.13p2 只拒绝 g/o **可写**的文件，`sudo -n -l` 仍列出该 NOPASSWD 条目，建议 `chmod 0440` 符合约定）；⑤ `sudo yabai --load-sa` 执行成功（rc=0 且无 stderr；对照 `src/osax/loader.m`，所有失败情形都会 `fprintf(stderr, "could not …")`），并实测**确实落盘 SA**：`/Library/ScriptingAdditions/yabai.osax`（`Contents/MacOS/loader` + `Contents/Resources/payload.bundle`，root 拥有，时间戳 20:58）；⑥ 用户并行执行 `sudo port install skhd` → `/opt/local/bin/skhd` 0.3.9_1（active），随即部署 `~/.config/skhd/skhdrc`（目标不存在 → 无 backup；`diff` identical）。配置路径实测：`strings skhd` 含 `%s/.config/skhd/%s`，与 XDG_CONFIG_HOME 未设置相匹配（同 yabai）。注：`skhd --help` 不可用且无 dry-run——未授权辅助功能时 skhd 直接 `must be run with accessibility access! abort..`，因此 **skhdrc 的语法/键位解析只能等 GUI 授权后由 skhd 自己验证**（我的静态依据：`src/tokenize.h` 的 modifier/literal 白名单 + `parse.c` 对 Token_Key_Hex 的处理）。验证：交互登录 shell（`zsh -lic`）里 `command -v yabai` → `~/.local/bin/yabai`、`yabai -v` = `yabai-v7.1.25`（`~/.local/bin` 在登录 PATH 中排第一，agent 工具的 bash 环境不含该目录，属工具环境差异而非部署问题）；`XDG_CONFIG_HOME` 未设置、`strings yabai` 含 `%s/.config/yabai/%s` → 确认读的就是 `~/.config/yabai/yabairc`；`com.apple.spaces spans-displays` 仍未设置（分离空间保持开启）；注入后 `pgrep -x Dock` 健在（pid 58628），无 Dock 崩溃。**待用户执行**（需 sudo / GUI）：`sudo chmod 0440 /private/etc/sudoers.d/yabai`、辅助功能勾选 `yabai`/`skhd`、`yabai --start-service` + `skhd --start-service`；**顺序不可颠倒**：yabairc 首行即 `sudo yabai --load-sa`，sudoers 未配前起服务会卡在密码提示。
+- 回滚信息：**未提交**；丢弃仓库改动：`git checkout -- .config/macos install.sh README.md memory/desktop.md memory/organizing_preferences.md tests/install_macos_test.sh && rm -rf .config/macos/yabai tests/yabai_config_test.sh`（trace 本条目一并丢弃）。live 本轮为新建（无旧文件可比对，故无 backup 快照），恢复/卸载：
+  ```bash
+  sudo yabai --uninstall-sa    # 移除 /Library/ScriptingAdditions/yabai.osax
+  sudo rm -f /private/etc/sudoers.d/yabai
+  rm -f ~/.local/bin/yabai ~/.local/share/man/man1/yabai.1
+  rmdir ~/.local/share/man/man1 ~/.local/share/man 2>/dev/null || true
+  rm -rf ~/.config/yabai ~/.config/skhd
+  defaults delete com.apple.dock mru-spaces
+  defaults delete com.apple.WindowManager EnableStandardClickToShowDesktop
+  defaults delete com.apple.WindowManager StandardHideDesktopIcons
+  killall Dock
+  ```
+- 后续可能方向：① 待用户装好 skhd、授权辅助功能并 `--start-service` 后做真机回归，重点验证 `ensure_space` 里 `space --create` 是否聚焦新空间（未真机验证；若否则改为按索引打标签）；② AeroSpace 的 `Mod+r` service mode 暂无对应实现（skhd 的模式语法没有「执行命令并返回」的无歧义写法），SA 专属的 sticky/pip 已直接绑到 `Mod+Ctrl+*`。
+
 ## 2026-09-30 — 黑苹果用户级 CLI 迁移尝试并回退；删除 update-ai-clis
 - 目的：用户先问「哪些包能像 pi 一样迁到用户目录」，据此把纯 CLI 工具从 MacPorts 迁到 `~/.local` 并配套统一升级脚本；实施后用户质疑「有些 app 用 port 升级才是正解」「仓库里放 update 脚本不常规」，故全量回退，升级方式改回各工具自带 updater。
 - 环境结论（只读勘察）：port vs 上游——neovim 0.12.4/0.12.5、yazi 26.9.1/=、starship 1.26.0/=、nodejs22 22.22.2；`pi-coding-agent` port 仅 0.87.1（npm 已 0.99.1），`herdr` port 仅 0.8.2（官方 0.9.3）且 `depends_build {zig-0.15 rust cargo}` 需源码编译。结论：常规 CLI 交回 port；只有 npm 分发的 AI CLI 与 herdr 值得用户级。
@@ -331,3 +361,72 @@
 - 未完成（可选，需用户 sudo）：卸载陈旧 port `pi-coding-agent`（0.87.1）——`sudo port uninstall pi-coding-agent`（`nodejs22`/`npm10` 保留作 npm 宿主）。
 - 注意：本轮与另一会话的「yabai/skhd」改动共存于同一工作区（对方改 `install.sh`/`defaults.sh`/`aerospace/README.md`/`memory/desktop.md`/`tests/install_macos_test.sh`，新增 `.config/macos/yabai/*`、`tests/yabai_config_test.sh`），提交时建议按主题分开。
 - 后续可能方向：① `path.zsh` 的「个人 bin 应晚于平台分支 prepend」本轮回退后仍是潜在遮蔽点（`~/.local/bin` 排在 `/opt/local/bin` 之后），若日后出现同名 port（如 herdr/yabai）再处理；② 是否把「黑苹果不用裸 `npm update -g`」提升到 `memory/`（现已写入）。
+
+## 2026-09-30 — yabai 首次启动实机回归：空间标签与规则两处修复
+- 目的：用户完成 GUI 授权并 `--start-service` 后做真机回归，修掉 `ensure_space` 那套未经实机验证的标签引导逻辑。
+- 现象与根因（均为 yabai v7.1.25 / macOS 15.8 实测）：① 7 个空间都建对了，但**标签只剩最后一个 `W` 落在 index 1**、其余为空——`space --create` 不会把焦点移到新空间，而裸 `space --label` 作用于“当前聚焦空间”，两者叠加使 7 次 label 全打在同一个空间上；② `space=C` / `space=N` 两条规则被拒（规则数 6 而非 8），日志 `value 'C' is not a valid option for SPACE_SEL`——yabai 在**注册规则时**就校验 `SPACE_SEL`；③ 想改用数字标签也不行：`space --label 1` → `'1' cannot be used as a label.`（`src/message.c` 的 `parse_label` 要求 label 是字符串 token，否则与 mission-control index 在 `SPACE_SEL` 里撞车）。
+- 改动：`.config/macos/yabai/yabairc` 把 `ensure_space` 换成 `label_spaces`——先按 `grep -c '"index"'` 计数补齐到 7（`space --create` 后 `query` 有延迟，用本地计数推进避免多建一个，create 非 0 就停手），再**按空间索引显式**打标签，且只打 `C/B/N/W` 给 index 4..7（1/2/3 用 index 寻址，`mru-spaces=false` 保顺序稳定）；`space=` 两条规则加标签存在性守卫。同步 `.config/macos/yabai/skhdrc`（注释说明 1/2/3 用 index）、`README.md`（与 AeroSpace 的差异段）、`tests/yabai_config_test.sh`（改断言 `label_spaces` / `while … -lt 7` / `for _label in C B N W` / 标签守卫）、`memory/desktop.md`（把上述硬规则沉淀为长期约束）。
+- 验证（live，两次 `--restart-service`）：空间数 `7 → 7` 不增长（幂等）；标签为 `1/2/3` 空 + `4=C 5=B 6=N 7=W`；规则数 **8**（6 浮动 + 2 空间，两条 app→空间规则已注册）；`space --focus C`（label）与 `space --focus 1`（index）均成功；`/tmp/yabai_rikoo.err.log` 除三条历史行（授权前的 accessibility abort、上一轮的 C/N 报错）外**无新错误**，`.out.log` 为 4× `yabai configuration loaded..`；`/tmp/skhd_rikoo.err.log` 无解析错误（只有授权前那次 abort 与正常的热键响应），说明含十六进制 keycode 的 skhdrc 已被 skhd 接受。
+- live/提交：**未提交**。本轮 live 同步（目标已存在，按惯例先备份）：`~/.config/yabai/yabairc.backup.20260930_211003_842225000`（另有更早一份 `yabairc.backup.20260930_210715_116648000`）、`~/.config/skhd/skhdrc.backup.20260930_211003_842225000`；已按保留 3 份的惯例清理更旧的。
+- 回滚信息：**未提交**；live 回滚（含上一轮的完整卸载）：
+  ```bash
+  cp -p ~/.config/yabai/yabairc.backup.20260930_211003_842225000 ~/.config/yabai/yabairc
+  cp -p ~/.config/skhd/skhdrc.backup.20260930_211003_842225000 ~/.config/skhd/skhdrc
+  yabai --restart-service
+  # 彻底卸载：
+  # yabai --uninstall-service; skhd --uninstall-service; sudo yabai --uninstall-sa
+  # sudo rm -f /private/etc/sudoers.d/yabai; rm -f ~/.local/bin/yabai ~/.local/share/man/man1/yabai.1
+  # rm -rf ~/.config/yabai ~/.config/skhd
+  ```
+- 后续可能方向：① skhd 的十六进制 keycode 绑定（`0x1B`/`0x18`/`0x2C`/`0x2B`）已被 skhd 解析接受，但**未经实际按键触发**（日志里只有 focus/swap 类响应），需按下 `Mod+Shift+-`、`Mod+/` 后才能确认；② `space 1/2/3` 靠 index 寻址，若日后手动调序（如 `space --move`）会错位——需要时改成给它们也打非数字 label（yabai 不接受 `1`，但非纯数字 token 可以，如 `n1`）。
+
+## 2026-09-30 — yabai 按键实测确认 + 规则/resize 三处修正
+- 目的：用户报告已按过 `Mod+Shift+-` 与 `Mod+/`，验证这两条十六进制 keycode 绑定是否真的派发，并复核运行期状态。
+- 实测结论（`/tmp/skhd_rikoo.err.log` 23 → 50 行）：① `0x1B`（minus）**确实派发**——新增 20 行 `cannot locate a bsp node fence.`，是 yabai 对 `window --resize right:-50:0` 的真实回应，证明 skhd 的 `0x..` 物理 keycode 路径端到端可用；② 报错本身是预期：当时聚焦窗口是空间 1 唯一的 Chrome（`split-child: second_child` 且 `split-type: none`，占满整屏），两侧都没有 fence；③ `0x2C`（slash → `space --layout bsp`）无报错、空间 type 仍为 `bsp`，与预期一致但不可区分（bsp→bsp 是幂等操作）。
+- 顺带挖出并修掉三处真问题：
+  1. **resize handle 不对称**（源码 `src/window_manager.c:368` 的 `window_manager_resize_window_relative`：`HANDLE_LEFT/RIGHT` 分别取 `DIR_WEST/DIR_EAST` 的 fence）——`first_child`（左/上）只有东/南 fence、`second_child`（右/下）只有西/北 fence，我两条都写 `right:` 对 `second_child` 必然失败。改为 `skhdrc` 里按 右→左→下→上 依次尝试（4 段 `||` 链，每段 `2>/dev/null`），等效 AeroSpace 的 `resize smart`，且失败尝试不再刷 skhd 日志。
+  2. **`app=` 匹配本地化应用名**：本机 `AppleLocale=zh_CN`，微信窗口的 app 名是「微信」，`app="^WeChat$"` 静默不匹配 → 微信被平铺（query 里 `is-floating:false`）。改为 `^(WeChat|微信)$`，系统设置同理合并为中英 alternation（顺带把重复的 System Preferences 行合并）。yabai 规则不支持 bundle-id（AeroSpace 用的是 `com.tencent.xinWeChat`，无法照搬）。
+  3. **规则只对新窗口生效**：yabai 规则不作用于注册前已存在的窗口 → `yabairc` 末尾加 `yabai -m rule --apply`，登录/重启即让现有 Finder/微信/VSCode/Obsidian 到位；代价是每次 yabai 启动会把匹配 `space=` 的窗口移回对应空间（已写入 README，不想要删一行即可）。
+- 验证（live）：`yabai --restart-service` 连续两次空间数恒为 7（幂等）；标签仍为 1/2/3 空 + `4=C 5=B 6=N 7=W`；规则数 **7**（5 浮动 + 2 空间，`space:` 分别解析为 4/6）；**微信 `is-floating` 由 false 变 true**（证明本地化规则与 `--apply` 均生效）；`skhd --restart-service` 换新 pid 且 err 日志**零新增**（= 含 `\` 续行 `||` 链的 skhdrc 解析通过）；yabai err 日志除 3 条历史行外无新增。
+- live/提交：**未提交**。本轮备份：`~/.config/yabai/yabairc.backup.20260930_212449_883986000`、`~/.config/skhd/skhdrc.backup.20260930_212449_883986000`（已按保留 3 份清理更旧）。
+- 回滚信息：**未提交**；live 回滚：
+  ```bash
+  cp -p ~/.config/yabai/yabairc.backup.20260930_212449_883986000 ~/.config/yabai/yabairc
+  cp -p ~/.config/skhd/skhdrc.backup.20260930_212449_883986000  ~/.config/skhd/skhdrc
+  yabai --restart-service; skhd --restart-service
+  ```
+- 后续可能方向：① resize 回退链的**“两窗口同空间”场景尚未被实际按键验证**（当前没有任何空间有 2 个管理窗口，只有源码级依据）——开两个 Chrome 窗口后按 `Mod+Shift+-` 即可确认；② 验证布局切换建议按 `Mod+,`（stack）再 `Mod+/`（bsp），空间 `type` 会明显变化，比单独按 `Mod+/` 可观测；③ `yabai -m rule --apply` 是否保留（每次启动把 VSCode/Obsidian 拉回 C/N）待用户实际体验后决定。
+
+## 2026-09-30 — yabai/skhd 对齐仓库约定：工作区收敛到 1-5 + 四处工程改进
+- 目的：按用户要求落地「第一档」优化（焦点色对齐、README 补两节、测试补全每条绑定、`install.sh` 的 borders 提示门控），并**取消命名工作区，只保留 1-5**。
+- 已做（仓库，未提交）：
+  1. `yabairc`：`insert_feedback_color` 由 mauve `0xffcba6f7`（沿袭 aerospace）改为 **Catppuccin 蓝 `0xff89b4fa`**（与 niri `focus-ring active-color`、awesome `border_focus` 一致）：`label_spaces`（7 空间 + C/B/N/W 标签）→ `ensure_spaces`（只补到 5、不打任何标签）；删除 `space=C` / `space=N` 两条 app→工作区规则及其存在性守卫；`rule --apply` 保留（现在只剩浮动规则，无跨空间搬窗口副作用）。
+  2. `skhdrc`：改为 `Mod+1..5` 聚焦、`Mod+Shift+1..5` 移动并跟随；删除 `Mod+c/b/n/w` 与 `Mod+Shift+c/b/n/w` 共 8 条绑定（`Mod+C/B/N/W` 现全部空闲）。
+  3. `README.md`：新增**「鼠标操作」**（`fn`+左/右键拖拽 + 为何不用 `alt`）与**「配置验证」**两节；键位表工作区改 1..5；「与 AeroSpace 的差异」重写（说明弃用命名工作区的理由 + 释放的按键）；「实机踩到的坑」按新模型重排为 6 条。
+  4. `tests/yabai_config_test.sh`：新增 python3 结构化校验——把 skhdrc 按「续行合并 → 首个 `:` 切分」解析成绑定表，与 31 条期望绑定**逐条比对**，并检查重复绑定、未登记的额外绑定、resize 链是否覆盖四个 fence、是否用 `2>/dev/null`、是否误用 `;`（skhd 的 `;` 是切模式）、十六进制 keycode 是否全大写；另断言焦点色/`ensure_spaces`/无标签/README 两个新节/`install.sh` 门控。解释器缺失时经 `resolve_python` 走 SKIP。
+  5. `install.sh`：JankyBorders 提示改为 `command -v aerospace && ! command -v borders` 才打印（yabai 6.0+ 无内置边框、MacPorts 无 JankyBorders、本机也无 brew，原来的提示只会误导）。
+  6. `tests/install_macos_test.sh`：抽出 `build_macos_sandbox`（可指定 stub 集合，默认不 stub `borders`），新增 `test_borders_hint_is_gated_on_aerospace`（有 aerospace 无 borders → 有提示；只有 yabai → 无提示）。
+  7. `memory/desktop.md`：记录工作区模型与焦点色两个决策，把「踩坑」条目按新模型重写，并补「配置验证手段」一条。
+- 验证：① **负向自测**（把测试内的 python 片段抠出，在配置副本上跑）——多一条未登记绑定 → `bindings not covered by the README/tests`；重复绑定 → `duplicate skhdrc binding`；`0x1b` 小写 → 被额外绑定检查拦下；删掉 resize 的 `2>/dev/null` → `failing attempts would spam the skhd log`；② `./tests/yabai_config_test.sh` PASS，`sh -n`（yabairc/两个测试）、`bash -n install.sh` 均 OK；③ live 复核：空间恒为 **5 且无标签**，`insert_feedback_color` = `0xff89b4fa`，规则 **5 条**（全浮动），`dock_did_restart` signal 在，两个进程均在，重启后 yabai err / skhd err **无新增**、out 只 +1 行 `yabai configuration loaded..`，微信仍 `is-floating:true`（`rule --apply` 生效）。
+- live/提交：**未提交**。live 同步（目标已存在，先备份）：`~/.config/yabai/yabairc.backup.20260930_215333_090108000`、`~/.config/skhd/skhdrc.backup.20260930_215333_090108000`；清理旧配置遗留：清除 4/5/6/7 的陈旧标签，仅当窗口数为 0 时 `space --destroy` 掉 6、7（回到 5 个）。
+- 回滚信息：**未提交**；live 回滚：
+  ```bash
+  cp -p ~/.config/yabai/yabairc.backup.20260930_215333_090108000 ~/.config/yabai/yabairc
+  cp -p ~/.config/skhd/skhdrc.backup.20260930_215333_090108000  ~/.config/skhd/skhdrc
+  yabai --restart-service; skhd --restart-service
+  # 被销毁的两个空空间与被清除的标签不自动恢复（都是空空间/元数据，无窗口损失）
+  ```
+- 后续可能方向：① 第二档功能绑定待用户挑（重载 WM、`--warp` 并入/移出、`--toggle split`、最小化）；② `Mod+C/B/N/W` 现已空闲，可考虑 launcher（niri/awesome 都用 `Mod+C`）；③ aerospace 的 JankyBorders `active_color` 仍是 mauve `0xffcba6f7`，未与仓库蓝对齐。
+
+## 2026-09-30 — install.sh 部署 yabai/skhd 的 PATH 门控 bug（已修）+ live 被回退排查
+- 目的：回答「当前 install 脚本会不会部署 yabai/skhd 配置」，并顺带排查为何 live 与仓库不一致。
+- 发现 ①（真 bug，已修）：`~/.local/bin` 只由 `path.zsh` 加进 **zsh** 的 PATH，而 `install.sh` 跑在 **bash** 下且自己没补 PATH ⇒ 从 bash / 非交互 shell 启动时 `command -v yabai` 失败，`yabairc` 被**静默跳过**（只有一行 WARN）。同批被跳过的还有 `herdr` / `herdr-report` / `trae-cli`。修复：`install.sh` 顶部加 `export PATH="$HOME/.local/bin:$PATH"`（与 `path.zsh` 的「用户级优先」一致）。
+  证据（假 HOME + 假 `$HOME/.local/bin/yabai` + PATH 不含该目录）：修复前 `[WARN] yabai not found; skipping its configuration` 且文件不存在；修复后 `Successfully copied file yabai -> …/yabairc` 且与仓库 identical（exit 0）。对照实验用剥掉该行的临时副本 `.prefix-check.sh` 复现（跑完即删，仓库无残留）。
+  测试：`tests/install_macos_test.sh` 新增 `test_user_level_bin_is_on_the_gate_path`（yabai 只放 `$HOME/.local/bin`，断言仍部署）+ `tests/yabai_config_test.sh` 静态断言该 PATH 行。
+- 发现 ②（告警，未处置）：live `~/.config/yabai/yabairc` 与 `yabairc.backup.20260930_215333_090108000` **逐字节相同**（21:24 的上一轮版本：mauve + `label_spaces` + 7 空间 + C/B/N/W），mtime 同为 `21:24:32` ⇒ 是 `cp -p`（保留 mtime）从 backup 拷回，而非 install.sh（`cp -a` 会带 21:52 的仓库 mtime）；运行时同步印证：焦点色 `0xffcba6f7`、7 空间、标签 `4=C 5=B 6=N 7=W`、规则 7 条、skhdrc 无 `Mod+5`。效果等于仓库文档里那条回滚命令（`cp -p <backup> …` + `yabai --restart-service`）。
+  排查：仓库测试不可能造成（`install_backup_test.sh` 只 `source install.sh` 调 `clean_old_backups` 且跑临时目标；所有 install 测试用假 HOME；无测试调用 `yabai --restart-service`），shell history 无匹配记录 ⇒ 疑为人工/并发会话执行了回滚。**已向用户提问确认，未擅自改回 live。**
+- 变更文件：`install.sh`、`tests/install_macos_test.sh`、`tests/yabai_config_test.sh`、`logs/trace.md`。
+- 验证：`./tests/yabai_config_test.sh` PASS；`./tests/run.sh fast` = `PASS=41 FAIL=7 SKIP=1`（FAIL 集合与既有基线一致）；`sh -n` / `bash -n` / `git diff --check` OK；端到端部署实验如发现 ①。`tests/install_macos_test.sh` 在本机是平台 SKIP（要求 Linux），只有 `sh -n` 层面的检查。
+- live/提交：live **未同步**（见发现 ②，等用户确认后再重新应用新版）；仓库改动未提交。
+- 回滚信息：**未提交**；本轮只需 `git checkout -- install.sh tests/install_macos_test.sh tests/yabai_config_test.sh logs/trace.md` 即可丢弃（但与同任务其它改动同属一个 commit，整轮回滚见上条）。
+- 后续可能方向：① 待用户确认 live 回退来源后，重新 `./install.sh`（附带真机验证该 PATH 修复）+ 清掉多出的 2 个空间与 4 个标签 + 重启；② `~/.npm-global/bin`、`~/.local/opt/node-current/bin` 等平台专属目录在 bash 下同样不在 PATH，install.sh 目前只补了共享的 `~/.local/bin`，需要时再扩。

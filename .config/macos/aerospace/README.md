@@ -2,6 +2,10 @@
 
 macOS 上的平铺窗口管理器配置，目标是尽量对齐 Linux AwesomeWM 的桌面肌肉记忆。
 
+## 适用机器
+
+**白苹果（Apple Silicon / 官方硬件）的首选窗口管理器。** 黑苹果 x86_64（本机 MacBookPro15,2）以 **yabai + skhd** 为首选，见 `../yabai/`：那条路线不依赖 Homebrew，且 SIP 已由 OpenCore 关闭，scripting addition 装完即用。两者都用 `alt` 作 Mod，**不要同机同跑**；`install.sh` 按 `command -v aerospace` / `command -v yabai` 分别部署。
+
 ## Mod 键
 
 当前 AeroSpace 配置使用 `alt` 作为 `Mod`，对应物理键盘上的 Option 键。

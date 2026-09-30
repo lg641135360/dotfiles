@@ -1,6 +1,14 @@
 #!/bin/bash
 set -euo pipefail  # Exit on error, undefined vars, pipe failures
 
+# User-level CLIs live in ~/.local/bin (see README and the 2026-09-30 decision in
+# memory/organizing_preferences.md). Only path.zsh puts that directory on PATH,
+# and this script runs under bash — so when it is started from a non-interactive
+# shell (bash, IDE task, CI), every `command -v <tool>` gate silently skips its
+# configuration. Measured before this line existed: yabai / herdr /
+# herdr-report / trae-cli were all skipped on the hackintosh.
+export PATH="$HOME/.local/bin:$PATH"
+
 # Script configuration
 os=${DOTFILES_OS:-$(uname -s)}
 arch=${DOTFILES_ARCH:-$(uname -m)}
@@ -447,6 +455,8 @@ zshrc_pre_files=(
 
 macos_configs=(
     "command -v aerospace|.config/macos/aerospace/aerospace.toml|~/.config/aerospace/aerospace.toml|Aerospace"
+    "command -v yabai|.config/macos/yabai/yabairc|~/.config/yabai/yabairc|yabai"
+    "command -v skhd|.config/macos/yabai/skhdrc|~/.config/skhd/skhdrc|skhd"
     "command -v alacritty|.config/shared/alacritty/keys.macos.toml|~/.config/alacritty/keys.toml|Alacritty keys"
     "command -v alacritty|.config/shared/alacritty/window.macos.toml|~/.config/alacritty/window.toml|Alacritty window"
     "command -v ssh|.config/macos/ssh/config|~/.ssh/config|SSH config (macOS)"
@@ -677,8 +687,10 @@ main() {
         log_info "Processing macOS configurations..."
         process_configs macos_configs
 
-        # Check optional macOS dependencies
-        if ! command -v borders &> /dev/null; then
+        # Check optional macOS dependencies. JankyBorders only serves AeroSpace
+        # (yabai 6.0+ dropped built-in window borders and JankyBorders is not
+        # packaged in MacPorts), so only hint when AeroSpace is in use.
+        if command -v aerospace &> /dev/null && ! command -v borders &> /dev/null; then
             log_warn "borders not found — install with: brew install felixkratz/formulae/borders"
         fi
 

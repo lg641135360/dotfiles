@@ -57,6 +57,14 @@ set_value com.apple.dock autohide-time-modifier float 0
 # Don't show recent apps
 set_bool com.apple.dock show-recents false
 
+# --- Mission Control / Desktop（yabai & AeroSpace 的窗口管理前提）---
+# 关闭"根据最近使用情况自动重新排列空间"：空间顺序稳定，WM 的 space 索引/标签才可靠
+set_bool com.apple.dock mru-spaces false
+# "点按墙纸以显示桌面"设为"仅在台前调度时"（macOS 14+），否则空间/显示器聚焦命令不稳定
+set_bool com.apple.WindowManager EnableStandardClickToShowDesktop false
+# 保持桌面图标可见（"显示项目"开启）；Finder 桌面窗口是聚焦空空间的前提
+set_bool com.apple.WindowManager StandardHideDesktopIcons false
+
 # --- Screenshots ---
 # Disable shadow in screenshots
 set_bool com.apple.screencapture disable-shadow true

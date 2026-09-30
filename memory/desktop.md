@@ -1,5 +1,18 @@
 # 桌面与工具偏好
 
+## macOS 窗口管理器（2026-09-30 决策）
+- 按机型二选一：**黑苹果 x86_64（i5-8250U / macOS 15.x）首选 yabai + skhd**；**白苹果（Apple Silicon / 官方硬件）首选 AeroSpace**。两者都用 `alt` 作 Mod，**不要同机同跑**；配置分别在 `.config/macos/yabai/` 与 `.config/macos/aerospace/`，`install.sh` 按命令可用性分别部署。
+- yabai 走官方预编译 release 装到 `~/.local/bin`（skhd 无预编译产物，走 MacPorts）。预编译二进制已由维护者自签（`Authority=yabai-cert`、`Identifier=com.asmvik.yabai`），**不需要本机建证书/重签**，TCC 辅助功能授权能跨 yabai 升级保留；`spctl` 判 `rejected` 无害，但只能用 `curl` 下载（浏览器会加 quarantine 被 Gatekeeper 拦）。MacPorts 版 yabai 是源码编译，必须自建 `yabai-cert` 签名且每次 `port upgrade` 后重签 + 重算 sudoers 哈希，故不采用。
+- macOS 系统升级**不需要重新签名**（签名在二进制上）；但 SA 载荷与系统版本绑定，点版本升级后通常要配套升级 yabai 并重跑 `sudo yabai --load-sa`；报 `failed to inject payload` 时先升级 yabai，再怀疑 SIP/签名。
+- 黑苹果 SIP 状态由 OpenCore `csr-active-config` 决定（当前 `0x0FFF` 全关），**不要**用 `csrutil` 调整（会破坏 OCLP-Mod root patch）；SA 免密条目在 `/private/etc/sudoers.d/yabai`，绑的是 yabai 二进制的 sha256，只有换 yabai 版本时才需要更新。
+- **yabai 工作区模型（2026-09-30 用户决策）：只有 index 1..5，不用命名工作区。** 直接用 mission-control index 寻址，**不对空间打任何标签**；原来沿袭 AeroSpace 的 `C(ode)/B(rowser)/N(ote)/W(echat)` 已取消（`Mod+C/B/N/W` 随之释放），也不再有 `space=` 规则。`yabairc` 的 `ensure_spaces` 只保证空间数 ≥ 5（只建不删）。
+- **焦点/插入反馈色统一用 Catppuccin Mocha 蓝 `0xff89b4fa`**（2026-09-30 对齐决策）：仓库 Linux 两侧也是蓝（niri `focus-ring active-color`、awesome `border_focus`/`fg_focus`），仅 aerospace 的 JankyBorders `active_color` 还是 mauve `0xffcba6f7`（待对齐）。
+- yabai 实机踩坑（2026-09-30 v7.1.25 / macOS 15.8 / AppleLocale=zh_CN 实测，写配置前必读）：① **纯数字不能当标签**（`space --label 1` → `'1' cannot be used as a label.`；label 必须是字符串 token，否则与 mission-control index 在 `SPACE_SEL` 里撞车）——这是本配置彻底不用标签的直接原因；② `space --create` **不会**把焦点移到新空间，且新建后 `query --spaces` 不一定马上反映 ⇒ 补空间的循环必须用本地计数推进；③ `space --label` 不带 SPACE_SEL 时作用于**当前聚焦空间**（若以后重新引入标签，①②③叠加会把所有标签反复打在同一个空间上——首版实测 7 个空间全建好、标签只剩最后一个 `W` 落在 index 1）；④ yabai 在**注册规则时**就校验 `SPACE_SEL`，标签不存在会整条拒掉（日志 `value 'C' is not a valid option for SPACE_SEL`），加 `space=` 规则前必须先确认目标空间/标签存在。
+- yabai 规则的另外两条硬约束：① **`app=` 匹配的是本地化应用名**（本机 zh_CN 下微信报「微信」、系统设置报「系统设置」），只写英文名会**静默不匹配**；规则也不支持 bundle-id，只能用中英 alternation；② **规则只对注册之后新出现的窗口生效**，已开着的窗口需要 `yabai -m rule --apply` 回放（当前只剩浮动规则，回放没有跨空间搬窗口的副作用）。
+- yabai 配置验证手段（skhd 无 dry-run，没有 `niri validate` 那种入口）：`sh -n ~/.config/yabai/yabairc`、`yabai -m query --spaces`（能跑 ⇒ SA 已加载）、`yabai -m rule --list`、`yabai -m signal --list`，日志在 `/tmp/{yabai,skhd}_rikoo.{out,err}.log`；`tests/yabai_config_test.sh` 会解析 skhdrc 并与期望绑定表**逐条比对**（缺/重复/未登记的额外绑定都会失败），改绑定时必须同步**配置、README 键位表、测试表**三处。
+- yabai `--resize` 的 handle 语义（`src/window_manager.c` 的 `window_manager_resize_window_relative`）：handle 指的是**被拖动的 fence**——`first_child`（左/上）只有东/南 fence，`second_child`（右/下）只有西/北 fence；占满整屏的单窗口两边都没有 fence。因此单个 handle 有**半数情况**报 `cannot locate a bsp node fence`，配置里要按 右→左→下→上 依次尝试（等效 AeroSpace 的 `resize smart`），并 `2>/dev/null` 避免失败尝试刷进 `/tmp/skhd_*.err.log`。
+- `--load-sa` 的语义是 **Install** and load：会把 SA 装到 `/Library/ScriptingAdditions/yabai.osax`（loader + payload.bundle），每次开机/Dock 重启都要重新注入（由 `yabairc` 的 `dock_did_restart` signal 负责）；所有失败情形都会打 stderr（`src/osax/loader.m`），**退出码 0 且无输出即成功**；卸载用 `sudo yabai --uninstall-sa`。skhd 没有 dry-run，未授权辅助功能时直接 `must be run with accessibility access! abort..`，所以 skhdrc 的键位只能等授权后由 skhd 自己解析验证（解析错误会进 `/tmp/skhd_<user>.err.log`）。
+
 ## Picom
 - 给 `utility/dialog` 恢复轻阴影，在 `shadow-exclude` 里排除 `tblive` 等辅助条窗口。
 - Ubuntu x64 + picom v10 环境：`shadow-exclude` 里的 `_GTK_FRAME_EXTENTS@` 会触发 `c2_parse_target` 解析错误；不在 Ubuntu x64 配置里保留它。

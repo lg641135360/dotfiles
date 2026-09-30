@@ -1,0 +1,88 @@
+#!/usr/bin/env sh
+#
+# yabai —— macOS x86_64（黑苹果）首选窗口管理器。
+# 白苹果（Apple Silicon / 官方硬件）首选 AeroSpace，见 ../aerospace/；
+# 两者都用 alt 作 Mod，不要同机同跑。安装、升级、SA 与权限步骤见同目录 README.md。
+#
+# yabai 会自动读取 $XDG_CONFIG_HOME/yabai/yabairc（本仓库部署到
+# ~/.config/yabai/yabairc），因此不需要再放一份 ~/.yabairc。
+
+# ---------------------------------------------------------------------------
+# Scripting addition（SA）
+# ---------------------------------------------------------------------------
+# 移动/创建/销毁空间、窗口阴影、sticky/pip/scratchpad 等依赖 SA。
+# 需要 /private/etc/sudoers.d/yabai 的免密条目（见 README.md），
+# 否则这一行会卡在密码提示上，launchd 服务起不来。
+yabai -m signal --add event=dock_did_restart action="sudo yabai --load-sa"
+sudo yabai --load-sa
+
+# ---------------------------------------------------------------------------
+# 全局配置（留白/间隙与 AeroSpace 的 gaps 5 对齐）
+# ---------------------------------------------------------------------------
+yabai -m config                                 \
+    layout                       bsp            \
+    window_gap                   5              \
+    top_padding                  5              \
+    bottom_padding               5              \
+    left_padding                 5              \
+    right_padding                5              \
+    split_ratio                  0.50           \
+    split_type                   auto           \
+    auto_balance                 off            \
+    window_placement             second_child   \
+    window_insertion_point       focused        \
+    window_zoom_persist          on             \
+    window_shadow                on             \
+    skip_window_focus_animation  on             \
+    window_animation_duration    0.0            \
+    window_opacity_duration      0.0            \
+    window_opacity               off            \
+    active_window_opacity        1.0            \
+    normal_window_opacity        1.0            \
+    mouse_follows_focus          off            \
+    focus_follows_mouse          off            \
+    insert_feedback_color        0xff89b4fa     \
+    mouse_modifier               fn             \
+    mouse_action1                move           \
+    mouse_action2                resize         \
+    mouse_drop_action            swap
+
+# ---------------------------------------------------------------------------
+# 浮动窗口规则（对齐 AeroSpace 的 on-window-detected）
+# ---------------------------------------------------------------------------
+# 注意：`app=` 匹配的是**本地化应用名**（本机 AppleLocale=zh_CN）。实测微信报的是
+# 「微信」、系统设置报的是「系统设置」，只写英文名会**静默不匹配**（无报错，就是不生效），
+# 所以这里统一用中英并列的 alternation。yabai 的规则不支持 bundle-id。
+yabai -m rule --add app="^Finder$"                                                 manage=off
+yabai -m rule --add app="^(WeChat|微信)$"                                           manage=off
+yabai -m rule --add app="^(System Settings|System Preferences|系统设置|系统偏好设置)$" manage=off
+yabai -m rule --add app="^Spotlight$"                                              manage=off
+yabai -m rule --add title="Picture-in-Picture|画中画"                               manage=off
+
+# ---------------------------------------------------------------------------
+# 空间：只有按 mission-control index 寻址的 1..5（不打任何标签）
+# ---------------------------------------------------------------------------
+# 只用数字工作区，所以不需要 yabai 的 label；而且 yabai **不允许纯数字标签**
+# （`space --label 1` → `'1' cannot be used as a label.`：label 必须是字符串 token，
+# 否则会与 mission-control index 在 `SPACE_SEL` 里撞车），数字工作区用 index 寻址本来
+# 就够用。顺序稳定性靠 defaults.sh 里的 `mru-spaces=false` 保证。
+#
+# 幂等：先把空间数补到 5。`space --create` 不会把焦点移到新空间、且 `query --spaces`
+# 不一定马上反映新建结果，所以用本地计数推进（避免多建一个），create 返回非 0 就停手。
+# 依赖 SIP 部分关闭（本机黑苹果由 OpenCore 关闭）且 SA 已加载；失败时静默跳过。
+ensure_spaces() {
+    _count=$(yabai -m query --spaces 2>/dev/null | grep -c '"index"')
+
+    while [ "${_count:-0}" -lt 5 ]; do
+        yabai -m space --create >/dev/null 2>&1 || break
+        _count=$((_count + 1))
+    done
+}
+
+ensure_spaces
+
+# yabai 的规则只对**规则注册之后新出现**的窗口生效，已开着的窗口不会自动归位。
+# 启动时把现有规则回放到当前窗口，登录/重启后 Finder / 微信 / 系统设置直接浮动。
+yabai -m rule --apply >/dev/null 2>&1 || true
+
+echo "yabai configuration loaded.."
