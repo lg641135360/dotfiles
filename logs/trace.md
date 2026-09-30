@@ -439,6 +439,6 @@
   2. 逐个确认窗口数后 `space --destroy` 掉空空间 7、6 → 空间回到 **5 个**（1/2/3 各有 1 个窗口：Chrome / 微信 / cmux；4/5 空）。
   3. `yabai --restart-service` + `skhd --restart-service`：空间恒 5、焦点色 `0xff89b4fa`、规则 5 条、`dock_did_restart` signal 在、微信 `is-floating=true`、yabai out 新增 1 行 `yabai configuration loaded..`、yabai err 无新增。
 - 排查（重要）：`/tmp/skhd_rikoo.err.log` 里有一条 `skhd: could not open file '~/.config/skhd/skhdrc'`。再重启一次 skhd **新增 0 行** ⇒ 该错误是历史，时间点只能是 install.sh 备份+覆盖的那一瞬间：`copy_config` 先 `mv` 目标为 backup 再 `cp` 回来，文件短暂不存在，而 skhd 会监视配置文件并热重载。**不是配置损坏**，当前 skhd 已正常加载。
-- 提交：本轮只有 live 与运行态变更，**仓库侧无改动**（trace 本条除外）；未提交。
+- 提交：本轮只有 live 与运行态变更；仓库侧只有 trace 本条目，已随 `4d7d30d` 提交并推送 `origin/main`。
 - 回滚信息：本轮**无仓库改动需回滚**（trace 本条除外）。live 侧现为期望状态（5 个空间）不需回退；若要回到「7 空间 + C/B/N/W 标签」的旧模型，可 `cp -p ~/.config/yabai/yabairc.backup.20260930_215333_090108000 ~/.config/yabai/yabairc` + `cp -p ~/.config/skhd/skhdrc.backup.20260930_215333_090108000 ~/.config/skhd/skhdrc` 后重启（仍需手动把空间补回 7 个）。
 - 后续可能方向：① `logs/trace.md` 已超 430 行，远超文件内建议的 ≤150 行，归档（`npm --prefix scripts run archive-trace`）仍未做；② trace 里 `c8e393f` 那条（他人 entry）仍写「未提交」，实际已提交，未擅自改；③ live 已与仓库一致，yabai/skhd 这套部署至此完整落地。
