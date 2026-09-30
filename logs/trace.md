@@ -319,3 +319,15 @@
   cp -p ~/.config/niri/dms/windowrules.kdl.backup.20260928_101538_3405249 ~/.config/niri/dms/windowrules.kdl
   ```
 - 后续可能方向：① 标题以「钉钉」开头/结尾的弹窗仍会平铺（与仓库配置同残余），若 DMS 后续支持 `exclude` 编辑入口可换成单条 exclude 规则；② 仓库 `common.kdl` 的其它规则（键位等）在 DMS 机器仍缺席，DMS 侧重建属长期事项。
+
+## 2026-09-30 — 黑苹果用户级 CLI 迁移尝试并回退；删除 update-ai-clis
+- 目的：用户先问「哪些包能像 pi 一样迁到用户目录」，据此把纯 CLI 工具从 MacPorts 迁到 `~/.local` 并配套统一升级脚本；实施后用户质疑「有些 app 用 port 升级才是正解」「仓库里放 update 脚本不常规」，故全量回退，升级方式改回各工具自带 updater。
+- 环境结论（只读勘察）：port vs 上游——neovim 0.12.4/0.12.5、yazi 26.9.1/=、starship 1.26.0/=、nodejs22 22.22.2；`pi-coding-agent` port 仅 0.87.1（npm 已 0.99.1），`herdr` port 仅 0.8.2（官方 0.9.3）且 `depends_build {zig-0.15 rust cargo}` 需源码编译。结论：常规 CLI 交回 port；只有 npm 分发的 AI CLI 与 herdr 值得用户级。
+- 关键发现（本机实测）：**裸 `npm update -g` 不可用**——MacPorts 给 npm10 打了补丁（`/opt/local/lib/node_modules/npm/lib/commands/update.js`），无包名（或参数含 `npm`）时直接 `throw` 退出（避免顺带升级 npm 自身）；显式列包 `npm update -g <pkgs>` 可用。三个 AI CLI 自带 updater 实测均 rc=0：`pi update --self`（already up to date）、`claude update`（Installation method set to: global / up to date）、`codex update`（内部执行 `npm install -g @openai/codex`）。
+- 已做（仓库，未提交）：先新增 `path.zsh` Darwin `node-current` + 用户级优先、`.config/scripts/update-user-clis`、install 项、测试、README/memory；随后回退——`git checkout HEAD -- .config/shared/zsh/path.zsh tests/zsh_path_test.sh`，删除 `.config/scripts/{update-ai-clis,update-user-clis}` 与 `tests/{update_ai_clis,update_user_clis}_test.sh`，从 `install.sh`/`README.md`/`memory/organizing_preferences.md` 移除对应内容。按用户要求把 `update-ai-clis`（硬编码 claude-code+codex）一并删除，改为文档化「各 CLI 自带 updater」；`tests/repo_docs_test.sh` 的 `update-ai-clis` 断言换成 `npm update -g`；`memory/herdr.md` 新增「安装与升级」段（port 0.8.2 stale + 源码编译，走官方 installer + `herdr update`）。
+- live（本机）：曾装用户级 node v22.23.3 / nvim 0.12.5 / yazi 26.9.1 / starship 1.26.0，回退时已全部删除；`~/.local/bin/herdr`（0.9.3）保留。`~/.config/scripts/update-ai-clis` 移为 `~/.config/scripts/update-ai-clis.backup.20260930192118`。port 包一个都未卸载（六个仍 active）；live `~/.config/zsh/path.zsh` 与仓库一致。
+- 验证：`bash -n install.sh`、`git diff --check` OK；`repo_docs_test`/`zsh_path_test`/`zsh_plugins`/`zsh_functions`/`zsh_history`/`macos_defaults`/`herdr_config` PASS；`install_backup`/`install_bash_reexec`/`install_zshenv` 以 `sh` 跑 PASS；`./tests/run.sh fast` = PASS=41 FAIL=7 SKIP=1，7 个 FAIL 与既有 macOS 可移植性基线一致（`install_macos_test` 为平台 SKIP）。
+- 回滚信息：**未提交**。仓库被删脚本可 `git checkout HEAD -- .config/scripts/update-ai-clis tests/update_ai_clis_test.sh` 恢复；live 脚本恢复 `mv ~/.config/scripts/update-ai-clis.backup.20260930192118 ~/.config/scripts/update-ai-clis`；live 用户级二进制已删，无 backup 目录（按需重装）。
+- 未完成（可选，需用户 sudo）：卸载陈旧 port `pi-coding-agent`（0.87.1）——`sudo port uninstall pi-coding-agent`（`nodejs22`/`npm10` 保留作 npm 宿主）。
+- 注意：本轮与另一会话的「yabai/skhd」改动共存于同一工作区（对方改 `install.sh`/`defaults.sh`/`aerospace/README.md`/`memory/desktop.md`/`tests/install_macos_test.sh`，新增 `.config/macos/yabai/*`、`tests/yabai_config_test.sh`），提交时建议按主题分开。
+- 后续可能方向：① `path.zsh` 的「个人 bin 应晚于平台分支 prepend」本轮回退后仍是潜在遮蔽点（`~/.local/bin` 排在 `/opt/local/bin` 之后），若日后出现同名 port（如 herdr/yabai）再处理；② 是否把「黑苹果不用裸 `npm update -g`」提升到 `memory/`（现已写入）。

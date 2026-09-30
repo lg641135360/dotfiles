@@ -20,7 +20,6 @@
 | `obsidian-wayland` | Obsidian (Electron) Wayland 启动器（Wayland 会话加 `--ozone-platform=wayland --enable-wayland-ime --disable-vulkan`，X11 原样透传）；二进制固定为 `/opt/Obsidian/obsidian`（x86_64 官方 deb；aarch64 上游无 deb，用官方 `obsidian-<ver>-arm64.tar.gz` 解压到同一路径），缺失时通知 + stderr + 退出 127 而非静默失败；`OBSIDIAN_WAYLAND_BIN` 可覆盖路径（测试钩子） |
 | `trae-cn-wayland` | Trae CN (Electron) Wayland 启动器（Wayland 会话加 ozone-wayland + Wayland IME，X11 原样透传） |
 | `chatgpt-wayland` | ChatGPT 桌面版 (Electron) Wayland 启动器（Wayland 会话加 `--ozone-platform=wayland --enable-wayland-ime`，X11 原样透传；否则 XWayland 下 fcitx5 走 XIM 会 preedit 不同步） |
-| `update-ai-clis` | 一键更新 npm 全局安装的 AI CLI（claude-code / codex） |
 
 ## 临时停止飞连系统服务
 
@@ -39,13 +38,23 @@
 
 飞连可能承担公司 VPN、终端安全或访问控制功能；禁用前应确认当前不依赖相关内网与合规能力。
 
-## 一键更新 AI CLI（claude-code / codex）
+## 更新 npm 全局安装的 CLI
 
-claude-code 与 codex 均通过 npm 全局安装（不走 brew cask：claude-code 的原生二进制源
-`downloads.claude.ai` 在国内被阻断，且两者统一走 npm 便于同步更新），因此用 `update-ai-clis`
-作为一键升级入口，内部执行 `npm update -g @anthropic-ai/claude-code @openai/codex`。
+claude-code / codex / pi 均通过 npm 全局安装（不走 brew cask：claude-code 的原生二进制源
+`downloads.claude.ai` 在国内被阻断，且统一走 npm 便于同步更新）。升级优先用各自的自带
+updater，不需要额外的仓库脚本：
 
 ```sh
-~/.config/scripts/update-ai-clis            # 更新两个包到最新
-~/.config/scripts/update-ai-clis --check    # 仅查看当前版本
+pi update --self      # pi（`pi update` 还会更新扩展与模型目录）
+claude update         # claude-code
+codex update          # codex（内部会调 `npm install -g @openai/codex`）
+npm ls -g --depth=0   # 查看当前版本
+```
+
+注意：**不要用裸 `npm update -g`**。MacPorts 的 npm10 在
+`lib/commands/update.js` 里打了补丁：只要没带包名（或包含 `npm`）就直接报错退出，
+因为无参数形式会顺带升级 npm 自身。确实要走 npm 时显式列包：
+
+```sh
+npm update -g @earendil-works/pi-coding-agent @anthropic-ai/claude-code @openai/codex @agegr/pi-web
 ```

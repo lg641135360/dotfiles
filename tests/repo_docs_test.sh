@@ -142,7 +142,7 @@ assert_contains 'dingtalk-wayland' "$REPO_ROOT/.config/scripts/README.md"
 assert_contains 'chatgpt-wayland' "$ROOT_README"
 assert_contains 'clipboard-wayland' "$ROOT_README"
 assert_contains 'obsidian-wayland' "$ROOT_README"
-assert_contains 'update-ai-clis' "$ROOT_README"
+assert_contains 'npm update -g' "$ROOT_README"
 assert_contains '官方 Elevator.sh' "$ROOT_README"
 
 # Git memory

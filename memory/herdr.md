@@ -1,5 +1,8 @@
 # herdr 偏好
 
+## 安装与升级
+- 不走 MacPorts（2026-09-30 复核）：`herdr` port 停在 0.8.2（上游已 0.9.3），且 `depends_build {port:zig-0.15 port:rust port:cargo}` 要源码编译。用官方脚本 `curl -fsSL https://herdr.dev/install.sh | sh` 装到 `~/.local/bin`（`HERDR_INSTALL_DIR` 可覆盖），升级用自带 `herdr update`；两者走同一 `herdr.dev/latest.json` manifest 并做 sha256 校验。同理不进 Brewfile。
+
 ## 使用约定（workspace / tab / pane）
 - 层级映射（区别于 tmux）：session ≈ workspace（项目/任务容器）、window ≈ tab（视图分层）、pane ≈ pane（真实终端分屏）。
 - 使用优先级：workspace 隔离 > tab 分层 > pane 克制。
