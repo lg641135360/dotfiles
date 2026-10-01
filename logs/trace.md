@@ -582,7 +582,7 @@
 - 已做（仓库）：`yabairc` 在 `rule --apply` 之前新增 5 条规则（4 应用 + `subrole="AXDialog"` 通用对话框兜底）；`README.md` 验证段规则数 5→10；`tests/yabai_config_test.sh` 补 5 条断言。
 - 验证：`sh -n yabairc` OK；`./tests/yabai_config_test.sh` PASS（含新断言）；`git diff --check` OK。
 - 未完成（需用户执行；agent 无法覆盖 `~/.config` 已存在文件）：`cd ~/Documents/dotfiles && ./install.sh && yabai --restart-service`；随后 `yabai -m rule --list` 应 10 条，打开四个应用验证浮动、任意对话框验证不被平铺。
-- live/提交：**未提交**（工作区还有本日早些时候的 HiDPI 两文件改动，建议按主题分别提交）。
+- live/提交：**已提交 `0054034` 并推送**（连同本日 HiDPI 沉淀一并入库）。
 - 回滚：`git checkout -- .config/macos/yabai/yabairc .config/macos/yabai/README.md tests/yabai_config_test.sh`；live 侧恢复 = `cp -p ~/.config/yabai/yabairc.backup.<时间戳> ~/.config/yabai/yabairc && yabai --restart-service`。
 
 ## 2026-10-01 — skhdrc：Mod+h/j/k/l 适配 stack 布局（fallback 链）
@@ -591,7 +591,7 @@
 - 设计（源码确证 `window_manager.c:1059-1091`）：`stack.prev/next` 仅在节点含多窗口（stack 布局或 bsp 节点内堆叠）时命中，普通单窗口节点必然返回 NULL → 可用 `yabai -m window --focus stack.prev 2>/dev/null || yabai -m window --focus west` 形式的链兼容两种布局（同 resize 链的既有惯例）；映射 h/k=prev、j/l=next。
 - 已做（仓库）：`skhdrc` 4 条聚焦绑定改为 fallback 链（含注释）；`tests/yabai_config_test.sh` 期望表同步；`README.md` 键位表该行更新为「聚焦窗口（bsp 按方向，stack 按栈序）」。
 - 验证：`./tests/yabai_config_test.sh` PASS（绑定表精确比对）；`git diff --check` OK。
-- live/提交：live `yabairc` **已是最新**（用户已部署上轮浮动规则）；live `skhdrc` 落后（本轮待部署）；**未提交**。部署：`cd ~/Documents/dotfiles && ./install.sh && skhd --restart-service`；实测：`Mod+,` 进 stack → `Mod+j/l` 切栈序，`Mod+/` 回 bsp → 方向键照旧。
+- live/提交：live `yabairc` **已是最新**（用户已部署上轮浮动规则）；live `skhdrc` 落后（本轮待部署）；**已提交 `5e1a02f` 并推送**。部署：`cd ~/Documents/dotfiles && ./install.sh && skhd --restart-service`；实测：`Mod+,` 进 stack → `Mod+j/l` 切栈序，`Mod+/` 回 bsp → 方向键照旧。
 - 回滚：`git checkout -- .config/macos/yabai/skhdrc tests/yabai_config_test.sh .config/macos/yabai/README.md`；live 恢复 = `cp -p ~/.config/skhd/skhdrc.backup.<时间戳> ~/.config/skhd/skhdrc && skhd --restart-service`。
 
 ## 2026-10-01 — LinearMouse 配置清理并纳入仓库（鼠标滚动方向 + 侧键）
@@ -601,5 +601,5 @@
 - 已做（仓库）：新增 `.config/macos/linearmouse/linearmouse.json`（与 live 逐字节一致）与 `.config/macos/linearmouse/README.md`（机制/验证/安装/回滚）；`install.sh` 的 `macos_configs` 新增 `/Applications/LinearMouse.app` 门控项；根 `README.md` 结构树补 `linearmouse/`；新增 `tests/linearmouse_config_test.sh`（单 scheme、无 serialNumber、无 trackpad、reverse/universalBackForward、install 门控与 README 断言）。
 - 验证：`python3 -m json.tool` valid + 结构断言 OK；`./tests/linearmouse_config_test.sh`、`repo_docs_test`、`karabiner_config_test`、`yabai_config_test`、`macos_defaults_test` 全 PASS；`sh -n` / `bash -n install.sh` OK；`cmp` live==repo。`install_macos_test.sh` 在 Darwin 上 SKIP（设计如此）。**既有环境失败（非本轮引入）**：`install_backup_test.sh` 走 `#!/bin/bash`（本机 = 3.2）必失败（`mapfile: command not found`），干净 HEAD 检出对照同样失败，`/opt/local/bin/bash`（5.x）下 PASS。
 - 生效确认：live 编辑发生在 LinearMouse 运行期间，按源码应已在 0.25s 内热重载（应出现「Configuration Reloaded」通知）；reload 路径与 FileWatcher 均不打日志，无客观日志证据。**待用户实按**：滚轮向下 = 内容向下（传统方向）、触控板双指上滑仍为自然；GUI Scrolling 面板 Reverse 应为开。
-- 回滚信息：**未提交**。live 恢复：`cp -p ~/.config/linearmouse/linearmouse.json.backup.20261001_204422 ~/.config/linearmouse/linearmouse.json`（保存即热重载）。仓库侧：`rm -rf .config/macos/linearmouse tests/linearmouse_config_test.sh && git checkout -- install.sh README.md memory/desktop.md`（trace 本条目可选保留）。
-- 后续可能方向：① 提交（建议连同 trace/memory 一个 commit）；② 白苹果装 LinearMouse 可直接复用本配置（Brewfile 未收录 cask）；③ 上轮软件盘点的记录建议（cmux、grok、MacPorts 清单）尚未落地；④ trace 已近 600 行，归档仍未做。
+- 回滚信息：**已提交 `52a236b`**（未推送）。live 恢复：`cp -p ~/.config/linearmouse/linearmouse.json.backup.20261001_204422 ~/.config/linearmouse/linearmouse.json`（保存即热重载）。仓库侧：`rm -rf .config/macos/linearmouse tests/linearmouse_config_test.sh && git checkout -- install.sh README.md memory/desktop.md`（trace 本条目可选保留）。
+- 后续可能方向：① 已提交 `52a236b`（连同 trace/memory 一个 commit，未推送）；② 白苹果装 LinearMouse 可直接复用本配置（Brewfile 未收录 cask）；③ 上轮软件盘点的记录建议（cmux、grok、MacPorts 清单）尚未落地；④ trace 已近 600 行，归档仍未做。
