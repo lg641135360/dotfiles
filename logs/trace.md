@@ -603,3 +603,20 @@
 - 生效确认：live 编辑发生在 LinearMouse 运行期间，按源码应已在 0.25s 内热重载（应出现「Configuration Reloaded」通知）；reload 路径与 FileWatcher 均不打日志，无客观日志证据。**待用户实按**：滚轮向下 = 内容向下（传统方向）、触控板双指上滑仍为自然；GUI Scrolling 面板 Reverse 应为开。
 - 回滚信息：**已提交 `52a236b`**（未推送）。live 恢复：`cp -p ~/.config/linearmouse/linearmouse.json.backup.20261001_204422 ~/.config/linearmouse/linearmouse.json`（保存即热重载）。仓库侧：`rm -rf .config/macos/linearmouse tests/linearmouse_config_test.sh && git checkout -- install.sh README.md memory/desktop.md`（trace 本条目可选保留）。
 - 后续可能方向：① 已提交 `52a236b`（连同 trace/memory 一个 commit，未推送）；② 白苹果装 LinearMouse 可直接复用本配置（Brewfile 未收录 cask）；③ 上轮软件盘点的记录建议（cmux、grok、MacPorts 清单）尚未落地；④ trace 已近 600 行，归档仍未做。
+
+## 2026-10-01 — 负载优化实验：reduceMotion + 调度中心动画归零（稳态无影响，已回滚）
+- 目的：用户要求先落地「减少动态效果」+「调度中心动画归零」两项，实测对系统负载的影响（此前只读盘点结论：系统守护全 0%，load 由应用层 + WindowServer 主导）。
+- 已做（live 系统偏好，非仓库文件）：`defaults write com.apple.universalaccess reduceMotion -bool true` + `defaults write com.apple.dock expose-animation-duration -float 0.1` + `killall Dock`；写入校验 reduceMotion=1、expose=0.1；Dock 重启后 yabai 存活、SA 信号链正常。
+- 实测（同法对照：各 6 采样 × 2s，`top -l 6 -s 2 -n 15 -o cpu`）：Load Avg 1min 4.23→4.26；CPU idle 70-82%→69-82%；WindowServer 均值 ~19.0%→~20.4%（样本 17.2-19.9 vs 17.3-22.2，改后含 Dock 重启重绘）。**结论：两项对稳态负载无可测影响**——只作用于动画瞬间，不触及 HiDPI 每帧合成成本（稳态 WindowServer ~19% 由此主导）。真实收益是体感（切空间/调度中心过渡更干脆），不应与"省负载"混谈。
+- live/提交：仓库无文件改动（trace 本条除外）；**未提交**。用户决定**回滚**，已执行 `defaults delete` 两键 + `killall Dock`：校验均回到 "does not exist"、Dock 重建（PID 59595）、yabai/borders 存活、负载回到改前区间。
+- 回滚锚点：两键改前均不存在（"does not exist"）；回滚命令（已执行，留存备用）= `defaults delete com.apple.universalaccess reduceMotion && defaults delete com.apple.dock expose-animation-duration && killall Dock`。
+- 后续可能方向：① 结论：两项对稳态负载无可测影响，已回滚恢复默认动画（体感收益不值得留）；② 下一个真实杠杆 = `com.apple.universalaccess reduceTransparency`（毛玻璃是稳态合成成本，代价是观感，未试）；③ 测量法（同法对照 + 区间对比 + 噪声提示）可复用于后续实验。
+
+## 2026-10-01 — WindowServer ~21% 定位：Trae CN 界面持续重绘，非系统缺陷
+- 目的：用户要求继续定位 WindowServer 持续 ~20% CPU 的原因（承接上一条负载实验）。
+- 方法（只读 + 短暂实验，全部已恢复原状）：`top -l N -s 2` 采样、`ps -o cputime` 差值法（15s/30s/60s 窗口）、用户执行的 `sudo sample WindowServer 3`、borders kill/restore A/B、Stats kill/relaunch A/B、WallpaperVideoExtension cputime 增量、`ioreg` GPU 利用率、Trae 全进程（22 个）逐个 cputime 差值分解。
+- 结论（证据链）：① **稳态 ~21% 与 Trae CN agent 活动期的界面持续渲染强相关**——同一 30s 窗口：Trae 全家族 37.7%（分解 = GPU helper 13.8% + renderer 12.6% + 其余 ~1-3%），WindowServer 21.1%，且 60s 内 12 段全部稳定 20-23%（连续非成簇）；② **界面静止时无开销**——用户手动 `sudo sample` 的 3s 内主线程 2242 样本中 ~2108 阻塞在 `mach_msg`（整进程 collapse 后 99% 在 mach_msg2_trap/workq_kernreturn/semaphore），在 CPU 上仅 ~1%（Metal 合成路径零星帧），即 WS 无稳态泄漏；③ 已排除：borders（A/B 无差）、Stats（约 -1~2pp）、动态壁纸（WallpaperVideoExtension 10s cputime 增量 0.00s，未解码）、GPU（Device Utilization 3%，非渲染瓶颈）、WindowServer 日志近 3 分钟无错误。合成路径正常：CGXUpdateDisplay → CompositeLayersToDestination → Metal/CA（MTLIGAccel 驱动）。
+- 实用建议：需要降 WS/CPU 时让重绘源不可见——长任务把 Trae 移出当前 space（yabai 5 空间）或最小化；无需系统级处理。附带发现：Trae 家族在 agent 活动期本身 ~38% CPU，是这台机器最大的单一日用开销。
+- live/提交：**无持久化 live 变更**（borders/Stats 实验均已恢复；未改任何 defaults 或配置文件）；仓库仅 trace/memory 两条记录；**未提交**。
+- 回滚：无需回滚（未持久化任何变更）；测量脚本/样本为一次性 /tmp 文件（ws.sample 等）。
+- 后续可能方向：① 若想进一步压 Trae 自身开销可另开一轮（如 agent 面板动效、`terminal.integrated.gpuAcceleration` 已有先例）；② 可选确认实验：Alacritty 里跑 30s 测量并最小化 Trae，WS 应归零（未做）；③ trace 已 600+ 行，归档仍未做。
