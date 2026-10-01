@@ -50,6 +50,14 @@ assert_contains '系统设置' "$YAIRC"
 # yabai rules only affect windows spawned after registration; --apply replays
 # them onto already-open windows at startup.
 assert_contains 'yabai -m rule --apply' "$YAIRC"
+# Supplementary floating rules (2026-10-01): tool apps + dialog fallback. All
+# four apps report their English names even under zh_CN (checked via
+# kMDItemDisplayName), so no Chinese alternation is needed for them.
+assert_contains 'app="^Clash Verge$"' "$YAIRC"
+assert_contains 'app="^Karabiner-Elements$"' "$YAIRC"
+assert_contains 'app="^Karabiner-EventViewer$"' "$YAIRC"
+assert_contains 'app="^OCLP-Mod$"' "$YAIRC"
+assert_contains 'subrole="AXDialog"' "$YAIRC"
 # Named workspaces were dropped in favour of index-addressed 1..5, so no rule
 # may reference a space label any more (yabai would reject them at
 # registration time once the labels stop existing).

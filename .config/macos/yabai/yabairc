@@ -81,6 +81,16 @@ ensure_spaces() {
 
 ensure_spaces
 
+# 补充浮动规则（2026-10-01 用户选定）：工具类应用 + 通用对话框兜底。
+# 这四个应用无本地化名（kMDItemDisplayName 均为英文），直接用英文名匹配；
+# subrole=AXDialog 让所有应用的模态对话框浮动（确认框/警告框不被平铺）。
+# 必须注册在下方 `rule --apply` 之前，才能在启动时一并回放到已开窗口。
+yabai -m rule --add app="^Clash Verge$"           manage=off
+yabai -m rule --add app="^Karabiner-Elements$"    manage=off
+yabai -m rule --add app="^Karabiner-EventViewer$" manage=off
+yabai -m rule --add app="^OCLP-Mod$"              manage=off
+yabai -m rule --add subrole="AXDialog"            manage=off
+
 # yabai 的规则只对**规则注册之后新出现**的窗口生效，已开着的窗口不会自动归位。
 # 启动时把现有规则回放到当前窗口，登录/重启后 Finder / 微信 / 系统设置直接浮动。
 yabai -m rule --apply >/dev/null 2>&1 || true

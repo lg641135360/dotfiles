@@ -538,3 +538,49 @@
 - 收尾：用户已重跑 `./install.sh` 部署（live 与仓库逐字节一致）并确认状态满意（提交时未再逐项复验）；复核命令：`grep -i 'json error' ~/.local/share/karabiner/log/console_user_server.log`（重载后 0 条新增）。
 - 回滚信息：**已提交 `8c25af5` 并推送 `origin/main`**：整体回滚 = `git revert 8c25af5`（模块级丢弃亦可 `rm -rf .config/macos/karabiner tests/karabiner_config_test.sh` + `git checkout 72b5490 -- install.sh README.md memory/desktop.md`）；live 恢复 = `cp -p ~/.config/karabiner/karabiner.json.backup.<最新时间戳> ~/.config/karabiner/karabiner.json`。
 - 后续可能方向：① 用户实测；② 若 Esc 仍不生效，用 EventViewer 确认事件走向，备选方案 = 「Caps 单击 = caps_lock、物理 Esc 保持 Esc」（但会失去 Esc-on-Caps）；③ 流水线知识已写入 memory/desktop.md——后续设计任何 Karabiner 映射都要先判断"写在哪一层"（simple 的输出会进 complex，complex 的输出不会再被 complex 吃）。
+
+## 2026-10-01 — 内置屏切 1920×1080 点对点（需持久化事务 API）+ HiDPI 现状排查
+
+- 目的：用户要求查看当前可用 HiDPI 模式并开启 1920×1080 点对点输出；HiDPI 选定走 BetterDisplay 路线（本轮只排查、未注入）。
+- 排查（只读）：CG API 两次全枚举（含 `kCGDisplayShowDuplicateLowResolutionModes`，共 96 个模式）确认当前**零 HiDPI 模式**；`/Library/Displays/Contents/Resources/Overrides/DisplayVendorID-9e5/DisplayProductID-6be`（9/28 写入、属主 `rikoo:staff` 非 root:wheel）含 60+ 双倍分辨率条目，但多次重启后 HiDPI 仍未生成（普通分辨率部分疑似已加载：系统列表含 1312×738 等非标准档）；BetterDisplay 4.3.7 在跑，内置屏 `hasHiDPI=1`，外接 AOC 4K 已由其配置 HiDPI 默认。
+- 已做（live/系统）：用持久化事务 API（`CGBeginDisplayConfiguration` + `CGConfigureDisplayWithDisplayMode` + `CGCompleteDisplayConfiguration(kCGConfigurePermanently=2)`）将内置屏切至 **1920×1080@60Hz 点对点**。注：先用临时 API（`CGDisplaySetDisplayMode`）切换会被还原回 1632×918——BetterDisplay 运行时会按**持久配置**恢复，脚本改分辨率必须走持久化事务。
+- 验证：CG 读数与 `system_profiler` 均为 1920×1080（像素 1920×1080）@60Hz，BetterDisplay 运行中持续 ≥30s 稳定不回弹；持久配置落于 `~/Library/Preferences/ByHost/com.apple.windowserver.<UUID>.plist`。
+- live/提交：无仓库文件改动（trace 本条目除外）；无 `~/.config` 同步；**未提交**。显示配置回滚：系统设置 → 显示器 选回 1632×918（或经 BetterDisplay 菜单切换），持久配置已刷新无需额外操作。
+- 后续可能方向：① HiDPI 待用户在 BetterDisplay 操作——「编辑此显示器型号的默认系统配置」+「自定义缩放分辨率」（推荐 1632×918）→ 应用 → 重启，重启后系统设置里选择 HiDPI 档；② overrides 注入（9e5/6be）未生效原因未明（Sequoia 兼容性 / 属主 / 格式待查），若 BetterDisplay 路线不通再回头排查；③ trace 已 540+ 行，归档仍未做。
+
+## 2026-10-01 — HiDPI 注入根因定位（对照 one-key-hidpi 源码）+ 修正版 overrides 就绪（待用户安装）
+
+- 目的：用户要求「直接调成 1632×918 并开 HiDPI」。
+- 已做（live/系统）：持久化事务 API 将内置屏切回 **1632×918@60Hz**（稳定保持；如改主意可再切回 1920×1080，方法同上一条目）。
+- 根因定位（对照 one-key-hidpi master 源码，`curl` 直连 raw.githubusercontent.com 拉取至 `/tmp/hidpi.sh`）：现有注入文件 9e5/6be（9/28 写入、属主 `rikoo:staff`）与标准格式差两点——① 缺 `target-default-ppmm`（one-key-hidpi 固定 10.0699301，BetterDisplay 生成的 AOC 文件亦含此键，疑为系统启用 HiDPI 的关键）；② 缺配对条目——脚本每档输出 12B `[2w][2h][00000001]` + 16B `[2w][2h][00000001][00200000]` 两条，现有文件只有 16B 式。`DisplayResolutionEnabled` 已 =1（无需再设）。
+- 产物：`/tmp/DisplayProductID-6be.tmp`（另存 `~/Library/Caches/DisplayProductID-6be.tmp`）——按 one-key-hidpi 标准重写：5 档逻辑 1792×1008/1680×945/1632×918/1440×810/1280×720 各 2 条 = 10 条 data + ppmm 10.0699301；结构解析 / 逐条字节校验 / `plutil -lint` 全过。**尚未安装**（写 `/Library/Displays` 需管理员权限 + 重启，agent 无法代办）。
+- 用户待执行（备份 + 权限一步到位）：
+  ```sh
+  D=/Library/Displays/Contents/Resources/Overrides/DisplayVendorID-9e5
+  sudo cp -p $D/DisplayProductID-6be $D/DisplayProductID-6be.backup.$(date +%Y%m%d_%H%M%S)
+  sudo install -o root -g wheel -m 0644 /tmp/DisplayProductID-6be.tmp $D/DisplayProductID-6be
+  sudo shutdown -r now
+  ```
+- 验证方法（重启后）：CG 枚举应出现 HiDPI 模式（如 1632×918 → 缓冲 3264×1836）；系统设置 → 显示器 选「看起来像 1632×918」。
+- live/提交：无仓库文件改动（trace 除外）；**未提交**。
+- 回滚：`sudo cp -p $D/DisplayProductID-6be.backup.<时间戳> $D/DisplayProductID-6be` + 重启；或 `sudo rm -rf /Library/Displays/Contents/Resources/Overrides/DisplayVendorID-9e5` 恢复系统默认。
+- 后续可能方向：① 若重启后仍无 HiDPI → 备选 BetterDisplay 路线（设置 → 显示器 → 内置屏 → 编辑系统配置 → 弹性缩放/自定义分辨率 → 应用［需密码］→ 重启）；② 若成功，把「黑苹果内置屏 HiDPI 注入正确格式（ppmm + 12B/16B 配对）」经验沉淀到 memory。
+
+## 2026-10-01 — HiDPI 生效验证 + 1.5x 硬限制定位 + BetterDisplay 可卸载结论
+
+- 目的：用户重启后要求检查现状，并评估 BetterDisplay 能否卸载。
+- 现状（已验证）：overrides 注入生效——**4 档 HiDPI 可用**（1440×810 / 1280×720 / 960×540 / 800×450），当前运行 1440×810 HiDPI（渲染 2880×1620）；连采 3 次稳定。
+- 关键限制（新发现）：该屏 framebuffer 硬上限 = **2880×1620（1.5× 面板）**（取自 `com.apple.windowserver` 配置的 `LimitsWidth/LimitsHeight`）→ HiDPI 逻辑上限 = **1440×810**；注入的 1792/1680/1632 因缓冲 3584/3360/3264 超限被系统自动过滤，**1632×918 HiDPI 在该屏不可实现**（1440×810 比 1632×918 的 UI 约大 13%）。
+- BetterDisplay 卸载评估（实验）：SIGTERM 退出 BetterDisplay 后，HiDPI 档位与当前渲染**完全不受影响** → HiDPI 为系统级持久（不依赖它）。残余影响仅：菜单栏亮度/DDC 入口、AOC 的 5e3 overrides 残留（可保留）。卸载步骤：退出（实验已完成）→ 删 app → 检查登录项 → 可选清理 `~/Library/Preferences/pro.betterdisplay.BetterDisplay.plist`。未替用户执行删除。
+- live/提交：无仓库文件改动（trace + `memory/organizing_preferences.md` 除外）；**未提交**。
+- 恢复：需要时 `open -a /Applications/BetterDisplay.app` 即可重新启动它；显示档位在系统设置里随时可切。
+
+## 2026-10-01 — yabai 浮动规则扩充：4 个工具应用 + AXDialog 兜底
+
+- 目的：用户询问「哪些应用应该浮动」并选定「工具应用 + 对话框兜底」方案。
+- 排查（只读）：现状 5 条规则（Finder/微信/系统设置/Spotlight/画中画）与 AeroSpace 侧浮动项（Finder/微信/PiP）已对齐；4 个候选应用经 `kMDItemDisplayName` 核实无本地化名（Clash Verge / Karabiner-Elements / Karabiner-EventViewer / OCLP-Mod 均报英文名，可直接 `app=` 精确匹配）。
+- 已做（仓库）：`yabairc` 在 `rule --apply` 之前新增 5 条规则（4 应用 + `subrole="AXDialog"` 通用对话框兜底）；`README.md` 验证段规则数 5→10；`tests/yabai_config_test.sh` 补 5 条断言。
+- 验证：`sh -n yabairc` OK；`./tests/yabai_config_test.sh` PASS（含新断言）；`git diff --check` OK。
+- 未完成（需用户执行；agent 无法覆盖 `~/.config` 已存在文件）：`cd ~/Documents/dotfiles && ./install.sh && yabai --restart-service`；随后 `yabai -m rule --list` 应 10 条，打开四个应用验证浮动、任意对话框验证不被平铺。
+- live/提交：**未提交**（工作区还有本日早些时候的 HiDPI 两文件改动，建议按主题分别提交）。
+- 回滚：`git checkout -- .config/macos/yabai/yabairc .config/macos/yabai/README.md tests/yabai_config_test.sh`；live 侧恢复 = `cp -p ~/.config/yabai/yabairc.backup.<时间戳> ~/.config/yabai/yabairc && yabai --restart-service`。

@@ -128,7 +128,7 @@ yabai 和 skhd 都没有 `niri validate` 那样的独立校验命令（skhd 甚�
 ```bash
 sh -n ~/.config/yabai/yabairc   # yabairc 是 POSIX sh，先保证语法
 yabai -m query --spaces         # 空间命令可用 ⇒ SA 已加载
-yabai -m rule --list            # 规则都应注册成功（当前 5 条浮动规则）
+yabai -m rule --list            # 规则都应注册成功（当前 10 条：基础 5 条 + 4 个工具应用 + AXDialog 兜底）
 yabai -m signal --list          # dock_did_restart 信号应在
 pgrep -x borders                # 焦点边框进程在跑（由 yabairc 启动）
 ```
