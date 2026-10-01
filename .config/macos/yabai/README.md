@@ -81,7 +81,7 @@ skhd --start-service
 | `Mod+Ctrl+b` | 平衡窗口大小 |
 | `Mod+Ctrl+t` / `Mod+Ctrl+p` | 切换 sticky / 画中画（需 SA） |
 | `Mod+/` `Mod+,` | 切换 bsp / stack 布局（keycode 0x2C / 0x2B） |
-| `Mod+h/j/k/l` | 按方向聚焦窗口 |
+| `Mod+h/j/k/l` | 聚焦窗口（bsp 按方向，stack 按栈序） |
 | `Mod+Shift+h/j/k/l` | 按方向交换窗口位置 |
 | `Mod+Ctrl+h/j/k/l` | 按方向移动窗口（warp：重新插入到相邻位置，不交换） |
 | `Mod+Ctrl+s` | 切换当前窗口分割方向（水平 ↔ 垂直；仅 BSP 且该窗口在分屏内时有效） |

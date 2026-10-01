@@ -101,10 +101,12 @@ expected = {
     "alt + ctrl - p": "yabai -m window --toggle pip",
     "alt - 0x2C": "yabai -m space --layout bsp",
     "alt - 0x2B": "yabai -m space --layout stack",
-    "alt - h": "yabai -m window --focus west",
-    "alt - j": "yabai -m window --focus south",
-    "alt - k": "yabai -m window --focus north",
-    "alt - l": "yabai -m window --focus east",
+    # h/k = stack.prev, j/l = stack.next; on a single-window node the stack
+    # selector fails and the chain falls back to directional focus (bsp).
+    "alt - h": "yabai -m window --focus stack.prev 2>/dev/null || yabai -m window --focus west",
+    "alt - j": "yabai -m window --focus stack.next 2>/dev/null || yabai -m window --focus south",
+    "alt - k": "yabai -m window --focus stack.prev 2>/dev/null || yabai -m window --focus north",
+    "alt - l": "yabai -m window --focus stack.next 2>/dev/null || yabai -m window --focus east",
     "alt + shift - h": "yabai -m window --swap west",
     "alt + shift - j": "yabai -m window --swap south",
     "alt + shift - k": "yabai -m window --swap north",

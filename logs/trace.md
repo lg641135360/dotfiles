@@ -584,3 +584,12 @@
 - 未完成（需用户执行；agent 无法覆盖 `~/.config` 已存在文件）：`cd ~/Documents/dotfiles && ./install.sh && yabai --restart-service`；随后 `yabai -m rule --list` 应 10 条，打开四个应用验证浮动、任意对话框验证不被平铺。
 - live/提交：**未提交**（工作区还有本日早些时候的 HiDPI 两文件改动，建议按主题分别提交）。
 - 回滚：`git checkout -- .config/macos/yabai/yabairc .config/macos/yabai/README.md tests/yabai_config_test.sh`；live 侧恢复 = `cp -p ~/.config/yabai/yabairc.backup.<时间戳> ~/.config/yabai/yabairc && yabai --restart-service`。
+
+## 2026-10-01 — skhdrc：Mod+h/j/k/l 适配 stack 布局（fallback 链）
+
+- 目的：用户要求在 stack 布局下 `Mod+h/j/k/l` 也能切换窗口（此前方向聚焦在窗口重叠的 stack 里失效）。
+- 设计（源码确证 `window_manager.c:1059-1091`）：`stack.prev/next` 仅在节点含多窗口（stack 布局或 bsp 节点内堆叠）时命中，普通单窗口节点必然返回 NULL → 可用 `yabai -m window --focus stack.prev 2>/dev/null || yabai -m window --focus west` 形式的链兼容两种布局（同 resize 链的既有惯例）；映射 h/k=prev、j/l=next。
+- 已做（仓库）：`skhdrc` 4 条聚焦绑定改为 fallback 链（含注释）；`tests/yabai_config_test.sh` 期望表同步；`README.md` 键位表该行更新为「聚焦窗口（bsp 按方向，stack 按栈序）」。
+- 验证：`./tests/yabai_config_test.sh` PASS（绑定表精确比对）；`git diff --check` OK。
+- live/提交：live `yabairc` **已是最新**（用户已部署上轮浮动规则）；live `skhdrc` 落后（本轮待部署）；**未提交**。部署：`cd ~/Documents/dotfiles && ./install.sh && skhd --restart-service`；实测：`Mod+,` 进 stack → `Mod+j/l` 切栈序，`Mod+/` 回 bsp → 方向键照旧。
+- 回滚：`git checkout -- .config/macos/yabai/skhdrc tests/yabai_config_test.sh .config/macos/yabai/README.md`；live 恢复 = `cp -p ~/.config/skhd/skhdrc.backup.<时间戳> ~/.config/skhd/skhdrc && skhd --restart-service`。

@@ -30,10 +30,13 @@ alt - 0x2C : yabai -m space --layout bsp
 alt - 0x2B : yabai -m space --layout stack
 
 # --- 聚焦 -----------------------------------------------------------------
-alt - h : yabai -m window --focus west
-alt - j : yabai -m window --focus south
-alt - k : yabai -m window --focus north
-alt - l : yabai -m window --focus east
+# stack 布局（或 bsp 节点内多窗口堆叠）按栈序切换；普通单窗口节点下 stack
+# 选择器必然失败（could not locate ... stacked window），fallback 到方向聚焦。
+# 2>/dev/null 避免失败尝试刷进 /tmp/skhd_*.err.log（同 resize 链的惯例）。
+alt - h : yabai -m window --focus stack.prev 2>/dev/null || yabai -m window --focus west
+alt - j : yabai -m window --focus stack.next 2>/dev/null || yabai -m window --focus south
+alt - k : yabai -m window --focus stack.prev 2>/dev/null || yabai -m window --focus north
+alt - l : yabai -m window --focus stack.next 2>/dev/null || yabai -m window --focus east
 
 # --- 交换位置 -------------------------------------------------------------
 alt + shift - h : yabai -m window --swap west
