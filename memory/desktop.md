@@ -16,6 +16,12 @@
 - yabai `--resize` 的 handle 语义（`src/window_manager.c` 的 `window_manager_resize_window_relative`）：handle 指的是**被拖动的 fence**——`first_child`（左/上）只有东/南 fence，`second_child`（右/下）只有西/北 fence；占满整屏的单窗口两边都没有 fence。因此单个 handle 有**半数情况**报 `cannot locate a bsp node fence`，配置里要按 右→左→下→上 依次尝试（等效 AeroSpace 的 `resize smart`），并 `2>/dev/null` 避免失败尝试刷进 `/tmp/skhd_*.err.log`。
 - `--load-sa` 的语义是 **Install** and load：会把 SA 装到 `/Library/ScriptingAdditions/yabai.osax`（loader + payload.bundle），每次开机/Dock 重启都要重新注入（由 `yabairc` 的 `dock_did_restart` signal 负责）；所有失败情形都会打 stderr（`src/osax/loader.m`），**退出码 0 且无输出即成功**；卸载用 `sudo yabai --uninstall-sa`。skhd 没有 dry-run，未授权辅助功能时直接 `must be run with accessibility access! abort..`，所以 skhdrc 的键位只能等授权后由 skhd 自己解析验证（解析错误会进 `/tmp/skhd_<user>.err.log`）。
 
+## LinearMouse（macOS 指针设备定制，2026-10-01 纳入仓库）
+- 配置 `.config/macos/linearmouse/linearmouse.json` 为唯一事实来源，`install.sh` 以 `/Applications/LinearMouse.app` 门控部署到 `~/.config/linearmouse/linearmouse.json`；GUI 改动会直接重写 live 文件，改完需回填仓库（同 Karabiner 惯例）。
+- 唯一 scheme 只作用 Razer Viper V2 Pro（`0x1532/0xa6`）：`scrolling.reverse.vertical=true`（鼠标反向、系统保持自然滚动、触控板不受影响）+ `universalBackForward=true`（侧键后退/前进）；原两条 trackpad no-op 方案已删。
+- 设备匹配 = 字段全等、未写字段通配（`DeviceMatcher.isSatisfied`），**不要写 `serialNumber`**（Razer 假序列号 `000000000000`，换有线/无线连接方式会静默失配）；`acceleration=1` / `speed=0` / `distance=auto` 经源码确认是不生效的 GUI 默认值。
+- 生效路径：FileWatcher 热重载（0.25s 防抖）+「Configuration Reloaded」通知；配置优先级 `~/Library/Application Support/linearmouse/` > `~/.config/linearmouse/`（本机无前者）。
+
 ## Picom
 - 给 `utility/dialog` 恢复轻阴影，在 `shadow-exclude` 里排除 `tblive` 等辅助条窗口。
 - Ubuntu x64 + picom v10 环境：`shadow-exclude` 里的 `_GTK_FRAME_EXTENTS@` 会触发 `c2_parse_target` 解析错误；不在 Ubuntu x64 配置里保留它。

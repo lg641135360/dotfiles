@@ -458,6 +458,7 @@ macos_configs=(
     "command -v yabai|.config/macos/yabai/yabairc|~/.config/yabai/yabairc|yabai"
     "command -v skhd|.config/macos/yabai/skhdrc|~/.config/skhd/skhdrc|skhd"
     "[ -d /Applications/Karabiner-Elements.app ]|.config/macos/karabiner/karabiner.json|~/.config/karabiner/karabiner.json|Karabiner-Elements"
+    "[ -d /Applications/LinearMouse.app ]|.config/macos/linearmouse/linearmouse.json|~/.config/linearmouse/linearmouse.json|LinearMouse"
     "command -v alacritty|.config/shared/alacritty/keys.macos.toml|~/.config/alacritty/keys.toml|Alacritty keys"
     "command -v alacritty|.config/shared/alacritty/window.macos.toml|~/.config/alacritty/window.toml|Alacritty window"
     "command -v ssh|.config/macos/ssh/config|~/.ssh/config|SSH config (macOS)"

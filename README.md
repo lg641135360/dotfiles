@@ -37,6 +37,7 @@
 │   │   ├── aerospace/   # 窗口管理器（白苹果首选）
 │   │   ├── yabai/       # 窗口管理器 + skhd 热键（黑苹果 x86_64 首选）
 │   │   ├── karabiner/   # 键盘映射（Caps Lock：按住 Ctrl / 单击 Esc）
+│   │   ├── linearmouse/ # 鼠标/触控板滚动与指针定制（LinearMouse）
 │   │   ├── Brewfile     # macOS brew 依赖清单
 │   │   ├── defaults.sh  # macOS 系统默认值（键重复 / Dock / 窗口管理前提等）
 │   │   └── ssh/         # SSH 配置（macOS 覆盖）

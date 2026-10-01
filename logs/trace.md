@@ -593,3 +593,13 @@
 - 验证：`./tests/yabai_config_test.sh` PASS（绑定表精确比对）；`git diff --check` OK。
 - live/提交：live `yabairc` **已是最新**（用户已部署上轮浮动规则）；live `skhdrc` 落后（本轮待部署）；**未提交**。部署：`cd ~/Documents/dotfiles && ./install.sh && skhd --restart-service`；实测：`Mod+,` 进 stack → `Mod+j/l` 切栈序，`Mod+/` 回 bsp → 方向键照旧。
 - 回滚：`git checkout -- .config/macos/yabai/skhdrc tests/yabai_config_test.sh .config/macos/yabai/README.md`；live 恢复 = `cp -p ~/.config/skhd/skhdrc.backup.<时间戳> ~/.config/skhd/skhdrc && skhd --restart-service`。
+
+## 2026-10-01 — LinearMouse 配置清理并纳入仓库（鼠标滚动方向 + 侧键）
+- 目的：用户要求直接改 live `~/.config/linearmouse/linearmouse.json`：移除 Razer 方案的 `serialNumber`、删除两条重复的触控板方案，改前备份；确认新配置生效并说明如何验证滚动方向；随后把清理后的配置纳入 dotfiles 仓库管理。
+- 只读排查：LinearMouse 0.11.4 在跑（PID 36196）；活动配置路径为 `~/.config/linearmouse/linearmouse.json`（`~/Library/Application Support/linearmouse/` 无文件，无优先级冲突）。对照上游源码（`linearmouse/linearmouse`）：① `DeviceMatcher.isSatisfied` 为**字段全等**匹配（未写字段通配），`serialNumber` 写了就必须精确相等——本机 USB 序列号恰为假值 `000000000000`，换连接方式（如 HyperSpeed 无线）易静默失配；② `ConfigurationState` 用 `FileWatcher` 热重载（0.25s 防抖，成功后弹「Configuration Reloaded」通知）；③ `acceleration != 1`、`speed != 0`、`distance == auto` 均不产生变换（GUI 写入的默认值）。
+- 已做（live）：先备份 `~/.config/linearmouse/linearmouse.json.backup.20261001_204422`，再清理：删除 2 条 trackpad no-op 方案、移除 `serialNumber`；schemes 3 → 1，条件保留 `category/productID/productName/vendorID`。
+- 已做（仓库）：新增 `.config/macos/linearmouse/linearmouse.json`（与 live 逐字节一致）与 `.config/macos/linearmouse/README.md`（机制/验证/安装/回滚）；`install.sh` 的 `macos_configs` 新增 `/Applications/LinearMouse.app` 门控项；根 `README.md` 结构树补 `linearmouse/`；新增 `tests/linearmouse_config_test.sh`（单 scheme、无 serialNumber、无 trackpad、reverse/universalBackForward、install 门控与 README 断言）。
+- 验证：`python3 -m json.tool` valid + 结构断言 OK；`./tests/linearmouse_config_test.sh`、`repo_docs_test`、`karabiner_config_test`、`yabai_config_test`、`macos_defaults_test` 全 PASS；`sh -n` / `bash -n install.sh` OK；`cmp` live==repo。`install_macos_test.sh` 在 Darwin 上 SKIP（设计如此）。**既有环境失败（非本轮引入）**：`install_backup_test.sh` 走 `#!/bin/bash`（本机 = 3.2）必失败（`mapfile: command not found`），干净 HEAD 检出对照同样失败，`/opt/local/bin/bash`（5.x）下 PASS。
+- 生效确认：live 编辑发生在 LinearMouse 运行期间，按源码应已在 0.25s 内热重载（应出现「Configuration Reloaded」通知）；reload 路径与 FileWatcher 均不打日志，无客观日志证据。**待用户实按**：滚轮向下 = 内容向下（传统方向）、触控板双指上滑仍为自然；GUI Scrolling 面板 Reverse 应为开。
+- 回滚信息：**未提交**。live 恢复：`cp -p ~/.config/linearmouse/linearmouse.json.backup.20261001_204422 ~/.config/linearmouse/linearmouse.json`（保存即热重载）。仓库侧：`rm -rf .config/macos/linearmouse tests/linearmouse_config_test.sh && git checkout -- install.sh README.md memory/desktop.md`（trace 本条目可选保留）。
+- 后续可能方向：① 提交（建议连同 trace/memory 一个 commit）；② 白苹果装 LinearMouse 可直接复用本配置（Brewfile 未收录 cask）；③ 上轮软件盘点的记录建议（cmux、grok、MacPorts 清单）尚未落地；④ trace 已近 600 行，归档仍未做。
