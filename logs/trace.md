@@ -442,3 +442,99 @@
 - 提交：本轮只有 live 与运行态变更；仓库侧只有 trace 本条目，已随 `4d7d30d` 提交并推送 `origin/main`。
 - 回滚信息：本轮**无仓库改动需回滚**（trace 本条除外）。live 侧现为期望状态（5 个空间）不需回退；若要回到「7 空间 + C/B/N/W 标签」的旧模型，可 `cp -p ~/.config/yabai/yabairc.backup.20260930_215333_090108000 ~/.config/yabai/yabairc` + `cp -p ~/.config/skhd/skhdrc.backup.20260930_215333_090108000 ~/.config/skhd/skhdrc` 后重启（仍需手动把空间补回 7 个）。
 - 后续可能方向：① `logs/trace.md` 已超 430 行，远超文件内建议的 ≤150 行，归档（`npm --prefix scripts run archive-trace`）仍未做；② trace 里 `c8e393f` 那条（他人 entry）仍写「未提交」，实际已提交，未擅自改；③ live 已与仓库一致，yabai/skhd 这套部署至此完整落地。
+
+## 2026-10-01 — 焦点边框接入 JankyBorders（源码编译）+ Alacritty 依赖文档补齐
+- 目的：按用户对分析结论的选择落地两项——①「装 Alacritty + 补文档」（修复 `Mod+Return` 指向未安装应用导致的断链）；②「接入 JankyBorders」（yabai 6.0+ 无内置边框，补焦点反馈）。
+- 已做（机器）：JankyBorders 源码编译安装——`git clone --depth 1 https://github.com/FelixKratz/JankyBorders ~/.cache/jankyborders-src` + `make`（clang，Xcode CLT 已在位）→ `~/.local/bin/borders`（69152 B）+ man 页 `~/.local/share/man/man1/borders.1`；以目标参数冒烟启动（`active_color=0xff89b4fa inactive_color=0x00494d64 width=5.0`）→ `pgrep -x borders` 在跑（pid 10256）、无 stderr 输出。Alacritty 主题已手动 clone 到 `~/.config/alacritty/themes`（`themes/themes/catppuccin_mocha.toml` 就位，与 `alacritty.toml` 的 import 路径一致）。
+- 已做（仓库，未提交）：① `.config/macos/yabai/yabairc` 末尾新增 `command -v borders` 守卫的 JankyBorders 启动（焦点蓝/非焦点透明/width 5.0，对齐仓库焦点色与 aerospace）；② `.config/macos/yabai/README.md` 安装段补 Alacritty 依赖 + 主题手动 clone，新增「焦点边框（JankyBorders）」章节（源码安装/升级、无 TCC 需求、重复启动幂等），「配置验证」补 `pgrep -x borders`；③ `tests/yabai_config_test.sh` 新增 borders 守卫/颜色断言与 README 断言；④ `.config/shared/alacritty/README.md` 修正失效主题 URL（`alacritty-theme/alacritty-themes` 不存在 → 官方 `alacritty/alacritty-theme`，已用 `git ls-remote` 验证）；⑤ 根 `README.md` 升级段补 JankyBorders 更新入口、修正「Alacritty 主题可自动获取」表述（自动 clone 仅在 Linux 分支，macOS 需手动）。
+- 验证：`sh -n .config/macos/yabai/yabairc` OK；`./tests/yabai_config_test.sh` PASS（含新断言）；`./tests/repo_docs_test.sh` PASS；`git diff --check` OK。`./tests/alacritty_config_test.sh` 因本机 python3 无 `tomllib` 报 `ModuleNotFoundError`（既有环境基线，与本轮改动无关）。
+- 未完成（需用户执行；工具层对 `~/.config` 下**已存在文件**的覆盖/删除有 allowlist 保护，agent 无法代办）：① `sudo port install alacritty`（MacPorts 有 `alacritty-0.17.0_0.darwin_24.x86_64.tbz2` 二进制归档；装后重跑 install.sh 即部署仓库的 alacritty.toml/keys/window）；② live 同步 yabairc 并重启：
+  ```sh
+  cp -p ~/.config/yabai/yabairc ~/.config/yabai/yabairc.backup.$(date +%Y%m%d_%H%M%S)_$$
+  cp ~/Documents/dotfiles/.config/macos/yabai/yabairc ~/.config/yabai/yabairc
+  cd ~/.config/yabai && ls -1t yabairc.backup.* | tail -n +4 | xargs rm -f
+  yabai --restart-service && pgrep -lx borders
+  ```
+- 回滚信息：**未提交**。仓库侧丢弃本轮改动：`git checkout -- .config/macos/yabai/yabairc .config/macos/yabai/README.md README.md .config/shared/alacritty/README.md tests/yabai_config_test.sh memory/desktop.md`（trace 本条目可选保留）。机器侧：`rm -f ~/.local/bin/borders ~/.local/share/man/man1/borders.1 && pkill -x borders`；主题 `rm -rf ~/.config/alacritty/themes`。live 备份：`~/.config/yabai/yabairc.backup.20261001_074217_12485`（同步准备时创建，内容=同步前旧版）；live 完成同步后恢复旧版 = `cp -p ~/.config/yabai/yabairc.backup.<最新时间戳> ~/.config/yabai/yabairc && yabai --restart-service`。
+- 后续可能方向：① 用户完成安装/同步后复验：`pgrep -x borders` 单进程、yabai err 日志无新增、`Mod+Return` 能打开 Alacritty、焦点边框为蓝；② borders 在单窗口占满整屏时也会显示边框（官方 wiki 有「单窗口自动隐藏」脚本方案），需要再评估；③ SketchyBar 状态栏未落地（用户本轮未选）；④ install.sh 的 borders 提示仍 gate 在 aerospace（注释「only serves AeroSpace」不准确），本轮未动。
+
+## 2026-10-01 — 配套工具复查：skhd 二级绑定落地 + 文档两处修正
+- 目的：用户要求排查「还有没有其他缺失的软件或配置（WM 常用搭配）」，复查后选择落地两项：① 加 skhd 二级绑定；② 修文档两处（aerospace README 补 borders、install.sh 注释/测试措辞）。
+- 复查结论（只读实测，本机）：① 上一轮两项已闭环——Alacritty 已注册 LaunchServices（`/Applications/MacPorts/Alacritty.app`，live 三件配置与仓库 macOS 版逐字节一致）、borders 单进程运行、live yabairc 与仓库一致、yabai 重启后 `/tmp/yabai_rikoo.err.log` 为空；② install.sh 全部软件门控逐项对照：`yabai/skhd/alacritty/zsh/git/nvim/tmux/starship/herdr/ssh` OK；`aerospace`（白苹果）与 Linux-only（awesome/foot/fuzzel/mako/picom/rofi/swaylock）MISSING 属预期；**`trae-cli` 未安装**（有 hooks 配置但门控跳过，herdr 已装）；③ 生态可补项只剩 **SketchyBar**（MacPorts 有 2.23.0，本轮未选）；Übersicht/alt-tab/Hammerspoon MacPorts 均无端口（已查证）；④ Linux 侧配套（niri：swaybg/gammastep/swayidle/cliphist/wl-clip-persist/xclip/polkit；awesome：feh/flameshot/redshift/nm-applet/udiskie/blueman/picom；waybar：brightnessctl/foot/htop/nmtui/wpctl/pavucontrol）均在 README 有据，无「引用了但没说明」的洞。
+- 已做（仓库，未提交）：
+  1. `.config/macos/yabai/skhdrc` 新增 7 条绑定：`Mod+N` 最小化（对齐 awesome）、`Mod+Ctrl+h/j/k/l` warp、`Mod+Ctrl+s` 切换分割轴、`Mod+Ctrl+r` `yabai --restart-service`；语义经源码确认：`--warp` 取 DIR_SEL（man `WINDOW_SEL := ... | DIR_SEL`）、`--toggle split` 即 `space_manager_toggle_window_split`（切换父节点 SPLIT_Y/SPLIT_X，仅 BSP 且中间节点，否则 no-op）。
+  2. `.config/macos/yabai/README.md` 键位表补 4 行；「与 AeroSpace 的差异」更新（`Mod+N` 已用、`Mod+C/B/W` 空闲）。
+  3. `tests/yabai_config_test.sh` 期望表 +7 条，borders 门控注释改写（去掉「only serves AeroSpace」）。
+  4. `install.sh` borders 提示注释改写：JankyBorders 对 yabai/aerospace 都适用，gate 在 aerospace 的真实原因是 brew 路径只在有 Homebrew 的机器上（黑苹果走源码编译）；`tests/install_macos_test.sh` 同名注释同步。
+  5. `.config/macos/aerospace/README.md` 新增「JankyBorders（窗口边框）」章节（brew 安装、启动位置、颜色仍是 mauve 未对齐仓库蓝的说明）。
+- 验证：`bash -n install.sh`、`sh -n tests/install_macos_test.sh` OK；`./tests/yabai_config_test.sh` PASS（含 7 条新绑定逐条比对）；`./tests/repo_docs_test.sh` PASS；`git diff --check` OK。
+- 未完成（需用户执行；agent 对 `~/.config` 已存在文件的覆盖仍被 allowlist 保护）：live 部署 skhdrc 并重启：
+  ```sh
+  cd ~/Documents/dotfiles && ./install.sh && skhd --restart-service
+  ```
+  随后按 `Mod+n`、`Mod+Ctrl+h/j/k/l`、`Mod+Ctrl+s`、`Mod+Ctrl+r` 实测（skhd 无 dry-run，解析错误只会进 `/tmp/skhd_rikoo.err.log`）。
+- 回滚信息：**未提交**。仓库侧丢弃本轮：`git checkout -- .config/macos/yabai/skhdrc .config/macos/yabai/README.md .config/macos/aerospace/README.md install.sh tests/yabai_config_test.sh tests/install_macos_test.sh memory/desktop.md`（trace 本条目可选保留）。live 侧回滚：`cp -p ~/.config/skhd/skhdrc.backup.<部署时最新时间戳> ~/.config/skhd/skhdrc && skhd --restart-service`（部署由 install.sh 生成新备份，保 3 份）。参考源码克隆在 `~/.cache/yabai-src`（可随时删）。
+- 后续可能方向：① 新绑定实按验证（warp 与 swap 的区别、`Mod+Ctrl+s` 在单窗口时无效果属预期）；② `Mod+C/B/W` 仍空闲（可考虑 launcher）；③ SketchyBar 未落地；④ trace 已 470+ 行，归档仍未做；⑤ yabai-src 源码克隆为排障时新增的缓存目录（非仓库内容）。
+
+## 2026-10-01 — Karabiner-Elements 纳入仓库：Caps 按住 Ctrl / 单击 Esc
+- 目的：用户自行安装 Karabiner-Elements 后，选择「Caps 按住=Control、单击=Escape」映射并纳入 dotfiles 仓库管理。
+- 只读核查（本机）：Karabiner 16.3.0 已装且服务在跑（Console-User-Server / Core-Service / VirtualHIDDevice 守护）；DriverKit 系统扩展 `activated enabled`（SIP 全关的 OpenCore 环境下可用）；权限已授权（日志 `The required permissions are granted`）；live `~/.config/karabiner/karabiner.json` 原为默认空 profile；另确认 live skhdrc 已与仓库一致（用户已完成上一轮部署，`grep -c warp` = 6）。
+- 已做（仓库，未提交）：
+  1. 新增 `.config/macos/karabiner/karabiner.json`：单 profile + 一条 complex modification（`from` caps_lock/optional any → `to` `{"key_code":"left_control","lazy":true}` + `to_if_alone` escape），保留 `virtual_hid_keyboard.keyboard_type_v2: ansi`。
+  2. 新增 `.config/macos/karabiner/README.md`：映射表、`lazy`+`to_if_alone` 原理、安装路径（MacPorts 无端口/黑苹果 dmg；白苹果 cask 未入 Brewfile）、热重载行为、仓库为唯一事实来源、回滚命令。
+  3. `install.sh` 的 `macos_configs` 新增门控项：`[ -d /Applications/Karabiner-Elements.app ]|.config/macos/karabiner/karabiner.json|~/.config/karabiner/karabiner.json|Karabiner-Elements`。
+  4. 根 `README.md` 结构树 macos 段新增 `karabiner/`（repo_docs_test 的漂移守卫要求）。
+  5. 新增 `tests/karabiner_config_test.sh`：python 断言 JSON 结构（单 profile、caps_lock → lazy left_control + to_if_alone escape、ansi），shell 断言 install.sh 门控项与 README 树/文档内容；`tests/run.sh` 按 `tests/*_test.sh` 通配自动收录（fast/full 都会跑）。
+- 验证：`./tests/karabiner_config_test.sh` PASS；`./tests/repo_docs_test.sh` PASS（树漂移守卫含新模块）；`./tests/yabai_config_test.sh` PASS；`bash -n install.sh`、`sh -n tests/karabiner_config_test.sh`、`git diff --check` OK。已核对 `tests/install_macos_test.sh` 不受影响（它只断言 borders 提示，新条目的 not-found 跳过不会破坏既有断言）。
+- 未完成（需用户执行；`~/.config/karabiner/karabiner.json` 已存在，agent 覆盖被 allowlist 保护）：
+  ```sh
+  cd ~/Documents/dotfiles && ./install.sh
+  ```
+  部署后 Karabiner 热重载（`~/.local/share/karabiner/log/console_user_server.log` 应出现 `Load .../karabiner.json` 与 `core_configuration is updated`）；实测：按住 Caps + C 应为 Ctrl+C，单击 Caps 应发 Esc，Karabiner-EventViewer 可核对键事件。
+- 回滚信息：**未提交**。仓库侧：`rm -rf .config/macos/karabiner tests/karabiner_config_test.sh && git checkout -- install.sh README.md memory/desktop.md`（trace 本条目可选保留）。live 侧：`rm ~/.config/karabiner/karabiner.json`（Karabiner 重启后重建默认空配置），或 `cp -p ~/.config/karabiner/karabiner.json.backup.<部署时时间戳> ~/.config/karabiner/karabiner.json`（备份由 install.sh 生成，保 3 份）。
+- 后续可能方向：① 新映射实按验证 + EventViewer 核对；② `to_if_alone` 默认超时约 1s，若觉得单击 Esc 判定迟钝可加 `parameters` 缩短；③ 右⌘→fn（配合 yabai `mouse_modifier fn` 单手拖拽）用户本轮未选，随时可加；④ 白苹果是否要装 Karabiner（当前 Brewfile 未收录 cask）；⑤ Caps 现在是 Ctrl，与 skhd 的 `alt` Mod 无冲突，但需注意 tmux 前缀 `C-a` 已可单手按。
+
+## 2026-10-01 — Karabiner 追加 Win/Alt 互换（仅内置键盘）
+- 目的：用户报告内置键盘是 Windows 布局（`Win` 报 Command、`Alt` 报 Option/Mod），要求两者互换，使按键位置与 Mac 布局一致（靠空格键的键当 ⌘）。
+- 只读核查：`defaults read NSGlobalDomain | grep modifiermapping` 未设置（无系统级改键，不会双重映射）；`hidutil list` 显示内置键盘（ApplePS2Keyboard / AppleUserHIDEventService）为 **vendor 1452 (0x5AC) / product 65535 (0xFFFF)**（VoodooPS2 伪装），当前无外接物理键盘（只有 Karabiner 虚拟设备）；live `~/.config/karabiner/karabiner.json` 已含上一轮 Caps 规则（证明用户已跑过 install.sh），尚无 `simple_modifications`。
+- 已做（仓库，未提交）：
+  1. `karabiner.json` profile 增 `simple_modifications`：`left/right_command` ↔ `left/right_option` 四条互换，每条带 `device_if`（`vendor_id: 1452` / `product_id: 65535`）**只作用于内置键盘**——保证外接 Apple 布局键盘与白苹果（真实 product id 不同）不被误换。
+  2. `README.md` 增「Win/Alt 互换（仅内置键盘）」小节：互换前后对照表、副作用（skhd 的 Mod 组合改由物理 `Win` 触发、Alacritty 的 Command 前缀快捷键改由物理 `Alt` 触发）、改全局=删 `conditions`、ID 变化时互换会静默失效的排查提示。
+  3. `tests/karabiner_config_test.sh` 增断言：4 条互换的 from/to、device_if 标识符、README 含 `Win/Alt` 与 `device_if`。
+- 验证：`python3 -m json.tool` valid；`./tests/karabiner_config_test.sh` PASS；`./tests/repo_docs_test.sh` PASS；`./tests/yabai_config_test.sh` PASS；`git diff --check` OK。live 与仓库 diff 仅缺新增的 `simple_modifications` 段（待部署）。
+- 未完成（需用户执行）：`cd ~/Documents/dotfiles && ./install.sh`（备份并覆盖 live karabiner.json，Karabiner 热重载）。实测要点：物理 `Win`+l/j/k/h 应触发 skhd 的 Mod 组合（聚焦窗口）、物理 `Alt`+C 应复制、Caps 行为不变；若互换未生效（极端情况 device_if 不匹配该伪装设备），把四条映射的 `conditions` 删掉即改全局。
+- 回滚信息：**未提交**。仓库侧：`git checkout -- .config/macos/karabiner/karabiner.json .config/macos/karabiner/README.md tests/karabiner_config_test.sh memory/desktop.md`（trace 本条目可选保留）。live 侧：`cp -p ~/.config/karabiner/karabiner.json.backup.<部署时最新时间戳> ~/.config/karabiner/karabiner.json`（install.sh 部署时生成备份，保 3 份）；或删掉 live 里 `simple_modifications` 段。
+- 后续可能方向：① 实测互换生效；② 若显示/行为不符（device_if 未匹配）则改全局；③ 右⌘→fn 仍未加（用户未选）；④ 若日后把 Caps 规则也按设备拆分，注意 Caps 现已确认全局生效（用户已用上一轮部署）。
+
+## 2026-10-01 — Karabiner：物理 Esc → 大写锁定（输入法保持 Ctrl+Space）
+- 目的：用户问「项目能否设置 macOS 键位映射」，举例「切换输入法用左下 Ctrl、Esc 改成切换大小写」。澄清后选择：输入法**保持 Ctrl+Space**（不加映射）、物理 **Esc → 大写锁定**。
+- 只读核查（本机）：输入源 = ABC + 简体拼音（`com.apple.inputmethod.SCIM.ITABC`）+ 字符面板；系统快捷键 60/61（Ctrl+Space / Ctrl+Opt+Space）均启用；`com.apple.HIToolbox` 无「Caps 切换输入法」设置；无系统级修饰键改键（不会双重映射）。
+- 能力验证：`karabiner_cli`（`/Library/Application Support/org.pqrs/Karabiner-Elements/bin/`）提供 `--lint-complex-modifications` 与 `--list-connected-devices`；用探测文件 lint 通过，证实「`to_if_alone` + `select_input_source` + `input_source_unless`」（单击 Ctrl 切输入法，拼音 ⇄ ABC）写法合法——本轮未采用（用户选保持 Ctrl+Space），方案已验证备用。
+- 设备验证（重要）：`--list-connected-devices` 显示内置键盘 = vendor 1452 / product 65535 / is_keyboard / transport **PS2** → 上一轮 Win/Alt 互换的 `device_if` 会正确匹配（此前只是推断）；Karabiner 虚拟键盘是 1452/591，不会命中 device_if。
+- 已做（仓库，未提交）：① `karabiner.json` 的 `simple_modifications` 增 `escape → caps_lock`（同样带 device_if 限定内置键盘）；② README 新增「Esc → 大写锁定（仅内置键盘）」小节，写明键盘闭环（Caps 按住 Ctrl / 单击 Esc、Esc 切大小写；按住 Caps + 空格即 Ctrl+Space 切输入法）与「输入法保持系统默认」；③ `tests/karabiner_config_test.sh` 期望表改为 5 条映射（4 互换 + escape→caps_lock），补 README 断言。
+- 验证：`python3 -m json.tool` valid；`./tests/karabiner_config_test.sh` PASS；`./tests/repo_docs_test.sh` PASS；`./tests/yabai_config_test.sh` PASS；`git diff --check` OK。
+- 未完成（需用户执行）：`cd ~/Documents/dotfiles && ./install.sh`（Karabiner 热重载）。实测：物理 Esc 切大小写（打字验证）、Caps 单击仍是 Esc、按住 Caps + 空格切输入法；若 Esc 未变或 Caps 行为异常，看 `~/.local/share/karabiner/log/console_user_server.log` 是否 `core_configuration is updated`。
+- 回滚信息：**未提交**。仓库侧：`git checkout -- .config/macos/karabiner/karabiner.json .config/macos/karabiner/README.md tests/karabiner_config_test.sh memory/desktop.md`（trace 本条目可选保留）。live 侧：`cp -p ~/.config/karabiner/karabiner.json.backup.<部署时最新时间戳> ~/.config/karabiner/karabiner.json`（install.sh 生成备份，保 3 份）。
+- 后续可能方向：① 实测 Esc/Caps 行为；② 若日后要「单击左 Ctrl 切输入法」，直接用已验证的写法（ABC=`com.apple.keylayout.ABC`、拼音=`com.apple.inputmethod.SCIM.ITABC`）；③ 改 complex_modifications 后可用 `karabiner_cli --lint-complex-modifications` 做离线校验（它要求 `{title, rules}` 对象格式，直接传 profile 文件会报 "json must be object"）；④ 本次未动输入法相关系统设置。
+
+## 2026-10-01 — 修复：Karabiner 的 5 条映射被整条丢弃（simple_modifications 不支持 conditions）
+- 现象：用户报告「Esc 无法切换大小写」；复查日志发现 Win/Alt 互换同样从未生效（只是未被察觉）。
+- 定位（`~/.local/share/karabiner/log/console_user_server.log`）：每次部署都出现 `json error: Unknown key: conditions in {"conditions":[...],"from":...,"to":...}` ×5 —— 4 条互换 + Esc 映射全部被丢弃；Caps 规则（complex_modifications）不受影响，一直正常。
+- 源码级确认（浅克隆 `pqrs-org/Karabiner-Elements` 到 `~/.cache/karabiner-src`，sparse 只取 `src/`）：
+  ① `src/share/core_configuration/details/profile/simple_modifications.hpp` 只解析 `from`/`to`，其余键打 `Unknown key` 并**跳过该条**（日志在：137 行）；
+  ② `src/share/core_configuration/details/profile/device.hpp`：profile 的 `devices[]` 条目支持 `identifiers` + `simple_modifications` 等；
+  ③ `src/apps/CoreService/.../simple_modifications_manipulator_manager.hpp`：设备级 simple_modifications **自动** `push_back_condition(make_device_if_condition(device))`，并给 `from` 自动补 `modifiers.optional=["any"]` ⇒ 设备级条目天然带 device_if，不能也不需要手写 conditions。
+- 修复（仓库，未提交）：① `karabiner.json` 把 5 条映射从 profile 级 `simple_modifications` 挪进 `devices[]` 的内置键盘条目（identifiers: vendor 1452 / product 65535 / is_keyboard），删掉手写 `conditions`；② README 机制描述改为「设备级条目 + Karabiner 自动附 device_if」，新增 ⚠ 陷阱条与复核命令 `grep -i 'json error' ~/.local/share/karabiner/log/console_user_server.log`；③ 测试断言改为：profile 级不得有 simple_modifications、`devices[0].identifiers` 精确匹配、5 条映射、每条键集合恰为 `{from,to}`（防再次写进不支持的键）。
+- 验证：JSON valid；`./tests/karabiner_config_test.sh` / `repo_docs_test` / `yabai_config_test` PASS；`git diff --check` OK。**注意**：agent 无法覆盖 live `~/.config/karabiner/karabiner.json`（allowlist 保护），必须由用户重跑 install.sh 才能实测。
+- 未完成（需用户）：`cd ~/Documents/dotfiles && ./install.sh`；随后 `grep -i 'json error' ~/.local/share/karabiner/log/console_user_server.log | tail -3`（期望无新增），实测 Esc 切大小写、物理 Win=Mod、物理 Alt=Command。
+- 回滚信息：**未提交**（整个 Karabiner 模块仍是未跟踪的新文件）：模块级丢弃 = `rm -rf .config/macos/karabiner tests/karabiner_config_test.sh` + `git checkout -- install.sh README.md memory/desktop.md`；live 恢复 = `cp -p ~/.config/karabiner/karabiner.json.backup.<最新时间戳> ~/.config/karabiner/karabiner.json`（install.sh 部署时生成，保 3 份）。
+- 后续可能方向：① 用户实测三项；② 若仍不生效，用 Karabiner-EventViewer 看按键事件是否到达（判断是 grab 层还是映射层）；③ `~/.cache/karabiner-src` 留作排障参考（非仓库内容，可删）；④ 以后写 Karabiner 配置：设备限定一律走 `devices[]`，改完先跑测试再部署。
+
+## 2026-10-01 — 修复二：Esc→caps_lock 被 Caps 规则二次拦截（映射移入 complex 层）
+- 现象：上一轮修复的配置已部署（08:51）且被 Karabiner 干净重载（08:54:30，重载后 0 报错，用户 grep 到的全是 08:46 旧记录），但实测「Esc 仍无法切换大小写」。
+- 根因（源码级）：`device_grabber.hpp`（212-222 行）用 `manipulator_managers_connector` 把各 manager **串联**：`device_key_code → simple_modifications → complex_modifications → fn_function_keys → post_event_to_virtual_devices`。**simple 层输出会作为 complex 层输入** ⇒ 设备级 `escape → caps_lock` 的输出又被 Caps 规则（`caps_lock → lazy Ctrl / to_if_alone escape`）接住，tap 后仍是 Esc——症状即"按 Esc 没反应"。Win/Alt 互换没有 complex 规则涉及 command/option，所以一直正常。
+- 修复（仓库，未提交）：① `karabiner.json` 把 `escape → caps_lock` 从 `devices[].simple_modifications` 移到 `complex_modifications.rules`（新增一条带 `device_if`(1452/65535/is_keyboard) 的规则）；4 条互换保留在设备级 simple_modifications；② README「Esc → 大写锁定」小节新增「为什么必须写 complex 层」的流水线说明；③ 测试断言改为：complex 规则 **2 条**（Caps + Esc，逐字段含 device_if）、设备级 simple **4 条**（仅互换）。
+- 验证：JSON valid；`karabiner_cli --lint-complex-modifications`（把 rules 提取为 `{title, rules}` 格式）**ok**；karabiner_config_test / repo_docs_test / yabai_config_test PASS；git diff --check OK。
+- 未完成（需用户）：`cd ~/Documents/dotfiles && ./install.sh`；实测物理 Esc 切大小写、Caps 单击仍是 Esc、Win=Mod、Alt=Command；`grep -i 'json error' ~/.local/share/karabiner/log/console_user_server.log` 预期仍 0 条新增。
+- 回滚信息：**未提交**（Karabiner 模块为未跟踪新文件）：模块级丢弃 = `rm -rf .config/macos/karabiner tests/karabiner_config_test.sh` + `git checkout -- install.sh README.md memory/desktop.md`；live 恢复 = `cp -p ~/.config/karabiner/karabiner.json.backup.<最新时间戳> ~/.config/karabiner/karabiner.json`。
+- 后续可能方向：① 用户实测；② 若 Esc 仍不生效，用 EventViewer 确认事件走向，备选方案 = 「Caps 单击 = caps_lock、物理 Esc 保持 Esc」（但会失去 Esc-on-Caps）；③ 流水线知识已写入 memory/desktop.md——后续设计任何 Karabiner 映射都要先判断"写在哪一层"（simple 的输出会进 complex，complex 的输出不会再被 complex 吃）。

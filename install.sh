@@ -457,6 +457,7 @@ macos_configs=(
     "command -v aerospace|.config/macos/aerospace/aerospace.toml|~/.config/aerospace/aerospace.toml|Aerospace"
     "command -v yabai|.config/macos/yabai/yabairc|~/.config/yabai/yabairc|yabai"
     "command -v skhd|.config/macos/yabai/skhdrc|~/.config/skhd/skhdrc|skhd"
+    "[ -d /Applications/Karabiner-Elements.app ]|.config/macos/karabiner/karabiner.json|~/.config/karabiner/karabiner.json|Karabiner-Elements"
     "command -v alacritty|.config/shared/alacritty/keys.macos.toml|~/.config/alacritty/keys.toml|Alacritty keys"
     "command -v alacritty|.config/shared/alacritty/window.macos.toml|~/.config/alacritty/window.toml|Alacritty window"
     "command -v ssh|.config/macos/ssh/config|~/.ssh/config|SSH config (macOS)"
@@ -687,9 +688,11 @@ main() {
         log_info "Processing macOS configurations..."
         process_configs macos_configs
 
-        # Check optional macOS dependencies. JankyBorders only serves AeroSpace
-        # (yabai 6.0+ dropped built-in window borders and JankyBorders is not
-        # packaged in MacPorts), so only hint when AeroSpace is in use.
+        # Check optional macOS dependencies. JankyBorders serves both WMs
+        # (yabai 6.0+ dropped its built-in window border), but the brew install
+        # path only exists on Homebrew machines — the hackintosh builds it from
+        # source (see .config/macos/yabai/README.md) — so only hint when
+        # AeroSpace is in use.
         if command -v aerospace &> /dev/null && ! command -v borders &> /dev/null; then
             log_warn "borders not found — install with: brew install felixkratz/formulae/borders"
         fi

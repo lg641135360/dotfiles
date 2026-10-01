@@ -36,6 +36,7 @@
 │   ├── macos/           # macOS 桌面环境配置
 │   │   ├── aerospace/   # 窗口管理器（白苹果首选）
 │   │   ├── yabai/       # 窗口管理器 + skhd 热键（黑苹果 x86_64 首选）
+│   │   ├── karabiner/   # 键盘映射（Caps Lock：按住 Ctrl / 单击 Esc）
 │   │   ├── Brewfile     # macOS brew 依赖清单
 │   │   ├── defaults.sh  # macOS 系统默认值（键重复 / Dock / 窗口管理前提等）
 │   │   └── ssh/         # SSH 配置（macOS 覆盖）
@@ -85,11 +86,11 @@ chmod +x install.sh
 
 macOS 自带 Bash 为 3.2，而 `install.sh` 需要 Bash ≥ 4.3（`process_configs` 的 `local -n`、`clean_old_backups` 的 `mapfile`）；脚本检测到过旧 Bash 时，会自动改用 `/opt/local/bin/bash`（MacPorts）或 `/usr/local/bin/bash`、`/opt/homebrew/bin/bash`（Homebrew）重新执行，都没有则报错退出。Intel macOS 上用 MacPorts 装一次即可：`sudo port install bash`。Bash 版本由脚本 shebang 决定，与登录 shell 是 zsh 还是 bash 无关。macOS 分支还会执行 `.config/macos/defaults.sh` 应用系统偏好（键重复/Dock/Finder/截图/触控板等）；该脚本按当前值幂等，仅当值不同才写入、且仅在确有变化时才重启 Finder/Dock，因此重复运行 `install.sh` 不会反复重设。
 
-升级已安装的工具：npm 全局安装的 CLI 优先用各自的自带 updater——`pi update --self`、`claude update`、`codex update`（实测均可）；也可用 `npm update -g <包名>` 显式列出升级。注意**不要用裸 `npm update -g`**：MacPorts 的 npm10 打了补丁，无包名时会拒绝执行（它会顺带升级 npm 自身）。herdr 用自带 `herdr update`。yabai 走官方预编译 release：重跑安装脚本覆盖二进制（目录参数须与首次一致，即 `~/.local/bin` 与 `~/.local/share/man/man1`），并**刷新 `/private/etc/sudoers.d/yabai` 的 sha256**（二进制变了旧哈希就失效），再 `yabai --start-service` 与 `sudo yabai --load-sa`；完整命令见 `.config/macos/yabai/README.md`。skhd 及其余由 MacPorts 管理的工具（node/npm、neovim、yazi、starship、bash、tmux、fzf 等）用 `sudo port selfupdate && sudo port upgrade outdated`。
+升级已安装的工具：npm 全局安装的 CLI 优先用各自的自带 updater——`pi update --self`、`claude update`、`codex update`（实测均可）；也可用 `npm update -g <包名>` 显式列出升级。注意**不要用裸 `npm update -g`**：MacPorts 的 npm10 打了补丁，无包名时会拒绝执行（它会顺带升级 npm 自身）。herdr 用自带 `herdr update`。yabai 走官方预编译 release：重跑安装脚本覆盖二进制（目录参数须与首次一致，即 `~/.local/bin` 与 `~/.local/share/man/man1`），并**刷新 `/private/etc/sudoers.d/yabai` 的 sha256**（二进制变了旧哈希就失效），再 `yabai --start-service` 与 `sudo yabai --load-sa`；JankyBorders（焦点边框）为源码安装，更新 = `git pull && make` 后覆盖 `~/.local/bin/borders`——完整命令见 `.config/macos/yabai/README.md`。skhd 及其余由 MacPorts 管理的工具（node/npm、neovim、yazi、starship、bash、tmux、fzf 等）用 `sudo port selfupdate && sudo port upgrade outdated`。
 
 窗口管理器按机型二选一：**黑苹果 x86_64（本机）用 yabai + skhd**——yabai 走官方预编译 release（二进制已带维护者自签证书，装到 `~/.local/bin`，不依赖 Homebrew 也不需要在系统目录写文件），skhd 走 MacPorts；**白苹果（Apple Silicon / 官方硬件）用 AeroSpace**（Brewfile 里的 `nikitabobko/tap/aerospace`）。两者都用 `alt` 作 Mod、不能同机同跑；配置分别在 `.config/macos/yabai/` 和 `.config/macos/aerospace/`，`install.sh` 按对应命令是否可用分别部署。
 
-安装脚本采用复制部署，不会创建符号链接；目标文件已存在时会先备份再覆盖（同类备份保留最近 3 份）。对 `~/.zshenv` 追加 `ZDOTDIR` / `skip_global_compinit` 前也会先建时间戳备份。桌面入口中的 `__HOME__` 占位符在复制前展开，因此重复运行不会产生多余备份。脚本通过自身路径定位仓库，因此可从任意工作目录执行。它不会自动安装桌面软件：仅在对应命令可用时复制配置，缺失时打印提示并跳过；例外是已安装 `tmux` 或 Alacritty 时，可通过 Git 获取缺失的 TPM 或 Alacritty 主题；TPM 只装插件管理器，声明在 `~/.tmux.conf` 的插件（catppuccin 主题、tmux-resurrect 等）需在 tmux 内按 `Ctrl+a + I` 才会克隆，因此检测到插件目录只有 TPM 时脚本会打印该按键提示。Linux 上检测到 `niri` 后会部署 Wayland 辅助脚本、桌面入口、portal 偏好、XDG autostart 覆盖与 Foot 终端配置，不判断当前会话类型；其中 Foot 按单文件部署，保留 `~/.config/foot` 中其它第三方文件（如 DMS 的 `dank-colors.ini`）。Niri KDL 与 Waybar、Mako、Fuzzel、Swaylock 桌面外壳栈仅在 Ubuntu 且未检测到 DMS 时部署——DMS（`command -v dms`）机器保留其自管的 Niri 配置与外壳栈，非 Ubuntu 发行版保留现有 live 配置；Alacritty 配置在 openSUSE 与 DMS 机器上跳过复制以保留 DMS 管理。钉钉日常启动使用官方 `Elevator.sh`，仓库中的 `dingtalk-wayland` 只保留排障功能。
+安装脚本采用复制部署，不会创建符号链接；目标文件已存在时会先备份再覆盖（同类备份保留最近 3 份）。对 `~/.zshenv` 追加 `ZDOTDIR` / `skip_global_compinit` 前也会先建时间戳备份。桌面入口中的 `__HOME__` 占位符在复制前展开，因此重复运行不会产生多余备份。脚本通过自身路径定位仓库，因此可从任意工作目录执行。它不会自动安装桌面软件：仅在对应命令可用时复制配置，缺失时打印提示并跳过；例外是已安装 `tmux` 时可通过 Git 获取缺失的 TPM，以及 Linux 上已安装 Alacritty 时会自动 clone 主题仓库（macOS 需手动 clone，见 `.config/macos/yabai/README.md`）。TPM 只装插件管理器，声明在 `~/.tmux.conf` 的插件（catppuccin 主题、tmux-resurrect 等）需在 tmux 内按 `Ctrl+a + I` 才会克隆，因此检测到插件目录只有 TPM 时脚本会打印该按键提示。Linux 上检测到 `niri` 后会部署 Wayland 辅助脚本、桌面入口、portal 偏好、XDG autostart 覆盖与 Foot 终端配置，不判断当前会话类型；其中 Foot 按单文件部署，保留 `~/.config/foot` 中其它第三方文件（如 DMS 的 `dank-colors.ini`）。Niri KDL 与 Waybar、Mako、Fuzzel、Swaylock 桌面外壳栈仅在 Ubuntu 且未检测到 DMS 时部署——DMS（`command -v dms`）机器保留其自管的 Niri 配置与外壳栈，非 Ubuntu 发行版保留现有 live 配置；Alacritty 配置在 openSUSE 与 DMS 机器上跳过复制以保留 DMS 管理。钉钉日常启动使用官方 `Elevator.sh`，仓库中的 `dingtalk-wayland` 只保留排障功能。
 
 当 `claude` 和 `jq` 同时可用时，还会安装 `.config/shared/cc/statusline.sh` 到
 `~/.config/cc/statusline.sh`，并配置 `~/.claude/settings.json` 指向该脚本。
