@@ -32,6 +32,14 @@ assert_matches 'window_opacity[[:space:]]+off' "$YAIRC"
 # Mocha blue (#89b4fa), same as niri's focus-ring and awesome's border_focus.
 assert_matches 'insert_feedback_color[[:space:]]+0xff89b4fa' "$YAIRC"
 
+# --- focus border (JankyBorders) -------------------------------------------
+# yabai 6.0+ dropped the built-in window border, so yabairc must start
+# JankyBorders — guarded by `command -v`, like the other optional pieces, so
+# machines without it keep working. The colours follow the repository focus
+# colour; the inactive colour is fully transparent (focus highlight only).
+assert_contains 'command -v borders' "$YAIRC"
+assert_matches 'borders active_color=0xff89b4fa inactive_color=0x00494d64 width=5.0' "$YAIRC"
+
 # --- window rules ----------------------------------------------------------
 assert_contains 'app="^Finder$"' "$YAIRC"
 assert_contains 'manage=off' "$YAIRC"
@@ -105,6 +113,14 @@ expected = {
     "alt + shift - 5": "yabai -m window --space 5 && yabai -m space --focus 5",
     "alt - tab": "yabai -m space --focus recent",
     "alt + shift - tab": "yabai -m display --focus next",
+    # Secondary tier: minimize / warp / split axis / reload.
+    "alt - n": "yabai -m window --minimize",
+    "alt + ctrl - h": "yabai -m window --warp west",
+    "alt + ctrl - j": "yabai -m window --warp south",
+    "alt + ctrl - k": "yabai -m window --warp north",
+    "alt + ctrl - l": "yabai -m window --warp east",
+    "alt + ctrl - s": "yabai -m window --toggle split",
+    "alt + ctrl - r": "yabai --restart-service",
 }
 
 # The two resize bindings are long "try every fence" chains; they are checked
@@ -200,6 +216,10 @@ assert_contains '白苹果' "$README"
 assert_contains 'yabai + skhd' "$README"
 assert_contains 'Mod+Shift+1/2/3/4/5' "$README"
 assert_contains 'scripting-addition failed to inject payload' "$README"
+# JankyBorders supplies the focus border (yabai 6.0+ has none built in), and
+# the Alacritty prerequisite for the Mod+Return binding must be documented.
+assert_contains 'JankyBorders' "$README"
+assert_contains 'port install alacritty' "$README"
 # Mouse bindings are configured (mouse_modifier/mouse_action*) and must be
 # documented, like awesome's "鼠标操作" table.
 assert_contains '## 鼠标操作' "$README"
@@ -221,7 +241,9 @@ assert_contains 'yabai --start-service' "$ROOT_README"
 # --- install.sh deployment ------------------------------------------------
 assert_contains 'command -v yabai|.config/macos/yabai/yabairc|~/.config/yabai/yabairc|yabai' "$INSTALL_FILE"
 assert_contains 'command -v skhd|.config/macos/yabai/skhdrc|~/.config/skhd/skhdrc|skhd' "$INSTALL_FILE"
-# JankyBorders only serves AeroSpace; the hint must be gated on it.
+# The borders hint is gated on AeroSpace: only that machine has the brew
+# install path (the hackintosh builds JankyBorders from source, see the yabai
+# README).
 assert_contains 'command -v aerospace &> /dev/null && ! command -v borders' "$INSTALL_FILE"
 
 # --- macOS prerequisites ---------------------------------------------------

@@ -31,3 +31,13 @@ macOS 上的平铺窗口管理器配置，目标是尽量对齐 Linux AwesomeWM 
 ## 关闭窗口语义
 
 `Mod+q` 绑定到 AeroSpace 的 `close` 命令，语义是关闭当前聚焦窗口，接近 macOS 原生 `Cmd+w` / AwesomeWM `Mod+q` 的“关当前窗口”。它不会默认退出整个应用；如果以后希望最后一个窗口时退出应用，可单独改成 `close --quit-if-last-window`。
+
+## JankyBorders（窗口边框）
+
+`aerospace.toml` 的 `after-startup-command` 会启动 [JankyBorders](https://github.com/FelixKratz/JankyBorders) 画焦点边框（当前 `active_color=0xffcba6f7`；仓库统一的焦点色是 Catppuccin 蓝 `0xff89b4fa`，如需对齐只改这一处）：
+
+```sh
+brew install felixkratz/formulae/borders   # 已收录在 .config/macos/Brewfile
+```
+
+- 缺失时 `install.sh` 会打印上面的安装提示（该提示只门控在 AeroSpace 机器上：黑苹果无 Homebrew 且 MacPorts 也没有此端口，那边走源码编译，见 `../yabai/README.md` 的「焦点边框」）。

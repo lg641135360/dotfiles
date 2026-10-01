@@ -44,11 +44,11 @@
 
 ## 主题
 
-使用 [alacritty-themes](https://github.com/alacritty-theme/alacritty-themes) 仓库中的 **Catppuccin Mocha** 主题，与 AwesomeWM 桌面主题保持一致：
+使用 [alacritty-theme](https://github.com/alacritty/alacritty-theme) 仓库中的 **Catppuccin Mocha** 主题，与 AwesomeWM 桌面主题保持一致：
 
 ```bash
-# 安装主题仓库
-git clone https://github.com/alacritty-theme/alacritty-themes.git ~/.config/alacritty/themes
+# 安装主题仓库（Linux 由 install.sh 自动 clone；macOS 手动执行一次）
+git clone --depth 1 https://github.com/alacritty/alacritty-theme ~/.config/alacritty/themes
 ```
 
 ## 快捷键

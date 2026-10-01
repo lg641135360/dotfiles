@@ -15,6 +15,7 @@ alt - e      : open -a Finder
 
 # --- 窗口 -----------------------------------------------------------------
 alt - q        : yabai -m window --close
+alt - n        : yabai -m window --minimize
 alt - f        : yabai -m window --toggle zoom-fullscreen
 alt + ctrl - f : yabai -m window --toggle float
 alt + ctrl - d : yabai -m window --toggle zoom-parent
@@ -39,6 +40,21 @@ alt + shift - h : yabai -m window --swap west
 alt + shift - j : yabai -m window --swap south
 alt + shift - k : yabai -m window --swap north
 alt + shift - l : yabai -m window --swap east
+
+# --- 移动（warp）----------------------------------------------------------
+# warp：把窗口重新插入到相邻位置（改变树结构，不与被越过的窗口交换），
+# 与上面的 --swap 互补。
+alt + ctrl - h : yabai -m window --warp west
+alt + ctrl - j : yabai -m window --warp south
+alt + ctrl - k : yabai -m window --warp north
+alt + ctrl - l : yabai -m window --warp east
+
+# --- 分割方向 / 重载 -------------------------------------------------------
+# 切换当前窗口父节点的切割轴（水平 ↔ 垂直）；仅 BSP 布局且该窗口处于分屏时有效
+# （源码 space_manager_toggle_window_split：非中间节点直接 no-op）。
+alt + ctrl - s : yabai -m window --toggle split
+# 重载 yabai（重跑 yabairc，对齐 awesome 的 Mod+Ctrl+R 重载习惯）。
+alt + ctrl - r : yabai --restart-service
 
 # --- 调整大小 -------------------------------------------------------------
 # yabai 的 handle 指的是**被拖动的 fence**（见 src/window_manager.c 的

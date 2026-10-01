@@ -74,9 +74,10 @@ test_install_macos_branch_runs_defaults_and_brewfile_hint() {
     rm -rf "$tmpdir"
 }
 
-# JankyBorders is only used by AeroSpace: yabai 6.0+ has no built-in window
-# borders and the hackintosh has no Homebrew at all, so warning there is just
-# noise pointing at a command that cannot run.
+# The JankyBorders hint is gated on AeroSpace: it is the only machine with the
+# brew install path (yabai 6.0+ dropped its built-in border, but the hackintosh
+# has no Homebrew and MacPorts lacks a borders port — its install path is a
+# source build documented in .config/macos/yabai/README.md).
 test_borders_hint_is_gated_on_aerospace() {
     skip_unless_platform Linux || return $?
 

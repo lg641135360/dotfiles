@@ -85,4 +85,15 @@ ensure_spaces
 # 启动时把现有规则回放到当前窗口，登录/重启后 Finder / 微信 / 系统设置直接浮动。
 yabai -m rule --apply >/dev/null 2>&1 || true
 
+# ---------------------------------------------------------------------------
+# 焦点边框（JankyBorders）
+# ---------------------------------------------------------------------------
+# yabai 6.0+ 已移除内置窗口边框，焦点反馈改由 JankyBorders 提供（其官方
+# README 的 yabai 用法就是在此处启动）。颜色/宽度对齐仓库与 AeroSpace：
+# 焦点 Catppuccin 蓝，非焦点透明（只高亮当前窗口），宽度 5。
+# 未安装时静默跳过；重复启动是安全的（已有实例只被更新属性，不会堆积进程）。
+if command -v borders >/dev/null 2>&1; then
+    borders active_color=0xff89b4fa inactive_color=0x00494d64 width=5.0 &
+fi
+
 echo "yabai configuration loaded.."

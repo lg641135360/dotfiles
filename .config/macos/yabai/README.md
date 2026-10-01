@@ -28,6 +28,7 @@ command -v yabai && yabai -v   # 期望 yabai-v7.1.25 或更新
 - 不要用浏览器下载 yabai：预编译是自签名，`spctl` 会判 `rejected`，浏览器会带上 quarantine 属性而被 Gatekeeper 拦下；`curl` 不会（已实测无 quarantine）。
 - 若不指定目录，脚本默认写 `/usr/local/bin`（root:admin，普通用户不可写），需要 `sudo`。
 - 该机器不走 `.config/macos/Brewfile`（无 Homebrew）；也可以用 `sudo port install yabai`（MacPorts 版为源码编译，**必须**自建 `yabai-cert` 证书并 `codesign -fs 'yabai-cert' /opt/local/bin/yabai`，且每次 `port upgrade` 后要重签 + 重算 sudoers 哈希）。
+- `Mod+Return` 的启动目标是 **Alacritty**（`skhdrc` 里 `open -na Alacritty`，本机曾缺失导致该键无效）：`sudo port install alacritty`（MacPorts 有 `darwin_24.x86_64` 二进制归档）。Catppuccin 主题的自动 clone 只在 `install.sh` 的 Linux 分支，macOS 需手动执行一次：`git clone --depth 1 https://github.com/alacritty/alacritty-theme ~/.config/alacritty/themes`（`alacritty.toml` 的 import 指向 `themes/themes/catppuccin_mocha.toml`）。
 
 ## Scripting addition（SA）
 
@@ -73,6 +74,7 @@ skhd --start-service
 | `Mod+Return` | 打开 Alacritty |
 | `Mod+e` | 打开 Finder |
 | `Mod+q` | 关闭当前窗口 |
+| `Mod+n` | 最小化窗口（对齐 awesome 的 `Mod+N`） |
 | `Mod+f` | 切换全屏（zoom-fullscreen） |
 | `Mod+Ctrl+f` | 切换浮动 / 平铺 |
 | `Mod+Ctrl+d` | 切换 zoom-parent |
@@ -81,6 +83,9 @@ skhd --start-service
 | `Mod+/` `Mod+,` | 切换 bsp / stack 布局（keycode 0x2C / 0x2B） |
 | `Mod+h/j/k/l` | 按方向聚焦窗口 |
 | `Mod+Shift+h/j/k/l` | 按方向交换窗口位置 |
+| `Mod+Ctrl+h/j/k/l` | 按方向移动窗口（warp：重新插入到相邻位置，不交换） |
+| `Mod+Ctrl+s` | 切换当前窗口分割方向（水平 ↔ 垂直；仅 BSP 且该窗口在分屏内时有效） |
+| `Mod+Ctrl+r` | 重载 yabai（重跑 `yabairc`） |
 | `Mod+Shift+-` `Mod+Shift+=` | 缩小 / 放大窗口（keycode 0x1B / 0x18；按 右→左→下→上 依次尝试 fence，等效 AeroSpace 的 `resize smart`） |
 | `Mod+1/2/3/4/5` | 切换数字工作区 1-5 |
 | `Mod+Shift+1/2/3/4/5` | 将当前窗口移到对应工作区并跟随聚焦 |
@@ -101,6 +106,21 @@ skhd --start-service
 
 用 `fn` 而不是 `alt` 是刻意选择：`alt`（Option）拖拽在 Finder 等应用里有原生含义。yabai 7.0.0 已修复「`alt` 作 `mouse_modifier` 会触发 macOS 隐藏全部窗口」的老 bug，若想和 awesome 完全一致，可把 `mouse_modifier` 改成 `alt`。
 
+## 焦点边框（JankyBorders）
+
+yabai **6.0+ 移除了内置窗口边框**，焦点反馈由 [JankyBorders](https://github.com/FelixKratz/JankyBorders) 补足：焦点窗口一圈 Catppuccin 蓝 `0xff89b4fa`（与 niri/awesome 的焦点色一致），非焦点透明 `0x00494d64`（只高亮当前窗口），宽度 5.0（对齐 AeroSpace 的 borders）。
+
+```sh
+# 本机无 brew，MacPorts 也没有 borders 端口 → 源码编译（Xcode 命令行工具已在位）
+git clone --depth 1 https://github.com/FelixKratz/JankyBorders ~/.cache/jankyborders-src
+make -C ~/.cache/jankyborders-src
+cp ~/.cache/jankyborders-src/bin/borders ~/.local/bin/
+mkdir -p ~/.local/share/man/man1 && cp ~/.cache/jankyborders-src/docs/borders.1 ~/.local/share/man/man1/
+```
+
+- `yabairc` 末尾带 `command -v borders` 守卫启动它；重复启动是安全的（已有实例只被更新属性，不会堆积进程），所以每次 `yabai --restart-service` 后边框都会按上面的颜色就位。
+- 不需要额外 TCC 授权（不依赖辅助功能 API）；升级 = 重新 `git -C ~/.cache/jankyborders-src pull && make` 并覆盖 `~/.local/bin/borders`（无 brew services 托管，进程由 yabairc 启动）。
+
 ## 配置验证
 
 yabai 和 skhd 都没有 `niri validate` 那样的独立校验命令（skhd 甚至不提供 `--help`/dry-run），可用的手段：
@@ -110,6 +130,7 @@ sh -n ~/.config/yabai/yabairc   # yabairc 是 POSIX sh，先保证语法
 yabai -m query --spaces         # 空间命令可用 ⇒ SA 已加载
 yabai -m rule --list            # 规则都应注册成功（当前 5 条浮动规则）
 yabai -m signal --list          # dock_did_restart 信号应在
+pgrep -x borders                # 焦点边框进程在跑（由 yabairc 启动）
 ```
 
 - 回归测试：`./tests/yabai_config_test.sh` —— 它会解析 `skhdrc` 后与期望绑定表**逐条比对**（缺绑定 / 重复绑定 / 未登记的额外绑定都会失败），并断言 README 键位表覆盖到每条绑定。
@@ -121,7 +142,7 @@ yabai -m signal --list          # dock_did_restart 信号应在
 - `Mod+r` 的 service 模式没有对应实现（skhd 的模式语法里"执行命令并返回"有歧义，未在本机回归前不引入）；涉及 SA 的 sticky / PiP / zoom-parent 已直接绑到 `Mod+Ctrl+*`。
 - AeroSpace 的 `join-with`（`Mod+Shift+方向`）在 yabai 里没有等价语义，改成 `window --swap`。
 - 工作区：只有 **1..5** 五个，全部用 mission-control **index** 寻址，不再沿用 AeroSpace 的 `C(ode)/B(rowser)/N(ote)/W(echat)` 命名工作区。理由：yabai **不允许纯数字标签**（`space --label 1` → `'1' cannot be used as a label.`），而数字工作区用 index 寻址本来就够用；去掉标签顺带避开了 `space --label` 打错空间、`space=` 规则被拒等一堆坑。顺序稳定性靠 `mru-spaces=false`（见下）。
-- AeroSpace 的 `C/B/N/W` 绑定释放后，`Mod+C`/`Mod+B`/`Mod+N`/`Mod+W` 在 macOS 上**全部空闲**（随时可换成 launcher / 最小化之类；注意 niri 的 `Mod+C` 是启动器、awesome 的 `Mod+N` 是最小化）。
+- AeroSpace 的 `C/B/N/W` 绑定释放后：`Mod+N` 已用作**最小化**（对齐 awesome），`Mod+C`/`Mod+B`/`Mod+W` 仍空闲（可换成 launcher 之类；注意 niri 的 `Mod+C` 是启动器）。
 
 ## 实机踩到的坑（写配置前必读）
 
