@@ -75,6 +75,7 @@ skhd --start-service
 | `Mod+e` | 打开 Finder |
 | `Mod+q` | 关闭当前窗口 |
 | `Mod+n` | 最小化窗口（对齐 awesome 的 `Mod+N`） |
+| `Mod+Ctrl+n` | 恢复最近最小化的窗口（对齐 awesome 的 `Mod+Ctrl+N`；`--focus` 一个最小化窗口会顺带恢复，无最小化窗口时静默无操作） |
 | `Mod+f` | 切换全屏（zoom-fullscreen） |
 | `Mod+Ctrl+f` | 切换浮动 / 平铺 |
 | `Mod+Ctrl+d` | 切换 zoom-parent |
@@ -87,7 +88,7 @@ skhd --start-service
 | `Mod+Ctrl+s` | 切换当前窗口分割方向（水平 ↔ 垂直；仅 BSP 且该窗口在分屏内时有效） |
 | `Mod+Ctrl+r` | 重载 yabai（重跑 `yabairc`） |
 | `Mod+Shift+-` `Mod+Shift+=` | 缩小 / 放大窗口（keycode 0x1B / 0x18；按 右→左→下→上 依次尝试 fence，等效 AeroSpace 的 `resize smart`） |
-| `Mod+1/2/3/4/5` | 切换数字工作区 1-5 |
+| `Mod+1/2/3/4/5` | 切换数字工作区 1-5（重复聚焦当前空间时的 "already focused" 报错已静默，不会刷 skhd 日志） |
 | `Mod+Shift+1/2/3/4/5` | 将当前窗口移到对应工作区并跟随聚焦 |
 | `Mod+Tab` | 切回上一个空间（`space --focus recent`） |
 | `Mod+Shift+Tab` | 聚焦下一个显示器 |

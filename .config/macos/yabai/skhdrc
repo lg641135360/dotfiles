@@ -8,6 +8,8 @@
 # 见下方「布局」与「调整大小」两处。
 #   0x1B = kVK_ANSI_Minus，0x18 = kVK_ANSI_Equal
 #   0x2C = kVK_ANSI_Slash，0x2B = kVK_ANSI_Comma
+# 命令里不要出现 `;`——skhd 会把它解析成 mode 切换语法、截断命令；
+# shell 单行只能用 `||` / `&&` 串联（tests/yabai_config_test.sh 有全局断言）。
 
 # --- 启动器 ---------------------------------------------------------------
 alt - return : open -na Alacritty
@@ -16,6 +18,12 @@ alt - e      : open -a Finder
 # --- 窗口 -----------------------------------------------------------------
 alt - q        : yabai -m window --close
 alt - n        : yabai -m window --minimize
+# 恢复最小化：man yabai 确证 --focus 一个最小化窗口会顺带恢复它（"you can
+# also --focus a minimized window to restore it as the focused window"，比
+# --deminimize 好：后者只在所属 app 已持焦点时才聚焦）。取窗口表里最新的
+# 最小化窗口（跨空间，聚焦会跳到它所在的空间）；没有最小化窗口时静默无操作。
+# jq 是 macOS 自带（/usr/bin/jq）；连字符字段要写 ."is-minimized"。
+alt + ctrl - n : yabai -m window --focus "$(yabai -m query --windows | jq -r 'map(select(."is-minimized")) | last | .id // empty')" 2>/dev/null || true
 alt - f        : yabai -m window --toggle zoom-fullscreen
 alt + ctrl - f : yabai -m window --toggle float
 alt + ctrl - d : yabai -m window --toggle zoom-parent
@@ -79,18 +87,22 @@ alt + shift - 0x18 : yabai -m window --resize right:50:0 2>/dev/null \
 # 全部用 mission-control index 寻址：yabai 不允许纯数字标签
 # （`space --label 1` 报 "'1' cannot be used as a label."），而数字工作区用 index
 # 本来就够用，所以 yabairc 里不对空间打任何标签（靠 mru-spaces=false 保顺序稳定）。
-alt - 1 : yabai -m space --focus 1
-alt - 2 : yabai -m space --focus 2
-alt - 3 : yabai -m space --focus 3
-alt - 4 : yabai -m space --focus 4
-alt - 5 : yabai -m space --focus 5
+# 重复聚焦当前空间时 yabai 会报 "cannot focus an already focused space."
+# （按 Mod+数字 确认当前位置的正常路径，此前刷满 /tmp/skhd_*.err.log），
+# 2>/dev/null 吞掉（同聚焦/resize 链的惯例）。
+alt - 1 : yabai -m space --focus 1 2>/dev/null || true
+alt - 2 : yabai -m space --focus 2 2>/dev/null || true
+alt - 3 : yabai -m space --focus 3 2>/dev/null || true
+alt - 4 : yabai -m space --focus 4 2>/dev/null || true
+alt - 5 : yabai -m space --focus 5 2>/dev/null || true
 
-# 移动当前窗口到目标空间并跟随（对齐 AeroSpace 的 --focus-follows-window）
-alt + shift - 1 : yabai -m window --space 1 && yabai -m space --focus 1
-alt + shift - 2 : yabai -m window --space 2 && yabai -m space --focus 2
-alt + shift - 3 : yabai -m window --space 3 && yabai -m space --focus 3
-alt + shift - 4 : yabai -m window --space 4 && yabai -m space --focus 4
-alt + shift - 5 : yabai -m window --space 5 && yabai -m space --focus 5
+# 移动当前窗口到目标空间并跟随（对齐 AeroSpace 的 --focus-follows-window）；
+# 窗口已在目标空间时后半段的 focus 同样会撞 already-focused，一并静默。
+alt + shift - 1 : yabai -m window --space 1 && yabai -m space --focus 1 2>/dev/null || true
+alt + shift - 2 : yabai -m window --space 2 && yabai -m space --focus 2 2>/dev/null || true
+alt + shift - 3 : yabai -m window --space 3 && yabai -m space --focus 3 2>/dev/null || true
+alt + shift - 4 : yabai -m window --space 4 && yabai -m space --focus 4 2>/dev/null || true
+alt + shift - 5 : yabai -m window --space 5 && yabai -m space --focus 5 2>/dev/null || true
 
 # --- 往返 / 显示器 --------------------------------------------------------
 alt - tab         : yabai -m space --focus recent

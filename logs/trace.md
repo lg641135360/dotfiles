@@ -640,3 +640,15 @@
 - live/提交：系统设置改动由用户手动完成（非仓库文件，无需 backup）。仓库改动**已提交 `4ce7f3e`**（未推送）；工作区里压的上一轮 yabai 未提交改动已先按“一轮一 commit”拆出并提交为 `42f4fef`，两轮在 `memory/desktop.md` / `logs/trace.md` 里的改动靠“先把 `memory/desktop.md`、`logs/trace.md` 回退到 HEAD 再只补 yabai 部分”的非交互方式分开（`git add -p` 需要 TTY，脚本里用不了）。
 - 回滚：仓库 = `git revert 4ce7f3e`（本轮只改文档与测试，不影响运行态）；系统侧回滚（恢复 Esc 切输入法）= 系统设置 → 键盘 → 文字输入 → 输入法 →「编辑…」→ 勾回「使用大写锁定键切换“ABC”输入法」。
 - 后续可能方向：① 若以后觉得轻点 Esc 有迟滞，`hidutil property --set '{"CapsLockDelayOverride":0}'`（重启失效，要持久化得写登录项/ LaunchAgent，未做）；② 白苹果或接入外接 Apple 布局键盘时同样要关这个**全局**选项（Esc 映射本身限内置键盘，但系统选项会连带改写外接键盘 Caps Lock 的语义）；③ 可考虑把“必须关闭该选项”作为**手动步骤**写进 `.config/macos/defaults.sh` 顶部注释（该脚本无输入法/键盘段落，且此开关写不了 defaults，本轮未改：README + memory 已够，等你点头再补）；④ trace 已 600+ 行，归档仍未做。
+
+## 2026-10-03 — yabai 优化三连：部署 live + already-focused 静默 + Mod+Ctrl+N 恢复最小化
+
+- 目的：用户选定分析结论中的 1/2/3 三项依次落地（分析见上一轮会话）。
+- 已做（仓库，一处任务三处同步）：
+  1. **live 部署**（分析第 1 项）：`./install.sh` 部署 42f4fef 版 yabairc 到 live（live 之前还挂着 `^Finder$`/`^Spotlight$` 旧规则，Finder 浮动 bug 在 live 上仍活着）；`yabai --restart-service` + `skhd --restart-service` 后 `yabai -m rule --list` 已确认出现 `^(Finder|访达)$` / `^(Spotlight|聚焦)$` alternation。
+  2. **already-focused 静默**（第 2 项）：`skhdrc` 的 `alt - 1..5` 五条加 `2>/dev/null || true`（按 Mod+数字确认当前位置时 yabai 报 "cannot focus an already focused space." 刷日志——`/tmp/skhd_rikoo.err.log` 35 行全是它）；`alt + shift - 1..5` 的 focus 后半段同加（窗口已在目标空间时同因）。
+  3. **Mod+Ctrl+N 恢复最小化**（第 3 项）：新增绑定 `alt + ctrl - n : yabai -m window --focus "$(yabai -m query --windows | jq -r 'map(select(."is-minimized")) | last | .id // empty')" 2>/dev/null || true`，对齐 awesome 的 Mod+Ctrl+N restore；选 `--focus` 而非 `--deminimize` 的依据：man yabai 明确 "you can also --focus a minimized window to restore it as the focused window"（--deminimize 只在 app 已持焦点时才聚焦）；取 `last`（窗口表按创建序，最新创建的最小化窗口）对齐 `awful.client.restore()` 语义；无最小化窗口时 jq 输出空 → `|| true` 兜底静默。同步：`README.md` 键位表新增 Mod+Ctrl+N 行、Mod+1..5 行标注静默；`tests/yabai_config_test.sh` 期望表同步（含 resize 链防退化断言注释区新增 restore 绑定）。
+- 验证：`./tests/yabai_config_test.sh` PASS（绑定表逐条比对，含 3 条新绑定）；`git diff --check` OK；live 实测：SA OK、err 日志全程 1426 字节未增长（re-focus 同空间 + restore 命令两次触发）、minimize 后 `query --windows` 最小化计数 1 → restore 命令后 0。skhdrc 头部注释新增「命令里不要出现 `;`——skhd 把它解析成 mode 切换」的坑（测试有全局断言，配置侧只沉淀在注释）。
+- live/提交：live **已部署**（备份：`~/.config/yabai/yabairc.backup.20261003_175921_91007`、`~/.config/skhd/skhdrc.backup.20261003_175921_91007`，install.sh 自动备份+保留 3 份）；**未提交**。
+- 回滚：仓库 = `git checkout -- .config/macos/yabai/skhdrc .config/macos/yabai/README.md tests/yabai_config_test.sh`；live = `cp -p ~/.config/skhd/skhdrc.backup.20261003_175921_91007 ~/.config/skhd/skhdrc && skhd --restart-service`（yabairc 备份同法，若需一并回滚）。
+- 后续可能方向：① 待用户实按 `Mod+Ctrl+N`（最小化 → 恢复）确认体感（命令级已验证，按键链路 skhd 解析层无法离线验证）；② 分析第 4/5 项（resize 链尾 `2>/dev/null`、单显示器 dead key）未做，属可选；③ scratchpad（第 6 项）未做。
