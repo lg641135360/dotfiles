@@ -662,6 +662,6 @@
   3. `tests/yabai_config_test.sh` 新增断言 `assert_contains 'app="^QQ$"'`。
 - 验证：`./tests/yabai_config` 测试 PASS（grep 疑问句确认含新断言）；live 实测：install.sh 部署 + restart 后 `rule --list` 出现 `"app":"^QQ$"`（index 2）；QQ 主窗口 1374 + QQ闪传 1375 均已 `is-floating: true`（与微信 1404 / 访达 1927 同为浮动），`has-ax-reference: true` 在表内。
 - 排障沉淀：`query --windows` 的浮动字段是 `is-floating`（bool），不存在 `floating` 字段——查 `floating` 会得 null，勿误判规则未命中。
-- live/提交：live **已部署**（备份：`~/.config/yabai/yabairc.backup.20261003_181148_95678`，install.sh 自动备份+保留 3 份）；**未提交**。
+- live/提交：live **已部署**（备份：`~/.config/yabai/yabairc.backup.20261003_181148_95678`，install.sh 自动备份+保留 3 份）；已提交 `048943f` 并推送 origin/main。
 - 回滚：仓库 = `git checkout -- .config/macos/yabai/yabairc .config/macos/yabai/README.md tests/yabai_config_test.sh`；live = `cp -p ~/.config/yabai/yabairc.backup.20261003_181148_95678 ~/.config/yabai/yabairc && yabai --restart-service`。
 - 后续可能方向：① 新开 QQ 窗口（聊天/设置面板）确认新窗口也浮动；② 顺带可做分析遗留第 4/5 项。
