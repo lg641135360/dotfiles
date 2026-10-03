@@ -41,10 +41,15 @@ assert_contains 'command -v borders' "$YAIRC"
 assert_matches 'borders active_color=0xff89b4fa inactive_color=0x00494d64 width=5.0' "$YAIRC"
 
 # --- window rules ----------------------------------------------------------
-assert_contains 'app="^Finder$"' "$YAIRC"
-assert_contains 'manage=off' "$YAIRC"
-# app= matches the *localized* application name (AppleLocale=zh_CN here), so the
+# app= matches the *localized* process name (AppleLocale=zh_CN here), so the
 # rules must carry the Chinese names as well or they silently never match.
+# Finder reports 访达 and Spotlight reports 聚焦 on this machine — verified
+# live via `yabai -m query --windows` app names and offline via
+# `mdls -name kMDItemDisplayName` (the original ^Finder$ / ^Spotlight$ rules
+# never fired and made those windows get tiled instead of floating).
+assert_contains 'app="^(Finder|访达)$"' "$YAIRC"
+assert_contains 'app="^(Spotlight|聚焦)$"' "$YAIRC"
+assert_contains 'manage=off' "$YAIRC"
 assert_contains 'app="^(WeChat|微信)$"' "$YAIRC"
 assert_contains '系统设置' "$YAIRC"
 # yabai rules only affect windows spawned after registration; --apply replays
@@ -239,6 +244,11 @@ assert_contains '拖拽' "$README"
 assert_contains '## 配置验证' "$README"
 assert_contains 'sh -n ~/.config/yabai/yabairc' "$README"
 assert_contains 'yabai -m query --spaces' "$README"
+# The sub-layer section explains the "window is always behind / always in"
+# symptoms and the orphan-window recovery; it is the documented root cause of
+# the localized app= pitfall, so keep it from disappearing.
+assert_contains '## 窗口层级' "$README"
+assert_contains 'has-ax-reference' "$README"
 assert_contains 'yabai + skhd' "$AEROSPACE_README"
 assert_contains '黑苹果' "$AEROSPACE_README"
 

@@ -131,11 +131,38 @@ yabai -m query --spaces         # 空间命令可用 ⇒ SA 已加载
 yabai -m rule --list            # 规则都应注册成功（当前 10 条：基础 5 条 + 4 个工具应用 + AXDialog 兜底）
 yabai -m signal --list          # dock_did_restart 信号应在
 pgrep -x borders                # 焦点边框进程在跑（由 yabairc 启动）
+yabai -m query --windows | grep -o '"app":"[^"]*"' | sort -u   # 核对 app= 规则用的本地化名
 ```
+
+- `app=` 规则能否命中，看的是**进程名**（本机即本地化名）。离线核对：`mdls -name kMDItemDisplayName -raw /Applications/Foo.app`（Finder 报 `访达.app`、Spotlight 报 `聚焦.app`）；应用在跑时用上面那条 `query --windows`。
 
 - 回归测试：`./tests/yabai_config_test.sh` —— 它会解析 `skhdrc` 后与期望绑定表**逐条比对**（缺绑定 / 重复绑定 / 未登记的额外绑定都会失败），并断言 README 键位表覆盖到每条绑定。
 - 运行日志：`/tmp/yabai_<user>.err.log` 与 `/tmp/skhd_<user>.err.log`（launchd 服务的 stdout/stderr）。
 - **skhd 的键位语法错误只能在启动时进 err 日志**，所以改完 skhdrc 后必须 `skhd --restart-service` 并实按一下，无法离线确认。
+
+## 窗口层级（为什么未托管的窗口总在上面）
+
+yabai 用窗口 **sub-layer** 来区分“自己管的”和“自己不管的”（实现见 SA 的 `SLSSetWindowSubLevel`，设计见上游 issue #1887）：
+
+| 窗口 | sub-level | 谁在画它 |
+|------|-----------|----------|
+| yabai 托管（平铺） | `-20`（`below`，即 `kCGBackstopMenuLevel`） | 永远在所有 `normal` 窗口**后面** |
+| 浮动 / `manage=off` / yabai 不认识的窗口 | `0`（`normal`） | 盖住所有平铺窗口 |
+
+两个后果需要记住：
+
+- **层级优先于焦点**：below 的窗口即使被激活也抬不到 normal 窗口前面（所以“点了也还在后面”）；反过来，yabai 没接管的窗口会永远压住平铺窗口。
+- **规则静默失效的表现就是“窗口总在后面”**：`manage=off` 规则没命中（多半是本地化名写错）时，窗口会走普通平铺路径 → 被压到 below；而一个“孤儿”窗口（不在 yabai 窗口表里）则相反，永远盖住一切。
+
+排障命令：
+
+```bash
+yabai -m query --windows                       # 看 sub-layer / has-ax-reference / split-child
+yabai -m query --windows --window <id>         # 报 could not locate window with the specified id ⇒ 该窗口不在窗口表里（孤儿）
+```
+
+- 孤儿窗口（`has-ax-reference: false`，不对应 yabai 的任何操作）常见于「创建窗口时没被采集到」或「AX 元素失效」；**关掉重开该窗口**即可恢复托管，`yabai -m rule --apply` 救不回来（它只遍历已跟踪的窗口）。
+- 若确实需要平铺窗口盖住未托管窗口，可用 `yabai -m rule --add app=".*" sub-layer=normal`，代价是 stack 布局里“最上面的窗口永远在最前”（上游 issue #2402），默认不采用。
 
 ## 与 AeroSpace 的差异
 
@@ -150,7 +177,7 @@ pgrep -x borders                # 焦点边框进程在跑（由 yabairc 启动�
 
 1. **纯数字不能当标签**：`space --label 1` → `'1' cannot be used as a label.`（label 必须是字符串 token，否则会与 mission-control index 在 `SPACE_SEL` 里撞车）。因此本配置**彻底不用标签**，工作区全部用 index 寻址，靠 `mru-spaces=false` 保证 1..5 的顺序稳定。
 2. **`space --create` 不会把焦点移到新空间**，且新建后 `query --spaces` 不一定马上反映；`ensure_spaces` 因此不依赖 query 的结果做循环条件，而是用本地计数推进（否则会多建一个空间或提前停手）。
-3. **`app=` 匹配的是本地化应用名**（本机 `AppleLocale=zh_CN`）：微信报的是「微信」、系统设置报的是「系统设置」，只写英文名会**静默不匹配**（无报错，就是不生效）。yabai 规则也不支持 bundle-id，所以只能用中英并列的 alternation。
+3. **`app=` 匹配的是本地化应用名**（yabai 取的是进程名 `CopyProcessName`，本机 `AppleLocale=zh_CN` 下即本地化名）：Finder 报「访达」、Spotlight 报「聚焦」、微信报「微信」、系统设置报「系统设置」，只写英文名会**静默不匹配**（无报错，就是不生效）。首版的 `^Finder$` / `^Spotlight$` 就是这个坑：两条规则从未命中，Finder 窗口被当普通窗口平铺，表现为「打开的资源库窗口总在后面」（详见上面的「窗口层级」）。yabai 规则也不支持 bundle-id，所以只能用中英并列的 alternation；核对办法：`mdls -name kMDItemDisplayName -raw <App.app>`（如 `访达.app`）或应用在跑时看 `yabai -m query --windows` 的 `app` 字段。
 4. **规则只对注册之后新出现的窗口生效**，已开着的窗口不会自动归位；`yabairc` 末尾的 `yabai -m rule --apply` 会把规则回放到当前窗口（现在只剩浮动规则，没有跨空间搬窗口的副作用）。
 5. **yabai 在注册规则时就校验 `SPACE_SEL`**：标签不存在会整条拒掉（日志 `value 'C' is not a valid option for SPACE_SEL`）。以后若要加 `space=` 规则，必须确认目标空间/标签当时已存在。
 6. **`--resize` 的 handle 指的是被拖动的 fence**（`src/window_manager.c`）：`first_child`（左/上）只有东/南 fence，`second_child`（右/下）只有西/北 fence，占满整屏的单窗口两边都没有 fence。单个 handle 会有半数情况报 `cannot locate a bsp node fence`，所以 `skhdrc` 里按 右→左→下→上 依次尝试（`2>/dev/null` 避免失败尝试刷进 `/tmp/skhd_*.err.log`）。

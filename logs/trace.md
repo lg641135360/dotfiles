@@ -620,3 +620,12 @@
 - live/提交：**无持久化 live 变更**（borders/Stats 实验均已恢复；未改任何 defaults 或配置文件）；仓库仅 trace/memory 两条记录；**未提交**。
 - 回滚：无需回滚（未持久化任何变更）；测量脚本/样本为一次性 /tmp 文件（ws.sample 等）。
 - 后续可能方向：① 若想进一步压 Trae 自身开销可另开一轮（如 agent 面板动效、`terminal.integrated.gpuAcceleration` 已有先例）；② 可选确认实验：Alacritty 里跑 30s 测量并最小化 Trae，WS 应归零（未做）；③ trace 已 600+ 行，归档仍未做。
+
+## 2026-10-02 — 浮动规则用错本地化名 + 沉淀「窗口层级」根因（补记于 2026-10-03 提交时）
+- 目的：`Mod+e` 打开的资源库（Finder）窗口「总在后面」，排查浮动窗口规则为何没生效。
+- 定位（只读 + live 实测）：① **`app=` 匹配的是进程名（`CopyProcessName`），本机即本地化名**——zh_CN 下 Finder 报「访达」、Spotlight 报「聚焦」（`mdls -name kMDItemDisplayName -raw` 复核 = `访达.app`/`聚焦.app`），首版 `^Finder$`/`^Spotlight$` 两条规则**从未命中**，窗口走普通平铺路径；② 更深一层是**窗口 sub-layer 决定层级**：托管（平铺）窗口被 SA 设成 `-20`（`below` = `kCGBackstopMenuLevel`，实现为 `SLSSetWindowSubLevel`，上游 issue #1887），浮动 / `manage=off` / 未跟踪窗口留在 `normal`(`0`)，**层级优先于焦点** ⇒ 规则静默失效的表现就是窗口被压到 below「点也抬不上来」；反之“孤儿窗口”（不在 yabai 窗口表里）永远盖住一切。
+- 已做（仓库）：`.config/macos/yabai/yabairc` 浮动规则改成中英 alternation（`^(Finder|访达)$`、`^(Spotlight|聚焦)$`）并把本地化名核对办法写进注释；`.config/macos/yabai/README.md` 新增「窗口层级（为什么未托管的窗口总在上面）」小节（层级表、层级优先于焦点的两大后果、排障命令、孤儿窗口只能关掉重开、`rule --add app=".*" sub-layer=normal` 兜底及其代价 issue #2402）+ `app=` 判定与核对说明；`memory/desktop.md` 两条修正；`tests/yabai_config_test.sh` 断言改为本地化 alternation + 新 README 小节。
+- 验证：`./tests/yabai_config_test.sh` PASS（含 skhdrc 绑定表逐条比对；2026-10-03 复跑仍 PASS）；`mdls` 复核本地化名如上。
+- live/提交：⚠ **live 未部署**——`~/.config/yabai/yabairc` 仍是 2026-10-01 版本（live `yabai -m rule --list` 里还是 `^Finder$`/`^Spotlight$`），`~/.config/skhd/skhdrc` 与仓库一致。部署命令：`cd ~/Documents/dotfiles && ./install.sh && yabai --restart-service`（install.sh 会先备份 live `yabairc`）。仓库改动**已提交**（hash 见下一条 trace 提交的回填）。
+- 回滚：仓库 = `git revert <本轮 yabai commit>`；live（部署后出问题）= `cp -p ~/.config/yabai/yabairc.backup.<时间戳> ~/.config/yabai/yabairc && yabai --restart-service`（本轮未同步 live，暂无 backup）。
+- 后续可能方向：① 待部署后实按确认 `访达`/`聚焦` 规则命中（`yabai -m rule --list` 出现新 alternation、资源库窗口不再被平铺）；② trace 已 600+ 行，归档仍未做。
