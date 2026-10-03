@@ -53,12 +53,14 @@ yabai -m config                                 \
 # 注意：`app=` 匹配的是**本地化应用名**（yabai 取的是进程名 `CopyProcessName`，本机
 # AppleLocale=zh_CN 下即本地化名）。实测 Finder 报「访达」、Spotlight 报「聚焦」、微信报
 # 「微信」、系统设置报「系统设置」，只写英文名会**静默不匹配**（无报错，就是不生效），所以
-# 这里统一用中英并列的 alternation。yabai 的规则不支持 bundle-id；离线核对本地化名的办法是
+# 这里统一用中英并列的 alternation；但也有反例：QQ 的显示名就是纯英文（mdls 实测），直接写
+# ^QQ$ 即可。yabai 的规则不支持 bundle-id；离线核对本地化名的办法是
 # `mdls -name kMDItemDisplayName -raw /Applications/Foo.app`，在线核对用
 # `yabai -m query --windows | grep -o '"app":"[^"]*"' | sort -u`（详见 README「窗口层级」）。
 # 规则一旦失效，窗口会被当成普通窗口平铺托管 → 被压到 below 子层，症状就是「打开也总在后面」。
 yabai -m rule --add app="^(Finder|访达)$"                                              manage=off
 yabai -m rule --add app="^(WeChat|微信)$"                                              manage=off
+yabai -m rule --add app="^QQ$"                                                         manage=off
 yabai -m rule --add app="^(System Settings|System Preferences|系统设置|系统偏好设置)$" manage=off
 yabai -m rule --add app="^(Spotlight|聚焦)$"                                           manage=off
 yabai -m rule --add title="Picture-in-Picture|画中画"                                  manage=off

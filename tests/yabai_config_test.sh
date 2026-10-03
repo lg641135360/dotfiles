@@ -51,6 +51,7 @@ assert_contains 'app="^(Finder|访达)$"' "$YAIRC"
 assert_contains 'app="^(Spotlight|聚焦)$"' "$YAIRC"
 assert_contains 'manage=off' "$YAIRC"
 assert_contains 'app="^(WeChat|微信)$"' "$YAIRC"
+assert_contains 'app="^QQ$"' "$YAIRC"
 assert_contains '系统设置' "$YAIRC"
 # yabai rules only affect windows spawned after registration; --apply replays
 # them onto already-open windows at startup.

@@ -652,3 +652,16 @@
 - live/提交：live **已部署**（备份：`~/.config/yabai/yabairc.backup.20261003_175921_91007`、`~/.config/skhd/skhdrc.backup.20261003_175921_91007`，install.sh 自动备份+保留 3 份）；已提交 `2b91551` 并推送 origin/main。
 - 回滚：仓库 = `git checkout -- .config/macos/yabai/skhdrc .config/macos/yabai/README.md tests/yabai_config_test.sh`；live = `cp -p ~/.config/skhd/skhdrc.backup.20261003_175921_91007 ~/.config/skhd/skhdrc && skhd --restart-service`（yabairc 备份同法，若需一并回滚）。
 - 后续可能方向：① 待用户实按 `Mod+Ctrl+N`（最小化 → 恢复）确认体感（命令级已验证，按键链路 skhd 解析层无法离线验证）；② 分析第 4/5 项（resize 链尾 `2>/dev/null`、单显示器 dead key）未做，属可选；③ scratchpad（第 6 项）未做。
+
+## 2026-10-03 QQ 类比微信做浮动处理（macos/yabai）
+
+- 背景与目的：用户要求把 QQ 也类比微信做 `manage=off` 浮动规则；顺带核对 QQ 是否有本地化名坑。
+- 已做（仓库，一处规则三处同步）：
+  1. `yabairc`：微信规则下方新增 `yabai -m rule --add app="^QQ$" manage=off`；头部注释补反例说明（QQ 显示名纯英文，mdls 实测 `QQ.app`，与 Finder/Spotlight/微信/系统设置不同，不要盲套中英 alternation）。
+  2. `README.md` 坑清单第 3 条补同一反例（`^QQ$` 直接匹配即可）。
+  3. `tests/yabai_config_test.sh` 新增断言 `assert_contains 'app="^QQ$"'`。
+- 验证：`./tests/yabai_config` 测试 PASS（grep 疑问句确认含新断言）；live 实测：install.sh 部署 + restart 后 `rule --list` 出现 `"app":"^QQ$"`（index 2）；QQ 主窗口 1374 + QQ闪传 1375 均已 `is-floating: true`（与微信 1404 / 访达 1927 同为浮动），`has-ax-reference: true` 在表内。
+- 排障沉淀：`query --windows` 的浮动字段是 `is-floating`（bool），不存在 `floating` 字段——查 `floating` 会得 null，勿误判规则未命中。
+- live/提交：live **已部署**（备份：`~/.config/yabai/yabairc.backup.20261003_181148_95678`，install.sh 自动备份+保留 3 份）；**未提交**。
+- 回滚：仓库 = `git checkout -- .config/macos/yabai/yabairc .config/macos/yabai/README.md tests/yabai_config_test.sh`；live = `cp -p ~/.config/yabai/yabairc.backup.20261003_181148_95678 ~/.config/yabai/yabairc && yabai --restart-service`。
+- 后续可能方向：① 新开 QQ 窗口（聊天/设置面板）确认新窗口也浮动；② 顺带可做分析遗留第 4/5 项。
