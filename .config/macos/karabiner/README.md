@@ -34,7 +34,9 @@
 
 - ⚠ **为什么不做成 simple modification**：Karabiner 的流水线是 **`device_key_code → simple_modifications → complex_modifications → fn_function_keys → 虚拟键盘`**（`device_grabber` 里 `manipulator_managers_connector` 依次串联各 manager）。`Esc → caps_lock` 若写在 simple 层，输出会**再进 complex 层**、被上面的 Caps 规则（`caps_lock → Ctrl/Esc`）吃掉——按 Esc 只会又发出一个 Esc（实测症状）。写成 complex 规则后，输出直接进后续阶段，不再被拦截。
 - 键盘闭环：`Caps` 按住 = Ctrl（按住 + 空格即 `Ctrl+Space` 切输入法）、`Caps` 单击 = Esc、物理 `Esc` = 大小写切换。
-- 系统未启用「使用 Caps Lock 切换输入法」（`defaults read com.apple.HIToolbox` 无相关设置），所以 `caps_lock` 就是纯大小写开关。
+- ⚠ **前置条件：必须关闭 macOS 的「使用大写锁定键切换“ABC”输入法」**（系统设置 → 键盘 → 文字输入 → 「输入法」→ **编辑…**）。该选项开启时 `caps_lock` 的语义是「**轻按 = 切中/英，按住不放 = 切大小写**」，而 Karabiner 输出的 `caps_lock` 正是一次轻按 ⇒ 按 Esc 只会切输入法、永远到不了大小写（2026-10-03 实测症状，关掉该选项后恢复）。
+  - 这个选项在添加非拉丁输入源（简体拼音）时**默认就是开的**；没手动改过时 `~/Library/Preferences/com.apple.HIToolbox.plist` 里**没有对应键**（实测该文件全程只有 `AppleCapsLockPressAndHoldToggleOff` 等 6 个键，关闭前后无新增）——**“`defaults read` 查不到” ≠ “未启用”**，本目录最初就是这么误判的；只能靠实测行为判断（轻点 = 切输入法 / 按住约 1s = 切大小写），换机或重装后按这条复核一遍。
+  - 关掉后 `caps_lock` 恢复纯大小写开关；本配置不映射 Caps Lock 的切输入法功能（真 Caps Lock 仍被改成 `Ctrl`/`Esc`），中英切换走系统默认 `Ctrl+Space`。若关掉后觉得轻点 Esc “要按住一下才生效”，那是 Caps Lock 防误触延迟（`CapsLockDelayOverride` 未设置 = 系统默认），可 `hidutil property --set '{"CapsLockDelayOverride":0}'`（重启失效，要持久化得写进登录项）。
 - 输入法切换保持系统默认快捷键 `Ctrl+Space`（已启用），本次未加额外映射。
 
 ## 安装 Karabiner-Elements

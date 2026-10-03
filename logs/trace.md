@@ -629,3 +629,14 @@
 - live/提交：⚠ **live 未部署**——`~/.config/yabai/yabairc` 仍是 2026-10-01 版本（live `yabai -m rule --list` 里还是 `^Finder$`/`^Spotlight$`），`~/.config/skhd/skhdrc` 与仓库一致。部署命令：`cd ~/Documents/dotfiles && ./install.sh && yabai --restart-service`（install.sh 会先备份 live `yabairc`）。仓库改动**已提交**（hash 见下一条 trace 提交的回填）。
 - 回滚：仓库 = `git revert <本轮 yabai commit>`；live（部署后出问题）= `cp -p ~/.config/yabai/yabairc.backup.<时间戳> ~/.config/yabai/yabairc && yabai --restart-service`（本轮未同步 live，暂无 backup）。
 - 后续可能方向：① 待部署后实按确认 `访达`/`聚焦` 规则命中（`yabai -m rule --list` 出现新 alternation、资源库窗口不再被平铺）；② trace 已 600+ 行，归档仍未做。
+
+## 2026-10-03 — 「Esc 不切大小写」根因：macOS「使用大写锁定键切换“ABC”输入法」开着（已由用户关闭）
+- 目的：用户问「Esc 应该配置成切换大小写，为什么没有」（上一轮刚落地的 Karabiner `escape → caps_lock` 映射）。排查是映射失效还是系统语义被改写。
+- 定位（只读 + 用户实测）：**不是 Karabiner 配置问题**。macOS「使用大写锁定键切换“ABC”输入法」选项开着时，`caps_lock` 的语义是「**轻按 = 切中/英，按住不放 = 切大小写**」，Karabiner 输出的 `caps_lock` 正是一次轻按 ⇒ 被 HIToolbox 拿去切输入法，轮不到大小写。验证法（无需改配置）：**按住物理 Esc 约 1s 能切大小写、轻点只切输入法**。
+- 误判来源（重要教训）：2026-10-01 建立映射时以「`defaults read com.apple.HIToolbox` 无相关键」推断“系统未启用”，实际该选项在添加非拉丁输入源（简体拼音）时**默认开启**，未手动改过时 **plist 里根本没有这个键**——本次实测 `~/Library/Preferences/com.apple.HIToolbox.plist` 全程只有 `AppleCapsLockPressAndHoldToggleOff` 等 6 个键，用户改前/改后都无新增。**“查不到键” ≠ “未启用”**，这类“系统开关只体现在行为上”的判断不能靠 defaults 反证（本想 diff 出键名记录，结论是不可能）。
+- 已做（live 系统设置，用户执行）：系统设置 → 键盘 → 文字输入 → 输入法 →「编辑…」→ 取消勾选「使用大写锁定键切换“ABC”输入法」；用户确认 **Esc 已恢复大小写切换**。`CapsLockDelayOverride` 仍为未设置（系统默认防误触延迟），未调整（用户无迟滞感则不必要）。
+- 已做（仓库）：`.config/macos/karabiner/README.md` 的「Esc → 大写锁定（仅内置键盘）」小节把原“系统未启用…”结论改写成**前置条件必须关闭该选项**（含默认开启 + plist 无键的判据、实测验证法、换机重装复核、`hidutil` 延迟兜底）；`memory/desktop.md` Karabiner 条目补同款前置条件与新 bullet；`tests/karabiner_config_test.sh` 增加 `assert_contains '使用大写锁定键切换'` 与 `assert_contains 'CapsLockDelayOverride'` 防回归断言。
+- 验证：`./tests/karabiner_config_test.sh` PASS；`./tests/repo_docs_test.sh` PASS（改了 karabiner README 与 memory）；`git diff --check` OK。选项的 UI 位置依据 Apple 官方文档（macOS 13+ 为「键盘 → 文字输入 → 输入法 → 编辑…」，本机 15.8 位置一致）。
+- live/提交：系统设置改动由用户手动完成（非仓库文件，无需 backup）；仓库改动**未提交**。⚠ 工作区还带着上一轮 yabai 未提交改动（`.config/macos/yabai/README.md`、`.config/macos/yabai/yabairc`、`tests/yabai_config_test.sh`、`memory/desktop.md`）——本轮 `memory/desktop.md` 也改了，要“一轮一 commit”分开提交就得 `git add -p memory/desktop.md` 挑出 Karabiner 那段。
+- 回滚：仓库 = `git checkout -- .config/macos/karabiner/README.md tests/karabiner_config_test.sh`（`memory/desktop.md` 只回滚本轮 → `git checkout -p memory/desktop.md`）；系统侧回滚（恢复 Esc 切输入法）= 系统设置 → 键盘 → 文字输入 → 输入法 →「编辑…」→ 勾回「使用大写锁定键切换“ABC”输入法」。
+- 后续可能方向：① 若以后觉得轻点 Esc 有迟滞，`hidutil property --set '{"CapsLockDelayOverride":0}'`（重启失效，要持久化得写登录项/ LaunchAgent，未做）；② 白苹果或接入外接 Apple 布局键盘时同样要关这个**全局**选项（Esc 映射本身限内置键盘，但系统选项会连带改写外接键盘 Caps Lock 的语义）；③ 可考虑把“必须关闭该选项”作为**手动步骤**写进 `.config/macos/defaults.sh` 顶部注释（该脚本无输入法/键盘段落，且此开关写不了 defaults，本轮未改：README + memory 已够，等你点头再补）；④ trace 已 600+ 行，归档仍未做。

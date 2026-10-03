@@ -105,5 +105,11 @@ assert_contains 'to_if_alone' "$KARABINER_README"
 assert_contains 'Win/Alt' "$KARABINER_README"
 assert_contains '大写锁定' "$KARABINER_README"
 assert_contains 'device_if' "$KARABINER_README"
+# macOS rewrites caps_lock semantics while its "Use the Caps Lock key to switch"
+# option is on (tap = switch input source, hold = toggle caps), which turns the
+# escape -> caps_lock mapping into an input-source switcher. The prerequisite
+# must stay documented.
+assert_contains '使用大写锁定键切换' "$KARABINER_README"
+assert_contains 'CapsLockDelayOverride' "$KARABINER_README"
 
 printf 'PASS: karabiner config tests\n'
