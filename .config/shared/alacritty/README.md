@@ -25,7 +25,7 @@
 
 ## 字体
 
-全部使用 **MesloLGS Nerd Font Mono**：
+全部使用 **Maple Mono NF CN**（系统需安装该字体，否则 fontconfig 会回退到默认等宽字体）：
 
 | 样式 | 字重 |
 |------|------|
@@ -34,7 +34,7 @@
 | 斜体 | Italic |
 | 粗斜体 | Bold Italic |
 
-字号 12px，光标为闪烁竖线（Beam）。
+字号 13px，光标为闪烁竖线（Beam）。
 
 ## 其他功能
 

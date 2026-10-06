@@ -665,3 +665,21 @@
 - live/提交：live **已部署**（备份：`~/.config/yabai/yabairc.backup.20261003_181148_95678`，install.sh 自动备份+保留 3 份）；已提交 `048943f` 并推送 origin/main。
 - 回滚：仓库 = `git checkout -- .config/macos/yabai/yabairc .config/macos/yabai/README.md tests/yabai_config_test.sh`；live = `cp -p ~/.config/yabai/yabairc.backup.20261003_181148_95678 ~/.config/yabai/yabairc && yabai --restart-service`。
 - 后续可能方向：① 新开 QQ 窗口（聊天/设置面板）确认新窗口也浮动；② 顺带可做分析遗留第 4/5 项。
+
+## 2026-10-06 — Fedora 新机接入：foot 部署解耦 niri 门槛 + 终端字体统一 Maple + Brewfile 补回 yazi
+
+- 背景与目的：全新 Fedora 44 Workstation（GNOME 50.5 Wayland，x86_64）用 dnf 装好 foot 1.27 与 Maple Mono NF CN（`maple-mono-nf-cn-unhinted`）后暴露三处仓库落差：① foot.ini 部署被 niri 门控卡住，GNOME 机器永远拿不到配置；② 终端字体（alacritty/foot）仍指 MesloLGS，而 waybar/mako/swaylock 等桌面组件早已使用 Maple；③ Linux Brewfile 缺 yazi，但 zsh README 把它列为依赖（`8a63d45` 曾因该机未装而移除）。用户决策：foot 需要部署、字体改 Maple、yazi 漂移修复。
+- 已做（仓库）：
+  1. `install.sh`：`process_configs linux_wayland_terminal_configs` 从 `command -v niri` 块移出，改为只要 `command -v foot` 通过即部署（GNOME 等非 niri Wayland 同样适用；DMS 不重写 foot.ini，保持部署）；niri 专属脚本/桌面入口/portal/autostart 仍受 niri 门控。同步两处注释。
+  2. 字体：`.config/shared/alacritty/alacritty.toml` 与 `.config/linux/foot/foot.ini` 四个样式 family `MesloLGS Nerd Font Mono` → `Maple Mono NF CN`；`.config/shared/alacritty/README.md`（含 12px→13px 笔误修正）、`.config/linux/foot/README.md`、`memory/alacritty.md`、`memory/foot.md` 同步。
+  3. `.config/linux/Brewfile` 补回 `brew "yazi"`（zsh README 的依赖声明重新与 Brewfile 一致）。
+  4. 测试先行：`tests/alacritty_config_test.sh`、`tests/foot_config_test.sh` 改字体断言并新增 README 守卫；`tests/install_wayland_test.sh` 新增「foot 存在且 niri 缺失时仍部署 foot.ini/README，同时 niri 专属文件仍跳过」行为测试。
+- 验证：
+  - 红测确认：三个测试在改配置前分别因 Meslo/缺 foot.ini 失败；改后三者全 PASS。
+  - `./tests/run.sh fast` → PASS=50 FAIL=0 SKIP=1（skip = install_bash_reexec，bash≥4.3 不适用；5 个 awesome 测试因 nvim 安装带入 luajit 从 SKIP 转 PASS）。
+  - `bash -n install.sh`、`sh -n tests/foot_config_test.sh tests/install_wayland_test.sh`、`git diff --check` 全部通过。
+  - 字体存在性：`fc-match` 对 `Maple Mono NF CN` 的 Regular/Bold/Italic/Bold Italic 四样式分别命中 `/usr/share/fonts/maple-mono-nf-cn-unhinted/MapleMono-NF-CN-*.ttf`。
+- live 同步（本机 Fedora）：`./install.sh` 成功，仅新增 `~/.config/foot/{foot.ini,README.md}`（新目录，无既有文件故未产生 backup；其余目标全部 identical 短路，未覆盖任何文件；alacritty 未安装故不涉及）。`cmp` 确认两份文件与仓库一致，`foot --check-config` 退出 0 无告警。恢复命令：`rm -rf ~/.config/foot`。
+- 提交：未提交。
+- 回滚：仓库 = `git restore install.sh README.md .config/linux/Brewfile .config/linux/foot .config/shared/alacritty memory/alacritty.md memory/foot.md tests/alacritty_config_test.sh tests/foot_config_test.sh tests/install_wayland_test.sh`；live = `rm -rf ~/.config/foot`。
+- 后续可能方向：① macOS 黑苹果 Alacritty 吃同一份 shared 字体配置，需装 Maple Mono NF CN 或拆平台字体文件，否则回退默认等宽；② 本机 `brew install yazi` 尚未执行（Brewfile 已收录）；③ GNOME 默认终端入口（Ptyxis/xdg-terminal-exec）是否显式切到 foot。

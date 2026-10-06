@@ -4,6 +4,7 @@ set -eu
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$REPO_ROOT/tests/lib/assert.sh"
 FOOT_FILE=$REPO_ROOT/.config/linux/foot/foot.ini
+FOOT_README=$REPO_ROOT/.config/linux/foot/README.md
 ALACRITTY_MAIN=$REPO_ROOT/.config/shared/alacritty/alacritty.toml
 ALACRITTY_WINDOW=$REPO_ROOT/.config/shared/alacritty/window.linux.toml
 ALACRITTY_KEYS=$REPO_ROOT/.config/shared/alacritty/keys.linux.toml
@@ -12,10 +13,12 @@ TERMINAL_SCRIPT=$REPO_ROOT/.config/scripts/terminal-wayland
 
 test_font_matches_alacritty() {
     # foot 与 alacritty 统一 13。font-* 必须显式带 :size，foot 不继承 font 的 size。
-    assert_contains 'MesloLGS Nerd Font Mono:size=13' "$FOOT_FILE"
-    assert_contains 'font-bold=MesloLGS Nerd Font Mono:weight=bold:size=13' "$FOOT_FILE"
-    assert_contains 'font-italic=MesloLGS Nerd Font Mono:slant=italic:size=13' "$FOOT_FILE"
-    assert_contains 'font-bold-italic=MesloLGS Nerd Font Mono:weight=bold:slant=italic:size=13' "$FOOT_FILE"
+    # 2026-10-06 起终端字体统一为 Maple Mono NF CN（替换 MesloLGS）。
+    assert_contains 'Maple Mono NF CN:size=13' "$FOOT_FILE"
+    assert_contains 'font-bold=Maple Mono NF CN:weight=bold:size=13' "$FOOT_FILE"
+    assert_contains 'font-italic=Maple Mono NF CN:slant=italic:size=13' "$FOOT_FILE"
+    assert_contains 'font-bold-italic=Maple Mono NF CN:weight=bold:slant=italic:size=13' "$FOOT_FILE"
+    assert_contains 'Maple Mono NF CN' "$FOOT_README"
     assert_contains 'size = 13' "$ALACRITTY_MAIN"
 }
 

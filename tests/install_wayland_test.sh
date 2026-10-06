@@ -44,7 +44,8 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/linux/xdg-autostart/nm-applet.desktop|~/.config/autostart/nm-applet.desktop|XDG autostart override: nm-applet' "$INSTALL_FILE"
     assert_contains '|.config/linux/xdg-autostart/print-applet.desktop|~/.config/autostart/print-applet.desktop|XDG autostart override: print-applet' "$INSTALL_FILE"
     assert_contains '|.config/linux/xdg-autostart/geoclue-demo-agent.desktop|~/.config/autostart/geoclue-demo-agent.desktop|XDG autostart override: geoclue-demo-agent' "$INSTALL_FILE"
-    # Block 1 (scripts/entries/portal/overrides/foot) deploys on any niri machine.
+    # Block 1 (scripts/entries/portal/overrides) deploys on any niri machine.
+    # Foot config is independent of niri: deployed whenever `foot` exists.
     assert_contains 'if command -v niri >/dev/null 2>&1; then' "$INSTALL_FILE"
     # Block 2 (niri KDL/shell stack) only on repo niri platforms.
     assert_contains 'if command -v niri >/dev/null 2>&1 && is_repo_niri_platform; then' "$INSTALL_FILE"
@@ -341,6 +342,34 @@ test_install_skips_niri_and_wayland_files_when_niri_is_missing() {
     rm -rf "$tmpdir"
 }
 
+test_install_deploys_foot_config_without_niri() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    rm -f "$bin_dir/niri"
+    # Foot is the Wayland default terminal beyond niri (e.g. Fedora GNOME):
+    # its config must deploy on any machine with foot installed.
+    printf '#!/bin/sh\nexit 0\n' >"$bin_dir/foot"
+    chmod +x "$bin_dir/foot"
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=fedora DOTFILES_ARCH=x86_64 \
+        /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should deploy foot config without niri"
+
+    assert_file_exists "$home_dir/.config/foot/foot.ini"
+    assert_file_exists "$home_dir/.config/foot/README.md"
+    # niri-only Wayland helper files stay gated on niri.
+    assert_file_not_exists "$home_dir/.config/niri/config.kdl"
+    assert_file_not_exists "$home_dir/.config/scripts/wayland-autostart"
+    assert_contains 'niri not found' "$output"
+
+    rm -rf "$tmpdir"
+}
+
 test_install_deploys_wayland_trial_files
 test_install_copies_wayland_files_when_niri_exists_outside_wayland_session
 test_install_copies_ubuntu_x64_niri_config
@@ -351,5 +380,6 @@ test_install_keeps_live_niri_config_for_unmapped_platform
 test_install_desktop_entries_are_idempotent
 test_install_preserves_unmanaged_desktop_entries
 test_install_skips_niri_and_wayland_files_when_niri_is_missing
+test_install_deploys_foot_config_without_niri
 
 printf 'PASS: install wayland tests\n'

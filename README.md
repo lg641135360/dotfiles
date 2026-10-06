@@ -23,7 +23,7 @@
 │   │   ├── Brewfile     # Linux brew 依赖清单
 │   │   ├── desktop-entries/ # 覆盖系统 desktop entry（fuzzel 菜单走 Wayland 包装脚本）
 │   │   ├── fuzzel/      # Wayland 启动器
-│   │   ├── foot/        # foot 终端模拟器配置（Alacritty 的 Wayland 兜底）
+│   │   ├── foot/        # foot 终端模拟器配置（Wayland 默认终端，Alacritty 兜底）
 │   │   ├── mako/        # Wayland 通知守护进程
 │   │   ├── niri/        # Wayland 合成器（主力桌面，AwesomeWM 为回退）
 │   │   ├── picom/       # X11 合成器
@@ -91,7 +91,7 @@ macOS 自带 Bash 为 3.2，而 `install.sh` 需要 Bash ≥ 4.3（`process_conf
 
 窗口管理器按机型二选一：**黑苹果 x86_64（本机）用 yabai + skhd**——yabai 走官方预编译 release（二进制已带维护者自签证书，装到 `~/.local/bin`，不依赖 Homebrew 也不需要在系统目录写文件），skhd 走 MacPorts；**白苹果（Apple Silicon / 官方硬件）用 AeroSpace**（Brewfile 里的 `nikitabobko/tap/aerospace`）。两者都用 `alt` 作 Mod、不能同机同跑；配置分别在 `.config/macos/yabai/` 和 `.config/macos/aerospace/`，`install.sh` 按对应命令是否可用分别部署。
 
-安装脚本采用复制部署，不会创建符号链接；目标文件已存在时会先备份再覆盖（同类备份保留最近 3 份）。对 `~/.zshenv` 追加 `ZDOTDIR` / `skip_global_compinit` 前也会先建时间戳备份。桌面入口中的 `__HOME__` 占位符在复制前展开，因此重复运行不会产生多余备份。脚本通过自身路径定位仓库，因此可从任意工作目录执行。它不会自动安装桌面软件：仅在对应命令可用时复制配置，缺失时打印提示并跳过；例外是已安装 `tmux` 时可通过 Git 获取缺失的 TPM，以及 Linux 上已安装 Alacritty 时会自动 clone 主题仓库（macOS 需手动 clone，见 `.config/macos/yabai/README.md`）。TPM 只装插件管理器，声明在 `~/.tmux.conf` 的插件（catppuccin 主题、tmux-resurrect 等）需在 tmux 内按 `Ctrl+a + I` 才会克隆，因此检测到插件目录只有 TPM 时脚本会打印该按键提示。Linux 上检测到 `niri` 后会部署 Wayland 辅助脚本、桌面入口、portal 偏好、XDG autostart 覆盖与 Foot 终端配置，不判断当前会话类型；其中 Foot 按单文件部署，保留 `~/.config/foot` 中其它第三方文件（如 DMS 的 `dank-colors.ini`）。Niri KDL 与 Waybar、Mako、Fuzzel、Swaylock 桌面外壳栈仅在 Ubuntu 且未检测到 DMS 时部署——DMS（`command -v dms`）机器保留其自管的 Niri 配置与外壳栈，非 Ubuntu 发行版保留现有 live 配置；Alacritty 配置在 openSUSE 与 DMS 机器上跳过复制以保留 DMS 管理。钉钉日常启动使用官方 `Elevator.sh`，仓库中的 `dingtalk-wayland` 只保留排障功能。
+安装脚本采用复制部署，不会创建符号链接；目标文件已存在时会先备份再覆盖（同类备份保留最近 3 份）。对 `~/.zshenv` 追加 `ZDOTDIR` / `skip_global_compinit` 前也会先建时间戳备份。桌面入口中的 `__HOME__` 占位符在复制前展开，因此重复运行不会产生多余备份。脚本通过自身路径定位仓库，因此可从任意工作目录执行。它不会自动安装桌面软件：仅在对应命令可用时复制配置，缺失时打印提示并跳过；例外是已安装 `tmux` 时可通过 Git 获取缺失的 TPM，以及 Linux 上已安装 Alacritty 时会自动 clone 主题仓库（macOS 需手动 clone，见 `.config/macos/yabai/README.md`）。TPM 只装插件管理器，声明在 `~/.tmux.conf` 的插件（catppuccin 主题、tmux-resurrect 等）需在 tmux 内按 `Ctrl+a + I` 才会克隆，因此检测到插件目录只有 TPM 时脚本会打印该按键提示。Linux 上检测到 `niri` 后会部署 Wayland 辅助脚本、桌面入口、portal 偏好与 XDG autostart 覆盖，不判断当前会话类型；检测到 `foot` 时部署 Foot 终端配置（niri 与 GNOME 等 Wayland 环境均适用），按单文件部署，保留 `~/.config/foot` 中其它第三方文件（如 DMS 的 `dank-colors.ini`）。Niri KDL 与 Waybar、Mako、Fuzzel、Swaylock 桌面外壳栈仅在 Ubuntu 且未检测到 DMS 时部署——DMS（`command -v dms`）机器保留其自管的 Niri 配置与外壳栈，非 Ubuntu 发行版保留现有 live 配置；Alacritty 配置在 openSUSE 与 DMS 机器上跳过复制以保留 DMS 管理。钉钉日常启动使用官方 `Elevator.sh`，仓库中的 `dingtalk-wayland` 只保留排障功能。
 
 当 `claude` 和 `jq` 同时可用时，还会安装 `.config/shared/cc/statusline.sh` 到
 `~/.config/cc/statusline.sh`，并配置 `~/.claude/settings.json` 指向该脚本。

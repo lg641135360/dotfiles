@@ -507,11 +507,12 @@ linux_dir_configs=(
     "command -v awesome|.config/linux/awesome|~/.config/awesome|AwesomeWM"
 )
 
-# Terminal config deployed on every niri machine, DMS-managed included:
-# foot is the repo-preferred terminal and DMS does not rewrite foot.ini
-# (it only drops an optional dank-colors.ini next to it). Deployed per-file
-# instead of whole-directory so third-party files inside ~/.config/foot
-# (e.g. DMS's dank-colors.ini) are preserved.
+# Foot terminal config. Deployed by `command -v foot` on any Linux machine,
+# not just niri ones: foot is the repo-preferred Wayland terminal (GNOME and
+# other Wayland environments included). DMS does not rewrite foot.ini (it only
+# drops an optional dank-colors.ini next to it), so DMS-managed machines keep
+# deploying it. Deployed per-file instead of whole-directory so third-party
+# files inside ~/.config/foot (e.g. DMS's dank-colors.ini) are preserved.
 linux_wayland_terminal_configs=(
     "command -v foot|.config/linux/foot/foot.ini|~/.config/foot/foot.ini|Foot"
     "command -v foot|.config/linux/foot/README.md|~/.config/foot/README.md|Foot README"
@@ -716,17 +717,21 @@ main() {
 
         process_configs linux_configs
 
-        # Wayland helper scripts, desktop entries, portal preferences, XDG
-        # autostart overrides and the foot terminal config deploy on every
-        # niri machine — DMS-managed ones included, since they wrap apps
-        # rather than the shell.
+        # Foot is the Wayland default terminal beyond niri (Fedora/GNOME
+        # included): deploy its config whenever `foot` exists. The per-entry
+        # `command -v foot` guard inside process_config handles absence, and
+        # DMS machines keep deploying it since DMS does not rewrite foot.ini.
+        process_configs linux_wayland_terminal_configs
+
+        # Wayland helper scripts, desktop entries, portal preferences and
+        # XDG autostart overrides deploy on any niri machine — DMS-managed
+        # ones included, since they wrap apps rather than the shell.
         if command -v niri >/dev/null 2>&1; then
             log_info "niri found, processing Wayland configurations..."
             # __HOME__ expansion for desktop entries happens inside
             # process_config (before copy_config), so it covers exactly the
             # managed targets and stays idempotent.
             process_configs linux_wayland_configs
-            process_configs linux_wayland_terminal_configs
         else
             log_warn "niri not found, skipping niri and Wayland helper configurations"
         fi

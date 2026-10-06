@@ -2,7 +2,7 @@
 
 ## 定位
 
-niri/Wayland 会话的默认终端（2026-08-31 起全平台统一，含 x86_64）。`Mod+Return` 与 fuzzel 经由 [terminal-wayland](../../scripts/terminal-wayland) 打开 foot；`alacritty` 仅在 foot 缺失时回退。
+Wayland 会话的默认终端（2026-08-31 起全平台统一，含 x86_64；2026-10-06 起 GNOME 等非 niri Wayland 环境同样使用本配置）。`Mod+Return` 与 fuzzel 经由 [terminal-wayland](../../scripts/terminal-wayland) 打开 foot；`alacritty` 仅在 foot 缺失时回退。
 
 ## 文件结构
 
@@ -12,7 +12,7 @@ niri/Wayland 会话的默认终端（2026-08-31 起全平台统一，含 x86_64�
 └── README.md
 ```
 
-安装时由 `install.sh` 的 `linux_wayland_dir_configs` 复制到 `~/.config/foot/`（需 `command -v foot`）。
+安装时由 `install.sh` 的 `linux_wayland_terminal_configs` 复制到 `~/.config/foot/`（需 `command -v foot`，不再限于 niri 机器）。
 
 ## 设计原则
 
@@ -20,7 +20,7 @@ niri/Wayland 会话的默认终端（2026-08-31 起全平台统一，含 x86_64�
 
 | 特性 | alacritty | foot |
 |------|-----------|------|
-| 字体 | MesloLGS Nerd Font Mono | 同左 |
+| 字体 | Maple Mono NF CN | 同左 |
 | 字号 | 13 | 13 |
 | 主题 | Catppuccin Mocha（外置 import） | Catppuccin Mocha（内嵌 palette） |
 | 窗口装饰 | `decorations = "none"` | `csd.preferred = none` |

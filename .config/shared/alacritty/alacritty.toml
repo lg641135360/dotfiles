@@ -13,10 +13,10 @@ multiplier = 3
 
 [font]
 size = 13
-normal = { family = "MesloLGS Nerd Font Mono", style = "Regular" }
-bold = { family = "MesloLGS Nerd Font Mono", style = "Bold" }
-italic = { family = "MesloLGS Nerd Font Mono", style = "Italic" }
-bold_italic = { family = "MesloLGS Nerd Font Mono", style = "Bold Italic" }
+normal = { family = "Maple Mono NF CN", style = "Regular" }
+bold = { family = "Maple Mono NF CN", style = "Bold" }
+italic = { family = "Maple Mono NF CN", style = "Italic" }
+bold_italic = { family = "Maple Mono NF CN", style = "Bold Italic" }
 
 [cursor]
 style = {shape="Beam", blinking="on"}

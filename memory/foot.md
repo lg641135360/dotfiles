@@ -6,10 +6,10 @@
   - `alacritty` 仅在 foot 缺失时由 `terminal-wayland` 回退冷启动（`exec alacritty "$@"`）
 - `terminal-wayland` 顺序：foot 优先 → alacritty 兜底；已移除 aarch64+Wayland 专用分支与 `uname -m` / `WAYLAND_DISPLAY` 特判
 - 不再维护 kitty 配置；原 `.config/linux/kitty/` 已移除，`terminal-wayland` 的兜底分支由 kitty 改为 foot，再于 2026-08-31 将默认终端由 alacritty 改为 foot
-- foot 是 Wayland-only 终端（无 X11 / macOS 版本），配置仅放 `.config/linux/foot/`，由 `install.sh` 的 `linux_wayland_dir_configs` 在 `command -v foot` 通过时复制到 `~/.config/foot/`
+- foot 是 Wayland-only 终端（无 X11 / macOS 版本），配置仅放 `.config/linux/foot/`；2026-10-06 起 `install.sh` 只要 `command -v foot` 通过就部署（不再限于 niri，GNOME 等 Wayland 环境同样适用），按单文件复制到 `~/.config/foot/`（保留目录内第三方文件，如 DMS 的 `dank-colors.ini`）
 
 ## 观感对齐
-- foot.ini 镜像 `.config/shared/alacritty` 的观感：MesloLGS Nerd Font Mono 13、Catppuccin Mocha 内嵌 palette、`csd.preferred=none`、`pad=12x12`、`colors.alpha=0.82`、`cursor.style=beam` + `blink=yes`、`mouse.hide-when-typing=yes`、`scrollback.lines=50000`、`scrollback.multiplier=3.0`、`term=xterm-256color`。
+- foot.ini 镜像 `.config/shared/alacritty` 的观感：Maple Mono NF CN 13、Catppuccin Mocha 内嵌 palette、`csd.preferred=none`、`pad=12x12`、`colors.alpha=0.82`、`cursor.style=beam` + `blink=yes`、`mouse.hide-when-typing=yes`、`scrollback.lines=50000`、`scrollback.multiplier=3.0`、`term=xterm-256color`。
 - 字号与 alacritty 统一 13（2026-09-09 撤回 aarch64 内屏 2x 下的 12pt 紧凑实验）。Starship 没有独立字号，提示符图标跟终端单元格走；12pt 在 niri scale 1.25 上图标偏小。`dpi-aware` 保持默认 `no`，字号继续乘 compositor scale。
 - `[text-bindings]` 镜像 alacritty 的 `keys.linux.toml`：`Alt+hjkl` 发送 `Ctrl-a hjkl`（tmux 窗格切换），`Alt+方向键` / `Shift+Alt+上下` 发送 xterm 修饰序列供 Neovim 使用。foot 要求 modifier 用 XKB 名称，`Alt` 必须写成 `Mod1`（不能用字面量 `Alt`）。
 

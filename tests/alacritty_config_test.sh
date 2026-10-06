@@ -32,9 +32,9 @@ expected_styles = {
 for section, style in expected_styles.items():
     actual_family = font[section]["family"]
     actual_style = font[section]["style"]
-    if actual_family != "MesloLGS Nerd Font Mono" or actual_style != style:
+    if actual_family != "Maple Mono NF CN" or actual_style != style:
         raise SystemExit(
-            f"Alacritty font.{section} should use MesloLGS Nerd Font Mono {style}, "
+            f"Alacritty font.{section} should use Maple Mono NF CN {style}, "
             f"got {actual_family} {actual_style}"
         )
 PY
@@ -137,17 +137,22 @@ grep -q 'TERM=xterm-256color' "$README" || {
   exit 1
 }
 
+grep -q 'Maple Mono NF CN' "$README" || {
+  echo "README should document the Maple Mono NF CN font family"
+  exit 1
+}
+
 grep -q '| 粗体 | Bold |' "$README" || {
-  echo "README should document the installed MesloLGS Bold style"
+  echo "README should document the installed Maple Mono NF CN Bold style"
   exit 1
 }
 
 grep -q '| 斜体 | Italic |' "$README" || {
-  echo "README should document the installed MesloLGS Italic style"
+  echo "README should document the installed Maple Mono NF CN Italic style"
   exit 1
 }
 
 grep -q '| 粗斜体 | Bold Italic |' "$README" || {
-  echo "README should document the installed MesloLGS Bold Italic style"
+  echo "README should document the installed Maple Mono NF CN Bold Italic style"
   exit 1
 }
