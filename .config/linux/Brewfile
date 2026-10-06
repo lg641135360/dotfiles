@@ -1,30 +1,31 @@
-# Linux Homebrew Bundle
+# Linux Homebrew Bundle — 第 1 层：跨发行版纯 CLI
 # Usage: brew bundle --file ~/.config/linux/Brewfile
 #
-# 筛选原则：仅收录可通过 Linuxbrew 安全安装、来源可靠（知名开源社区维护）
-# 的纯用户级 CLI 工具。这些工具无系统集成需求，brew 版本更新且跨发行版一致。
+# 分层约定（2026-10-06）：
+#   - 本文件：两发行版共享的纯 CLI（brew 版本新、跨发行版一致）
+#   - packages/apt.txt：Ubuntu 系统层（apt / PPA / 源码例外）
+#   - packages/dnf.txt：Fedora 系统层（dnf / COPR / 外部 rpm）
+# 同一台机器同一工具只保留一个渠道；系统层已满足的不要再 brew 重复
+# （linuxbrew 在 zsh PATH 中位于系统路径之后，重复时系统版生效，brew 版白装）。
 #
-# 以下类别不适合通过 brew 安装，必须用系统原生包管理器（apt/pacman/dnf）：
-#   - 桌面环境 / Wayland / X11 合成器（awesome niri waybar mako fuzzel picom rofi feh）
-#   - 系统服务 / 会话 / polkit / portal（pipewire wireplumber xdg-desktop-portal-* gnome-keyring）
-#   - 输入法（fcitx5）
+# 不收录进本文件的类别（一律走系统包管理器，见 packages/*.txt）：
+#   - 桌面环境 / 合成器 / 状态栏（awesome niri waybar mako fuzzel picom rofi feh）
+#   - 系统服务 / 会话 / portal（pipewire wireplumber xdg-desktop-portal-* gnome-keyring）
+#   - 输入法（fcitx5）、字体（Noto CJK / Maple Mono NF CN）
 #   - 系统级工具与硬件守护（redshift xautolock i3lock brightnessctl playerctl）
-#     * redshift 需读写 X11/Geoclue 系统资源，brew 沙箱内运行有安全隐患，走系统包管理器
-#   - 构建依赖库（libportal-dev libpipewire-0.3-dev libopencv-dev 等 -dev 包）
-#   - 字体（fonts-noto-cjk）
-# 示例：
-#   sudo apt install awesome picom rofi feh redshift fcitx5 \
-#       pipewire wireplumber xdg-desktop-portal-gtk fonts-noto-cjk
+#   - 构建工具链与 -dev 库（gcc / make / cmake / meson 等）
+#   - 登录会话 / systemd / PAM 引用的工具（tmux 按 2026-09 决策走系统包）
 
-# CLI tools
-brew "bat"
+# 必须 brew（发行版源版本或命名不满足配置）
 brew "fd"
 brew "fzf"
-brew "lsd"
 brew "neovim"
-brew "ripgrep"
-brew "tmux"
 brew "yazi"
+
+# 建议统一 brew（发行版源可用但版本略旧；每台机器只选一个渠道）
+brew "bat"
+brew "lsd"
+brew "ripgrep"
 brew "zoxide"
 
 # brew 安装的全局 CLI cask（非 GUI 应用）

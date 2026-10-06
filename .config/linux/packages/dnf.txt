@@ -1,0 +1,51 @@
+# Fedora 系统层包清单（dnf）
+# 用途：本仓库 Fedora 机器（GNOME 主力）的系统层依赖。
+# 用法：sudo dnf install $(grep -v '^#' ~/.config/linux/packages/dnf.txt)
+#
+# 分层约定（2026-10-06）：
+#   - 纯 CLI 走 .config/linux/Brewfile（fd/fzf/lsd/zoxide/yazi 等）。
+#   - Fedora 官方源的 bat / ripgrep / neovim / tmux 版本可用，但为避免与
+#     Brewfile 重复，本清单不列；已装 dnf 版的机器保留即可（linuxbrew 在
+#     zsh PATH 中位于系统路径之后，重复安装的 brew 版不会生效）。
+#   - 一行一个包名，不要写内联注释（会破坏 xargs 用法）。
+#
+# 第三方源（不在 dnf 官方源，需先启用 COPR）：
+#   - starship：sudo dnf copr enable atim/starship
+#   - Maple Mono NF CN：sudo dnf copr enable ikunji/mycopr
+#       sudo dnf install maple-mono-nf-cn-unhinted
+#   - Google Chrome / 微信 / Clash Verge：外部 rpm，不列入本清单
+#   - niri 桌面栈：当前 GNOME 机器不需要；迁到 niri 时参照
+#     .config/linux/packages/apt.txt 的 Wayland/X11 段按 Fedora 包名补装
+
+# 基础 CLI / shell
+zsh
+tmux
+jq
+htop
+git
+curl
+unzip
+
+# 终端
+foot
+
+# 构建工具链
+gcc
+gcc-c++
+make
+cmake
+
+# 输入法
+fcitx5
+fcitx5-chinese-addons
+fcitx5-rime
+fcitx5-qt
+fcitx5-gtk
+fcitx5-configtool
+
+# 字体（Noto 全量；Maple 见文件头 COPR 说明）
+google-noto-fonts-all
+
+# 开发运行时（npm 全局 CLI 用）
+nodejs
+npm

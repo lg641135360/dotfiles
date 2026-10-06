@@ -136,6 +136,13 @@ assert_file_not_exists "$REPO_ROOT/.config/linux/xmonad"
 # Removed Linux desktop modules should not remain in install docs.
 assert_not_contains 'dunst' "$LINUX_BREWFILE"
 
+# Linux 依赖分层清单（纯 CLI Brewfile + 系统层 apt/dnf）。
+assert_file_exists "$REPO_ROOT/.config/linux/packages/apt.txt"
+assert_file_exists "$REPO_ROOT/.config/linux/packages/dnf.txt"
+assert_contains 'packages/' "$ROOT_README"
+assert_contains 'apt.txt' "$ROOT_README"
+assert_contains 'dnf.txt' "$ROOT_README"
+
 # Scripts README content
 assert_contains 'lock' "$REPO_ROOT/.config/scripts/README.md"
 assert_contains 'dingtalk-wayland' "$REPO_ROOT/.config/scripts/README.md"

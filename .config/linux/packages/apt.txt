@@ -1,0 +1,73 @@
+# Ubuntu 系统层包清单（apt）
+# 用途：本仓库 Ubuntu 机器（niri 主力 + AwesomeWM 回退）的系统层依赖。
+# 用法：sudo apt install $(grep -v '^#' ~/.config/linux/packages/apt.txt)
+#
+# 分层约定（2026-10-06）：
+#   - 纯 CLI（fzf/neovim/fd/yazi/bat/lsd/ripgrep/zoxide）走
+#     .config/linux/Brewfile；同一台机器同一工具只保留一个渠道。
+#   - 本文件只收桌面 / 会话 / 服务 / 输入法 / 字体 / 系统级工具 / 构建工具。
+#   - 一行一个包名，不要写内联注释（会破坏 xargs 用法）。
+#
+# 例外（不在本清单自动安装）：
+#   - niri / xwayland-satellite：avengemedia/danklinux PPA
+#       sudo add-apt-repository ppa:avengemedia/danklinux
+#   - waybar：noble 的 0.9.24 过旧（niri 模块需 0.11+），需源码编译到
+#     /usr/local，完整依赖与升级步骤见 memory/waybar.md
+#   - foot：apt 版（noble 1.16.2 / resolute 1.25.0）作回退；1.27 需源码编译，
+#     步骤见 memory/foot.md
+#   - satty / wl-clip-persist：apt 无包，手工安装（cargo/源码，见 memory/niri.md）
+#   - Maple Mono NF CN（终端/桌面组件字体）：Ubuntu 无官方包，需手动安装
+#   - i3lock-color：锁屏优先项但不在官方源；只有 i3lock 时脚本自动降级
+#   - 可选：blueman udiskie
+
+# 桌面 / Wayland 会话
+mako
+fuzzel
+swaylock
+foot
+alacritty
+swaybg
+grim
+slurp
+wl-clipboard
+cliphist
+libnotify-bin
+xclip
+swayidle
+gammastep
+
+# X11 回退（AwesomeWM）
+awesome
+picom
+rofi
+feh
+redshift
+brightnessctl
+playerctl
+xautolock
+i3lock
+
+# 输入法
+fcitx5
+fcitx5-chinese-addons
+fcitx5-rime
+
+# 字体
+fonts-noto-cjk
+
+# 系统服务 / portal / 会话
+pipewire
+wireplumber
+xdg-desktop-portal-gtk
+gnome-keyring
+polkit-gnome
+
+# 构建工具链（源码编译 waybar/foot 等）
+git
+curl
+unzip
+build-essential
+meson
+ninja-build
+pkg-config
+cmake

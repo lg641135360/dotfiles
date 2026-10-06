@@ -13,6 +13,8 @@ chmod +x install.sh
 
 ## 依赖
 
+Linux 机器的依赖分两层：下表属于纯 CLI 层，统一用 brew（`brew bundle --file ~/.config/linux/Brewfile`）；桌面/服务/字体等系统层见 `.config/linux/packages/apt.txt`（Ubuntu）与 `.config/linux/packages/dnf.txt`（Fedora）。同一工具勿在两个渠道重复安装。
+
 ### 核心依赖（必装）
 
 | 工具 | 用途 | 安装方式 |

@@ -20,12 +20,13 @@
 │   │   └── zsh/         # zsh 模块化配置（.zshrc / aliases / path / env 等）
 │   ├── linux/           # Linux 桌面环境配置
 │   │   ├── awesome/     # AwesomeWM 窗口管理器
-│   │   ├── Brewfile     # Linux brew 依赖清单
+│   │   ├── Brewfile     # Linux brew 依赖清单（跨发行版纯 CLI 层）
 │   │   ├── desktop-entries/ # 覆盖系统 desktop entry（fuzzel 菜单走 Wayland 包装脚本）
 │   │   ├── fuzzel/      # Wayland 启动器
 │   │   ├── foot/        # foot 终端模拟器配置（Wayland 默认终端，Alacritty 兜底）
 │   │   ├── mako/        # Wayland 通知守护进程
 │   │   ├── niri/        # Wayland 合成器（主力桌面，AwesomeWM 为回退）
+│   │   ├── packages/    # 系统层包清单（apt.txt Ubuntu / dnf.txt Fedora）
 │   │   ├── picom/       # X11 合成器
 │   │   ├── rofi/        # 应用启动器
 │   │   ├── swaylock/    # Wayland 锁屏
@@ -84,6 +85,8 @@ agent 先读取并遵循同一份协议，避免多份规则漂移。
 chmod +x install.sh
 ./install.sh
 ```
+
+Linux 依赖按三层分开维护：纯 CLI 走 `brew bundle --file ~/.config/linux/Brewfile`；系统层按发行版执行 `sudo apt install $(grep -v '^#' ~/.config/linux/packages/apt.txt)`（Ubuntu）或 `sudo dnf install $(grep -v '^#' ~/.config/linux/packages/dnf.txt)`（Fedora）。同一台机器同一工具只保留一个渠道——桌面/服务/输入法/字体/构建工具一律走系统包，系统层已满足时不要再用 brew 重复（linuxbrew 位于 zsh PATH 之后，重复时系统版生效）。PPA / COPR / 源码编译等例外写在两份清单的注释里，执行前先按注释启用对应源。
 
 macOS 自带 Bash 为 3.2，而 `install.sh` 需要 Bash ≥ 4.3（`process_configs` 的 `local -n`、`clean_old_backups` 的 `mapfile`）；脚本检测到过旧 Bash 时，会自动改用 `/opt/local/bin/bash`（MacPorts）或 `/usr/local/bin/bash`、`/opt/homebrew/bin/bash`（Homebrew）重新执行，都没有则报错退出。Intel macOS 上用 MacPorts 装一次即可：`sudo port install bash`。Bash 版本由脚本 shebang 决定，与登录 shell 是 zsh 还是 bash 无关。macOS 分支还会执行 `.config/macos/defaults.sh` 应用系统偏好（键重复/Dock/Finder/截图/触控板等）；该脚本按当前值幂等，仅当值不同才写入、且仅在确有变化时才重启 Finder/Dock，因此重复运行 `install.sh` 不会反复重设。
 

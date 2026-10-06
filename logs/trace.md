@@ -683,3 +683,18 @@
 - 提交：未提交。
 - 回滚：仓库 = `git restore install.sh README.md .config/linux/Brewfile .config/linux/foot .config/shared/alacritty memory/alacritty.md memory/foot.md tests/alacritty_config_test.sh tests/foot_config_test.sh tests/install_wayland_test.sh`；live = `rm -rf ~/.config/foot`。
 - 后续可能方向：① macOS 黑苹果 Alacritty 吃同一份 shared 字体配置，需装 Maple Mono NF CN 或拆平台字体文件，否则回退默认等宽；② 本机 `brew install yazi` 尚未执行（Brewfile 已收录）；③ GNOME 默认终端入口（Ptyxis/xdg-terminal-exec）是否显式切到 foot。
+
+## 2026-10-06 — Linux 依赖清单三层化：Brewfile 纯 CLI + packages/{apt,dnf}.txt 系统层
+
+- 背景与目的：用户要求把「哪些工具走 brew、哪些走 apt/dnf」按发行版分开落地，避免新机 setup 混装（linuxbrew 在 zsh PATH 中位于系统路径之后，重复安装的 brew 版会被系统版遮蔽而白装）。决策沿用既有分层政策：纯 CLI 走 brew，桌面/会话/服务/输入法/字体/系统工具走发行版原生包；tmux 按既有决策归系统层。
+- 已做（仓库）：
+  1. 新增 `.config/linux/packages/apt.txt`：Ubuntu 系统层（Wayland 会话、X11 回退、硬件守护、fcitx5、Noto CJK、pipewire/portal/polkit、构建工具链）；PPA（avengemedia/danklinux）、源码例外（waybar/foot/satty/wl-clip-persist）、字体缺失等写在文件头注释；一行一个包名、无内联注释（保证 xargs 用法可靠）。
+  2. 新增 `.config/linux/packages/dnf.txt`：Fedora 系统层（zsh/tmux/jq/htop/git/curl/unzip/foot/gcc/g++/make/cmake/fcitx5 系/noto/nodejs/npm）；COPR（atim/starship、ikunji/mycopr 的 Maple）与外部 rpm 写在注释；并注明 Fedora 上 bat/ripgrep/neovim 保留 dnf 版的例外。
+  3. `.config/linux/Brewfile` 重写为「跨发行版纯 CLI 层」：按「必须 brew」（fd/fzf/neovim/yazi，版本或命名原因）与「建议统一 brew」（bat/lsd/ripgrep/zoxide）分组；**移除 tmux**（归系统层）；头部写入三层约定与单一渠道规则。
+  4. `README.md`：结构树补 `packages/`，使用方式补三层安装命令；`.config/shared/zsh/README.md` 依赖节指向分层清单。
+  5. 测试：新增 `tests/packages_manifest_test.sh`（Brewfile 不含 tmux、必须项齐全；两份清单一行一包、无重复；Brewfile 与系统清单不得重叠；文档必须引用清单）；`tests/repo_docs_test.sh` 增加清单存在性与 README 引用断言。
+  6. `memory/organizing_preferences.md`：校正 brew 列表里的 tmux/alacritty 歧义，记录三层清单与单一渠道规则。
+- 验证：`tests/packages_manifest_test.sh`、`tests/repo_docs_test.sh` PASS（先红后绿）；`./tests/run.sh fast` PASS=51 FAIL=0 SKIP=1；`git diff --check` 通过；本机对账：dnf.txt 清单逐项满足（nodejs/npm 为 Fedora 模块包 nodejs22-*，`command -v node npm` 可用），Brewfile 仅 yazi 缺失（nvim/rg 二进制名与包名不同，已用 nvim/rg 复核存在）。
+- live/提交：本机未改动（仅建议 `brew install yazi`）；未提交，上一轮 `11086df` 亦未推送。
+- 回滚：仓库 = `git restore .config/linux/Brewfile .config/shared/zsh/README.md README.md memory/organizing_preferences.md tests/repo_docs_test.sh && rm -f .config/linux/packages/apt.txt .config/linux/packages/dnf.txt tests/packages_manifest_test.sh && rmdir .config/linux/packages`。
+- 后续可能方向：① 本机 `brew install yazi`；② 若追求 Brewfile 完全一致，可 `sudo dnf remove bat ripgrep neovim` 后改用 brew 版（默认不做，dnf 版版本足够）；③ Arch/openSUSE 的 pacman/zypper 清单可同样分层补入。
