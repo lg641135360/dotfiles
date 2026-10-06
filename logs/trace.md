@@ -680,7 +680,7 @@
   - `bash -n install.sh`、`sh -n tests/foot_config_test.sh tests/install_wayland_test.sh`、`git diff --check` 全部通过。
   - 字体存在性：`fc-match` 对 `Maple Mono NF CN` 的 Regular/Bold/Italic/Bold Italic 四样式分别命中 `/usr/share/fonts/maple-mono-nf-cn-unhinted/MapleMono-NF-CN-*.ttf`。
 - live 同步（本机 Fedora）：`./install.sh` 成功，仅新增 `~/.config/foot/{foot.ini,README.md}`（新目录，无既有文件故未产生 backup；其余目标全部 identical 短路，未覆盖任何文件；alacritty 未安装故不涉及）。`cmp` 确认两份文件与仓库一致，`foot --check-config` 退出 0 无告警。恢复命令：`rm -rf ~/.config/foot`。
-- 提交：未提交。
+- 提交：已提交 `11086df` 并推送 origin/main。
 - 回滚：仓库 = `git restore install.sh README.md .config/linux/Brewfile .config/linux/foot .config/shared/alacritty memory/alacritty.md memory/foot.md tests/alacritty_config_test.sh tests/foot_config_test.sh tests/install_wayland_test.sh`；live = `rm -rf ~/.config/foot`。
 - 后续可能方向：① macOS 黑苹果 Alacritty 吃同一份 shared 字体配置，需装 Maple Mono NF CN 或拆平台字体文件，否则回退默认等宽；② 本机 `brew install yazi` 尚未执行（Brewfile 已收录）；③ GNOME 默认终端入口（Ptyxis/xdg-terminal-exec）是否显式切到 foot。
 
@@ -695,6 +695,6 @@
   5. 测试：新增 `tests/packages_manifest_test.sh`（Brewfile 不含 tmux、必须项齐全；两份清单一行一包、无重复；Brewfile 与系统清单不得重叠；文档必须引用清单）；`tests/repo_docs_test.sh` 增加清单存在性与 README 引用断言。
   6. `memory/organizing_preferences.md`：校正 brew 列表里的 tmux/alacritty 歧义，记录三层清单与单一渠道规则。
 - 验证：`tests/packages_manifest_test.sh`、`tests/repo_docs_test.sh` PASS（先红后绿）；`./tests/run.sh fast` PASS=51 FAIL=0 SKIP=1；`git diff --check` 通过；本机对账：dnf.txt 清单逐项满足（nodejs/npm 为 Fedora 模块包 nodejs22-*，`command -v node npm` 可用），Brewfile 仅 yazi 缺失（nvim/rg 二进制名与包名不同，已用 nvim/rg 复核存在）。
-- live/提交：本机未改动（仅建议 `brew install yazi`）；未提交，上一轮 `11086df` 亦未推送。
+- live/提交：本机未改动（仅建议 `brew install yazi`）；已提交 `afb6d44` 并推送 origin/main（上一轮 `11086df` 同批推送）。
 - 回滚：仓库 = `git restore .config/linux/Brewfile .config/shared/zsh/README.md README.md memory/organizing_preferences.md tests/repo_docs_test.sh && rm -f .config/linux/packages/apt.txt .config/linux/packages/dnf.txt tests/packages_manifest_test.sh && rmdir .config/linux/packages`。
 - 后续可能方向：① 本机 `brew install yazi`；② 若追求 Brewfile 完全一致，可 `sudo dnf remove bat ripgrep neovim` 后改用 brew 版（默认不做，dnf 版版本足够）；③ Arch/openSUSE 的 pacman/zypper 清单可同样分层补入。
