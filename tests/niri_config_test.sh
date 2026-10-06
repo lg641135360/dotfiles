@@ -135,13 +135,14 @@ test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal() {
     assert_contains 'include "../common.kdl"' "$NIRI_AARCH64_CONFIG"
 
     # External DP-2 (AOC U27U2G6R4B) at 2x on the right, internal eDP-1 at 2x HiDPI on the left.
-    # 2026-08-31: 外接屏换成 AOC 后去掉旧 Dell 120Hz modeline；档位轨迹 1440p60→1080p60→4K30，现定 4K30。
+    # 2026-08-31: 外接屏换成 AOC 后去掉旧 Dell 120Hz modeline；档位轨迹 1440p60→1080p60→4K30。
+    # 2026-10-06: 实测线缆/带宽已支持 4K60（niri msg outputs 显示 3840x2160@59.997 为 preferred 且稳定），切换至 4K60。
     assert_contains 'output "eDP-1" {' "$NIRI_AARCH64_CONFIG"
     assert_contains 'mode "2880x1800@120"' "$NIRI_AARCH64_CONFIG"
     assert_contains 'scale 2.0' "$NIRI_AARCH64_CONFIG"
     assert_contains 'position x=0 y=0' "$NIRI_AARCH64_CONFIG"
     assert_contains 'output "DP-2" {' "$NIRI_AARCH64_CONFIG"
-    assert_contains 'mode "3840x2160@29.981"' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'mode "3840x2160@59.997"' "$NIRI_AARCH64_CONFIG"
     assert_not_contains 'modeline 497.75 2560 2608 2640 2720 1440 1445 1448 1525 "+hsync" "-vsync"' "$NIRI_AARCH64_CONFIG"
     # 两块屏均为 2x 缩放：eDP-1 与 DP-2 各一个 scale 2.0，不再有 1.25x。
     assert_not_contains 'scale 1.25' "$NIRI_AARCH64_CONFIG"

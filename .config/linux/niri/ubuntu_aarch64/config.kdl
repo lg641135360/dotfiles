@@ -20,7 +20,7 @@ output "eDP-1" {
 // 120Hz modeline（497.75MHz）往 60Hz 面板灌 120Hz 信号会导致黑屏/无信号，故移除 modeline。
 // 档位轨迹：1440p60 → 1080p60 → 4K30（用户选默认）；外接屏缩放 1.25 → 2.0（用户要求）。
 output "DP-2" {
-    mode "3840x2160@29.981"
+    mode "3840x2160@59.997"
     scale 2.0
     position x=1440 y=0
 }

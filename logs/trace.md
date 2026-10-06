@@ -760,3 +760,17 @@
 - live/提交：live **已下发**（`./install.sh`）。改动前快照：`~/.config/DankMaterialShell/settings.json.manual-backup.20261006_122603_102340` + 整目录 `/tmp/dms-config-before-20261006_122603_102340.tar.gz`。应用 6 项后回读：`acLockTimeout=600`、`acMonitorTimeout=900`、`useAutoLocation=false`、`touchpadDragLock=true`、夜灯 `Night mode: enabled` + `target 5500K`；`settings.json` diff = `+touchpadDragLock/acMonitorTimeout/acLockTimeout`、`-useAutoLocation`（等于默认值会被 DMS 自动移除）；夜灯状态落在 `~/.local/state/DankMaterialShell/session.json`（`nightModeEnabled=true, nightModeTemperature=5500`）；`dms-niri-setup --check` = **0**；`dms doctor` ✓ All checks passed。
 - 回滚：逐项反向 = `dms ipc call settings set acLockTimeout 0`、`dms ipc call settings set acMonitorTimeout 0`、`dms ipc call settings set useAutoLocation true`、`dms ipc call settings set touchpadDragLock false`、`dms ipc call night setTargetTemp 4500`、`dms ipc call night disable`；整目录回滚 = `rm -rf ~/.config/DankMaterialShell && tar xzf /tmp/dms-config-before-20261006_122603_102340.tar.gz -C ~/.config && systemctl --user restart dms`（session.json 需另用上面的 night 反向命令）。仓库改动**未提交**。
 - 后续可能方向：① 等 10 分钟空闲实测自动锁屏（配置层已确认 `IdleService` 读该键）；② 天气/位置需要手动指定城市（本机无 GeoClue，`weatherEnabled` 仍为默认 true）；③ 如需整机搬运界面偏好，`dms backup create -o <file>`（可另存，不入库）。
+
+## 2026-10-06 — aarch64 外屏 DP-2 从 4K30 切到 4K60，测试与 memory 同步
+
+- 目的：把用户在 live 上已实测可行的 DP-2 4K60（`3840x2160@59.997`）回填到仓库，并修复两个回归测试失败。
+- 背景：仓库与 live 的 `config.kdl` 仅差 include 路径改写；`niri msg outputs` 实测 DP-2 `3840x2160@59.997` 为 preferred 且当前稳定运行（VRR 不支持），推翻了 memory/niri.md 里「AOC U27U2G6R4B 只稳定提供 4K30」的旧记录。
+- 改动（仓库）：
+  1. `.config/linux/niri/ubuntu_aarch64/config.kdl`：DP-2 mode `3840x2160@29.981` → `3840x2160@59.997`（本轮之前已由用户改好，未提交）。
+  2. `tests/niri_config_test.sh`：aarch64 外屏断言从 `@29.981` 改为 `@59.997`，注释补 2026-10-06 实测依据（推翻 4K30 结论）。
+  3. `memory/niri.md`：输出布局条目更新为 4K60 已稳定可用，注明 4K30 旧记录已被实测推翻；保留「不要复用旧 Dell 120Hz modeline」的警告。
+  4. 删除空目录残留 `.config/linux/swaync/`（8 月 31 日遗留、无文件、git 未跟踪）：它触发 `repo_docs_test.sh` 的 README 结构树漂移守卫报 `swaync/` 缺失。
+- 验证：`./tests/run.sh fast` **PASS=52 FAIL=0 SKIP=1**（修复前为 PASS=50 FAIL=2：niri_config_test 的 4K30 硬编码断言、repo_docs_test 的 swaync 漂移守卫）；`niri msg outputs` 确认 DP-2 当前 mode `3840x2160@59.997 (current, preferred)`。
+- live/提交：live **本就同步**（live 的 config.kdl 早已是 4K60，仅 include 路径为 live 布局；无本轮新增 live 同步动作，无 backup 快照）。仓库改动**未提交**。
+- 回滚（仓库）：`git restore .config/linux/niri/ubuntu_aarch64/config.kdl memory/niri.md tests/niri_config_test.sh && mkdir .config/linux/swaync`（swaync 是空目录，git 不跟踪，mkdir 即可恢复）。
+- 后续可能方向：无；若外屏再次降回 4K30，反向执行上述回滚即可。
