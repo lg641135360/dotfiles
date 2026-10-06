@@ -14,8 +14,9 @@
 #   - Maple Mono NF CN：sudo dnf copr enable ikunji/mycopr
 #       sudo dnf install maple-mono-nf-cn-unhinted
 #   - Google Chrome / 微信 / Clash Verge：外部 rpm，不列入本清单
-#   - niri 桌面栈：当前 GNOME 机器不需要；迁到 niri 时参照
-#     .config/linux/packages/apt.txt 的 Wayland/X11 段按 Fedora 包名补装
+#   - niri + DMS 桌面栈见文件末尾「niri + DMS（Fedora）」一节；
+#     Fedora 的 niri 包会把 waybar / swaylock / alacritty / fuzzel 作为
+#     weak dependency 拉进来，装前先读那一节的注意事项。
 
 # 基础 CLI / shell
 zsh
@@ -49,3 +50,23 @@ google-noto-fonts-all
 # 开发运行时（npm 全局 CLI 用）
 nodejs
 npm
+
+# niri + DMS（Fedora）
+#   源：sudo dnf copr enable avengemedia/dms
+#       （COPR 会自动带上 coprdep avengemedia/danklinux，后者提供 quickshell /
+#        matugen / danksearch / cliphist 等；Fedora 官方仓的 quickshell 偏旧，
+#        安装后应确认 rpm -q quickshell 是 0.3.x）
+#   安装：sudo dnf install --setopt=install_weak_deps=False niri xwayland-satellite
+#       不加 --setopt 时 niri 会连带安装 waybar / swaylock / alacritty / fuzzel
+#       （weak dependency）。waybar 与 DMS 自带状态栏重复启动，swaylock 与
+#       DMS 锁屏重复；DMS 机器不需要它们。已装的话 sudo dnf remove waybar。
+#   仓库链依赖：无（DMS 自带剪贴板历史/持久化，用 `dms clipboard history` 查看，
+#       还有 `dms clipboard cliphist-migrate` 可从旧 cliphist 迁移）。
+#       色温走 DMS 自带 night light（不要再装 gammastep，避免双 gamma 客户端）。
+#       仓库的 clipboard-wayland / wl-clip-persist / cliphist 只在「非 DMS 的
+#       Wayland 会话」需要，DMS 机器不装。
+#   「不安装清单」与完整理由见 README「DMS 机器（niri + DankMaterialShell）」一节。
+niri
+xwayland-satellite
+quickshell
+dms

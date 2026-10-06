@@ -26,6 +26,8 @@
 
 本仓库不负责安装 niri 或其它桌面软件，也不检测显示管理器、desktop entry 或系统服务。`install.sh` 通过 `command -v` 判断 niri 是否存在：检测到 niri 即部署 Wayland 辅助脚本、桌面入口、portal 偏好、XDG autostart 覆盖与 Foot 终端配置（它们包装应用而非桌面外壳，DMS 机器同样需要；Foot 按单文件部署，保留 `~/.config/foot` 目录内 DMS 等第三方放入的额外文件如 `dank-colors.ini`）；Niri 平台 KDL 与 Waybar、Mako、Fuzzel、Swaylock 桌面外壳栈仅在 Ubuntu 且未检测到 DMS（`command -v dms`）时部署——DMS 机器的外壳栈（状态栏 / 通知 / launcher / 锁屏）由 DMS 接管，其余非 Ubuntu 发行版保留现有 live 配置。当前是否处于 Wayland 会话不会影响部署。
 
+DMS 机器额外部署仓库自己的 niri 片段（`.config/linux/dms/niri-repo.kdl` → `~/.config/niri/niri-repo.kdl`：`wayland-autostart` + 仓库肌肉记忆键位），并运行幂等接线脚本 `dms-niri-setup` 把它 include 到 DMS 自管的 `config.kdl`（排在所有 `dms/*.kdl` 之后）、部署 DMS 默认键位、重建钉钉窗口规则；逐键取舍表与「不安装清单」见 `.config/linux/dms/README.md`（根 README 同名一节）。
+
 Wayland 自动色温固定使用 `gammastep`；命令缺失时自启动脚本打印提示并跳过，不回退其它色温程序。夜间使用温和色温 5500K（默认 4800K 会把外接屏压得过暗），亮度保持上限 `-b 1.0:1.0`（gammastep 亮度范围 0.1~1.0，无法提亮）；所有平台（含 aarch64 MediaTek）统一启用。
 
 Waybar 亮度模块（`backlight`）仅用于 aarch64（MediaTek 笔记本有背光设备）：共享的 `.config/linux/waybar/config` 不含该模块（x86/桌面无背光不显示），aarch64 专用变体 `.config/linux/waybar/config.aarch64` 在 `modules-right` 加入 `backlight`。`install.sh` 通过 `install_waybar_config_for_platform()` 按 `arch` 选择部署对应版本（其余 `style.css`/`mocha.css`/`README.md` 两平台共用）。

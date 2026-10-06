@@ -1,0 +1,32 @@
+# DMS 设置清单 —— 由 dms-niri-setup（默认 apply / --check / --dry-run）幂等下发。
+#
+# 格式（一行一个，值内不含空格；# 为注释）：
+#   <SettingsData 键>=<值>        → dms ipc call settings set <键> <值>
+#   night.temperature=<K>         → dms ipc call night setTargetTemp <K>
+#   night.enabled=<true|false>    → dms ipc call night enable|disable
+#
+# 只放「跨机器稳定、与机器无关」的决策；bar 布局 / 主题 / 壁纸 / dock 等界面偏好
+# 在 DMS GUI（Mod+Comma）里调，或用 `dms backup create` 整机备份/恢复。
+# 键名随 DMS 版本变化：`settings get` 读不到（undefined/空）时脚本会警告并跳过。
+#
+# 2026-10-06 在 Fedora 44 + DMS 1.6.2 上逐项核对过默认值：settings.json 里当时
+# 只有 12 个顶层键，绝大多数设置仍是 DMS 默认，所以这里只列真正需要偏离的项。
+
+# 锁屏 / 关屏（秒，0 = Never）：对齐仓库 Wayland 基线
+# （wayland-autostart 的 swayidle：空闲 600s 锁屏、900s 关屏；DMS 默认两者都是 0）。
+# 只写 AC 组；batteryLockTimeout / batteryMonitorTimeout 按机器在 GUI 里设（本机无电池）。
+acLockTimeout=600
+acMonitorTimeout=900
+
+# 位置：本机 GeoClue2 不可用（dms 启动日志 WARN GeoClue2 unavailable），关掉自动
+# 定位，避免反复失败的重试。天气需要手动指定位置（DMS 设置 → 时间与天气），否则留空。
+useAutoLocation=false
+
+# 触控板：对齐仓库 niri input 基线（common.kdl 的 drag-lock：
+# tap-and-drag 时短暂抬指不掉拖动，便于跨屏拖窗口/选区文本）。
+touchpadDragLock=true
+
+# 夜间色温：对齐仓库 gammastep 基线（5500K 温和色温；DMS 默认 4500K 会把屏压得过暗）。
+# 这两项不属于 SettingsData，所以单独走 dms ipc call night。
+night.temperature=5500
+night.enabled=true

@@ -60,6 +60,11 @@ test_install_deploys_wayland_trial_files() {
     assert_contains 'DMS detected; skipping Alacritty configuration copy' "$INSTALL_FILE"
     assert_contains 'DMS detected; skipping niri configuration copy' "$INSTALL_FILE"
     assert_contains 'keeping live niri, waybar, mako, fuzzel and swaylock configs' "$INSTALL_FILE"
+    # DMS 机器：部署仓库 niri 片段并接线（include 顺序 / 键位 / 钉钉规则）。
+    assert_contains '|.config/scripts/dms-niri-setup|~/.config/scripts/dms-niri-setup|DMS niri setup script' "$INSTALL_FILE"
+    assert_contains '.config/linux/dms/niri-repo.kdl' "$INSTALL_FILE"
+    assert_contains '.config/linux/dms/settings.txt' "$INSTALL_FILE"
+    assert_contains 'bash "$cur_path/.config/scripts/dms-niri-setup"' "$INSTALL_FILE"
     assert_contains "printf 'ubuntu_x64'" "$INSTALL_FILE"
     assert_contains 'is_opensuse()' "$INSTALL_FILE"
     assert_contains 'skipping Alacritty configuration copy' "$INSTALL_FILE"
@@ -242,6 +247,15 @@ test_install_preserves_dms_configs_on_ubuntu_x64() {
     # invokes on a DMS machine; the elif message covers it here.)
     assert_contains 'DMS detected; skipping Alacritty configuration copy' "$output"
     assert_contains 'keeping live niri, waybar, mako, fuzzel and swaylock configs' "$output"
+    # 仓库片段落地并接线：config.kdl 里仓库 include 排在 dms 片段之后。
+    assert_contains 'wiring the repo fragment into the DMS-managed niri session' "$output"
+    assert_file_exists "$home_dir/.config/niri/niri-repo.kdl"
+    assert_file_exists "$home_dir/.config/dms/settings.txt"
+    # 片段=纯键位：DMS 机器的会话服务由 DMS/niri-session/XDG autostart 负责。
+    assert_not_matches '^[[:space:]]*spawn-sh-at-startup' "$home_dir/.config/niri/niri-repo.kdl"
+    assert_contains 'Mod+Tab' "$home_dir/.config/niri/niri-repo.kdl"
+    assert_contains 'include "niri-repo.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_order 'include "dms/layout.kdl"' 'include "niri-repo.kdl"' "$home_dir/.config/niri/config.kdl"
 
     rm -rf "$tmpdir"
 }

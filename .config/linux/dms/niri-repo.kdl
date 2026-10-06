@@ -1,0 +1,73 @@
+// dotfiles 仓库片段（DMS 机器专用）——由 ~/.config/scripts/dms-niri-setup 接线。
+//
+// DMS（DankMaterialShell）接管 niri 后会重写 ~/.config/niri/config.kdl，
+// 只 include 它自己的 dms/*.kdl 片段：仓库的 common.kdl 与键位不再生效。
+// 这个文件就是仓库补回来的那一层。
+//
+// 两条硬约束（改动前先读 .config/linux/dms/README.md）：
+//   1. 必须被 include，且排在所有 dms/*.kdl 之后 —— niri 的 binds 合并规则是
+//      「后出现的同键绑定覆盖先出现的」（niri-config/src/lib.rs），顺序反了
+//      这里的键位就会被 DMS 默认键位盖掉。
+//   2. 只写「DMS 不提供、仓库需要」的内容；DMS 自管的 bar / 通知 / 锁屏 /
+//      idle / 壁纸 / 配色 / layout / input / 窗口规则 / 剪贴板一律不在这里重复。
+//
+// 这里**故意不 spawn** 仓库的 wayland-autostart：2026-10-06 在 Fedora 44 实测确认
+//   - 环境导入由 niri-session 自己做（`systemctl --user import-environment` +
+//     `dbus-update-activation-environment --all`），无需重复；
+//   - 状态栏 / 通知 / 锁屏 / idle / 壁纸 / 剪贴板历史 / polkit 全部由 DMS 提供
+//     （剪贴板历史见 `dms clipboard history`，DMS 还自带 `cliphist-migrate`）；
+//   - fcitx5 走 XDG autostart（`~/.config/autostart/fcitx5.desktop`，由
+//     niri.service 的 xdg-desktop-autostart.target 拉起）；
+//   - gammastep / swaybg / swayidle / swaylock / waybar / mako 在 DMS 机器上
+//     本就不安装（见根 README 的「不安装清单」）。
+// 若哪天需要仓库脚本链里的某一项（例如 X11→Wayland 剪贴板桥 clipboard-wayland、
+// 或 gammastep），在这里加回 `spawn-sh-at-startup "~/.config/scripts/wayland-autostart"`
+// 并自行确认不要与 DMS 的同类服务重复。
+
+binds {
+    // === 仓库独有键位（DMS 默认键位没有占用） ===
+    Mod+Return repeat=false hotkey-overlay-title="打开终端" { spawn "~/.config/scripts/terminal-wayland"; }
+    Mod+E repeat=false hotkey-overlay-title="打开文件管理器" { spawn "~/.config/scripts/file-manager-wayland"; }
+    Mod+grave repeat=false hotkey-overlay-title="聚焦上一个 workspace" { focus-workspace-previous; }
+    Mod+A repeat=false { focus-monitor-left; }
+    Mod+D repeat=false { focus-monitor-right; }
+    Mod+Ctrl+Shift+A repeat=false { move-workspace-to-monitor-left; }
+    Mod+Ctrl+Shift+D repeat=false { move-workspace-to-monitor-right; }
+    Mod+Ctrl+1 repeat=false { move-column-to-workspace 1; }
+    Mod+Ctrl+2 repeat=false { move-column-to-workspace 2; }
+    Mod+Ctrl+3 repeat=false { move-column-to-workspace 3; }
+    Mod+Ctrl+4 repeat=false { move-column-to-workspace 4; }
+    Mod+Ctrl+5 repeat=false { move-column-to-workspace 5; }
+    Mod+Ctrl+6 repeat=false { move-column-to-workspace 6; }
+    Mod+Ctrl+7 repeat=false { move-column-to-workspace 7; }
+    Mod+Ctrl+8 repeat=false { move-column-to-workspace 8; }
+    Mod+Ctrl+9 repeat=false { move-column-to-workspace 9; }
+    Mod+Shift+Space repeat=false { switch-preset-column-width-back; }
+    Mod+Ctrl+M repeat=false { maximize-column; }
+    Mod+S repeat=false hotkey-overlay-title="截图" { spawn "~/.config/scripts/screenshot-wayland"; }
+    Mod+Shift+Q repeat=false hotkey-overlay-title="退出 niri" { quit; }
+
+    // === 同键覆盖 DMS 默认键位（2026-10-06 决策，理由见模块 README） ===
+    Mod+Tab repeat=false hotkey-overlay-title="切换到上一个窗口" { focus-window-previous; }
+    Mod+F repeat=false hotkey-overlay-title="扩展当前列到可用宽度" { expand-column-to-available-width; }
+    Mod+Ctrl+F repeat=false hotkey-overlay-title="切换窗口浮动" { toggle-window-floating; }
+    Mod+H { focus-column-or-monitor-left; }
+    Mod+L { focus-column-or-monitor-right; }
+    Mod+J { focus-window-or-workspace-down; }
+    Mod+K { focus-window-or-workspace-up; }
+    Mod+Shift+H { move-column-left-or-to-monitor-left; }
+    Mod+Shift+L { move-column-right-or-to-monitor-right; }
+    Mod+Shift+1 repeat=false { move-window-to-workspace 1; }
+    Mod+Shift+2 repeat=false { move-window-to-workspace 2; }
+    Mod+Shift+3 repeat=false { move-window-to-workspace 3; }
+    Mod+Shift+4 repeat=false { move-window-to-workspace 4; }
+    Mod+Shift+5 repeat=false { move-window-to-workspace 5; }
+    Mod+Shift+6 repeat=false { move-window-to-workspace 6; }
+    Mod+Shift+7 repeat=false { move-window-to-workspace 7; }
+    Mod+Shift+8 repeat=false { move-window-to-workspace 8; }
+    Mod+Shift+9 repeat=false { move-window-to-workspace 9; }
+
+    // DMS 没有 mako（通知由 DMS 接管），所以这条保留仓库肌肉记忆、
+    // 动作换成 DMS 的免打扰 IPC。
+    Mod+Shift+N repeat=false hotkey-overlay-title="切换通知免打扰" { spawn "dms" "ipc" "call" "notifications" "toggleDoNotDisturb"; }
+}

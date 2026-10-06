@@ -493,6 +493,7 @@ linux_wayland_configs=(
     "|.config/linux/desktop-entries/obsidian.desktop|~/.local/share/applications/obsidian.desktop|Obsidian Wayland desktop entry"
     "|.config/linux/desktop-entries/md.obsidian.Obsidian.desktop|~/.local/share/applications/md.obsidian.Obsidian.desktop|Hide system Obsidian desktop entry"
     "|.config/linux/desktop-entries/chatgpt.desktop|~/.local/share/applications/chatgpt.desktop|ChatGPT Wayland desktop entry"
+    "|.config/scripts/dms-niri-setup|~/.config/scripts/dms-niri-setup|DMS niri setup script"
     "|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script"
     "|.config/scripts/wallpaper-wayland-next|~/.config/scripts/wallpaper-wayland-next|Wayland wallpaper switcher"
     "|.config/linux/xdg-desktop-portal/niri-portals.conf|~/.local/share/xdg-desktop-portal/niri-portals.conf|niri desktop portal preferences"
@@ -732,6 +733,21 @@ main() {
             # process_config (before copy_config), so it covers exactly the
             # managed targets and stays idempotent.
             process_configs linux_wayland_configs
+
+            # DMS (DankMaterialShell) owns the niri config and the shell stack:
+            # the repo only deploys its own fragment (wayland-autostart plus the
+            # restored muscle-memory binds) and then wires it into the
+            # DMS-managed config.kdl. dms-niri-setup is idempotent, backs up
+            # config.kdl before edits and no-ops on non-DMS machines.
+            if uses_dms_shell; then
+                process_config "" ".config/linux/dms/niri-repo.kdl" "~/.config/niri/niri-repo.kdl" "DMS niri repo fragment" ||
+                    log_warn "Failed to deploy DMS niri repo fragment; continuing"
+                process_config "" ".config/linux/dms/settings.txt" "~/.config/dms/settings.txt" "DMS settings manifest" ||
+                    log_warn "Failed to deploy DMS settings manifest; continuing"
+                log_info "DMS detected; wiring the repo fragment into the DMS-managed niri session"
+                bash "$cur_path/.config/scripts/dms-niri-setup" ||
+                    log_warn "dms-niri-setup failed; continuing with remaining configurations"
+            fi
         else
             log_warn "niri not found, skipping niri and Wayland helper configurations"
         fi

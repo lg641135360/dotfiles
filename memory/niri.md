@@ -9,6 +9,7 @@
   - 检测到 `niri` 的机器：部署 Wayland 辅助脚本、desktop entry、portal 偏好、XDG autostart 覆盖和 Foot 配置；这些属于应用包装/会话辅助，不等同于外壳栈。
   - Ubuntu 且未检测到 `dms`：额外部署仓库维护的 niri KDL、Waybar、Mako、Fuzzel、Swaylock 外壳栈。
   - 检测到 `dms` 的 Ubuntu，以及非 Ubuntu 发行版：保留现有 live 的 niri/外壳栈配置，避免覆盖 DMS 或发行版自管文件；Alacritty 同样由 DMS/openSUSE 自管时跳过复制。
+  - DMS 机器（不限发行版）额外走仓库的 DMS 接入层：部署 `.config/linux/dms/niri-repo.kdl` 为 `~/.config/niri/niri-repo.kdl`，并运行幂等脚本 `dms-niri-setup`（补 `dms/*.kdl` 的 include、把仓库片段排到最后、`dms setup binds`、重建钉钉窗口规则）。2026-10-06 起有效；逐键取舍与「不安装清单」见 `.config/linux/dms/README.md`。
   - Foot 始终按单文件部署（`foot.ini`、`README.md`），保留 `~/.config/foot` 内第三方文件，例如 DMS 的 `dank-colors.ini`。
 - niri 配置维护 `.config/linux/niri/ubuntu_x64/config.kdl`、`.config/linux/niri/ubuntu_aarch64/config.kdl` 和公共 `.config/linux/niri/common.kdl`。平台文件主要保存 output 与硬件覆盖；安装器将平台文件复制为 `~/.config/niri/config.kdl`，并把仓库中的 `../common.kdl` 改写为 live 布局的 `common.kdl`。
 - 仓库只负责配置部署，不安装 niri、DMS 或其它桌面软件，也不创建显示管理器 session entry。当前会话类型不影响安装器是否部署 niri 辅助文件。
@@ -47,12 +48,17 @@
 - Chrome、Trae CN、Obsidian、ChatGPT 通过 Wayland wrapper 在 Wayland 会话添加 ozone/IME 参数；X11 会话原样透传。对应 desktop entry 也走 wrapper。
 - 钉钉保持 CEF 109 的 XWayland 模式，以规避多屏混 DPI 下原生 Wayland 的坐标和缩放问题；会议 SDK 仍使用原生 portal/PipeWire 捕获。日常启动走官方 `Elevator.sh`，仓库的 `dingtalk-wayland` 只用于检查 ScreenCast/PipeWire 状态和精确清理残留进程。
 - niri 侧对钉钉设置 2/3 列宽、1.0 不透明度和 `open-focused false`；除主窗口外的钉钉弹窗浮动。aarch64 关闭 blur 并使用 0.90 全局透明度，钉钉再次覆盖为 1.0。
-- DMS 机器上 live `config.kdl` 由 DMS 重新生成、只 include `dms/*.kdl`，仓库 `common.kdl` 不参与，上面这些钉钉规则默认全部缺席；改用 DMS 自管通道维护（`dms config windowrules add niri ...`，落在 `~/.config/niri/dms/windowrules.kdl`）。2026-09-28 已重建三条：弹窗不抢焦点 `wr_1790561384874988781`（`open-focused false`）、窗口默认浮动 `wr_1790561738805679306`（`open-floating true`）、主窗口标题 `^钉钉|钉钉$` 改回平铺 `wr_1790561738813023192`（必须排在通用浮动规则之后——niri 按顺序处理、后者覆盖前者）；DMS 无 `exclude` 编辑入口，用后两条正向规则表达仓库 `exclude title` 语义。
+- DMS 机器上 live `config.kdl` 由 DMS 重新生成、只 include `dms/*.kdl`，仓库 `common.kdl` 不参与；钉钉规则改用 DMS 自管通道维护（`dms config windowrules add niri ...`，落在 `~/.config/niri/dms/windowrules.kdl`），并由 `dms-niri-setup` 幂等重建（按 appId + action 查重，不重复添加）。
+- **DMS 机器的键位靠 include 顺序决定归属**：niri 的 `binds {}` 合并规则是「后出现的同键绑定覆盖先出现的」（`niri-config/src/lib.rs` 的 include 合并分支），所以 `~/.config/niri/niri-repo.kdl` 必须排在所有 `dms/*.kdl` 之后。2026-10-06 决策：仓库独有键位直接恢复；与 DMS 默认冲突的按下表取舍（`Mod+Space`/`Mod+M`/`Mod+C`/`Mod+Ctrl+C`/`Mod+Shift+W`/`Mod+Alt+L`/`Mod+V`/媒体与亮度键让给 DMS，`Mod+Tab`/`Mod+F`/`Mod+Ctrl+F`/`Mod+HJKL`/`Mod+Shift+1..9`/`Mod+Shift+N` 保留仓库语义），完整表格见 `.config/linux/dms/README.md`。当日实测 `Mod+Space` 确实开 DMS spotlight（说明覆盖机制生效）。
+- **DMS 机器不用 spawn 仓库 `wayland-autostart`**（2026-10-06 实测决策）：环境导入由 `niri-session` 做（`systemctl --user import-environment` + `dbus-update-activation-environment --all`），fcitx5 走 XDG autostart（`~/.config/autostart/fcitx5.desktop`），状态栏/通知/锁屏/idle/壁纸/色温/polkit/**剪贴板历史**均由 DMS 提供（`dms clipboard history`，并带 `cliphist-migrate`）；`wl-clip-persist`/`cliphist` 只在非 DMS 的 Wayland 会话需要，DMS 机器不装（Fedora 清单已同步）。需要回时在 `niri-repo.kdl` 加回 `spawn-sh-at-startup`。
+- **DMS 机器设置基线（2026-10-06，由 `.config/linux/dms/settings.txt` + `dms-niri-setup` 幂等下发）**：`acLockTimeout=600` / `acMonitorTimeout=900`（DMS 默认 0=Never，会丢掉仓库的自动锁屏基线；`IdleService.qml` 读这两个键，AC 组）、`useAutoLocation=false`（本机 GeoClue2 不可用，避免反复重试）、`touchpadDragLock=true`（对齐仓库 input 的 drag-lock）、夜灯 `night.temperature=5500` + `night.enabled=true`（对齐 gammastep 5500K；它在 session 状态里，走 `dms ipc call night` 而不是 `settings set`）。其余界面偏好留在 DMS GUI / `dms backup create|restore`；`settings set` 只能改 `settings.json`（SettingsData），`wallpaperCyclingEnabled`/`nightMode*`/`displayGamma` 这类在 `session.json`，需 GUI 或专用 IPC。无电池机器不写 battery* 超时组。
+- DMS 机器不安装 `waybar`/`mako`/`fuzzel`/`swaylock`/`swayidle`/`swaybg`/`gammastep`/`polkit-gnome`/`brightnessctl`/`playerctl`（均由 DMS 接管，双开会互相抢）：Fedora 的 `niri` 包会把 `waybar`/`swaylock`/`alacritty`/`fuzzel` 作为 weak dependency 拉进来，需 `sudo dnf install --setopt=install_weak_deps=False` 或事后 `dnf remove`。清单与「不安装清单」同步在 `.config/linux/packages/dnf.txt` 注释与根 README。
+- 2026-09-28 已重建的钉钉三条（弹窗不抢焦点 `wr_1790561384874988781`（`open-focused false`）、窗口默认浮动 `wr_1790561738805679306`（`open-floating true`）、主窗口标题 `^钉钉|钉钉$` 改回平铺 `wr_1790561738813023192`）现由 `dms-niri-setup` 幂等重建（按 appId + action 查重）；顺序必须保持通用浮动规则在前、主窗口平铺在后（niri 按顺序处理、后者覆盖前者），DMS 无 `exclude` 编辑入口，用后两条正向规则表达仓库 `exclude title` 语义。
 
 ## 当前键位与视觉约定
 
 - 主导航：`Mod+h/l` 切列，`Mod+j/k` 切窗口/到边界后切 workspace；`Mod+Tab` 返回焦点历史窗口，`Mod+grave` 返回焦点历史 workspace。
-- `Mod+Space` 在 1/2 与 2/3 列宽间循环；`Mod+F` 扩展列宽；`Mod+Ctrl+F` 切换浮动；`Mod+Shift+h/l` 移动列；`Mod+Alt+l` 锁屏；`Mod+s` Satty 截图；`Mod+o` overview；`Mod+Shift+N` 切换 Mako 免打扰。
+- `Mod+Space` 在 1/2 与 2/3 列宽间循环（**DMS 机器例外**：`Mod+Space` 是 DMS spotlight，列宽循环用 DMS 的 `Mod+R`）；`Mod+F` 扩展列宽；`Mod+Ctrl+F` 切换浮动；`Mod+Shift+h/l` 移动列；`Mod+Alt+l` 锁屏；`Mod+s` Satty 截图；`Mod+o` overview；`Mod+Shift+N` 切换免打扰（DMS 机器上调 `dms ipc call notifications toggleDoNotDisturb`）。
 - niri 26.04 已默认监视配置文件并自动重载，不增加专用热重载键。一次性动作应设置 `repeat=false`，连续的音量、亮度和尺寸调整保留按键重复。
 - 全局窗口默认 `opacity 0.88` + blur；弹出菜单、Waybar 和 Fuzzel 使用背景模糊。aarch64 平台关闭 blur，以降低 mtgpu 负担。
 - 壁纸优先 `~/Pictures/wall`，回退 `/usr/share/backgrounds`；锁屏使用当前壁纸，找不到时回退 `11111b`。锁屏主线为 swaylock，不再使用 gtklock。

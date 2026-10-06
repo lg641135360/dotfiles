@@ -698,3 +698,65 @@
 - live/提交：本机未改动（仅建议 `brew install yazi`）；已提交 `afb6d44` 并推送 origin/main（上一轮 `11086df` 同批推送）。
 - 回滚：仓库 = `git restore .config/linux/Brewfile .config/shared/zsh/README.md README.md memory/organizing_preferences.md tests/repo_docs_test.sh && rm -f .config/linux/packages/apt.txt .config/linux/packages/dnf.txt tests/packages_manifest_test.sh && rmdir .config/linux/packages`。
 - 后续可能方向：① 本机 `brew install yazi`；② 若追求 Brewfile 完全一致，可 `sudo dnf remove bat ripgrep neovim` 后改用 brew 版（默认不做，dnf 版版本足够）；③ Arch/openSUSE 的 pacman/zypper 清单可同样分层补入。
+
+## 2026-10-06 — DMS 机器接入层：仓库 niri 片段 + dms-niri-setup（include 顺序 / 键位 / 钉钉规则）
+
+- 目的：用户在 Fedora 44 上实测装出 niri 26.04 + DMS 1.6.2 后，仓库侧缺三样东西（DMS 自管 config.kdl 不再 include 仓库 common.kdl）——① `dms/binds.kdl` 为 0 字节（无 DMS 默认键位）、② 仓库 `wayland-autostart` 断链（`~/.local/state/niri/` 不存在）、③ 钉钉三条窗口规则缺失。用户要求「结合当前项目、且可复现」，并拍板：恢复键位（逐个分析后按推荐取舍）、允许仓库往 DMS 的 config.kdl 追加 include、Fedora 弱依赖要处理且「多余的内容」写进 README。
+- 关键依据（决定实现方式）：niri 的 `binds {}` 合并规则是「**后出现的同键绑定覆盖先出现的**」（niri-config/src/lib.rs include 分支注释：为「先 import 公共配置再覆盖若干键位」而设计）⇒ 只要仓库片段排在所有 `dms/*.kdl` 之后，键位归属就由仓库决定，无需改 DMS 文件、也不必走 `dms keybinds set`（后者有 action 白名单，`focus-column-or-monitor-*` / `maximize-window-to-edges` / `move-window-to-workspace` / `switch-preset-column-width-back` / `focus-window-previous` 都不在注册表里，走不通）。
+- 已做（仓库，test-first）：
+  1. 新增 `tests/dms_niri_setup_test.sh`（先红：`expected file to exist .../dms-niri-setup`），stub `dms`/`niri` 覆盖 setup binds / resolve-include / windowrules：断言 no-op（缺 dms、缺 niri、缺 config.kdl）、apply 补片段与规则、二次运行幂等（config 字节相同、备份数不增、规则数不增）、`--check` 先 1 后 0、`--dry-run` 不写文件、include 顺序纠正、缺片段只警告。
+  2. 新增 `.config/linux/dms/niri-repo.kdl`：`spawn-sh-at-startup "~/.config/scripts/wayland-autostart"` + 仓库独有键位（`Mod+Return`/`Mod+E`/`Mod+grave`/`Mod+A`/`Mod+D`/`Mod+Ctrl+Shift+A,D`/`Mod+Ctrl+1..9`/`Mod+Shift+Space`/`Mod+Ctrl+M`/`Mod+S`/`Mod+Shift+Q`）+ 同键覆盖 DMS 的键位（`Mod+Tab`、`Mod+F`、`Mod+Ctrl+F`、`Mod+H/L`、`Mod+J/K`、`Mod+Shift+H/L`、`Mod+Shift+1..9` 移动窗口、`Mod+Shift+N` → `dms ipc call notifications toggleDoNotDisturb`）；让给 DMS 的键（`Mod+Space`/`Mod+M`/`Mod+C`/`Mod+Ctrl+C`/`Mod+Shift+W`/`Mod+Alt+L`/`Mod+V`/媒体与亮度键/`Ctrl|Alt+Print`）不声明。
+  3. 新增 `.config/scripts/dms-niri-setup`（POSIX sh，幂等，`--check`/`--dry-run`）：预置条件 `niri`+`dms` 才工作（否则 no-op 退出 0）→ `dms/binds.kdl` 为空时在**临时 HOME** 用 `dms setup headless --compositor niri --skip-existing [--terminal alacritty]` 生成、只取 `binds.kdl`（直接跑 `dms setup binds` 会交互式失败，见下）→ 用 `dms config resolve-include <basename>` 判定并补 `dms/*.kdl` include → 重写尾部保证 `include "niri-repo.kdl"` 在最后（改动前 `config.kdl.backup.<时间戳>_$$`，同类保留 3 份）→ 用 `dms config windowrules list|add` 按 appId+action 查重复建钉钉三条（顺序：不抢焦点 → 弹窗浮动 → 主窗口平铺）。
+  4. `install.sh`：`linux_wayland_configs` 增加 `dms-niri-setup` 部署条目；niri 分支内 `uses_dms_shell` 时部署 `niri-repo.kdl` → `~/.config/niri/niri-repo.kdl` 并调用接线脚本（失败只告警不中断）。
+  5. `.config/linux/packages/dnf.txt`：新增「niri + DMS（Fedora）」节（niri/xwayland-satellite/quickshell/dms/wl-clip-persist/cliphist + COPR 与 `--setopt=install_weak_deps=False` 说明 + 不装 gammastep 的理由）；文件头旧句改为指向该节。
+  6. 文档：根 `README.md` 结构树补 `dms/`、`dms-niri-setup/`，新增「DMS 机器（niri + DankMaterialShell）」一节（复现顺序 + **不安装清单**表：waybar/mako/fuzzel/rofi/swaylock/swayidle/swaybg/gammastep/polkit-gnome/brightnessctl/playerctl 及原因）；新增 `.config/linux/dms/README.md`（接线机制、逐键决策表、验证、回退）；`.config/linux/niri/README.md` 部署边界补 DMS 接入说明。
+  7. 测试增强：`tests/install_wayland_test.sh` 增加片段/脚本/hook 断言与 DMS 用例的 include 顺序断言；`tests/packages_manifest_test.sh` 新增 `test_dnf_manifest_covers_dms_stack`（清单含 niri/dms 栈、不得把 DMS 自管组件列为条目）。
+- 验证：新测试先红后绿；`./tests/run.sh fast` **PASS=52 FAIL=0 SKIP=1**；`bash -n install.sh`、`sh -n .config/scripts/dms-niri-setup`、`sh -n tests/dms_niri_setup_test.sh` 通过；`niri validate -c .config/linux/dms/niri-repo.kdl` = config is valid；`git diff --check` 通过。对本机 live 跑只读巡检 `dms-niri-setup --check`（exit 1）精确报出这三处真实缺口：`dms/binds.kdl 为空`、`缺仓库片段 ~/.config/niri/niri-repo.kdl`、`缺钉钉窗口规则 ×3` ⇒ 与本轮定位一致，脚本判定逻辑在真实环境成立。
+- live/提交：**live 已同步**（本轮用户确认后执行）：`./install.sh` 两次（第一次发现并修复问题 → 改脚本 → 第二次完成）+ `dms-niri-setup`。改动与手动快照：
+  - `~/.config/niri/config.kdl`：只新增 9 行 include（`dms/{alttab,binds,colors,cursor,layout,outputs,windowrules,wpblur}.kdl`）+ 仓库注释/include，共 11 行，内容其余不变（`diff` 已核）；备份 `~/.config/niri/config.kdl.manual-backup.20261006_120732_51885`（手动快照）与 `~/.config/niri/config.kdl.backup.20261006_120734_52109`（脚本生成）。恢复：`cp -p ~/.config/niri/config.kdl.manual-backup.20261006_120732_51885 ~/.config/niri/config.kdl && niri validate -c ~/.config/niri/config.kdl`（niri 会自动重载）。
+  - `~/.config/niri/dms/binds.kdl`：0 → 9153 字节（DMS 默认键位）；快照 `binds.kdl.manual-backup.20261006_120732_51885`（0 字节）。恢复：`cp -p ~/.config/niri/dms/binds.kdl.manual-backup.20261006_120732_51885 ~/.config/niri/dms/binds.kdl`。
+  - `~/.config/niri/dms/windowrules.kdl`：新增 3 条钉钉规则（id `wr_1791259654305328474` / `wr_1791259654320624268` / `wr_1791259654335108696`）；快照 `windowrules.kdl.manual-backup.20261006_120732_51885`（仅 DMS 自己那条）。逐条回滚：`dms config windowrules remove niri <id>`。
+  - `~/.config/scripts/dms-niri-setup`、`~/.config/niri/niri-repo.kdl`：新部署（与仓库 byte-identical，已 diff）。
+  - 实测问题（已在脚本内修复）：`dms setup binds` 是**交互式**的（无 TTY 下报 `FATAL go: Error: invalid choice`，先问提权工具、再问终端 foot/alacritty），必须改用 `dms setup headless --compositor niri --skip-existing`；但它会写/覆盖真实 `config.kdl`，所以在**临时 HOME** 里生成、只取 `binds.kdl`（已装 alacritty 时加 `--terminal alacritty`，否则 Mod+T 默认指向未安装的 ghostty）。
+  - 验证（live）：`dms-niri-setup --check` = **exit 0「已是最新」**；`niri validate -c ~/.config/niri/config.kdl` = config is valid；`dms doctor` = **✓ All checks passed**；`dms config windowrules list niri` 的 `dmsStatus` = `included:true, effective:true`；include 顺序核对 = 8 个 `dms/*.kdl` 在 636-643、`niri-repo.kdl` 在 645（最后）。
+  - 已知 UX 盲区（已写进模块 README）：DMS 设置 → Keybinds 只读 `dms/binds.kdl`，不会反映 `niri-repo.kdl` 的覆盖（`dms keybinds show niri` 里 `Mod+Tab` 仍显 `toggle-overview`）；niri 的运行时分并规则（`retain` 同键旧绑定后 `extend`，见 `niri-config/src/lib.rs`）保证后 include 生效，可按 `Mod+Shift+N` 实按自检（开记事本=DMS 赢 / 切免打扰=仓库赢）。
+  - 未验证：键位实按体感（Mod+Space 让给 spotlight、Mod+Shift+1..9 改窗口粒度）、`wayland-autostart` 链（`spawn-at-startup` 只在会话启动时执行，下次登录才跑；当前 fcitx5 已由 `~/.config/autostart/fcitx5.desktop` 拉起，wl-clip-persist/cliphist 未安装）。
+  - 仓库改动**未提交**。
+- 回滚（仓库）：`git restore install.sh README.md .config/linux/niri/README.md .config/linux/packages/dnf.txt memory/niri.md memory/dingtalk.md memory/organizing_preferences.md tests/install_wayland_test.sh tests/packages_manifest_test.sh && rm -rf .config/linux/dms tests/dms_niri_setup_test.sh .config/scripts/dms-niri-setup`。
+- 后续可能方向：① live 收尾（跑 `./install.sh` 让它部署片段 + 接线；再 `dms-niri-setup --check` 复核 0）；② 可选件 `cliphist`/`wl-clip-persist`（Fedora 侧 `dnf.txt` 已列出）与 DMS 剪贴板/通知的实测；③ `Mod+Shift+1..9` 采用仓库语义后的实按体感确认；④ Ubuntu x64 DMS 机器是否重跑 `./install.sh` 以纳入同一接入层。
+
+## 2026-10-06 — DMS 接入层收尾：去掉 wayland-autostart、确认剪贴板不依赖 cliphist
+
+- 目的：用户实按反馈三点——① `Mod+Space` 已能开 DMS spotlight（证实「后 include 覆盖同键」的机制在真实环境生效）；② 仓库 `wayland-autostart` 在 DMS 机器上没必要接；③ `Mod+V` 已能显示剪贴板历史，是否还依赖 `cliphist` / `wl-clip-persist`。
+- 查证（只读）：DMS 自带剪贴板服务（`/usr/share/quickshell/dms/Services/ClipboardService.qml` + `dms clipboard history/copy/paste`，并有 `dms clipboard cliphist-migrate` 供迁移旧 cliphist 历史）⇒ cliphist 在 DMS 机器上多余；`/usr/bin/niri-session` 自己执行 `systemctl --user import-environment` 与 `dbus-update-activation-environment --all` ⇒ 仓库 autostart 的环境导入步骤重复；fcitx5 由 `~/.config/autostart/fcitx5.desktop`（经 niri.service 的 xdg-desktop-autostart.target）拉起；锁屏/idle/壁纸/通知/polkit/色温均由 DMS 提供。
+- 已做（仓库）：
+  1. `.config/linux/dms/niri-repo.kdl` **删除** `spawn-sh-at-startup "~/.config/scripts/wayland-autostart"`，片段变为纯键位；头部注释记录「为什么不 spawn」的三条依据与「需要时如何加回」。
+  2. `.config/linux/packages/dnf.txt`：从清单移除 `wl-clip-persist` / `cliphist`（改为注释说明它们只属于非 DMS 的 Wayland 会话），并注明 DMS 剪贴板与 `cliphist-migrate`。
+  3. `README.md`：DMS 机器一节改为「片段只含键位」+ 不安装清单新增 `cliphist` / `wl-clip-persist` 行 + 说明 autostart 不 spawn；`.config/linux/dms/README.md` 新增「为什么不在 DMS 机器上 spawn wayland-autostart」职责对照表（逐项列出 DMS / niri-session / XDG autostart 的承接方）。
+  4. `memory/niri.md`：键位决策条目补「Mod+Space 实测生效」，新增「不 spawn 仓库 autostart（含依据与加回方式）」条目。
+  5. 测试：`tests/dms_niri_setup_test.sh`、`tests/install_wayland_test.sh` 的片段断言从 `assert_not_contains 'spawn-sh-at-startup'` 收紧为 `assert_not_matches '^[[:space:]]*spawn-sh-at-startup'`（注释里解释这条指令不算，只有真的指令行才算回归）。
+- 验证：`./tests/run.sh fast` **PASS=52 FAIL=0 SKIP=1**；`niri validate -c .config/linux/dms/niri-repo.kdl` valid；`git diff --check` OK。
+- live/提交：live **已同步**（`./install.sh` 部署新片段；脚本本身无变化故 skip）。live 快照：`~/.config/niri/niri-repo.kdl.manual-backup.20261006_121533_83314`（旧版，含 spawn）与 install.sh 备份 `~/.config/niri/niri-repo.kdl.backup.20261006_121533_83317`；恢复：`cp -p ~/.config/niri/niri-repo.kdl.manual-backup.20261006_121533_83314 ~/.config/niri/niri-repo.kdl`。核对：live 片段无 spawn 指令且与仓库 byte-identical、`dms-niri-setup --check` = 0、`niri validate` valid、`dms doctor` ✓、include 顺序未变（`niri-repo.kdl` 仍最后）。仓库改动**未提交**。
+- 回滚（仓库）：`git restore .config/linux/packages/dnf.txt README.md .config/linux/dms/README.md memory/niri.md tests/dms_niri_setup_test.sh tests/install_wayland_test.sh && git checkout -- .config/linux/dms/niri-repo.kdl`（该文件本轮新增，若整体回滚用上一轮 trace 的命令）。
+- 后续可能方向：① 实按确认 `Mod+Shift+N`（免打扰 vs 记事本）、`Mod+Tab`、`Mod+Shift+1..9` 的归属；② 若需要 X11（钉钉）↔Wayland 剪贴板桥，再在 `niri-repo.kdl` 加回 spawn 并只跑 `clipboard-wayland`；③ 提交并考虑 Ubuntu x64 DMS 机器重跑 `./install.sh` 纳入同一接入层。
+
+## 2026-10-06 — DMS 设置声明式下发（settings.txt + 幂等 apply）并落盘到 live
+
+- 目的：用户选方案 B——把「适合当前环境」的 DMS 设置做掉，并把可复现部分写进仓库（而不是整机 `dms backup`）。
+- 调研（只读）：DMS 设置面 = 30 个设置页；`dms ipc call settings get/set` 只作用于 **SettingsData → `~/.config/DankMaterialShell/settings.json`**（该文件当时只有 12 个顶层键 ⇒ 基本全处于 DMS 默认值）；`wallpaperCyclingEnabled` / `nightMode*` / `displayGamma` 等在 **`~/.local/state/DankMaterialShell/session.json`**（SessionData），`settings set` 改不到，只能用 GUI 或专用 IPC（`dms ipc call night …`）。
+- 逐项核对后确定的真缺口（其余保持默认）：
+  1. `acLockTimeout=0` / `acMonitorTimeout=0` = **Never**（`PowerSleepTab` 的 timeoutValues：0 即永不），而仓库 Wayland 基线是空闲 10 分钟锁屏、15 分钟关屏；`Services/IdleService.qml` 正是读 `SettingsData.acLockTimeout`/`acMonitorTimeout`。
+  2. `useAutoLocation=true` 但本机 GeoClue2 不可用（dms 日志 `WARN GeoClue2 unavailable`）。
+  3. 仓库 niri input 基线里的 `drag-lock` 在 DMS 里 `touchpadDragLock` 默认 false。
+  4. 夜灯：DMS 默认 disabled / 4500K，仓库 gammastep 基线是 5500K（记录：4800K 会把外接屏压得过暗）。
+- 有意不改：`reduceMotion`（macOS 上实测后已回滚，保留动画）、`enableRippleEffects`/`audioVisualizerEnabled`/`wallpaperCyclingEnabled`/`weatherEnabled`（口味或非 SettingsData 键）、`battery*` 超时（本机无电池）、`cursorSettings.size`（1080p 下 24 比仓库 HiDPI 用的 32 合适）。
+- 已做（仓库，test-first）：
+  1. 新增 `.config/linux/dms/settings.txt`：6 行 + 注释；格式 `<SettingsData 键>=<值>`、`night.temperature=<K>`、`night.enabled=<true|false>`。
+  2. `.config/scripts/dms-niri-setup` 新增 `read_setting()` / `apply_settings()`：逐行读当前值 → 相等则跳过；读不到（`undefined`/空）只警告不写（防 DMS 版本漂移写脏数据）；改动后回读校验，失败告警；`--check` 计入漂移，`--dry-run` 不写。
+  3. `install.sh`：DMS 分支新增部署 `settings.txt` → `~/.config/dms/settings.txt`。
+  4. 测试：stub `dms` 增加 `ipc call settings get/set` 与 `night getTargetTemp/status/enable/disable/setTargetTemp`（含默认值表）；新增 `test_applies_dms_settings_idempotently`（值落盘、默认值不产生写、二次运行零 set）、`test_settings_manifest_format`（一行一 key=value、必备键齐全）；`test_dry_run_changes_nothing` 补设置不落盘断言；`install_wayland_test.sh` 补 manifest 部署断言。
+  5. 文档：`.config/linux/dms/README.md` 新增「DMS 设置的下发」一节（格式、当前 6 项与理由表、不写清单的东西、回退方式、`settings set` 的边界）；根 README DMS 一节同步。
+- 验证：`./tests/run.sh fast` **PASS=52 FAIL=0 SKIP=1**；`bash -n install.sh`、`sh -n .config/scripts/dms-niri-setup` 通过；`git diff --check` OK。
+- live/提交：live **已下发**（`./install.sh`）。改动前快照：`~/.config/DankMaterialShell/settings.json.manual-backup.20261006_122603_102340` + 整目录 `/tmp/dms-config-before-20261006_122603_102340.tar.gz`。应用 6 项后回读：`acLockTimeout=600`、`acMonitorTimeout=900`、`useAutoLocation=false`、`touchpadDragLock=true`、夜灯 `Night mode: enabled` + `target 5500K`；`settings.json` diff = `+touchpadDragLock/acMonitorTimeout/acLockTimeout`、`-useAutoLocation`（等于默认值会被 DMS 自动移除）；夜灯状态落在 `~/.local/state/DankMaterialShell/session.json`（`nightModeEnabled=true, nightModeTemperature=5500`）；`dms-niri-setup --check` = **0**；`dms doctor` ✓ All checks passed。
+- 回滚：逐项反向 = `dms ipc call settings set acLockTimeout 0`、`dms ipc call settings set acMonitorTimeout 0`、`dms ipc call settings set useAutoLocation true`、`dms ipc call settings set touchpadDragLock false`、`dms ipc call night setTargetTemp 4500`、`dms ipc call night disable`；整目录回滚 = `rm -rf ~/.config/DankMaterialShell && tar xzf /tmp/dms-config-before-20261006_122603_102340.tar.gz -C ~/.config && systemctl --user restart dms`（session.json 需另用上面的 night 反向命令）。仓库改动**未提交**。
+- 后续可能方向：① 等 10 分钟空闲实测自动锁屏（配置层已确认 `IdleService` 读该键）；② 天气/位置需要手动指定城市（本机无 GeoClue，`weatherEnabled` 仍为默认 true）；③ 如需整机搬运界面偏好，`dms backup create -o <file>`（可另存，不入库）。

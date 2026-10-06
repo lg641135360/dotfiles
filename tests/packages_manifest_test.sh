@@ -61,6 +61,22 @@ EOF
     done
 }
 
+test_dnf_manifest_covers_dms_stack() {
+    # Fedora niri + DMS 段：包名、COPR 提示与 weak dependency 注意事项。
+    for pkg in niri xwayland-satellite quickshell dms wl-clip-persist cliphist; do
+        assert_contains "$pkg" "$DNF_MANIFEST"
+    done
+    assert_contains 'avengemedia/dms' "$DNF_MANIFEST"
+    assert_contains 'install_weak_deps=False' "$DNF_MANIFEST"
+    # DMS 机器不得把同职责组件写进 Fedora 清单（waybar/swaylock 由 niri 的
+    # weak dependency 带入，只应在注释里提醒排除，不能作为条目存在）。
+    for excluded in waybar swaylock mako gammastep swayidle swaybg; do
+        if grep -vE '^[[:space:]]*(#|$)' "$DNF_MANIFEST" | grep -qx "$excluded"; then
+            fail "DMS 自管组件不应作为 dnf 清单条目：$excluded"
+        fi
+    done
+}
+
 test_manifests_are_documented() {
     assert_contains 'packages/' "$ROOT_README"
     assert_contains 'apt.txt' "$ROOT_README"
@@ -74,6 +90,7 @@ test_brewfile_layers_and_entries
 test_manifest_format "$APT_MANIFEST"
 test_manifest_format "$DNF_MANIFEST"
 test_no_cross_channel_overlap
+test_dnf_manifest_covers_dms_stack
 test_manifests_are_documented
 
 printf 'PASS: packages manifest tests\n'
