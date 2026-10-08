@@ -20,6 +20,20 @@
   ```
 
 
+## 2026-10-08 — 剪贴板桥有图片时不再同步文本，避免钉钉贴出路径
+
+- 目的：DMS 截图复制后，钉钉贴出来的是 `~/.cache/dms/clipboard/<id>.png` 路径，而不是图片。
+- 根因：DMS 的选区同时带 `image/png` 和缓存路径文本。`clipboard-wayland` 先把图片同步到 X11，随后文本分支的 `xclip -i` / `wl-copy` 替换整个 selection，路径把 `image/png` 清掉。钉钉（CEF 109 / XWayland）只读到这段路径。
+- 已做（仓库）：图片分支仍双向同步；文本分支在本侧 TARGETS / list-types 含 `image/png|jpeg|gif` 时整段跳过。测试先红后绿，README 与 `memory/niri.md` 同步。
+- 验证：`sh -n .config/scripts/clipboard-wayland`、`sh tests/wayland_scripts_test.sh` PASS、`git diff --check`。纯 `image/png` 经新桥后两侧都是 `image/png`（70 字节一致）；纯文本两侧仍同步。未重跑 `./tests/run.sh fast`。
+- live/提交：已覆盖 `~/.config/scripts/clipboard-wayland`，备份 `~/.config/scripts/clipboard-wayland.backup.20261008_170001_436926321`，旧 backup 按保留 3 份清理。旧守护已停，新守护 PID 3290414。仓库未提交。
+- 回滚信息：未提交。仓库 `git checkout -- .config/scripts/clipboard-wayland tests/wayland_scripts_test.sh .config/linux/niri/README.md .config/scripts/README.md memory/niri.md logs/trace.md`。live 恢复：
+  ```bash
+  cp ~/.config/scripts/clipboard-wayland.backup.20261008_170001_436926321 ~/.config/scripts/clipboard-wayland
+  pkill -f '/clipboard-wayland start'
+  nohup "$HOME/.config/scripts/clipboard-wayland" start >>/tmp/clipboard-wayland.log 2>&1 &
+  ```
+
 ## 2026-10-08 — DMS 屏幕接线采用方案 B：仓库 outputs.kdl 优先
 
 - 目的：用户选择方案 B，让仓库按机器维护的 `outputs.kdl` 成为 DMS 机器的权威屏幕配置；同时保留 DMS 生成的 `dms/outputs.kdl`，不直接改写它。

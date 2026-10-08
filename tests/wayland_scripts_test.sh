@@ -695,9 +695,13 @@ test_clipboard_wayland_persists_and_queries_history() {
     assert_contains 'trap '"'"'rm -f "$snap"'"'"' EXIT INT TERM HUP' "$CLIPBOARD_SCRIPT"
     assert_contains 'last_x11_img=$h' "$CLIPBOARD_SCRIPT"
     assert_contains 'last_wl_text=$h' "$CLIPBOARD_SCRIPT"
-    # 文本方向守卫：剪贴板为图片时不得把图片字节当文本推回另一侧
+    # 文本方向守卫：剪贴板为图片时不得把图片字节当文本推回另一侧。
+    # 同一选区同时带 image/* 与文本（DMS 截图会附缓存路径）时，文本同步必须
+    # 整段跳过：wl-copy / xclip -i 会替换整个 selection，后写的路径会清掉 image/png。
     assert_contains "grep -qE 'UTF8_STRING|STRING|TEXT|text/plain'" "$CLIPBOARD_SCRIPT"
     assert_contains "grep -qE 'text/'" "$CLIPBOARD_SCRIPT"
+    assert_contains 'printf '"'"'%s'"'"' "$x11_text_targets" | grep -qE '"'"'image/(png|jpeg|gif)'"'"' && x11_text_targets=' "$CLIPBOARD_SCRIPT"
+    assert_contains 'printf '"'"'%s'"'"' "$wl_text_types" | grep -qE '"'"'image/(png|jpeg|gif)'"'"' && wl_text_types=' "$CLIPBOARD_SCRIPT"
     # history：cliphist list → fuzzel --dmenu → cliphist decode → wl-copy
     assert_contains 'cliphist list | fuzzel --dmenu --prompt "剪贴板 >"' "$CLIPBOARD_SCRIPT"
     assert_contains 'cliphist decode | wl-copy' "$CLIPBOARD_SCRIPT"

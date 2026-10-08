@@ -84,6 +84,8 @@ start_persist() {
 # 和文本（2026-09-07 实测：X11 侧 TARGETS 只有 UTF8_STRING，无 image/png）。
 # 本桥每 0.5s 轮询两侧剪贴板，双向同步文本与图片（image/png|jpeg|gif），
 # 用内容哈希去抖：同步后把两侧"最后哈希"都记成同一值，避免双向回环。
+# 同一选区同时有图片和文本时只同步图片：wl-copy / xclip -i 会替换整个
+# selection，后写的文本（DMS 截图附带的缓存路径）会把 image/png 清掉。
 #
 # xclip 在 selection owner 失联时会无限阻塞（2026-09-09 实测：桥卡在
 # `xclip -t TARGETS -o` 超过一天，Wayland 侧已有 image/png 但钉钉贴不到）。
@@ -146,10 +148,11 @@ start_x11_bridge() {
                 fi
             fi
         fi
-        # ---- X11 → Wayland：文本（仅当 X11 剪贴板确实有文本目标，避免把
-        # 图片字节当文本读出并覆盖另一侧）。快照读取同时保证字节保真（命令替换
-        # 会剥离尾部换行、丢弃 NUL）。
+        # ---- X11 → Wayland：文本。已有 image/png|jpeg|gif 时整段跳过：
+        # wl-copy 会替换整个 Wayland selection，DMS 截图附带的缓存路径会把刚
+        # 同步过去的图片清掉。纯文本仍按目标守卫同步，避免把图片字节当文本读出。
         x11_text_targets=$(clip_run xclip -selection clipboard -t TARGETS -o 2>/dev/null)
+        printf '%s' "$x11_text_targets" | grep -qE 'image/(png|jpeg|gif)' && x11_text_targets=
         if printf '%s' "$x11_text_targets" | grep -qE 'UTF8_STRING|STRING|TEXT|text/plain'; then
             clip_run xclip -selection clipboard -o 2>/dev/null > "$snap"
             if [ -s "$snap" ]; then
@@ -161,8 +164,9 @@ start_x11_bridge() {
                 fi
             fi
         fi
-        # ---- Wayland → X11：文本（仅当 Wayland 剪贴板有 text/* 类型）----
+        # ---- Wayland → X11：文本。已有 image/* 时跳过，避免 xclip -i 清掉图片。
         wl_text_types=$(clip_run wl-paste --list-types 2>/dev/null)
+        printf '%s' "$wl_text_types" | grep -qE 'image/(png|jpeg|gif)' && wl_text_types=
         if printf '%s' "$wl_text_types" | grep -qE 'text/'; then
             clip_run wl-paste 2>/dev/null > "$snap"
             if [ -s "$snap" ]; then

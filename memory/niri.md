@@ -40,7 +40,7 @@
 ### 剪贴板与输入法
 
 - `clipboard-wayland start` 统一管理 `wl-clip-persist`、`cliphist` watcher 和 X11 轮询桥；`Mod+V` 打开历史，`Mod+Shift+V` 保留给浮动/平铺焦点切换。
-- 在有 `xclip` 和 `DISPLAY` 时，轮询桥每 0.5 秒双向同步文本及 PNG/JPEG/GIF，使用内容哈希去抖；读写统一套 `timeout --foreground 2`，防止 X11 selection owner 失联时无限阻塞。纯 Wayland 或缺依赖时桥自动跳过。
+- 在有 `xclip` 和 `DISPLAY` 时，轮询桥每 0.5 秒双向同步文本及 PNG/JPEG/GIF，使用内容哈希去抖；同一选区同时有图片和文本时只同步图片（`wl-copy` / `xclip -i` 会替换整个 selection，DMS 截图附带的缓存路径否则会清掉 `image/png`，钉钉就贴出路径）。读写统一套 `timeout --foreground 2`，防止 X11 selection owner 失联时无限阻塞。纯 Wayland 或缺依赖时桥自动跳过。
 - Wayland 输入法变量主要由 im-config 写入 `/etc/environment`，经 `niri-session` 导入 systemd 用户环境；仓库不再重复注入 `QT_IM_MODULE` 等变量。`GTK_IM_MODULE` 由 `wayland-autostart` 从 systemd 用户环境清除，让 GTK 走 Wayland text-input；Satty 启动前也必须 `unset GTK_IM_MODULE`。
 - `ZDOTDIR` 和 `skip_global_compinit=1` 由安装器幂等写入 `~/.zshenv`，避免 niri spawn 的终端触发 Ubuntu 全局 compinit。
 
