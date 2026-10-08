@@ -4,7 +4,6 @@ set -eu
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 HERDR_FILE=$REPO_ROOT/.config/shared/herdr/config.toml
 REPORT_SCRIPT=$REPO_ROOT/.config/scripts/herdr-report
-TRAE_FILE=$REPO_ROOT/.config/shared/trae-cli/trae_cli.yaml
 INSTALL_FILE=$REPO_ROOT/install.sh
 
 . "$REPO_ROOT/tests/lib/assert.sh"
@@ -78,30 +77,12 @@ test_herdr_report_script_content() {
     assert_contains 'permission_prompt) report blocked' "$REPORT_SCRIPT"
 }
 
-# trae_cli.yaml 存在且保留原有非 hooks 配置
-test_trae_cli_config_exists() {
-    [ -f "$TRAE_FILE" ] || { echo "FAIL: trae_cli.yaml not found"; exit 1; }
-    assert_contains 'trae_login_base_url' "$TRAE_FILE"
-}
-
-# hooks 把 Trae CLI 生命周期事件映射到 herdr-report
-test_trae_cli_hooks_bridge() {
-    assert_contains 'herdr-report working' "$TRAE_FILE"
-    assert_contains 'herdr-report idle' "$TRAE_FILE"
-    assert_contains 'herdr-report notify' "$TRAE_FILE"
-    assert_contains 'herdr-report release' "$TRAE_FILE"
-    assert_contains 'event: user_prompt_submit' "$TRAE_FILE"
-    assert_contains 'event: pre_tool_use' "$TRAE_FILE"
-    assert_contains 'event: stop' "$TRAE_FILE"
-    assert_contains 'event: session_end' "$TRAE_FILE"
-}
-
-# install.sh 部署 herdr-report 脚本与 trae_cli.yaml
-test_install_deploys_herdr_report_and_trae() {
+# install.sh 部署 herdr-report；Trae CLI 的 hooks 配置留在本机 ~/.trae/trae_cli.yaml，不入库。
+test_install_deploys_herdr_report_not_trae_cli() {
     assert_contains '.config/scripts/herdr-report' "$INSTALL_FILE"
     assert_contains '~/.config/scripts/herdr-report' "$INSTALL_FILE"
-    assert_contains '.config/shared/trae-cli/trae_cli.yaml' "$INSTALL_FILE"
-    assert_contains '~/.trae/trae_cli.yaml' "$INSTALL_FILE"
+    assert_not_contains 'trae_cli.yaml' "$INSTALL_FILE"
+    assert_not_contains 'trae-cli/' "$INSTALL_FILE"
 }
 
 test_herdr_config_exists
@@ -115,8 +96,6 @@ test_herdr_tab_bar_right_datetime
 test_herdr_toast_delivery_system
 test_herdr_report_script_exists
 test_herdr_report_script_content
-test_trae_cli_config_exists
-test_trae_cli_hooks_bridge
-test_install_deploys_herdr_report_and_trae
+test_install_deploys_herdr_report_not_trae_cli
 
 printf 'PASS: herdr config tests\n'

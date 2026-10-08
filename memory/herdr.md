@@ -29,5 +29,5 @@
 ## Trae CLI 状态监控接入（hooks 桥接，2026-08-27）
 - herdr 原生 agent 列表不含 trae（`agent start --kind` 枚举无），但提供自定义上报通道：pane 内进程自动继承 `HERDR_ENV`/`HERDR_PANE_ID`/`HERDR_BIN_PATH`，可用 `herdr pane report-agent <pane> --source custom:trae --agent trae --state idle|working|blocked` 上报，状态进 sidebar/waits/通知/rollup。
 - 桥接脚本 `~/.config/scripts/herdr-report`（仓库 `.config/scripts/herdr-report`）：按参数 working/idle/notify/release 上报，notify 模式按 stdin JSON 的 notification_type 细分（permission_prompt→blocked）；`HERDR_ENV != 1` 时完全 no-op，用 sed 而非 jq 提取 JSON（live 不保证装 jq）。
-- Trae CLI hooks 配置 `~/.trae/trae_cli.yaml`（仓库 `.config/shared/trae-cli/trae_cli.yaml`）：user_prompt_submit/pre_tool_use→working、session_start/stop→idle、notification→notify、session_end→release（释放生命周期权限）。`--source` 必须稳定唯一（custom:trae），否则权限被抢。
+- Trae CLI hooks 只留在本机 `~/.trae/trae_cli.yaml`，**不进仓库、install.sh 不部署**（2026-10-08：模型名和 hook 结构会随 Trae 升级漂移，入库会在下次安装时覆盖 live）。桥接事件仍是 user_prompt_submit/pre_tool_use→working、session_start/stop→idle、notification→notify、session_end→release。`--source` 必须稳定唯一（custom:trae），否则权限被抢。仓库继续部署 `herdr-report`，hooks 文件由本机自行维护。
 - 限制：`agent start --kind trae` 自动拉起与会话恢复不可用（需 herdr 二进制更新支持），需手动在 pane 启动 trae-cli；状态权威来自上报（hooks 优先于屏幕检测，无双源冲突）。

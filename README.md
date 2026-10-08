@@ -16,7 +16,6 @@
 │   │   ├── ssh/         # SSH base 配置
 │   │   ├── starship.toml # 跨平台 shell 提示符
 │   │   ├── tmux/        # tmux 配置和 tab 标题脚本
-│   │   ├── trae-cli/    # Trae CLI 配置（hooks 桥接 herdr 状态上报）
 │   │   └── zsh/         # zsh 模块化配置（.zshrc / aliases / path / env 等）
 │   ├── linux/           # Linux 桌面环境配置
 │   │   ├── awesome/     # AwesomeWM 窗口管理器
