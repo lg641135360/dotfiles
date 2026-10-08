@@ -102,10 +102,10 @@ macOS 自带 Bash 为 3.2，而 `install.sh` 需要 Bash ≥ 4.3（`process_conf
 DMS 会接管 niri 配置与整个外壳栈（状态栏 / 通知 / launcher / 锁屏 / idle / 壁纸 /
 色温 / 剪贴板 / 窗口规则），所以 DMS 机器上仓库只负责两类东西：**应用包装与会话辅助**
 （已有的 Wayland 脚本、desktop entry、portal 偏好、foot；按需按键 spawn，不靠 autostart），
-以及**仓库自己的一层 niri 片段** `.config/linux/dms/niri-repo.kdl`（只含仓库肌肉记忆键位）。
-`install.sh` 检测到 `niri` + `dms` 时会部署该片段与 `settings.txt`（DMS 设置清单，
+以及**仓库自己的一层 niri 片段** `.config/linux/dms/niri-repo.kdl`（2026-10-08 起按本机 Ubuntu x64 的 live 键位取舍：`Mod+E` 开 Thunar、`Mod+S` 走 DMS 区域截图、`Mod+Tab` 回上一个窗口、`Mod+Shift+A/D` 把窗口搬到另一块屏；与 live 已经一致的键不写入片段）。同时部署对应平台的 `outputs.kdl` 到 `~/.config/niri/outputs.kdl`；按方案 B，它是 DMS 机器的权威屏幕配置，接线时排在所有 `dms/*.kdl` 之前，键位片段仍排在它们之后。
+`install.sh` 检测到 `niri` + `dms` 时会部署该片段、对应平台的 `outputs.kdl` 与 `settings.txt`（DMS 设置清单，
 `~/.config/dms/settings.txt`）并运行幂等接线脚本 `dms-niri-setup`（下发设置、补齐 DMS 默认键位、
-补 `dms/*.kdl` 的 include、把仓库片段排到所有 `dms/*.kdl` 之后、通过 DMS 通道重建钉钉窗口规则）；
+补 `dms/*.kdl` 的 include、把仓库屏幕 include 排在所有 DMS 片段之前、把仓库键位片段排到所有 `dms/*.kdl` 之后、通过 DMS 通道重建钉钉窗口规则）；
 细节、逐键取舍与设置清单见 `.config/linux/dms/README.md`。
 
 复现顺序（Fedora 为例）：

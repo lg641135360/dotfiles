@@ -71,6 +71,8 @@ test_install_deploys_wayland_trial_files() {
     assert_contains 'skipping niri configuration copy' "$INSTALL_FILE"
     assert_contains 'source="$cur_path/.config/linux/niri/$platform/config.kdl"' "$INSTALL_FILE"
     assert_contains 'common_source="$cur_path/.config/linux/niri/common.kdl"' "$INSTALL_FILE"
+    assert_contains 'outputs_source="$cur_path/.config/linux/niri/$platform/outputs.kdl"' "$INSTALL_FILE"
+    assert_contains 'install_niri_outputs_for_platform' "$INSTALL_FILE"
     assert_contains 'copy_config "$common_source" "$target_dir/common.kdl" "niri common config"' "$INSTALL_FILE"
     assert_contains 'sed ' "$INSTALL_FILE"
     assert_contains 'include "common.kdl"' "$INSTALL_FILE"
@@ -121,9 +123,13 @@ test_install_copies_ubuntu_x64_niri_config() {
     assert_file_not_exists "$home_dir/.config/niri/README.md"
     assert_contains '// Platform: ubuntu_x64' "$home_dir/.config/niri/config.kdl"
     assert_contains 'include "common.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_contains 'include "outputs.kdl"' "$home_dir/.config/niri/config.kdl"
     assert_not_contains 'include "../common.kdl"' "$home_dir/.config/niri/config.kdl"
-    assert_contains 'output "DP-1" {' "$home_dir/.config/niri/config.kdl"
-    assert_contains 'scale 1.25' "$home_dir/.config/niri/config.kdl"
+    assert_file_exists "$home_dir/.config/niri/outputs.kdl"
+    assert_contains 'output "DP-1" {' "$home_dir/.config/niri/outputs.kdl"
+    assert_contains 'output "HDMI-A-2" {' "$home_dir/.config/niri/outputs.kdl"
+    assert_contains 'scale 1.25' "$home_dir/.config/niri/outputs.kdl"
+    assert_not_contains 'output "DP-1"' "$home_dir/.config/niri/config.kdl"
 
     # Desktop entries get the __HOME__ placeholder substituted with the real $HOME.
     assert_file_exists "$home_dir/.local/share/applications/google-chrome.desktop"
@@ -211,6 +217,10 @@ test_install_preserves_dms_configs_on_ubuntu_x64() {
     printf '[general]\nimport = ["~/.config/alacritty/dank-theme.toml"]\n' >"$home_dir/.config/alacritty/alacritty.toml"
     printf 'dms keys configuration\n' >"$home_dir/.config/alacritty/keys.toml"
     printf 'dms window configuration\n' >"$home_dir/.config/alacritty/window.toml"
+    mkdir -p "$home_dir/.config/niri/dms"
+    printf 'output "DP-1" {\n    scale 2\n}\n' >"$home_dir/.config/niri/dms/outputs.kdl"
+    printf 'include "dms/outputs.kdl"\n' >>"$home_dir/.config/niri/config.kdl"
+    dms_outputs_before=$(cat "$home_dir/.config/niri/dms/outputs.kdl")
     # DMS drops an optional dank-colors.ini next to foot.ini; per-file foot
     # deployment must preserve it instead of replacing the whole directory.
     mkdir -p "$home_dir/.config/foot"
@@ -256,6 +266,17 @@ test_install_preserves_dms_configs_on_ubuntu_x64() {
     assert_contains 'Mod+Tab' "$home_dir/.config/niri/niri-repo.kdl"
     assert_contains 'include "niri-repo.kdl"' "$home_dir/.config/niri/config.kdl"
     assert_order 'include "dms/layout.kdl"' 'include "niri-repo.kdl"' "$home_dir/.config/niri/config.kdl"
+    # DMS 接线也使用方案 B：仓库 outputs.kdl 是权威屏幕配置，
+    # dms-niri-setup 会把它排在所有 dms/*.kdl 之前；不覆盖 DMS 的 config.kdl
+    # 其它内容，也不修改 dms/outputs.kdl。
+    assert_file_exists "$home_dir/.config/niri/outputs.kdl"
+    assert_contains 'output "DP-1" {' "$home_dir/.config/niri/outputs.kdl"
+    assert_contains 'include "outputs.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_order 'include "outputs.kdl"' 'include "dms/layout.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_order 'include "outputs.kdl"' 'include "dms/outputs.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_order 'include "dms/outputs.kdl"' 'include "niri-repo.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_equals "$dms_outputs_before" "$(cat "$home_dir/.config/niri/dms/outputs.kdl")"
+    assert_not_contains 'output "eDP-1"' "$home_dir/.config/niri/outputs.kdl"
 
     rm -rf "$tmpdir"
 }

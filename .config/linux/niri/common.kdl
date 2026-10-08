@@ -1,6 +1,6 @@
 // niri common config shared across platforms.
-// Platform-specific files (ubuntu_x64/config.kdl, arch_x64/config.kdl) only
-// declare their output sections and then `include "../common.kdl"`.
+// Each machine includes this file after its own outputs.kdl.
+// Do not put output blocks here.
 // Keep AwesomeWM available; this file only defines the niri session behavior.
 // Validate with: niri validate -c ~/.config/niri/config.kdl
 

@@ -1,0 +1,20 @@
+// Machine: Ubuntu x86_64 desktop (current session).
+// Not shared with the Fedora laptop or the Ubuntu aarch64 laptop.
+//
+// Left:  DP-1 Dell D2421DS, 2560x1440@59.951, scale 1.25, logical 2048x1152.
+// Right: HDMI-A-2 AOC Q24P1W1, same mode and scale, placed at x=2048.
+// Connector names drift (this desk used to be DP-4 / HDMI-A-3). If niri does
+// not match a name it falls back to scale 1. Recheck with `niri msg outputs`.
+// Both panels report VRR unsupported, so this file does not enable it.
+
+output "DP-1" {
+    mode "2560x1440@59.951"
+    scale 1.25
+    position x=0 y=0
+}
+
+output "HDMI-A-2" {
+    mode "2560x1440@59.951"
+    scale 1.25
+    position x=2048 y=0
+}

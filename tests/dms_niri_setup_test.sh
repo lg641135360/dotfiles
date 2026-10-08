@@ -178,6 +178,7 @@ seed_niri_fixture() {
     printf 'colors {\n}\n' >"$home_dir/.config/niri/dms/colors.kdl"
     : >"$home_dir/.config/niri/dms/binds.kdl"
     printf 'include "dms/input.kdl"\n' >"$home_dir/.config/niri/config.kdl"
+    printf 'output "TEST-1" {\n    scale 1\n}\n' >"$home_dir/.config/niri/outputs.kdl"
     cp "$FRAGMENT" "$home_dir/.config/niri/niri-repo.kdl"
     # 设置清单由 install.sh 部署到 ~/.config/dms/settings.txt。
     mkdir -p "$home_dir/.config/dms"
@@ -272,13 +273,18 @@ test_apply_wires_fragments_and_rules() {
     # 非交互生成走 scratch HOME，而不是直接对 live 调用交互式 `dms setup binds`。
     assert_contains 'setup headless --compositor niri' "$home_dir/../stub-dms-args" ||
         fail "expected dms setup headless to be used"
-    # ...and every dms fragment is included, with the repo fragment last.
+    # Scheme B: repository output settings are authoritative on DMS machines.
+    # niri uses the first matching multipart output entry, so outputs.kdl must
+    # precede every dms/*.kdl include; the repo bind fragment remains last.
     assert_contains 'include "dms/input.kdl"' "$config"
     assert_contains 'include "dms/layout.kdl"' "$config"
     assert_contains 'include "dms/colors.kdl"' "$config"
     assert_contains 'include "dms/binds.kdl"' "$config"
+    assert_contains 'include "outputs.kdl"' "$config"
     assert_contains 'include "niri-repo.kdl"' "$config"
-    assert_order 'include "dms/binds.kdl"' 'include "niri-repo.kdl"' "$config"
+    assert_order 'include "outputs.kdl"' 'include "dms/binds.kdl"' "$config"
+    assert_order 'include "outputs.kdl"' 'include "niri-repo.kdl"' "$config"
+    assert_equals "1" "$(grep -cF 'include "outputs.kdl"' "$config")"
     # Existing includes are not duplicated.
     assert_equals "1" "$(grep -cF 'include "dms/input.kdl"' "$config")"
     # DingTalk rules are recreated through the DMS channel, in the documented
@@ -446,31 +452,138 @@ test_missing_fragment_only_warns() {
     rm -rf "$tmpdir"
 }
 
-# Repo-side content: the fragment must carry the wayland autostart hook and
-# the restored muscle-memory binds, and must NOT re-declare keys the
-# 2026-10-06 decision left to DMS.
+test_outputs_include_is_moved_before_dms_fragments() {
+    setup_sandbox
+    seed_niri_fixture
+    config=$home_dir/.config/niri/config.kdl
+    dms_outputs=$home_dir/.config/niri/dms/outputs.kdl
+    # A real collision: repository scale 1 and DMS scale 2 for the same output.
+    printf 'output "TEST-1" {\n    scale 2\n}\n' >"$dms_outputs"
+    dms_outputs_before=$(cat "$dms_outputs")
+    repo_outputs_before=$(cat "$home_dir/.config/niri/outputs.kdl")
+    run_setup >/dev/null 2>&1
+
+    # Make ONLY the output order wrong: all DMS includes, settings and rules
+    # are already clean, and the repository bind fragment remains last.
+    printf 'include "dms/input.kdl"\ninclude "dms/binds.kdl"\ninclude "dms/colors.kdl"\ninclude "dms/layout.kdl"\ninclude "dms/outputs.kdl"\ninclude "outputs.kdl"\ninclude "niri-repo.kdl"\n' >"$config"
+    before=$(cat "$config")
+    before_backups=$(backup_count)
+
+    set +e
+    check_output=$(run_setup --check 2>&1)
+    status=$?
+    set -e
+    assert_exit_code 1 "$status" "check incorrect output order"
+    assert_output_contains '仓库屏幕优先' "$check_output"
+    run_setup --dry-run >/dev/null 2>&1
+    assert_equals "$before" "$(cat "$config")"
+    assert_equals "$before_backups" "$(backup_count)"
+
+    run_setup >/dev/null 2>&1 || fail "setup should repair output order alone"
+    for name in input binds colors layout outputs; do
+        assert_order 'include "outputs.kdl"' "include \"dms/$name.kdl\"" "$config"
+        assert_order "include \"dms/$name.kdl\"" 'include "niri-repo.kdl"' "$config"
+    done
+    assert_equals "1" "$(grep -cF 'include "outputs.kdl"' "$config")"
+    assert_equals "$((before_backups + 1))" "$(backup_count)"
+    assert_equals "$dms_outputs_before" "$(cat "$dms_outputs")"
+    assert_equals "$repo_outputs_before" "$(cat "$home_dir/.config/niri/outputs.kdl")"
+
+    after=$(cat "$config")
+    after_backups=$(backup_count)
+    run_setup >/dev/null 2>&1
+    run_setup --check >/dev/null 2>&1 || fail "repaired output order should be clean"
+    assert_equals "$after" "$(cat "$config")"
+    assert_equals "$after_backups" "$(backup_count)"
+    rm -rf "$tmpdir"
+}
+
+test_duplicate_outputs_includes_are_deduplicated() {
+    setup_sandbox
+    seed_niri_fixture
+    run_setup >/dev/null 2>&1
+    config=$home_dir/.config/niri/config.kdl
+    printf 'include "outputs.kdl"\n' >>"$config"
+
+    set +e
+    run_setup --check >/dev/null 2>&1
+    status=$?
+    set -e
+    assert_exit_code 1 "$status" "check duplicate output includes"
+    run_setup >/dev/null 2>&1
+    assert_equals "1" "$(grep -cF 'include "outputs.kdl"' "$config")"
+    assert_order 'include "outputs.kdl"' 'include "dms/input.kdl"' "$config"
+    run_setup --check >/dev/null 2>&1 || fail "deduplicated outputs should be clean"
+    rm -rf "$tmpdir"
+}
+
+test_no_outputs_file_does_not_add_outputs_include() {
+    setup_sandbox
+    seed_niri_fixture
+    rm -f "$home_dir/.config/niri/outputs.kdl"
+    run_setup >/dev/null 2>&1
+    assert_not_contains 'include "outputs.kdl"' "$home_dir/.config/niri/config.kdl"
+    run_setup --check >/dev/null 2>&1 || fail "unmapped machine should not need outputs"
+    rm -rf "$tmpdir"
+}
+
+test_outputs_precede_new_dms_includes_without_existing_includes() {
+    setup_sandbox
+    seed_niri_fixture
+    config=$home_dir/.config/niri/config.kdl
+    printf '// No DMS includes yet.\ninput {\n}\n' >"$config"
+    run_setup >/dev/null 2>&1
+    for name in input binds colors layout; do
+        assert_order 'include "outputs.kdl"' "include \"dms/$name.kdl\"" "$config"
+    done
+    assert_contains '// No DMS includes yet.' "$config"
+    run_setup --check >/dev/null 2>&1 || fail "newly wired outputs should be clean"
+    rm -rf "$tmpdir"
+}
+
+# Repo-side content: retain the 2026-10-08 binding decisions.
 test_fragment_carries_repo_bindings() {
     for bind in \
         'Mod+Tab' \
-        'Mod+F' \
         'Mod+Ctrl+F' \
-        'Mod+H' \
-        'Mod+L' \
-        'Mod+Shift+H' \
-        'Mod+Shift+L' \
         'Mod+Ctrl+M' \
         'Mod+S' \
+        'Mod+E' \
+        'Mod+Shift+A' \
+        'Mod+Shift+D' \
         'Mod+Shift+Q' \
         'Mod+Ctrl+Shift+A' \
         'Mod+Ctrl+Shift+D' \
         'Mod+Ctrl+1' \
         'Mod+grave' \
         'Mod+Shift+Space' \
-        'Mod+Shift+N'; do
+        'Mod+Shift+1'; do
         assert_contains "$bind" "$FRAGMENT"
     done
-    # DMS keeps these keys (2026-10-06 traversal): launcher on Mod+Space,
-    # task manager on Mod+M, center-column on Mod+C, close on Mod+Shift+E.
+    assert_contains 'spawn "thunar"' "$FRAGMENT"
+    assert_contains 'quickCapture screenshot region edit' "$FRAGMENT"
+    assert_contains 'focus-window-previous' "$FRAGMENT"
+    assert_contains 'toggle-window-floating' "$FRAGMENT"
+    assert_contains 'move-window-to-workspace 1' "$FRAGMENT"
+    assert_contains 'move-window-to-monitor-left' "$FRAGMENT"
+    assert_contains 'move-window-to-monitor-right' "$FRAGMENT"
+    # These stay on the live DMS binds file. Redeclaring them here would
+    # override that file because niri-repo.kdl is included last.
+    assert_not_contains 'Mod+F ' "$FRAGMENT"
+    assert_not_contains 'Mod+H ' "$FRAGMENT"
+    assert_not_contains 'Mod+J ' "$FRAGMENT"
+    assert_not_contains 'Mod+K ' "$FRAGMENT"
+    assert_not_contains 'Mod+L ' "$FRAGMENT"
+    assert_not_contains 'Mod+Shift+H' "$FRAGMENT"
+    assert_not_contains 'Mod+Shift+L' "$FRAGMENT"
+    assert_not_contains 'Mod+Shift+N' "$FRAGMENT"
+    assert_not_contains 'file-manager-wayland' "$FRAGMENT"
+    assert_not_contains 'screenshot-wayland' "$FRAGMENT"
+    assert_not_contains 'toggleDoNotDisturb' "$FRAGMENT"
+    assert_not_contains 'focus-column-or-monitor' "$FRAGMENT"
+    assert_not_contains 'move-column-left-or-to-monitor' "$FRAGMENT"
+    # DMS keeps these keys: launcher on Mod+Space, task manager on Mod+M,
+    # center-column on Mod+C.
     assert_not_contains 'Mod+Space {' "$FRAGMENT"
     assert_not_contains 'mod+space' "$FRAGMENT"
     assert_not_contains 'Mod+M ' "$FRAGMENT"
@@ -497,6 +610,9 @@ test_docs_and_manifest_cover_dms_machine() {
     assert_contains 'Mod+Space' "$DMS_README"
     assert_contains '覆盖' "$DMS_README"
     assert_contains 'settings.txt' "$DMS_README"
+    assert_contains '方案 B' "$DMS_README"
+    assert_contains '首个匹配项' "$DMS_README"
+    assert_contains 'outputs.kdl' "$DMS_README"
     # Package manifest gains the Fedora niri/DMS section.
     assert_contains 'avengemedia/dms' "$DNF_MANIFEST"
     assert_contains 'niri' "$DNF_MANIFEST"
@@ -518,6 +634,10 @@ for test_case in \
     test_check_reports_drift_then_clean \
     test_dry_run_changes_nothing \
     test_own_include_is_moved_last \
+    test_outputs_include_is_moved_before_dms_fragments \
+    test_duplicate_outputs_includes_are_deduplicated \
+    test_no_outputs_file_does_not_add_outputs_include \
+    test_outputs_precede_new_dms_includes_without_existing_includes \
     test_missing_fragment_only_warns \
     test_fragment_carries_repo_bindings \
     test_docs_and_manifest_cover_dms_machine; do

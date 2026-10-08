@@ -364,6 +364,7 @@ install_niri_config_for_platform() {
 
     source="$cur_path/.config/linux/niri/$platform/config.kdl"
     common_source="$cur_path/.config/linux/niri/common.kdl"
+    outputs_source="$cur_path/.config/linux/niri/$platform/outputs.kdl"
     if [ ! -f "$source" ]; then
         log_warn "No niri config for platform $platform; keeping existing niri config"
         return 0
@@ -372,20 +373,53 @@ install_niri_config_for_platform() {
         log_warn "No niri common.kdl; skipping niri config"
         return 0
     fi
+    if [ ! -f "$outputs_source" ]; then
+        log_warn "No niri outputs.kdl for platform $platform; skipping niri config"
+        return 0
+    fi
 
     target_dir="$HOME/.config/niri"
     ensure_dir "$target_dir" || return 1
 
     copy_config "$common_source" "$target_dir/common.kdl" "niri common config"
+    copy_config "$outputs_source" "$target_dir/outputs.kdl" "niri outputs ($platform)"
 
     local tmp_config="$target_dir/.config.kdl.tmp"
     register_temp "$tmp_config"
-    sed 's#include "\.\./common\.kdl"#include "common.kdl"#' "$source" >"$tmp_config" || {
+    # Repo platform files include "../common.kdl" and "outputs.kdl" beside
+    # themselves. Live keeps both files in ~/.config/niri/.
+    sed -e 's#include "\.\./common\.kdl"#include "common.kdl"#' \
+        -e 's#include "outputs\.kdl"#include "outputs.kdl"#' \
+        "$source" >"$tmp_config" || {
         rm -f "$tmp_config"
         return 1
     }
     copy_config "$tmp_config" "$target_dir/config.kdl" "niri config ($platform)"
     rm -f "$tmp_config"
+}
+
+# DMS keeps its own config.kdl and dms/outputs.kdl. Scheme B makes the repo
+# platform outputs.kdl authoritative: dms-niri-setup includes it before dms/*
+# because niri output blocks are first-match-wins (unlike binds). This does
+# not replace the DMS-managed config.kdl or edit dms/outputs.kdl.
+install_niri_outputs_for_platform() {
+    command -v niri >/dev/null 2>&1 || return 0
+
+    local platform outputs_source target_dir
+    if ! platform=$(niri_platform_key); then
+        log_info "No per-machine niri outputs for distro=${distro:-unknown}, arch=${arch:-unknown}; keeping live outputs"
+        return 0
+    fi
+
+    outputs_source="$cur_path/.config/linux/niri/$platform/outputs.kdl"
+    if [ ! -f "$outputs_source" ]; then
+        log_warn "No niri outputs.kdl for platform $platform; keeping live outputs"
+        return 0
+    fi
+
+    target_dir="$HOME/.config/niri"
+    ensure_dir "$target_dir" || return 1
+    copy_config "$outputs_source" "$target_dir/outputs.kdl" "niri outputs ($platform)"
 }
 
 # Install waybar config. The shared config (no backlight module) is used on all
@@ -743,6 +777,8 @@ main() {
                     log_warn "Failed to deploy DMS niri repo fragment; continuing"
                 process_config "" ".config/linux/dms/settings.txt" "~/.config/dms/settings.txt" "DMS settings manifest" ||
                     log_warn "Failed to deploy DMS settings manifest; continuing"
+                install_niri_outputs_for_platform ||
+                    log_warn "Failed to deploy per-machine niri outputs; continuing"
                 log_info "DMS detected; wiring the repo fragment into the DMS-managed niri session"
                 bash "$cur_path/.config/scripts/dms-niri-setup" ||
                     log_warn "dms-niri-setup failed; continuing with remaining configurations"

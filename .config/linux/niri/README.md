@@ -6,7 +6,7 @@
 
 - 当前本机已通过上游 flake 重新构建并切到 `niri 26.04 (3819182)`。
 - AwesomeWM 仍是可回退桌面；本目录只提供 niri 试用配置。
-- Niri 配置维护 Ubuntu x86_64 与 aarch64 两个平台；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，平台文件保留 output 段、`include "../common.kdl"`，以及必要的硬件覆盖（如 aarch64 关 blur、钉钉再次不透明）。检测到 Ubuntu x86_64 / aarch64 的 niri 后，`install.sh` 复制平台 KDL 为 `~/.config/niri/config.kdl`，同时部署 `common.kdl` 并将 include 路径改写成 live 布局使用的 `common.kdl`；不会把 README 或整个平台目录复制到 live。仅 Ubuntu 且未检测到 DMS（`command -v dms`）时部署本仓库的 Niri 配置；DMS 机器（如 openSUSE、装了 dms 的 Ubuntu）保留 DMS 自管的 Niri 配置，其余发行版保留现有 live 配置。
+- Niri 配置维护 Ubuntu x86_64 与 aarch64 两个平台；公共部分（input/layout/blur/window-rule/binds 等）抽到 `.config/linux/niri/common.kdl`，屏幕输出单独放在各平台的 `outputs.kdl`，平台 `config.kdl` 只保留输出 include、公共 include 和必要的硬件覆盖（如 aarch64 关 blur、钉钉再次不透明）。检测到 Ubuntu x86_64 / aarch64 的 niri 后，`install.sh` 复制平台 KDL 为 `~/.config/niri/config.kdl`，同时部署 `common.kdl` 和 `outputs.kdl` 并将公共 include 路径改写成 live 布局使用的 `common.kdl`；不会把 README 或整个平台目录复制到 live。仅 Ubuntu 且未检测到 DMS（`command -v dms`）时部署本仓库的 Niri 配置；DMS 机器（如 openSUSE、装了 dms 的 Ubuntu）保留 DMS 自管的 Niri 配置，其它发行版保留现有 live 配置。
 - Waybar / Mako 第一版沿用 Catppuccin Mocha 色系，便于和现有 Awesome 外观保持接近。
 - Fuzzel 是 niri 会话下的首选 launcher，使用 CJK 字体、fuzzy match 与更清晰的深色主题；Rofi 仅作为 fallback。
 - `picom`、`xrandr`、`xinput`、`feh`、`xautolock` 不进入 niri 配置：Wayland 下分别由 niri/output/input、`swaybg`、`swayidle`/`swaylock` 等替代。
@@ -26,7 +26,7 @@
 
 本仓库不负责安装 niri 或其它桌面软件，也不检测显示管理器、desktop entry 或系统服务。`install.sh` 通过 `command -v` 判断 niri 是否存在：检测到 niri 即部署 Wayland 辅助脚本、桌面入口、portal 偏好、XDG autostart 覆盖与 Foot 终端配置（它们包装应用而非桌面外壳，DMS 机器同样需要；Foot 按单文件部署，保留 `~/.config/foot` 目录内 DMS 等第三方放入的额外文件如 `dank-colors.ini`）；Niri 平台 KDL 与 Waybar、Mako、Fuzzel、Swaylock 桌面外壳栈仅在 Ubuntu 且未检测到 DMS（`command -v dms`）时部署——DMS 机器的外壳栈（状态栏 / 通知 / launcher / 锁屏）由 DMS 接管，其余非 Ubuntu 发行版保留现有 live 配置。当前是否处于 Wayland 会话不会影响部署。
 
-DMS 机器额外部署仓库自己的 niri 片段（`.config/linux/dms/niri-repo.kdl` → `~/.config/niri/niri-repo.kdl`：`wayland-autostart` + 仓库肌肉记忆键位），并运行幂等接线脚本 `dms-niri-setup` 把它 include 到 DMS 自管的 `config.kdl`（排在所有 `dms/*.kdl` 之后）、部署 DMS 默认键位、重建钉钉窗口规则；逐键取舍表与「不安装清单」见 `.config/linux/dms/README.md`（根 README 同名一节）。
+DMS 机器额外部署仓库自己的 niri 片段（`.config/linux/dms/niri-repo.kdl` → `~/.config/niri/niri-repo.kdl`，只含键位）和本机屏幕文件（`<平台>/outputs.kdl` → `~/.config/niri/outputs.kdl`）。按方案 B，仓库屏幕文件是 DMS 机器的权威配置：`dms-niri-setup` 把 `outputs.kdl` include 到所有 `dms/*.kdl` 之前，把键位片段 include 到所有 `dms/*.kdl` 之后；不覆盖 `config.kdl` 的其它内容，也不改写 `dms/outputs.kdl`。逐键取舍表与「不安装清单」见 `.config/linux/dms/README.md`（根 README 同名一节）。
 
 Wayland 自动色温固定使用 `gammastep`；命令缺失时自启动脚本打印提示并跳过，不回退其它色温程序。夜间使用温和色温 5500K（默认 4800K 会把外接屏压得过暗），亮度保持上限 `-b 1.0:1.0`（gammastep 亮度范围 0.1~1.0，无法提亮）；所有平台（含 aarch64 MediaTek）统一启用。
 
@@ -34,14 +34,17 @@ Waybar 亮度模块（`backlight`）仅用于 aarch64（MediaTek 笔记本有背
 
 ## 平台配置
 
-公共配置（input/layout/blur/window-rule/binds 等）放在 `.config/linux/niri/common.kdl`。Ubuntu x86_64 平台文件只保留 output 段和 `include "../common.kdl"`；aarch64 额外覆盖全局透明度 / blur 与钉钉不透明。安装时 `install.sh` 复制对应平台的 `config.kdl` 为 `~/.config/niri/config.kdl`，同时部署 `common.kdl` 并将 include 路径改写为 live 布局的 `common.kdl`。
+公共配置（input/layout/blur/window-rule/binds 等）放在 `.config/linux/niri/common.kdl`，**不含任何 `output`**。每台机器的屏幕单独放在该平台目录的 `outputs.kdl`。平台 `config.kdl` 只 `include "outputs.kdl"` 和 `include "../common.kdl"`；aarch64 还在 include 之后覆盖全局透明度 / blur 与钉钉不透明。
 
-| 平台 key | 仓库路径 | 状态 |
+| 机器 | 屏幕文件 | 布局 |
 | --- | --- | --- |
-| `ubuntu_x64` | `.config/linux/niri/ubuntu_x64/config.kdl` | 已落地；Ubuntu x86_64 双 2K 外接屏 |
-| `ubuntu_aarch64` | `.config/linux/niri/ubuntu_aarch64/config.kdl` | 已落地；Ubuntu aarch64 (MediaTek) 内屏 eDP-1 2x + 外接 DP-2 1.25x |
+| Ubuntu x86_64 桌面（当前环境） | `.config/linux/niri/ubuntu_x64/outputs.kdl` | DP-1 Dell D2421DS 左、HDMI-A-2 AOC Q24P1W1 右，均为 `2560x1440@59.951`、scale 1.25、右屏 `x=2048` |
+| Ubuntu aarch64 笔记本 | `.config/linux/niri/ubuntu_aarch64/outputs.kdl` | eDP-1 `2880x1800@120` scale 2.0 在左；DP-2 AOC U27U2G6R4B `3840x2160@59.997` scale 2.0 在右，`x=1440` |
+| Fedora 笔记本 | 未入库 | 笔记本 + 外接 4K 27 寸。DMS 自管 `dms/outputs.kdl`，仓库没有这份机器的 output 文件，安装器不会拿另外两台的屏幕去覆盖 |
 
-新增平台时先增加对应平台 KDL 与安装器映射，默认只调整 output 段（接口名/分辨率/scale/位置）；硬件特化覆盖（blur / 透明度等）可写在平台文件的 include 之后。公共行为改动统一在 `common.kdl` 里完成，并用 `niri validate -c <path>` 验证。
+非 DMS 的 Ubuntu 上，`install.sh` 把 `outputs.kdl`、`common.kdl` 和改写过 include 的 `config.kdl` 复制到 `~/.config/niri/`。DMS 机器不覆盖 `config.kdl` 和 `dms/outputs.kdl`，只部署本机 `~/.config/niri/outputs.kdl`，并由 `dms-niri-setup` 在所有 `dms/*.kdl` 之前 include 它，使仓库屏幕配置优先。没有对应平台文件的机器（当前的 Fedora）保持 live 屏幕不动。
+
+新增机器时增加平台目录和 `outputs.kdl`，再在 `niri_platform_key` 里映射；不要把 output 写回 `common.kdl`。用 `niri validate -c <平台 config.kdl>` 验证。
 
 ## 配置验证
 

@@ -5,7 +5,9 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$REPO_ROOT/tests/lib/assert.sh"
 
 NIRI_CONFIG=$REPO_ROOT/.config/linux/niri/ubuntu_x64/config.kdl
+NIRI_OUTPUTS=$REPO_ROOT/.config/linux/niri/ubuntu_x64/outputs.kdl
 NIRI_AARCH64_CONFIG=$REPO_ROOT/.config/linux/niri/ubuntu_aarch64/config.kdl
+NIRI_AARCH64_OUTPUTS=$REPO_ROOT/.config/linux/niri/ubuntu_aarch64/outputs.kdl
 NIRI_COMMON_CONFIG=$REPO_ROOT/.config/linux/niri/common.kdl
 NIRI_README=$REPO_ROOT/.config/linux/niri/README.md
 TERMINAL_SCRIPT=$REPO_ROOT/.config/scripts/terminal-wayland
@@ -14,8 +16,10 @@ test_niri_config_exists_and_validates_when_available() {
     assert_file_exists "$NIRI_CONFIG"
     assert_file_exists "$NIRI_COMMON_CONFIG"
 
-    # The Ubuntu platform config includes the shared common.kdl.
+    # The Ubuntu platform config includes its own outputs and the shared common.kdl.
+    assert_contains 'include "outputs.kdl"' "$NIRI_CONFIG"
     assert_contains 'include "../common.kdl"' "$NIRI_CONFIG"
+    assert_not_contains 'output "' "$NIRI_CONFIG"
 
     if command -v niri >/dev/null 2>&1; then
         # niri from a nix profile may fail to find libstdc++.so.6 when run
@@ -120,35 +124,44 @@ test_niri_config_uses_wayland_replacements_not_x11_autostart() {
     assert_not_contains 'xautolock' "$NIRI_COMMON_CONFIG"
     assert_not_contains 'feh' "$NIRI_COMMON_CONFIG"
 
-    # Platform-specific output section stays in the platform config.
+    # Ubuntu x64 outputs are this desk only: dual 2K, not the laptop layouts.
     assert_contains '// Platform: ubuntu_x64' "$NIRI_CONFIG"
-    assert_contains 'output "DP-1" {' "$NIRI_CONFIG"
-    assert_contains 'output "HDMI-A-2" {' "$NIRI_CONFIG"
-    assert_contains 'scale 1.25' "$NIRI_CONFIG"
-    assert_contains 'position x=2048 y=0' "$NIRI_CONFIG"
+    assert_file_exists "$NIRI_OUTPUTS"
+    assert_contains 'output "DP-1" {' "$NIRI_OUTPUTS"
+    assert_contains 'output "HDMI-A-2" {' "$NIRI_OUTPUTS"
+    assert_contains 'mode "2560x1440@59.951"' "$NIRI_OUTPUTS"
+    assert_contains 'scale 1.25' "$NIRI_OUTPUTS"
+    assert_contains 'position x=2048 y=0' "$NIRI_OUTPUTS"
+    assert_not_contains 'output "eDP-1"' "$NIRI_OUTPUTS"
+    assert_not_contains '3840x2160' "$NIRI_OUTPUTS"
+    assert_not_contains 'output "' "$NIRI_COMMON_CONFIG"
 }
 
 test_niri_aarch64_config_maps_media_tek_hybrid_outputs_and_foot_terminal() {
     # Platform config includes the shared common.kdl like every other platform.
     assert_file_exists "$NIRI_AARCH64_CONFIG"
+    assert_file_exists "$NIRI_AARCH64_OUTPUTS"
     assert_contains '// Platform: ubuntu_aarch64' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'include "outputs.kdl"' "$NIRI_AARCH64_CONFIG"
     assert_contains 'include "../common.kdl"' "$NIRI_AARCH64_CONFIG"
+    assert_not_contains 'output "' "$NIRI_AARCH64_CONFIG"
 
     # External DP-2 (AOC U27U2G6R4B) at 2x on the right, internal eDP-1 at 2x HiDPI on the left.
     # 2026-08-31: 外接屏换成 AOC 后去掉旧 Dell 120Hz modeline；档位轨迹 1440p60→1080p60→4K30。
     # 2026-10-06: 实测线缆/带宽已支持 4K60（niri msg outputs 显示 3840x2160@59.997 为 preferred 且稳定），切换至 4K60。
-    assert_contains 'output "eDP-1" {' "$NIRI_AARCH64_CONFIG"
-    assert_contains 'mode "2880x1800@120"' "$NIRI_AARCH64_CONFIG"
-    assert_contains 'scale 2.0' "$NIRI_AARCH64_CONFIG"
-    assert_contains 'position x=0 y=0' "$NIRI_AARCH64_CONFIG"
-    assert_contains 'output "DP-2" {' "$NIRI_AARCH64_CONFIG"
-    assert_contains 'mode "3840x2160@59.997"' "$NIRI_AARCH64_CONFIG"
-    assert_not_contains 'modeline 497.75 2560 2608 2640 2720 1440 1445 1448 1525 "+hsync" "-vsync"' "$NIRI_AARCH64_CONFIG"
+    assert_contains 'output "eDP-1" {' "$NIRI_AARCH64_OUTPUTS"
+    assert_contains 'mode "2880x1800@120"' "$NIRI_AARCH64_OUTPUTS"
+    assert_contains 'scale 2.0' "$NIRI_AARCH64_OUTPUTS"
+    assert_contains 'position x=0 y=0' "$NIRI_AARCH64_OUTPUTS"
+    assert_contains 'output "DP-2" {' "$NIRI_AARCH64_OUTPUTS"
+    assert_contains 'mode "3840x2160@59.997"' "$NIRI_AARCH64_OUTPUTS"
+    assert_not_contains 'modeline 497.75 2560 2608 2640 2720 1440 1445 1448 1525 "+hsync" "-vsync"' "$NIRI_AARCH64_OUTPUTS"
     # 两块屏均为 2x 缩放：eDP-1 与 DP-2 各一个 scale 2.0，不再有 1.25x。
-    assert_not_contains 'scale 1.25' "$NIRI_AARCH64_CONFIG"
-    [ "$(grep -c 'scale 2.0' "$NIRI_AARCH64_CONFIG")" -eq 2 ] ||
-        fail "expected two 'scale 2.0' (eDP-1 & DP-2) in $NIRI_AARCH64_CONFIG"
-    assert_contains 'position x=1440 y=0' "$NIRI_AARCH64_CONFIG"
+    assert_not_contains 'scale 1.25' "$NIRI_AARCH64_OUTPUTS"
+    assert_not_contains 'HDMI-A-2' "$NIRI_AARCH64_OUTPUTS"
+    [ "$(grep -c '^[[:space:]]*scale 2.0$' "$NIRI_AARCH64_OUTPUTS")" -eq 2 ] ||
+        fail "expected two 'scale 2.0' (eDP-1 & DP-2) in $NIRI_AARCH64_OUTPUTS"
+    assert_contains 'position x=1440 y=0' "$NIRI_AARCH64_OUTPUTS"
 
     # 全平台 niri/Wayland 默认终端统一为 foot（2026-08-31 起含 x86_64），aarch64
     # 行为不变（mtgpu 下 foot 渲染正常）；alacritty 仅作兜底。

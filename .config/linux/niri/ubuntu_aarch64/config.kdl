@@ -1,30 +1,11 @@
-// Rikoo niri config for Ubuntu (aarch64 / MediaTek M1000) / Wayland.
+// Ubuntu aarch64 laptop (MediaTek). Outputs live in ./outputs.kdl.
 // Platform: ubuntu_aarch64
 // Keep AwesomeWM available; this file only defines the niri session behavior.
 // Common input/layout/blur/window-rule/binds live in ../common.kdl.
-// Validate with: niri validate -c ~/.config/niri/config.kdl
+// MediaTek GPU scaling breaks Alacritty 0.18 glyphs; terminal-wayland prefers foot.
+// Validate with: niri validate -c .config/linux/niri/ubuntu_aarch64/config.kdl
 
-// 内屏 eDP-1: 2880x1800@120，2x 缩放（逻辑 1440x900），放在外接屏左侧。
-// 注意：MediaTek GPU 缩放下 alacritty 0.18.0-dev 的 GPU 字形渲染会损坏
-// （1x 正常、2x/1.5x 内容重绘后文字丢失），foot 正常；terminal-wayland 已
-// 全平台统一 foot 优先。若后续换稳定版 alacritty 可复核（见 README）。
-output "eDP-1" {
-    mode "2880x1800@120"
-    scale 2.0
-    position x=0 y=0
-}
-
-// 外接屏 DP-2 (AOC U27U2G6R4B): 3840x2160@29.981（EDID preferred 原生 4K），2x 缩放
-// （逻辑 1920x1080），放在内屏右侧。DP 链路当前只给 4K30，若日后想 4K60 需先排查线缆/带宽。
-// 2026-08-31：外接屏从 Dell S2721DGF 换成 AOC U27U2G（4K 面板、60Hz 上限）。原先给 Dell 调的
-// 120Hz modeline（497.75MHz）往 60Hz 面板灌 120Hz 信号会导致黑屏/无信号，故移除 modeline。
-// 档位轨迹：1440p60 → 1080p60 → 4K30（用户选默认）；外接屏缩放 1.25 → 2.0（用户要求）。
-output "DP-2" {
-    mode "3840x2160@59.997"
-    scale 2.0
-    position x=1440 y=0
-}
-
+include "outputs.kdl"
 include "../common.kdl"
 
 // ---- aarch64 平台覆盖：mtgpu 驱动的 blur 无明显视觉效果，仅保留透明 ----

@@ -8,11 +8,12 @@
 
 | 文件 | 部署位置 | 作用 |
 | --- | --- | --- |
-| `niri-repo.kdl` | `~/.config/niri/niri-repo.kdl` | 仓库补回的 niri 片段：**只含仓库肌肉记忆键位**（不 spawn 仓库 autostart，理由见下） |
+| `niri-repo.kdl` | `~/.config/niri/niri-repo.kdl` | 仓库补回的 niri 片段：**只含键位**（不 spawn 仓库 autostart，理由见下） |
+| `../niri/<平台>/outputs.kdl` | `~/.config/niri/outputs.kdl` | 本机屏幕；按方案 B 作为 DMS 机器的权威 output 配置，include 在所有 `dms/*.kdl` 之前；不改写 `dms/outputs.kdl`。没有该平台文件的机器（当前 Fedora）跳过 |
 | `settings.txt` | `~/.config/dms/settings.txt` | DMS 设置清单（key=value），由接线脚本幂等下发到 `dms ipc call settings set` / `night` |
 | `.config/scripts/dms-niri-setup` | `~/.config/scripts/dms-niri-setup` | 幂等接线脚本：下发 DMS 设置、补齐 DMS 默认键位、补 `dms/*.kdl` include、保证顺序、重建钉钉窗口规则 |
 
-`install.sh` 检测到 `niri` + `dms` 时自动部署片段并运行接线脚本；脚本本身在
+`install.sh` 检测到 `niri` + `dms` 时自动部署片段、对应平台的 `outputs.kdl` 与 `settings.txt`，并运行接线脚本；脚本本身在
 非 niri / 非 DMS 机器上是 no-op，也可以随时手动跑：
 
 ```bash
@@ -67,15 +68,31 @@ night.enabled=<true|false>    → dms ipc call night enable|disable
   或 `dms ipc call night disable`；
 - `--check` 会把这些项当成漂移一并报告（退出码 1）。
 
-## 接线机制（两条硬约束）
+## 接线机制（三条硬约束）
 
 1. **include 顺序决定键位归谁**：niri 的 `binds {}` 合并规则是「后出现的同键绑定
    覆盖先出现的」（`niri-config/src/lib.rs`，注释明确是为了"先 import 公共配置、
    再覆盖若干键位"这一用法）。所以 `include "niri-repo.kdl"` **必须排在所有
    `include "dms/*.kdl"` 之后**；脚本会在顺序不对时重写尾部的 include 块。
-2. **只补仓库自己的一层**：DMS 自管的 bar / 通知 / 锁屏 / idle / 壁纸 / 配色 /
+2. **本机屏幕由仓库负责**：niri 的 `output` 是按解析顺序取首个匹配项的 multipart 配置，因此方案 B 要求仓库的 `outputs.kdl` include 在所有 `dms/*.kdl` 之前，作为 DMS 机器的权威屏幕配置。DMS 仍可生成并保留 `dms/outputs.kdl`，但接线脚本不修改它，也不会让它覆盖仓库配置。
+3. **只补仓库自己的一层**：DMS 自管的 bar / 通知 / 锁屏 / idle / 壁纸 / 配色 /
    `layout` / `input` / 窗口规则 / **剪贴板**都不在本目录重复声明。DMS 机器上需要仓库
-   配的东西实际只剩**仓库肌肉记忆键位**。
+   配的东西实际只剩**仓库肌肉记忆键位和本机屏幕**。
+
+接线后的顺序示例：
+
+```kdl
+include "outputs.kdl"        // 仓库屏幕优先：output 首个匹配项生效
+include "dms/outputs.kdl"    // 保留 DMS 文件；只为仓库未声明的屏幕提供配置
+include "dms/binds.kdl"
+// 其余 dms/*.kdl……
+include "niri-repo.kdl"      // 仓库键位优先：binds 后出现的同键覆盖
+```
+
+仓库已声明屏幕的 mode / scale / position 应修改平台 `outputs.kdl`；DMS 显示设置写入
+`dms/outputs.kdl` 的同屏配置不会替代它。`--check` 检测屏幕 include 缺失、重复或顺序错误；
+应用时先备份 `config.kdl` 再修复，`--dry-run` 不写文件。
+以上顺序针对配置文件；通过 IPC 临时修改显示设置的行为不由本脚本限制。
 
 **为什么不在 DMS 机器上 spawn 仓库的 `wayland-autostart`**（2026-10-06 Fedora 44 实测）：
 
@@ -97,55 +114,53 @@ night.enabled=<true|false>    → dms ipc call night enable|disable
 或 gammastep），在 `niri-repo.kdl` 里把 `spawn-sh-at-startup "~/.config/scripts/wayland-autostart"`
 加回去，并确认不与 DMS 同类服务重复。
 
-## 键位决策（2026-10-06，按 DMS 默认键位逐条对照）
+## 键位决策（2026-10-08，按本机 Ubuntu x64 的 live `dms/binds.kdl` 修订）
 
-DMS 默认键位用 `dms setup binds` 生成到 `~/.config/niri/dms/binds.kdl`，
-可以在 DMS 设置 → Keybinds 查看/编辑（`dms keybinds show niri`）。
-下面只列**与 DMS 默认不同**的键；完全一致的（`Mod+Q`、`Mod+O`、`Mod+W`、
-`Mod+Shift+V`、`Mod+Minus/Equal`、`Mod+BracketLeft/Right`、`Mod+Shift+J/K`、
-`Mod+1..9`、`Mod+Escape`、`Mod+Shift+Slash`、`Mod+Wheel*` 等）不重复声明。
+`niri-repo.kdl` 排在所有 `dms/*.kdl` 之后，写进去的同键会盖掉 live。
+所以和本机已经一致的键**不写进片段**。非 DMS 机器仍用 `common.kdl`，不受这张表影响。
 
-### 仓库独有键位（DMS 未占用，直接恢复）
+### 片段里会改 live 的键
 
-| 键 | 动作 |
-| --- | --- |
-| `Mod+Return` | 终端（`terminal-wayland`，优先 foot） |
-| `Mod+E` | 文件管理器（`file-manager-wayland`） |
-| `Mod+grave` | 聚焦上一个 workspace |
-| `Mod+A` / `Mod+D` | 焦点切到左/右显示器 |
-| `Mod+Ctrl+Shift+A` / `Mod+Ctrl+Shift+D` | 当前 workspace 移到左/右显示器 |
-| `Mod+Ctrl+1..9` | 把当前列送到 workspace N |
-| `Mod+Shift+Space` | 反向循环列宽（DMS 只有 `Mod+R` 正向） |
-| `Mod+Ctrl+M` | 当前列最大化（DMS 的 `Mod+M` 被任务管理器占用） |
-| `Mod+S` | 截图（`screenshot-wayland` + satty） |
-| `Mod+Shift+Q` | 退出 niri（DMS 默认是 `Mod+Shift+E`，两者都保留） |
-
-### 同键覆盖 DMS 默认（仓库语义优先）
-
-| 键 | 仓库动作 | DMS 默认 | 取舍理由 |
-| --- | --- | --- | --- |
-| `Mod+Tab` | 焦点历史窗口（`focus-window-previous`） | 切换 overview | overview 已有 `Mod+O`，不占用 Tab |
-| `Mod+F` | 扩展当前列到可用宽度 | `maximize-column` | 保留仓库语义；DMS 的把 expand 放在 `Mod+Ctrl+F` |
-| `Mod+Ctrl+F` | 切换窗口浮动 | `expand-column-to-available-width` | 浮动切换更常用（DMS 默认在 `Mod+Shift+T`，仍可用） |
-| `Mod+H/L`、`Mod+J/K` | `focus-column-or-monitor-*` / `focus-window-or-workspace-*` | `focus-column-*` / `focus-window-*` | 仓库版在边界会跨显示器/跨 workspace |
-| `Mod+Shift+H/L` | `move-column-*-or-to-monitor-*` | `move-column-*` | 同上，支持跨屏搬列 |
-| `Mod+Shift+1..9` | 移动**窗口**到 workspace N | 移动**列**到 workspace N | 与 `Mod+Ctrl+1..9`（移动列）构成一组；DMS 的列语义由 Ctrl 组承担 |
-| `Mod+Shift+N` | 免打扰 | 记事本（notepad） | 保留仓库肌肉记忆，动作用 DMS 的 `dms ipc call notifications toggleDoNotDisturb`（DMS 机器没有 mako） |
-
-### 让给 DMS（仓库不声明，用 DMS 默认）
-
-| 键 | DMS 动作 | 仓库原动作 |
+| 键 | 接上片段后 | 本机现在 |
 | --- | --- | --- |
-| `Mod+Space` | spotlight 启动器 | 循环列宽（改用 DMS 的 `Mod+R`） |
-| `Mod+M` | 任务管理器 | `maximize-window-to-edges`（用 `Mod+Ctrl+M` 代替） |
-| `Mod+C` | `center-column` | `launcher-wayland`（启动器已有 `Mod+Space`） |
-| `Mod+Ctrl+C` | `center-visible-columns` | `center-column` |
-| `Mod+Shift+W` | 创建窗口规则 | 切换壁纸（用 `Mod+Y` 或 `dms ipc call wallpaper next`） |
-| `Mod+Shift+N` | 记事本 | 见上表，仓库覆盖成免打扰 |
-| `Mod+Alt+L` | DMS 锁屏 | `lock-wayland`（swaylock） |
-| `Mod+V` | DMS 剪贴板面板 | `clipboard-wayland history` |
-| `XF86Audio*`、`XF86MonBrightness*` | DMS audio/mpris/brightness（带 OSD） | `wpctl` / `playerctl` / `brightnessctl` |
-| `Ctrl+Print` / `Alt+Print` | `dms screenshot full/window` | niri 内建截图 |
+| `Mod+E` | `spawn "thunar"` | `dms ipc call defaultApp fileManager` |
+| `Mod+S` | `dms ipc call quickCapture screenshot region edit`（与本机相同） | 同左 |
+| `Mod+Tab` | 上一个窗口（`focus-window-previous`） | 切换 overview |
+| `Mod+Ctrl+F` | 切换浮动 | 扩展列宽（浮动现在在 `Mod+Shift+T`） |
+| `Mod+Shift+1..9` | 移动**窗口**到 workspace N | 移动**整列** |
+| `Mod+Shift+A` / `Mod+Shift+D` | 把**窗口**搬到左/右显示器（`move-window-to-monitor-*`） | 未绑定 |
+
+`Mod+S` 即使动作相同也写进片段：否则下次 `dms setup binds` 把 `binds.kdl` 刷回出厂默认时，会掉回仓库旧的 satty 脚本。
+
+### 片段里有、且本机 `binds.kdl` 已经相同的键
+
+`Mod+Return`（`terminal-wayland`，本机落到 foot；本机另有 `Mod+T` 直接开 foot）、`Mod+grave`、`Mod+A` / `Mod+D`（焦点切屏）、`Mod+Ctrl+Shift+A` / `Mod+Ctrl+Shift+D`（整个 workspace 换屏）、`Mod+Ctrl+1..9`（整列换 workspace）、`Mod+Shift+Space`、`Mod+Ctrl+M`、`Mod+Shift+Q`。
+
+### 故意不写进片段（沿用本机 `binds.kdl`）
+
+| 键 | 保持的动作 | 不写的原因 |
+| --- | --- | --- |
+| `Mod+F` | `maximize-column` | 用户要求继续最大化列。扩展列宽仍是本机的 `Mod+Ctrl+F`，接上片段后会被浮动切换占用 |
+| `Mod+H` / `Mod+L` | `focus-column-left` / `focus-column-right` | 到屏幕边缘停下，不跨显示器 |
+| `Mod+J` / `Mod+K` | `focus-window-down` / `focus-window-up` | 到边缘停下，不切 workspace |
+| `Mod+Shift+H` / `Mod+Shift+L` | `move-column-left` / `move-column-right` | 列只在本屏内移动 |
+| `Mod+Shift+N` | DMS 记事本 | 不改成免打扰 |
+
+跨屏三档因此是：`Mod+A/D` 只移动焦点，`Mod+Shift+A/D` 搬当前窗口，`Mod+Ctrl+Shift+A/D` 搬整个 workspace。本机已有的 `Mod+Shift+Ctrl+H/L` 仍是搬**整列**到另一块屏，片段不碰它。
+
+### 继续让给 DMS
+
+| 键 | DMS 动作 |
+| --- | --- |
+| `Mod+Space` | spotlight 启动器（列宽正向循环用 `Mod+R`） |
+| `Mod+M` | 任务管理器 |
+| `Mod+C` | `center-column` |
+| `Mod+Ctrl+C` | `center-visible-columns` |
+| `Mod+Shift+W` | 创建窗口规则 |
+| `Mod+Alt+L` | DMS 锁屏 |
+| `Mod+V` | DMS 剪贴板面板 |
+| `XF86Audio*`、`XF86MonBrightness*` | DMS 音量 / 亮度 |
+| `Ctrl+Print` / `Alt+Print` | `dms screenshot full/window` |
 
 ### DMS 独有、仓库不干预
 
@@ -192,8 +207,8 @@ dms ipc call night status                    # Night mode: enabled；target 5500
 运行时的合并规则是「后出现的同键替换先出现的」且有且仅有一条（`niri-config/src/lib.rs`
 的 `binds` 分支：`retain` 掉同键旧绑定再 `extend`），而 `niri-repo.kdl` 排在所有
 `dms/*.kdl` 之后，所以**生效的是仓库键位**。要改被覆盖的键就改 `niri-repo.kdl`；
-要在 DMS UI 里看真实归属，可实按验证（例：按 `Mod+Shift+N` —— 开记事本说明 DMS 赢、
-切换免打扰说明仓库赢，`dms ipc call notifications getDoNotDisturb` 可读状态）。
+要在 DMS UI 里看真实归属，可实按验证（例：按 `Mod+Tab` —— 打开总览说明 live `binds.kdl` 赢、
+切到上一个窗口说明仓库片段赢）。`Mod+Shift+N` 自 2026-10-08 起固定为 DMS 记事本，片段不再声明它。
 
 ## 回退
 
@@ -201,4 +216,6 @@ dms ipc call night status                    # Night mode: enabled；target 5500
   保留最近 3 份）；把末尾的仓库 include/注释块删掉即可停用仓库片段。
 - 键位层：删掉 `~/.config/niri/niri-repo.kdl` 里的对应 `binds` 条目，或整文件
   移走后重跑 `dms-niri-setup`（它会撤销 include）。
+- 屏幕层：从 `config.kdl` 移除 `include "outputs.kdl"` 和对应注释，恢复 DMS output 配置；
+  再跑 `install.sh` / `dms-niri-setup` 会重新接回仓库屏幕层。只改仓库 screen 文件也可逐项回退。
 - 窗口规则：`dms config windowrules remove niri <id>`。

@@ -1,0 +1,19 @@
+// Machine: Ubuntu aarch64 laptop (MediaTek).
+// Not shared with the Ubuntu x86_64 desktop or the Fedora laptop.
+//
+// Left:  eDP-1 internal panel, 2880x1800@120, scale 2.0, logical 1440x900.
+// Right: DP-2 AOC U27U2G6R4B, 3840x2160@59.997 (4K60), scale 2.0,
+//        logical 1920x1080, placed at x=1440.
+// Do not reuse the retired Dell S2721DGF 120Hz modeline on this AOC panel.
+
+output "eDP-1" {
+    mode "2880x1800@120"
+    scale 2.0
+    position x=0 y=0
+}
+
+output "DP-2" {
+    mode "3840x2160@59.997"
+    scale 2.0
+    position x=1440 y=0
+}

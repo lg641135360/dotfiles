@@ -25,12 +25,18 @@
 // 并自行确认不要与 DMS 的同类服务重复。
 
 binds {
-    // === 仓库独有键位（DMS 默认键位没有占用） ===
+    // === 2026-10-08：按本机 Ubuntu x64 DMS 会话定的键 ===
+    // 与 live dms/binds.kdl 已经一致的键不在这里声明，避免后加载覆盖把它们改掉。
+    // 不声明的包括：最大化列、本屏内的列/窗口导航、本屏内移动列、DMS 记事本。
     Mod+Return repeat=false hotkey-overlay-title="打开终端" { spawn "~/.config/scripts/terminal-wayland"; }
-    Mod+E repeat=false hotkey-overlay-title="打开文件管理器" { spawn "~/.config/scripts/file-manager-wayland"; }
+    Mod+E repeat=false hotkey-overlay-title="打开 Thunar" { spawn "thunar"; }
+    Mod+S repeat=false hotkey-overlay-title="截图并标注" { spawn "sh" "-c" "dms ipc call quickCapture screenshot region edit"; }
     Mod+grave repeat=false hotkey-overlay-title="聚焦上一个 workspace" { focus-workspace-previous; }
     Mod+A repeat=false { focus-monitor-left; }
     Mod+D repeat=false { focus-monitor-right; }
+    // 窗口（不是整列、也不是整个 workspace）搬到另一块屏。
+    Mod+Shift+A repeat=false hotkey-overlay-title="窗口移到左显示器" { move-window-to-monitor-left; }
+    Mod+Shift+D repeat=false hotkey-overlay-title="窗口移到右显示器" { move-window-to-monitor-right; }
     Mod+Ctrl+Shift+A repeat=false { move-workspace-to-monitor-left; }
     Mod+Ctrl+Shift+D repeat=false { move-workspace-to-monitor-right; }
     Mod+Ctrl+1 repeat=false { move-column-to-workspace 1; }
@@ -44,19 +50,12 @@ binds {
     Mod+Ctrl+9 repeat=false { move-column-to-workspace 9; }
     Mod+Shift+Space repeat=false { switch-preset-column-width-back; }
     Mod+Ctrl+M repeat=false { maximize-column; }
-    Mod+S repeat=false hotkey-overlay-title="截图" { spawn "~/.config/scripts/screenshot-wayland"; }
     Mod+Shift+Q repeat=false hotkey-overlay-title="退出 niri" { quit; }
 
-    // === 同键覆盖 DMS 默认键位（2026-10-06 决策，理由见模块 README） ===
+    // === 同键覆盖 live DMS 键位 ===
     Mod+Tab repeat=false hotkey-overlay-title="切换到上一个窗口" { focus-window-previous; }
-    Mod+F repeat=false hotkey-overlay-title="扩展当前列到可用宽度" { expand-column-to-available-width; }
     Mod+Ctrl+F repeat=false hotkey-overlay-title="切换窗口浮动" { toggle-window-floating; }
-    Mod+H { focus-column-or-monitor-left; }
-    Mod+L { focus-column-or-monitor-right; }
-    Mod+J { focus-window-or-workspace-down; }
-    Mod+K { focus-window-or-workspace-up; }
-    Mod+Shift+H { move-column-left-or-to-monitor-left; }
-    Mod+Shift+L { move-column-right-or-to-monitor-right; }
+    // 移动当前窗口，不是整列。整列仍由 Mod+Ctrl+1..9 承担。
     Mod+Shift+1 repeat=false { move-window-to-workspace 1; }
     Mod+Shift+2 repeat=false { move-window-to-workspace 2; }
     Mod+Shift+3 repeat=false { move-window-to-workspace 3; }
@@ -66,8 +65,4 @@ binds {
     Mod+Shift+7 repeat=false { move-window-to-workspace 7; }
     Mod+Shift+8 repeat=false { move-window-to-workspace 8; }
     Mod+Shift+9 repeat=false { move-window-to-workspace 9; }
-
-    // DMS 没有 mako（通知由 DMS 接管），所以这条保留仓库肌肉记忆、
-    // 动作换成 DMS 的免打扰 IPC。
-    Mod+Shift+N repeat=false hotkey-overlay-title="切换通知免打扰" { spawn "dms" "ipc" "call" "notifications" "toggleDoNotDisturb"; }
 }

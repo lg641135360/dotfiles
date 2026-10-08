@@ -5,13 +5,15 @@
 # 只 include 它自己的 dms/*.kdl 片段；仓库的 common.kdl、键位与
 # wayland-autostart 链都不再生效。本脚本负责补回仓库侧缺的那一层。
 #
-# 四件幂等的事：
+# 五件幂等的事：
 #   1. dms/binds.kdl 为空 → dms setup binds（部署 DMS 默认键位）
 #   2. config.kdl 补上已存在但未被 include 的 dms/*.kdl 片段
-#   3. include 仓库片段 niri-repo.kdl，且保证它排在所有 dms/*.kdl 之后
+#   3. include 仓库屏幕 outputs.kdl，且保证它排在所有 dms/*.kdl 之前
+#      —— niri 的 output 是 multipart 配置，首个匹配项优先；方案 B 让仓库屏幕权威
+#   4. include 仓库片段 niri-repo.kdl，且保证它排在所有 dms/*.kdl 之后
 #      —— niri 的 binds 合并规则是「后出现的同键绑定覆盖先出现的」
 #      （niri-config/src/lib.rs），顺序决定键位归谁
-#   4. 通过 DMS 通道重建钉钉窗口规则（dms config windowrules add niri）
+#   5. 通过 DMS 通道重建钉钉窗口规则（dms config windowrules add niri）
 #
 # 用法：
 #   dms-niri-setup            应用（默认，改动前备份 config.kdl）
@@ -76,8 +78,11 @@ niri_dir=$HOME/.config/niri
 config=$niri_dir/config.kdl
 dms_dir=$niri_dir/dms
 fragment=$niri_dir/niri-repo.kdl
+outputs=$niri_dir/outputs.kdl
 own_include='include "niri-repo.kdl"'
 own_comment='// dotfiles 仓库片段（必须排在 dms/*.kdl 之后）'
+outputs_include='include "outputs.kdl"'
+outputs_comment='// 本机屏幕（仓库按机器分开，不进 dms/outputs.kdl）'
 settings_manifest=${DMS_SETTINGS_FILE:-$HOME/.config/dms/settings.txt}
 
 drift=0
@@ -192,20 +197,24 @@ binds_file=$dms_dir/binds.kdl
 if [ ! -s "$binds_file" ]; then
     drift=1
     if [ "$apply" -eq 1 ]; then
-        scratch=$(mktemp -d)
-        setup_terminal=""
-        command -v alacritty >/dev/null 2>&1 && setup_terminal="--terminal alacritty"
-        # $setup_terminal 故意不加引号：为空时不应产生空参数。
-        # shellcheck disable=SC2086
-        if HOME=$scratch DMS_PRIVESC=sudo dms setup headless --compositor niri --skip-existing $setup_terminal </dev/null >/dev/null 2>&1 &&
-            [ -s "$scratch/.config/niri/dms/binds.kdl" ]; then
-            cp -p "$scratch/.config/niri/dms/binds.kdl" "$binds_file"
-            info "部署 DMS 默认键位（scratch HOME 生成，终端：${setup_terminal:-DMS 默认}）"
+        scratch=$(mktemp -d 2>/dev/null) || scratch=""
+        if [ -z "$scratch" ]; then
+            warn "mktemp 不可用，无法生成 DMS 默认键位"
         else
-            warn "无法生成 DMS 默认键位；可在 DMS 设置 → Keybinds 里手动生成"
+            setup_terminal=""
+            command -v alacritty >/dev/null 2>&1 && setup_terminal="--terminal alacritty"
+            # $setup_terminal 故意不加引号：为空时不应产生空参数。
+            # shellcheck disable=SC2086
+            if HOME=$scratch DMS_PRIVESC=sudo dms setup headless --compositor niri --skip-existing $setup_terminal </dev/null >/dev/null 2>&1 &&
+                [ -s "$scratch/.config/niri/dms/binds.kdl" ]; then
+                cp -p "$scratch/.config/niri/dms/binds.kdl" "$binds_file"
+                info "部署 DMS 默认键位（scratch HOME 生成，终端：${setup_terminal:-DMS 默认}）"
+            else
+                warn "无法生成 DMS 默认键位；可在 DMS 设置 → Keybinds 里手动生成"
+            fi
+            rm -rf "$scratch"
+            [ -s "$binds_file" ] || warn "$binds_file 仍为空：DMS 功能没有快捷键入口"
         fi
-        rm -rf "$scratch"
-        [ -s "$binds_file" ] || warn "$binds_file 仍为空：DMS 功能没有快捷键入口"
     else
         info "需要改动：dms/binds.kdl 为空（缺 DMS 默认键位）"
     fi
@@ -213,8 +222,12 @@ fi
 
 # 2) 收集需要补的 dms/*.kdl include：以 dms config resolve-include 的 JSON 为准，
 #    exists=true 且 included=false 才补；CLI 无输出/不认识该片段时不擅自添加。
-missing=$(mktemp) || exit 1
-trap 'rm -f "$missing"' EXIT INT TERM
+missing=$(mktemp 2>/dev/null) || missing=""
+if [ -z "$missing" ]; then
+    warn "mktemp 不可用，跳过补 dms include；本机屏幕与仓库片段仍会接线"
+fi
+[ -n "$missing" ] && trap 'rm -f "$missing"' EXIT INT TERM
+if [ -n "$missing" ]; then
 for fragment_file in "$dms_dir"/*.kdl; do
     [ -f "$fragment_file" ] || continue
     fragment_name=${fragment_file##*/}
@@ -227,9 +240,32 @@ for fragment_file in "$dms_dir"/*.kdl; do
     printf 'include "dms/%s"\n' "$fragment_name" >>"$missing"
 done
 missing_count=$(grep -c . "$missing" || true)
+else
+    missing_count=0
+fi
 [ "$missing_count" -gt 0 ] && drift=1
 
-# 3) 仓库片段必须在所有 dms/*.kdl 之后（键位覆盖关系），缺失/顺序不对时统一重写尾部。
+# 2b) 本机屏幕。niri 的 output 是 multipart 配置，并按解析顺序使用首个匹配项；
+#     因此仓库的 outputs.kdl 必须排在所有 dms/*.kdl 之前，作为方案 B 的权威屏幕配置。
+#     DMS 的 dms/outputs.kdl 仍保留在磁盘上，但不覆盖仓库定义，也不被修改。
+outputs_needs_rewrite=0
+if [ -f "$outputs" ]; then
+    outputs_count=$(grep -cF -- "$outputs_include" "$config" || true)
+    outputs_line=$(grep -nF -- "$outputs_include" "$config" | head -n 1 || true)
+    outputs_line=${outputs_line%%:*}
+    first_dms_line=$(grep -nE 'include .*"dms/[^"]+\.kdl"' "$config" | head -n 1 || true)
+    first_dms_line=${first_dms_line%%:*}
+
+    if [ "$outputs_count" -ne 1 ]; then
+        outputs_needs_rewrite=1
+    elif [ -n "$first_dms_line" ] && [ "$outputs_line" -gt "$first_dms_line" ]; then
+        outputs_needs_rewrite=1
+    fi
+    [ "$outputs_needs_rewrite" -eq 1 ] && drift=1
+fi
+
+# 3) 仓库片段必须在所有 dms/*.kdl 之后（键位覆盖关系）；本机屏幕则必须在
+#    所有 dms/*.kdl 之前（output 首个匹配项优先）。缺失/顺序不对时统一重写 include 块。
 if [ -f "$fragment" ]; then
     own_line=$(grep -nF -- "$own_include" "$config" | head -n 1 || true)
     own_line=${own_line%%:*}
@@ -241,18 +277,49 @@ if [ -f "$fragment" ]; then
         reorder=1
     fi
 
-    if [ -z "$own_line" ] || [ "$missing_count" -gt 0 ] || [ "$reorder" -eq 1 ]; then
+    if [ -z "$own_line" ] || [ "$missing_count" -gt 0 ] || [ "$reorder" -eq 1 ] || [ "$outputs_needs_rewrite" -eq 1 ]; then
         drift=1
         if [ "$apply" -eq 1 ]; then
             if [ "$reorder" -eq 1 ]; then
                 info "调整 include 顺序：niri-repo.kdl 移到 dms/*.kdl 之后"
-            else
+            elif [ -z "$own_line" ]; then
                 info "include 仓库片段：$own_include"
+            fi
+            if [ "$outputs_needs_rewrite" -eq 1 ]; then
+                if [ -n "$outputs_line" ] && [ -n "$first_dms_line" ] && [ "$outputs_line" -gt "$first_dms_line" ]; then
+                    info "调整 include 顺序：outputs.kdl 移到 dms/*.kdl 之前（方案 B：仓库屏幕优先）"
+                else
+                    info "include 本机屏幕：$outputs_include"
+                fi
             fi
             backup_config
             tmp_config=$config.tmp.$$
-            # 先移除旧的仓库注释/include，再统一追加到末尾：顺序正确且天然幂等。
-            grep -vF -- "$own_include" "$config" | grep -vF -- "$own_comment" >"$tmp_config" || true
+            # 先拿掉仓库自己的两行，再把屏幕插到第一个 dms include 之前，
+            # 键位片段仍追加到末尾。
+            grep -vF -- "$own_include" "$config" | grep -vF -- "$own_comment" \
+                | grep -vF -- "$outputs_include" | grep -vF -- "$outputs_comment" >"$tmp_config" || true
+            if [ -f "$outputs" ]; then
+                inserted=$config.outputs.$$
+                # 插到第一个 dms include 之前。不用 awk：install.sh 的依赖清单里没有它。
+                first_dms=$(grep -nE 'include .*"dms/[^"]+\.kdl"' "$tmp_config" | head -n 1 || true)
+                first_dms=${first_dms%%:*}
+                if [ -n "$first_dms" ]; then
+                    {
+                        # 第一行就是 dms include 时，1,0 的 sed 范围会把该行再打一遍。
+                        if [ "$first_dms" -gt 1 ]; then
+                            sed -n "1,$((first_dms - 1))p" "$tmp_config"
+                        fi
+                        printf '%s\n%s\n' "$outputs_comment" "$outputs_include"
+                        sed -n "${first_dms},\$p" "$tmp_config"
+                    } >"$inserted"
+                else
+                    {
+                        cat "$tmp_config"
+                        printf '%s\n%s\n' "$outputs_comment" "$outputs_include"
+                    } >"$inserted"
+                fi
+                mv "$inserted" "$tmp_config"
+            fi
             if [ "$missing_count" -gt 0 ]; then
                 cat "$missing" >>"$tmp_config"
             fi
@@ -260,12 +327,17 @@ if [ -f "$fragment" ]; then
             mv "$tmp_config" "$config"
         elif [ "$reorder" -eq 1 ]; then
             info "需要改动：niri-repo.kdl 排在 dms/*.kdl 之前（键位会被 DMS 覆盖）"
+        elif [ "$outputs_needs_rewrite" -eq 1 ]; then
+            info "需要改动：$outputs_include 必须排在 dms/*.kdl 之前（方案 B：仓库屏幕优先）"
         else
             info "需要改动：config.kdl 缺 $own_include"
         fi
     fi
 else
     warn "缺仓库片段 $fragment：先运行 install.sh 部署，再运行本脚本"
+    if [ "$outputs_needs_rewrite" -eq 1 ]; then
+        info "需要改动：$outputs_include 必须排在 dms/*.kdl 之前（方案 B：仓库屏幕优先；仓库片段缺失，本次不改 config.kdl）"
+    fi
 fi
 
 # 4) 钉钉窗口规则走 DMS 自管通道（仓库 common.kdl 在 DMS 机器上不生效）。
