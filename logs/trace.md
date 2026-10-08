@@ -666,6 +666,25 @@
 - 回滚：仓库 = `git checkout -- .config/macos/yabai/yabairc .config/macos/yabai/README.md tests/yabai_config_test.sh`；live = `cp -p ~/.config/yabai/yabairc.backup.20261003_181148_95678 ~/.config/yabai/yabairc && yabai --restart-service`。
 - 后续可能方向：① 新开 QQ 窗口（聊天/设置面板）确认新窗口也浮动；② 顺带可做分析遗留第 4/5 项。
 
+## 2026-10-05 — pi 配置修复：按 B 方案卸载 @villoh/pi-btw + 启用 codemode
+
+- 目的：承接本轮只读体检结论——`/btw` 被两个扩展重复注册（运行时实测为 `btw:1`/`btw:2`，普通 `/btw` 不可用）；用户选 B 方案（卸载 @villoh/pi-btw，保留 pi-agent-extensions 自带轻量 btw），并要求启用 pi 内置 codemode。
+- 已做（live 配置，非仓库文件）：① `pi remove npm:@villoh/pi-btw`（settings.json 移除声明 + npm uninstall）；② `~/.pi/agent/settings.json` 新增 `"defaultTools": ["+codemode"]`（官方启用法，保留 read/bash/edit/write 并追加 codemode，见 pi docs/cli.md#enable-codemode）。
+- 验证：`pi list` 已无 @villoh/pi-btw（仅剩 @villoh/pi-auto-name-session）；RPC `get_commands` 显示 `/btw` 恢复为唯一命令、`skill:btw` 消失；E2E 实测 `pi -p` 让模型调用 codemode 脚本返回 42（会话 JSONL 初始 toolsAdded 含 codemode、toolResult toolName=codemode）。**两个运行时都验过**：全局 CLI 0.99.1 与 pi-web 内置 pi 1.0.0（`@agegr/pi-web/node_modules/.bin/pi`）行为一致（btw 无重名、codemode 可用）。仍存在的上游警告：pi-agent-extensions 0.5.4 把 host 提供的 typebox 放在 dependencies（最新版未修，本轮未处理）。
+- live/提交：live 已改，改前备份 `~/.pi/agent/settings.json.backup.20261005-111332`；仓库仅 trace 本条；**未提交**。
+- 回滚：① 恢复 settings.json = `cp -p ~/.pi/agent/settings.json.backup.20261005-111332 ~/.pi/agent/settings.json`；② 恢复插件 = `pi install npm:@villoh/pi-btw`；③ 关闭 codemode = 删除 settings.json 的 `defaultTools` 键（或改为 `["-codemode"]`）。
+- 后续可能方向：① 用户实际用 pi-web（已是最新 0.10.0，内置 pi 1.0.0；全局 `pi` CLI 0.99.1 并不使用，`pi update --self` 只会升级未用的全局 CLI，无需为 codemode 升级）；② 3 个扩展可升级（pi-caveman 3.0.0→3.0.2、pi-goal-x 0.31.9→0.32.3、pi-render-cache 1.2.0→1.4.0）；③ pi-web 仍以 `--hostname 0.0.0.0` + 3 位弱密码运行（安全项，待用户处理）；④ `models.json.bak` 残留 mtcode-team 明文 key（600 权限）待清理。
+
+## 2026-10-05 — pi 插件可用性审计后续：清掉死包 / 空转包 / 无效扩展 / 残留 daemon
+
+- 目的：承接同日的插件可用性审计（用 pi-web 内置 pi 1.0.0 跑干净会话取 toolsAdded + RPC 命令 + 逐个实测），用户指示“都修掉”。
+- 审计结论（只读，未写入 trace）：13 包中 12 包可用；`@cegersdo/pi-ptc` 完全未加载（无 `pi` manifest、无 `extensions/` 目录、无根 index，npm 最新 0.1.1 仍如此，`code_execution` 工具从未出现）；`beval-pi-lazy-loader` 加载但空转（`~/.pi/agent/extensions/lazy/` 不存在且无 `lazyLoader` 配置）；pi-agent-extensions 的 notify 走 OSC 777，在 pi-web/alacritty/foot 均不生效；codegraph 共享 daemon 在会话结束后常驻。其余（codegraph 8 工具、fff、web 三工具、render-cache、goal、caveman、auto-name、tokometer、haruka 主题、mtcode provider、todo/btw 等）均实测正常。
+- 已做（live）：① `pi remove npm:@cegersdo/pi-ptc`；② `pi remove npm:beval-pi-lazy-loader`；③ settings.json 的 pi-agent-extensions filter 增加 `"-extensions/notify/index.ts"`（禁用无效通知扩展，pi-web 自身走 web-push）；④ `kill 2978066`（审计测试自启的 codegraph daemon，PPID=1 常驻；claude 自己的 2 组 daemon 父进程存活，未动）。
+- 验证：settings.json JSON 合法、`pi list` 剩 11 包（无 ptc/lazy）；新会话 exit 0，13 个工具不变（codemode 在列、无 code_execution）；stdout 不再出现 OSC 777；RPC 命令 38 条（= 上一轮 40 - 重复 btw 2 条 + 1 条 btw - skill:btw）。仍存上游告警：pi-agent-extensions 把 typebox 放 dependencies。
+- live/提交：live 已改，改前备份 `~/.pi/agent/settings.json.backup.20261005-112427`；仓库仅 trace 本条；**未提交**。
+- 回滚：① 恢复 settings.json = `cp -p ~/.pi/agent/settings.json.backup.20261005-112427 ~/.pi/agent/settings.json`；② 恢复删除的包 = `pi install npm:@cegersdo/pi-ptc && pi install npm:beval-pi-lazy-loader`；③ codegraph daemon 无需恢复（一次性测试进程）。
+- 后续可能方向：① pi-web `--hostname 0.0.0.0` + 3 位弱密码仍未处理（安全项）；② `models.json.bak` 明文 key 待清理；③ 3 个扩展可升级；④ 若要 terminal 通知需换支持的终端，或继续依赖 pi-web web-push。
+
 ## 2026-10-06 — Fedora 新机接入：foot 部署解耦 niri 门槛 + 终端字体统一 Maple + Brewfile 补回 yazi
 
 - 背景与目的：全新 Fedora 44 Workstation（GNOME 50.5 Wayland，x86_64）用 dnf 装好 foot 1.27 与 Maple Mono NF CN（`maple-mono-nf-cn-unhinted`）后暴露三处仓库落差：① foot.ini 部署被 niri 门控卡住，GNOME 机器永远拿不到配置；② 终端字体（alacritty/foot）仍指 MesloLGS，而 waybar/mako/swaylock 等桌面组件早已使用 Maple；③ Linux Brewfile 缺 yazi，但 zsh README 把它列为依赖（`8a63d45` 曾因该机未装而移除）。用户决策：foot 需要部署、字体改 Maple、yazi 漂移修复。
