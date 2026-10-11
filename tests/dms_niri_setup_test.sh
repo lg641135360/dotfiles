@@ -590,7 +590,7 @@ test_fragment_carries_repo_bindings() {
     assert_not_contains 'Mod+C ' "$FRAGMENT"
     # 仓库 wayland-autostart 故意不在 DMS 机器上 spawn（职责已由 DMS / niri-session /
     # XDG autostart 覆盖，见模块 README）；只断言真正的指令行（注释里的说明不算）。
-    assert_not_matches '^[[:space:]]*spawn-sh-at-startup' "$FRAGMENT"
+    assert_not_matches '^[[:space:]]*spawn-sh-at-startup.*wayland-autostart' "$FRAGMENT"
     assert_contains '故意不 spawn' "$FRAGMENT"
 
     if command -v niri >/dev/null 2>&1; then

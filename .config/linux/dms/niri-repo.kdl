@@ -24,7 +24,11 @@
 // 或 gammastep），在这里加回 `spawn-sh-at-startup "~/.config/scripts/wayland-autostart"`
 // 并自行确认不要与 DMS 的同类服务重复。
 
-// 伪装 GNOME 桌面身份：部分代理/网络工具只识别 GNOME 会话。仅 DMS 机器需要，
+// 由 niri-session 导入的 systemd 用户环境里含 /etc/profile.d/fcitx5.sh 写入的
+// GTK_IM_MODULE=fcitx，会让 fcitx5 提示取消设置；这里清掉它，Wayland GTK 走 text-input。
+spawn-sh-at-startup "systemctl --user unset-environment GTK_IM_MODULE"
+
+// 伪装 GNOME 桌面身份：Chrome 等程序只在识别为 GNOME 时读取 gsettings 代理。仅 DMS 机器需要，
 // 放在这里而不是 common.kdl，避免影响 Ubuntu 机器的 niri 会话。
 environment {
     XDG_CURRENT_DESKTOP "niri:GNOME"

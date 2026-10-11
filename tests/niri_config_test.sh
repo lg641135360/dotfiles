@@ -309,6 +309,10 @@ test_dms_fragment_sets_gnome_desktop_identity_for_proxy_apps() {
     assert_not_contains 'XDG_CURRENT_DESKTOP "niri:GNOME"' "$NIRI_COMMON_CONFIG"
 }
 
+test_dms_fragment_unsets_gtk_im_module_from_systemd_env() {
+    assert_contains 'spawn-sh-at-startup "systemctl --user unset-environment GTK_IM_MODULE"' "$DMS_NIRI_FRAGMENT"
+}
+
 test_fedora_x64_outputs_match_this_pc_only() {
     assert_file_exists "$NIRI_FEDORA_OUTPUTS"
     assert_contains 'output "DP-3" {' "$NIRI_FEDORA_OUTPUTS"
@@ -346,7 +350,8 @@ test_niri_config_uses_native_environment_cursor_and_animations
 test_niri_config_has_dingtalk_and_app_window_rules
 test_niri_overview_beautification
 test_readme_documents_parallel_trial_and_fallback
-test_fedora_x64_outputs_match_this_pc_only
 test_dms_fragment_sets_gnome_desktop_identity_for_proxy_apps
+test_dms_fragment_unsets_gtk_im_module_from_systemd_env
+test_fedora_x64_outputs_match_this_pc_only
 
 printf 'PASS: niri config tests\n'

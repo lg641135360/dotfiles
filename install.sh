@@ -82,7 +82,10 @@ log_info() {
     printf '\033[0;32m[INFO]\033[0m %s\n' "$1"
 }
 
+warn_count=0
+
 log_warn() {
+    warn_count=$((warn_count + 1))
     printf '\033[0;33m[WARN]\033[0m %s\n' "$1"
 }
 
@@ -266,6 +269,80 @@ process_config() {
     fi
 
     copy_config "$source" "$target" "$name"
+}
+
+deploy_dms_service_drop_in() {
+    local source="$cur_path/.config/linux/dms/dms.service.d/override.conf"
+    local target="$HOME/.config/systemd/user/dms.service.d/override.conf"
+    local changed=1
+    if [ -f "$target" ] && cmp -s "$source" "$target"; then
+        changed=0
+    fi
+
+    process_config "" ".config/linux/dms/dms.service.d/override.conf" "~/.config/systemd/user/dms.service.d/override.conf" "DMS service GNOME identity drop-in" || return 1
+
+    if [ "$changed" -eq 1 ]; then
+        systemctl --user daemon-reload && systemctl --user restart dms ||
+            log_warn "Failed to reload dms.service; restart it manually to apply the drop-in"
+    fi
+}
+
+# render_template <source> <dest> <placeholder> <value> [...]
+render_template() {
+    local source="$1" dest="$2" content
+    shift 2
+    content=$(< "$source")
+    while [ $# -ge 2 ]; do
+        content=${content//$1/$2}
+        shift 2
+    done
+    printf '%s\n' "$content" >"$dest"
+}
+
+deploy_fedora_proxy_environment() {
+    local env_file="$HOME/.config/dotfiles/proxy_env" proxy_host="" proxy_port="7890" socks_port="7891"
+    local tmp_proxy key value
+    if [ ! -f "$env_file" ]; then
+        log_warn "No $env_file; skipping proxy environment (create it with PROXY_HOST=...)"
+        return 0
+    fi
+    while IFS='=' read -r key value || [ -n "$key" ]; do
+        case "$key" in
+            PROXY_HOST) proxy_host=$value ;;
+            PROXY_PORT) proxy_port=$value ;;
+            SOCKS_PORT) socks_port=$value ;;
+        esac
+    done <"$env_file"
+    if [ -z "$proxy_host" ]; then
+        log_warn "PROXY_HOST missing in $env_file; skipping proxy environment"
+        return 0
+    fi
+    if ! [[ "$proxy_port" =~ ^[0-9]+$ && "$socks_port" =~ ^[0-9]+$ ]]; then
+        log_warn "PROXY_PORT and SOCKS_PORT must be numeric in $env_file; skipping proxy environment"
+        return 0
+    fi
+
+    tmp_proxy=$(mktemp)
+    register_temp "$tmp_proxy"
+    render_template "$cur_path/.config/linux/niri/fedora_x64/proxy.conf" "$tmp_proxy" \
+        __PROXY_HOST__ "$proxy_host" __PROXY_PORT__ "$proxy_port" __SOCKS_PORT__ "$socks_port"
+    copy_config "$tmp_proxy" "$HOME/.config/environment.d/proxy.conf" "Fedora x64 proxy environment"
+    apply_gnome_proxy_settings "$proxy_host" "$proxy_port"
+}
+
+apply_gnome_proxy_settings() {
+    local host="$1" port="$2"
+    if ! command -v gsettings >/dev/null 2>&1; then
+        log_warn "gsettings not found; skipping GNOME proxy settings"
+        return 0
+    fi
+    gsettings set org.gnome.system.proxy mode manual &&
+        gsettings set org.gnome.system.proxy.http host "$host" &&
+        gsettings set org.gnome.system.proxy.http port "$port" &&
+        gsettings set org.gnome.system.proxy.https host "$host" &&
+        gsettings set org.gnome.system.proxy.https port "$port" &&
+        gsettings set org.gnome.system.proxy ignore-hosts "['localhost', '127.0.0.1', '::1']" ||
+        log_warn "Failed to apply GNOME proxy settings"
 }
 
 # Iterate a `check_cmd|source|target|name` array and dispatch each entry to process_config.
@@ -782,6 +859,12 @@ main() {
                     log_warn "Failed to deploy DMS settings manifest; continuing"
                 install_niri_outputs_for_platform ||
                     log_warn "Failed to deploy per-machine niri outputs; continuing"
+                deploy_dms_service_drop_in ||
+                    log_warn "Failed to deploy DMS service drop-in; continuing"
+                if [ "$(niri_platform_key 2>/dev/null)" = "fedora_x64" ]; then
+                    deploy_fedora_proxy_environment ||
+                        log_warn "Failed to deploy Fedora x64 proxy environment; continuing"
+                fi
                 log_info "DMS detected; wiring the repo fragment into the DMS-managed niri session"
                 bash "$cur_path/.config/scripts/dms-niri-setup" ||
                     log_warn "dms-niri-setup failed; continuing with remaining configurations"
@@ -887,6 +970,9 @@ main() {
 
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
+    if [ "$warn_count" -gt 0 ]; then
+        log_warn "Installation completed with $warn_count warning(s); review the messages above"
+    fi
     log_info "Installation completed in $duration seconds"
 }
 

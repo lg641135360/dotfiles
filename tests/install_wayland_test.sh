@@ -263,7 +263,7 @@ test_install_preserves_dms_configs_on_ubuntu_x64() {
     assert_file_exists "$home_dir/.config/niri/niri-repo.kdl"
     assert_file_exists "$home_dir/.config/dms/settings.txt"
     # 片段=纯键位：DMS 机器的会话服务由 DMS/niri-session/XDG autostart 负责。
-    assert_not_matches '^[[:space:]]*spawn-sh-at-startup' "$home_dir/.config/niri/niri-repo.kdl"
+    assert_not_matches '^[[:space:]]*spawn-sh-at-startup.*wayland-autostart' "$home_dir/.config/niri/niri-repo.kdl"
     assert_contains 'Mod+Tab' "$home_dir/.config/niri/niri-repo.kdl"
     assert_contains 'include "niri-repo.kdl"' "$home_dir/.config/niri/config.kdl"
     assert_order 'include "dms/layout.kdl"' 'include "niri-repo.kdl"' "$home_dir/.config/niri/config.kdl"
@@ -308,6 +308,277 @@ test_install_deploys_fedora_outputs_on_dms() {
     assert_contains 'scale 2' "$home_dir/.config/niri/dms/outputs.kdl"
     assert_file_not_exists "$home_dir/.config/niri/common.kdl"
     assert_contains 'include "dms/layout.kdl"' "$home_dir/.config/niri/config.kdl"
+
+    rm -rf "$tmpdir"
+}
+
+test_install_deploys_dms_service_gnome_identity_on_dms() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    for fake in dms waybar foot; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=ubuntu DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed on Ubuntu x64 with DMS"
+
+    assert_contains 'XDG_CURRENT_DESKTOP=niri:GNOME' "$home_dir/.config/systemd/user/dms.service.d/override.conf"
+
+    rm -rf "$tmpdir"
+}
+
+test_install_skips_dms_service_drop_in_without_dms() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    for fake in waybar foot; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=fedora DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed without DMS"
+
+    assert_file_not_exists "$home_dir/.config/systemd/user/dms.service.d/override.conf"
+
+    rm -rf "$tmpdir"
+}
+
+test_install_deploys_proxy_environment_on_fedora_x64() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    for fake in dms waybar foot; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+
+    mkdir -p "$home_dir/.config/dotfiles"
+    printf 'PROXY_HOST=10.0.0.5\nPROXY_PORT=7890\nSOCKS_PORT=7891\n' >"$home_dir/.config/dotfiles/proxy_env"
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=fedora DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed on Fedora x64"
+
+    assert_contains 'https_proxy=http://10.0.0.5:7890' "$home_dir/.config/environment.d/proxy.conf"
+    assert_contains 'all_proxy=socks://10.0.0.5:7891' "$home_dir/.config/environment.d/proxy.conf"
+    assert_not_contains '__PROXY' "$home_dir/.config/environment.d/proxy.conf"
+
+    rm -rf "$tmpdir"
+}
+
+test_install_skips_proxy_environment_on_other_platforms() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    for fake in dms waybar foot; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=ubuntu DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed on Ubuntu x64"
+
+    assert_file_not_exists "$home_dir/.config/environment.d/proxy.conf"
+
+    rm -rf "$tmpdir"
+}
+
+install_extra_cmds="cmp"
+
+test_install_restarts_dms_only_when_drop_in_changes() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    calls=$tmpdir/systemctl.calls
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir" "install_extra_cmds"
+    for fake in dms waybar foot; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+    printf '#!/bin/sh\necho "$*" >>"%s"\nexit 0\n' "$calls" >"$bin_dir/systemctl"
+    chmod +x "$bin_dir/systemctl"
+
+    run_install() {
+        PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=ubuntu DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >/dev/null 2>&1 ||
+            fail "install.sh should succeed"
+    }
+
+    run_install
+    assert_contains '--user restart dms' "$calls"
+
+    : >"$calls"
+    run_install
+    if [ -s "$calls" ]; then
+        fail "second install with unchanged drop-in should not restart dms"
+    fi
+
+    rm -rf "$tmpdir"
+}
+
+test_install_skips_proxy_environment_without_proxy_env_file() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    for fake in dms waybar foot; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=fedora DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed without proxy_env"
+
+    assert_file_not_exists "$home_dir/.config/environment.d/proxy.conf"
+    assert_contains 'proxy_env' "$output"
+
+    rm -rf "$tmpdir"
+}
+
+test_install_rejects_non_numeric_proxy_port() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    for fake in dms waybar foot; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+    mkdir -p "$home_dir/.config/dotfiles"
+    printf 'PROXY_HOST=10.0.0.5\nPROXY_PORT=abc\n' >"$home_dir/.config/dotfiles/proxy_env"
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=fedora DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed with an invalid proxy port"
+
+    assert_file_not_exists "$home_dir/.config/environment.d/proxy.conf"
+    assert_contains 'PROXY_PORT' "$output"
+
+    rm -rf "$tmpdir"
+}
+
+test_proxy_env_template_has_no_unrendered_placeholders_after_install() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    for fake in dms waybar foot; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+    mkdir -p "$home_dir/.config/dotfiles"
+    printf 'PROXY_HOST=10.0.0.5\n' >"$home_dir/.config/dotfiles/proxy_env"
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=fedora DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed with only PROXY_HOST"
+
+    assert_contains 'http_proxy=http://10.0.0.5:7890' "$home_dir/.config/environment.d/proxy.conf"
+    assert_contains 'all_proxy=socks://10.0.0.5:7891' "$home_dir/.config/environment.d/proxy.conf"
+    assert_not_contains '__PROXY_' "$home_dir/.config/environment.d/proxy.conf"
+
+    rm -rf "$tmpdir"
+}
+
+test_install_summarizes_warnings_at_end() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    for fake in dms waybar foot; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=fedora DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed without proxy_env"
+
+    assert_contains 'Installation completed with' "$output"
+    assert_contains 'warning(s)' "$output"
+
+    rm -rf "$tmpdir"
+}
+
+test_install_applies_gnome_proxy_settings_from_proxy_env() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+    calls=$tmpdir/gsettings.calls
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    for fake in dms waybar foot; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+    printf '#!/bin/sh\necho "$*" >>"%s"\nexit 0\n' "$calls" >"$bin_dir/gsettings"
+    chmod +x "$bin_dir/gsettings"
+    mkdir -p "$home_dir/.config/dotfiles"
+    printf 'PROXY_HOST=10.0.0.5\nPROXY_PORT=7890\n' >"$home_dir/.config/dotfiles/proxy_env"
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=fedora DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed with gsettings available"
+
+    assert_contains 'set org.gnome.system.proxy mode manual' "$calls"
+    assert_contains 'set org.gnome.system.proxy.http host 10.0.0.5' "$calls"
+    assert_contains 'set org.gnome.system.proxy.http port 7890' "$calls"
+    assert_contains 'set org.gnome.system.proxy.https host 10.0.0.5' "$calls"
+    assert_contains 'set org.gnome.system.proxy.https port 7890' "$calls"
+    assert_contains "set org.gnome.system.proxy ignore-hosts ['localhost', '127.0.0.1', '::1']" "$calls"
+
+    rm -rf "$tmpdir"
+}
+
+test_install_skips_gnome_proxy_without_proxy_env_file() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+    calls=$tmpdir/gsettings.calls
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    for fake in dms waybar foot; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+    printf '#!/bin/sh\necho "$*" >>"%s"\nexit 0\n' "$calls" >"$bin_dir/gsettings"
+    chmod +x "$bin_dir/gsettings"
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=fedora DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed without proxy_env"
+
+    assert_file_not_exists "$calls"
 
     rm -rf "$tmpdir"
 }
@@ -443,6 +714,17 @@ test_install_preserves_arch_niri_config
 test_install_preserves_opensuse_dms_niri_and_alacritty_configs
 test_install_preserves_dms_configs_on_ubuntu_x64
 test_install_deploys_fedora_outputs_on_dms
+test_install_deploys_dms_service_gnome_identity_on_dms
+test_install_skips_dms_service_drop_in_without_dms
+test_install_deploys_proxy_environment_on_fedora_x64
+test_install_skips_proxy_environment_on_other_platforms
+test_install_skips_proxy_environment_without_proxy_env_file
+test_install_summarizes_warnings_at_end
+test_install_applies_gnome_proxy_settings_from_proxy_env
+test_install_skips_gnome_proxy_without_proxy_env_file
+test_install_rejects_non_numeric_proxy_port
+test_proxy_env_template_has_no_unrendered_placeholders_after_install
+test_install_restarts_dms_only_when_drop_in_changes
 test_install_keeps_live_niri_config_for_unmapped_platform
 test_install_desktop_entries_are_idempotent
 test_install_preserves_unmanaged_desktop_entries
