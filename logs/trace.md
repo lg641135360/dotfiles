@@ -120,3 +120,156 @@
   - 仓库：本轮未提交，回滚为 `git checkout -- <file>` 与删除 `fedora_x64/`。
 - 未提交，待用户确认后提交。
 - 后续可能方向：重新登录后确认 systemd 拉起的代理服务也拿到 `niri:GNOME`；如代理工具依赖 `GNOME_DESKTOP_SESSION_ID` 等其它变量，需再补。
+
+## 2026-10-11 — 去掉 Fedora x64 DMS 的 GNOME 桌面身份伪装（第 2、3 步）
+
+- 目的：撤回 `XDG_CURRENT_DESKTOP=niri:GNOME` 的两处注入（niri 片段 + dms.service drop-in），代理变量改由 `environment.d` 提供，GNOME 代理由 gsettings 提供。
+- 改动（仓库）：
+  1. `.config/linux/dms/niri-repo.kdl`：删除 `environment { XDG_CURRENT_DESKTOP "niri:GNOME" ... }` 及注释。
+  2. `tests/niri_config_test.sh`：删除 `test_dms_fragment_sets_gnome_desktop_identity_for_proxy_apps`。
+  3. `memory/niri.md`：删除 Fedora 条目中关于 `niri:GNOME` 的说明。
+- 改动（live）：
+  - `cp` 仓库 `niri-repo.kdl` → `~/.config/niri/niri-repo.kdl`。
+  - 删除 `~/.config/systemd/user/dms.service.d/override.conf`。
+  - 备份：`~/.config/niri/niri-repo.kdl.backup.20261011_084554`、`~/.config/systemd/user/dms.service.d/override.conf.backup.20261011_084554`。
+- 验证：`niri validate` 通过；`sh tests/niri_config_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`git diff --check` OK。
+- 未提交。
+- 回滚：
+  - `cp ~/.config/niri/niri-repo.kdl.backup.20261011_084554 ~/.config/niri/niri-repo.kdl`
+  - `cp ~/.config/systemd/user/dms.service.d/override.conf.backup.20261011_084554 ~/.config/systemd/user/dms.service.d/override.conf && systemctl --user daemon-reload`
+  - 仓库：`git checkout -- .config/linux/dms/niri-repo.kdl tests/niri_config_test.sh memory/niri.md`
+- 后续：重新登录 niri 后确认 foot 与代理工具表现；若有工具依赖 GNOME 身份，再评估是否恢复。
+
+## 2026-10-11 — 清除 systemd 用户环境中的 GTK_IM_MODULE（fcitx5 提示）
+
+- 目的：消除 fcitx5 "建议取消设置 GTK_IM_MODULE" 提示。
+- 根因：`/etc/profile.d/fcitx5.sh`（系统包 `fcitx5-autostart`）在 GUI 会话设置 `GTK_IM_MODULE=fcitx`，niri-session 将其导入 systemd 用户环境。仓库 `wayland-autostart` 中的 `unset-environment` 在 DMS 机器上不执行。
+- 改动（仓库）：
+  1. `.config/linux/dms/niri-repo.kdl`：新增 `spawn-sh-at-startup "systemctl --user unset-environment GTK_IM_MODULE"`。
+  2. `tests/niri_config_test.sh`：新增 `test_dms_fragment_unsets_gtk_im_module_from_systemd_env`（先红后绿）。
+  3. `tests/dms_niri_setup_test.sh`、`tests/install_wayland_test.sh`：原断言禁止 `niri-repo.kdl` 出现任何 `spawn-sh-at-startup`，仅为防止仓库 autostart 重复拉起；收窄为只禁止 `wayland-autostart`。
+- 改动（live）：
+  - 备份：`~/.config/niri/niri-repo.kdl.backup.20261011_085902`
+  - 复制仓库 `niri-repo.kdl` → live；`niri validate` 通过。
+  - 当前会话已执行 `systemctl --user unset-environment GTK_IM_MODULE`。
+- 验证：`sh tests/niri_config_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`git diff --check` 待执行。
+- 未提交。
+- 回滚：
+  - `cp ~/.config/niri/niri-repo.kdl.backup.20261011_085902 ~/.config/niri/niri-repo.kdl`
+  - 仓库：`git checkout -- .config/linux/dms/niri-repo.kdl tests/niri_config_test.sh tests/dms_niri_setup_test.sh tests/install_wayland_test.sh logs/trace.md`（注意：logs/trace.md 本条之前的内容不可用此命令还原）
+- 后续：重新登录后确认 `GTK_IM_MODULE` 不再回来、fcitx5 提示消失；测试一个 GTK 应用与一个 Flatpak 应用的中文输入。
+
+## 2026-10-11 — 恢复 niri:GNOME 桌面身份（Chrome 代理）
+
+- 目的：去掉 `XDG_CURRENT_DESKTOP=niri:GNOME` 后，Chrome 不再读取 gsettings 代理，无法访问外网；恢复该身份，让 Chrome 识别 GNOME 会话。
+- 根因：Chrome 在 Linux 下通过桌面身份决定读取 gsettings 还是环境变量；环境变量不被其读取。Firefox 默认读取环境变量，因此不受影响。
+- 改动（仓库）：
+  1. `.config/linux/dms/niri-repo.kdl`：恢复 `environment { XDG_CURRENT_DESKTOP "niri:GNOME"; XDG_SESSION_DESKTOP "niri" }`。
+  2. `tests/niri_config_test.sh`：恢复 `test_dms_fragment_sets_gnome_desktop_identity_for_proxy_apps`（先红后绿）。
+  3. `memory/niri.md`：Fedora 条目补充该身份的用途与恢复原因。
+- 改动（live）：
+  - 备份：`~/.config/niri/niri-repo.kdl.backup.20261011_090713`
+  - 复制仓库 `niri-repo.kdl` → live；`niri validate` 通过。
+- 验证：`sh tests/niri_config_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`git diff --check` OK。
+- 未提交。
+- 回滚：
+  - `cp ~/.config/niri/niri-repo.kdl.backup.20261011_090713 ~/.config/niri/niri-repo.kdl`（回到恢复前状态）
+  - 仓库：`git checkout -- .config/linux/dms/niri-repo.kdl tests/niri_config_test.sh memory/niri.md`（注意：会丢失本仓库未提交的其它改动，请先确认）
+- 后续：完全关闭并重新打开 Chrome 后确认可以访问外网；`XDG_CURRENT_DESKTOP` 由 niri 拉起的进程继承，已在运行的进程需要重启。
+
+## 2026-10-11 — DMS 拉起的进程补充 GNOME 桌面身份（dms.service drop-in）
+
+- 目的：Mod+Space（`dms ipc call spotlight toggle`）启动的应用由 DMS 拉起，不继承 niri 配置片段中的 `niri:GNOME`，因此 Chrome 等仍读不到 gsettings 代理。
+- 改动（仓库）：
+  1. 新增 `.config/linux/dms/dms.service.d/override.conf`：`[Service] Environment=XDG_CURRENT_DESKTOP=niri:GNOME`。
+  2. `install.sh`：DMS 分支中部署该 drop-in 到 `~/.config/systemd/user/dms.service.d/override.conf`。只按 DMS 判断，不区分平台。
+  3. `tests/install_wayland_test.sh`：新增 `test_install_deploys_dms_service_gnome_identity_on_dms` 与 `test_install_skips_dms_service_drop_in_without_dms`。
+- 改动（live）：
+  - 备份：`~/.config/systemd/user/dms.service.d/override.conf.backup.20261011_084554` 为旧 drop-in 的备份；本轮 live 无旧 `override.conf`，未额外备份。
+  - 复制仓库 drop-in 到 live；`systemctl --user daemon-reload`；`systemctl --user restart dms`。
+  - 验证：dms 进程（pid 90095）`XDG_CURRENT_DESKTOP=niri:GNOME`。
+- 验证：`bash tests/install_wayland_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`bash -n install.sh` 通过。
+- 未提交。
+- 回滚：
+  - 删除 live drop-in：`rm ~/.config/systemd/user/dms.service.d/override.conf && systemctl --user daemon-reload && systemctl --user restart dms`
+  - 仓库：`rm .config/linux/dms/dms.service.d/override.conf`，并 `git checkout -- install.sh tests/install_wayland_test.sh`（注意：会丢失这两个文件中本轮之外的未提交改动，请先确认）。
+- 后续：用 Mod+Space 启动 Chrome，确认能访问外网；README 尚未补充该 drop-in 说明。
+
+## 2026-10-11 — Fedora x64 代理环境变量落盘（environment.d/proxy.conf）
+
+- 目的：把 live 中手工创建的 `~/.config/environment.d/proxy.conf` 纳入仓库，仅在 Fedora x64 部署，使 niri 会话（含 foot、systemd 拉起的进程）继承代理变量。
+- 改动（仓库）：
+  1. 新增 `.config/linux/niri/fedora_x64/proxy.conf`（8 个代理变量，与 live 内容一致）。
+  2. `install.sh`：仅当 `niri_platform_key` 为 `fedora_x64` 时部署到 `~/.config/environment.d/proxy.conf`。
+  3. `tests/install_wayland_test.sh`：新增 `test_install_deploys_proxy_environment_on_fedora_x64` 与 `test_install_skips_proxy_environment_on_other_platforms`（先红后绿）。
+- 改动（live）：无。live 文件已存在且与仓库内容一致（`diff` 无差异）。
+- 验证：`bash tests/install_wayland_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`git diff --check` OK。
+- 未提交。
+- 回滚：`rm .config/linux/niri/fedora_x64/proxy.conf`，并 `git checkout -- install.sh tests/install_wayland_test.sh`（注意会丢失这两个文件中其它未提交改动）；live 回滚为删除 `~/.config/environment.d/proxy.conf` 并重新登录。
+
+## 2026-10-11 — dms drop-in 变化才重启；文档补全
+
+- 目的：`install.sh` 部署 dms drop-in 后，仅在内容变化时执行 `daemon-reload` 与 `restart dms`，避免每次安装都重启 DMS 外壳；补全 README 对桌面身份、代理与 GTK 清理的说明。
+- 改动（仓库）：
+  1. `install.sh`：DMS 分支中部署 drop-in 前后比较内容（`$(< file)`），变化才 `systemctl --user daemon-reload && restart dms`。
+  2. `tests/install_wayland_test.sh`：新增 `test_install_restarts_dms_only_when_drop_in_changes`，首次部署重启、再次部署不重启。
+  3. `.config/linux/dms/README.md`：文件职责表新增 drop-in 与 `proxy.conf` 两行；新增「桌面身份与代理」一节；回退一节补充两项。
+  4. `.config/linux/niri/README.md`：平台表下补充 Fedora x64 的 `proxy.conf` 说明。
+- 过程中的问题：首版用 `cksum`/`cat` 比较内容，测试沙箱 PATH 下 `cat` 不可用，且 `set -e` 不会因命令替换失败中止，导致判定误为"无变化"。改用 bash 内置 `$(< file)`，不依赖外部命令。
+- 验证：`bash tests/install_wayland_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`bash -n install.sh` 通过；`git diff --check` OK。
+- live：本轮未改动 live 文件（drop-in 与 proxy.conf 已在前面同步）。
+- 未提交。
+- 回滚：`git checkout -- install.sh tests/install_wayland_test.sh .config/linux/dms/README.md .config/linux/niri/README.md`（注意会丢失这些文件中本轮之前的未提交改动，请先确认）。
+- 后续：实际运行一次 `./install.sh`（真机）确认重启只在 drop-in 变化时触发。
+
+## 2026-10-11 — 代理地址按机器注入（~/.config/dotfiles/proxy_env）
+
+- 目的：`fedora_x64/proxy.conf` 中写死的内网代理地址不入库；每台机器在本机文件中配置。
+- 改动（仓库）：
+  1. `.config/linux/niri/fedora_x64/proxy.conf`：改为占位符模板（`__PROXY_HOST__`、`__PROXY_PORT__`、`__SOCKS_PORT__`）。
+  2. `install.sh`：新增 `deploy_fedora_proxy_environment`，读取 `~/.config/dotfiles/proxy_env` 的 `PROXY_HOST`、`PROXY_PORT`（默认 7890）、`SOCKS_PORT`（默认 7891），渲染到临时文件后经 `copy_config` 部署。文件缺失或缺 `PROXY_HOST` 时警告并跳过。
+  3. `tests/install_wayland_test.sh`：`test_install_deploys_proxy_environment_on_fedora_x64` 改为基于 `proxy_env` 渲染的断言；新增 `test_install_skips_proxy_environment_without_proxy_env_file`。
+  4. `.config/linux/dms/README.md`、`.config/linux/niri/README.md`：说明 `proxy_env` 的格式与缺失行为。
+- 改动（live）：
+  - 新增 `~/.config/dotfiles/proxy_env`（权限 600）。
+  - 备份：`~/.config/environment.d/proxy.conf.backup.20261011_093913`
+  - 重写 `~/.config/environment.d/proxy.conf` 为渲染结果，内容与模板渲染一致（`diff` 无差异）。
+- 验证：`bash tests/install_wayland_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`bash -n install.sh` 通过；`git diff --check` OK。
+- 未提交。
+- 回滚：
+  - live：`cp ~/.config/environment.d/proxy.conf.backup.20261011_093913 ~/.config/environment.d/proxy.conf` 并重新登录。
+  - 仓库：`git checkout -- .config/linux/niri/fedora_x64/proxy.conf install.sh tests/install_wayland_test.sh .config/linux/dms/README.md .config/linux/niri/README.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）。
+- 后续：提交前确认 `logs/trace.md` 中历史记录不含内网地址；`~/.config/dotfiles/` 不入库。
+
+## 2026-10-11 — install.sh 优化（高/中/低优先级）
+
+- 目的：按《install.sh 处理逻辑梳理》中的建议优化 DMS 分支与代理部署，提高可读性并补齐校验。
+- 改动（仓库，`install.sh`）：
+  1. 高：新增 `deploy_dms_service_drop_in`，用 `cmp -s` 判断内容是否变化，变化才 `daemon-reload` 与 `restart dms`；替代原来的 `$(< file)` 比较。
+  2. 高：drop-in 逻辑从 `main()` 抽出为函数。
+  3. 中：新增 `render_template`，`deploy_fedora_proxy_environment` 复用它做占位符替换。
+  4. 中：`PROXY_PORT`、`SOCKS_PORT` 必须为数字，否则警告并跳过。
+  5. 低：`log_warn` 计数，结尾汇总 `Installation completed with N warning(s)`。
+  6. 第 4 条（备份清理）经检查 `clean_old_backups` 按目标文件名统计，`environment.d` 的备份已覆盖，无需改代码。
+- 改动（测试，`tests/install_wayland_test.sh`）：
+  - 新增 `test_install_rejects_non_numeric_proxy_port`、`test_proxy_env_template_has_no_unrendered_placeholders_after_install`、`test_install_summarizes_warnings_at_end`。
+  - drop-in 测试的沙箱额外链接 `cmp`（`install_extra_cmds`）。
+  - 验证“强制判定为变化”时 `test_install_restarts_dms_only_when_drop_in_changes` 会失败，恢复后通过。
+- 改动（live）：无。
+- 验证：`bash tests/install_wayland_test.sh` PASS；`tests/niri_config_test.sh`（bash 与 sh）PASS；`tests/dms_niri_setup_test.sh` PASS；`tests/zsh_path_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`bash -n install.sh` 通过；`git diff --check` OK；沙箱完整运行 `install.sh` 退出码 0。
+- 未验证：shellcheck 未安装，未做静态检查；未在真机运行 `install.sh`。
+- 未提交。
+- 回滚：`git checkout -- install.sh tests/install_wayland_test.sh logs/trace.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）。
+
+## 2026-10-11 — install.sh 配套 GNOME 代理设置（gsettings）
+
+- 目的：`environment.d` 只覆盖终端与命令行，GNOME 原生应用与 Chrome 依赖 gsettings 中的系统代理；此前这部分只存在于 live 手动设置，未入库。
+- 改动（仓库）：
+  1. `install.sh`：新增 `apply_gnome_proxy_settings`，在 `deploy_fedora_proxy_environment` 中调用，写入 `mode manual`、`http`/`https` 的 host 与 port、`ignore-hosts`。使用与 `proxy_env` 相同的 `PROXY_HOST`/`PROXY_PORT`。`gsettings` 缺失或写入失败只警告。
+  2. `tests/install_wayland_test.sh`：新增 `test_install_applies_gnome_proxy_settings_from_proxy_env`（假 gsettings 记录调用，断言 6 条设置）与 `test_install_skips_gnome_proxy_without_proxy_env_file`。
+  3. `.config/linux/dms/README.md`：补充 gsettings 写入的说明。
+- 改动（live）：无。live 中 gsettings 已是 `manual`、`<PROXY_HOST>:7890`，与 `proxy_env` 一致；本轮不重新写入。
+- 验证：`bash tests/install_wayland_test.sh` PASS；`tests/niri_config_test.sh` PASS；`tests/dms_niri_setup_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`git diff --check` OK。
+- 未验证：未在真机运行 `install.sh` 写入 gsettings（沙箱使用假 gsettings）。
+- 未提交。
+- 回滚：`git checkout -- install.sh tests/install_wayland_test.sh .config/linux/dms/README.md logs/trace.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）；live gsettings 回滚为 `gsettings set org.gnome.system.proxy mode 'none'`（如需）。
