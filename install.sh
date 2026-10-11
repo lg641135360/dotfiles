@@ -338,6 +338,9 @@ niri_platform_key() {
         ubuntu_aarch64|ubuntu_arm64)
             printf 'ubuntu_aarch64'
             ;;
+        fedora_x86_64|fedora_amd64)
+            printf 'fedora_x64'
+            ;;
         *)
             return 1
             ;;

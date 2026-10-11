@@ -24,6 +24,13 @@
 // 或 gammastep），在这里加回 `spawn-sh-at-startup "~/.config/scripts/wayland-autostart"`
 // 并自行确认不要与 DMS 的同类服务重复。
 
+// 伪装 GNOME 桌面身份：部分代理/网络工具只识别 GNOME 会话。仅 DMS 机器需要，
+// 放在这里而不是 common.kdl，避免影响 Ubuntu 机器的 niri 会话。
+environment {
+    XDG_CURRENT_DESKTOP "niri:GNOME"
+    XDG_SESSION_DESKTOP "niri"
+}
+
 binds {
     // === 2026-10-08：按本机 Ubuntu x64 DMS 会话定的键 ===
     // 与 live dms/binds.kdl 已经一致的键不在这里声明，避免后加载覆盖把它们改掉。

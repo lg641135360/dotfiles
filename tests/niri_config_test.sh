@@ -8,8 +8,10 @@ NIRI_CONFIG=$REPO_ROOT/.config/linux/niri/ubuntu_x64/config.kdl
 NIRI_OUTPUTS=$REPO_ROOT/.config/linux/niri/ubuntu_x64/outputs.kdl
 NIRI_AARCH64_CONFIG=$REPO_ROOT/.config/linux/niri/ubuntu_aarch64/config.kdl
 NIRI_AARCH64_OUTPUTS=$REPO_ROOT/.config/linux/niri/ubuntu_aarch64/outputs.kdl
+NIRI_FEDORA_OUTPUTS=$REPO_ROOT/.config/linux/niri/fedora_x64/outputs.kdl
 NIRI_COMMON_CONFIG=$REPO_ROOT/.config/linux/niri/common.kdl
 NIRI_README=$REPO_ROOT/.config/linux/niri/README.md
+DMS_NIRI_FRAGMENT=$REPO_ROOT/.config/linux/dms/niri-repo.kdl
 TERMINAL_SCRIPT=$REPO_ROOT/.config/scripts/terminal-wayland
 
 test_niri_config_exists_and_validates_when_available() {
@@ -301,6 +303,24 @@ test_niri_overview_beautification() {
     assert_contains 'Overview 美化' "$NIRI_README"
 }
 
+test_dms_fragment_sets_gnome_desktop_identity_for_proxy_apps() {
+    assert_contains 'XDG_CURRENT_DESKTOP "niri:GNOME"' "$DMS_NIRI_FRAGMENT"
+    assert_contains 'XDG_SESSION_DESKTOP "niri"' "$DMS_NIRI_FRAGMENT"
+    assert_not_contains 'XDG_CURRENT_DESKTOP "niri:GNOME"' "$NIRI_COMMON_CONFIG"
+}
+
+test_fedora_x64_outputs_match_this_pc_only() {
+    assert_file_exists "$NIRI_FEDORA_OUTPUTS"
+    assert_contains 'output "DP-3" {' "$NIRI_FEDORA_OUTPUTS"
+    assert_contains 'mode "3840x2160@59.997"' "$NIRI_FEDORA_OUTPUTS"
+    assert_contains 'scale 2' "$NIRI_FEDORA_OUTPUTS"
+    assert_contains 'position x=0 y=0' "$NIRI_FEDORA_OUTPUTS"
+    assert_not_contains 'output "eDP-1"' "$NIRI_FEDORA_OUTPUTS"
+    assert_not_contains 'output "DP-1"' "$NIRI_FEDORA_OUTPUTS"
+    assert_not_contains 'output "' "$NIRI_COMMON_CONFIG"
+    assert_contains 'fedora_x64/outputs.kdl' "$NIRI_README"
+}
+
 test_readme_documents_parallel_trial_and_fallback() {
     assert_file_exists "$NIRI_README"
     assert_contains '并行试用 niri' "$NIRI_README"
@@ -326,5 +346,7 @@ test_niri_config_uses_native_environment_cursor_and_animations
 test_niri_config_has_dingtalk_and_app_window_rules
 test_niri_overview_beautification
 test_readme_documents_parallel_trial_and_fallback
+test_fedora_x64_outputs_match_this_pc_only
+test_dms_fragment_sets_gnome_desktop_identity_for_proxy_apps
 
 printf 'PASS: niri config tests\n'

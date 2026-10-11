@@ -11,7 +11,7 @@
   - 检测到 `dms` 的 Ubuntu，以及非 Ubuntu 发行版：保留现有 live 的 niri/外壳栈配置，避免覆盖 DMS 或发行版自管文件；Alacritty 同样由 DMS/openSUSE 自管时跳过复制。
   - DMS 机器（不限发行版）额外走仓库的 DMS 接入层：部署 `.config/linux/dms/niri-repo.kdl` 为 `~/.config/niri/niri-repo.kdl`，并运行幂等脚本 `dms-niri-setup`（补 `dms/*.kdl` 的 include、把仓库屏幕 `outputs.kdl` 排在 DMS 片段之前、把仓库键位片段排在最后、`dms setup binds`、重建钉钉窗口规则）。2026-10-06 起有效；逐键取舍与「不安装清单」见 `.config/linux/dms/README.md`。
   - Foot 始终按单文件部署（`foot.ini`、`README.md`），保留 `~/.config/foot` 内第三方文件，例如 DMS 的 `dank-colors.ini`。
-- niri 配置维护 `.config/linux/niri/ubuntu_x64/`、`.config/linux/niri/ubuntu_aarch64/` 和公共 `.config/linux/niri/common.kdl`。`common.kdl` 不含 output。每台机器的屏幕在各自的 `outputs.kdl`：Ubuntu x64 桌面是双 2K（DP-1 左、HDMI-A-2 右），Ubuntu aarch64 笔记本是 eDP-1 + DP-2 4K60。Fedora 笔记本（笔记本 + 外接 4K 27 寸）尚未入库，安装器不会用另外两台的屏幕覆盖它。非 DMS 机器复制整份平台配置；DMS 机器只部署 `~/.config/niri/outputs.kdl`，并让它排在所有 `dms/*.kdl` 之前作为仓库权威屏幕配置，不改 `dms/outputs.kdl`。
+- niri 配置维护 `.config/linux/niri/ubuntu_x64/`、`.config/linux/niri/ubuntu_aarch64/` 和公共 `.config/linux/niri/common.kdl`。`common.kdl` 不含 output。每台机器的屏幕在各自的 `outputs.kdl`：Ubuntu x64 桌面是双 2K（DP-1 左、HDMI-A-2 右），Ubuntu aarch64 笔记本是 eDP-1 + DP-2 4K60。Fedora x86_64 桌面（DMS，单屏 DP-3 4K 27 寸）已入库为 `.config/linux/niri/fedora_x64/outputs.kdl`，安装器映射 `fedora_x86_64` → `fedora_x64`。非 DMS 机器复制整份平台配置；DMS 机器只部署 `~/.config/niri/outputs.kdl`，并让它排在所有 `dms/*.kdl` 之前作为仓库权威屏幕配置，不改 `dms/outputs.kdl`。
 - 仓库只负责配置部署，不安装 niri、DMS 或其它桌面软件，也不创建显示管理器 session entry。当前会话类型不影响安装器是否部署 niri 辅助文件。
 
 ### 包来源与组件边界
@@ -25,7 +25,7 @@
 
 - Ubuntu aarch64 笔记本：内屏 eDP-1 为 `2880x1800@120`、scale 2.0、逻辑坐标左侧 `x=0`；外接 DP-2 当前使用 `3840x2160@59.997`（4K60）、scale 2.0、逻辑坐标 `x=1440`。文件是 `ubuntu_aarch64/outputs.kdl`。
 - Ubuntu x86_64 桌面（当前环境）：DP-1（Dell D2421DS）左、HDMI-A-2（AOC Q24P1W1）右，均为 `2560x1440@59.951`、scale 1.25，右屏逻辑坐标 `x=2048`。文件是 `ubuntu_x64/outputs.kdl`，DMS 机器上该文件作为仓库权威屏幕配置；不和其他机器共用。接口名漂移时先用 `niri msg outputs` 对照实际名称。
-- Fedora 笔记本：内屏 + 外接 4K 27 寸，屏幕留在该机 DMS 的 `dms/outputs.kdl`，仓库尚未收录。
+- Fedora x86_64 桌面（当前主机）：单屏 DP-3 AOC U27U2G6R4B，`3840x2160@59.997`、scale 2（逻辑 1920x1080），位于 `x=0`；文件是 `fedora_x64/outputs.kdl`。`XDG_CURRENT_DESKTOP=niri:GNOME` 仅由 DMS 片段 `niri-repo.kdl` 下发，用于让代理工具识别 GNOME 会话。内屏已不在线，若重新接入笔记本需另行评估。
 - 当前 aarch64 外屏 AOC U27U2G6R4B 已稳定提供 4K60（2026-10-06 实测 `niri msg outputs` 中 `3840x2160@59.997` 为 preferred 且运行稳定，VRR 不支持）；不要复用旧 Dell S2721DGF 的 120Hz modeline，否则可能黑屏或无信号。此前 4K30 记录（档位轨迹 1440p60→1080p60→4K30→4K60）已被实测推翻。
 
 ## 会话组件与运行规则

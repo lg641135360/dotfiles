@@ -66,6 +66,7 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '.config/linux/dms/settings.txt' "$INSTALL_FILE"
     assert_contains 'bash "$cur_path/.config/scripts/dms-niri-setup"' "$INSTALL_FILE"
     assert_contains "printf 'ubuntu_x64'" "$INSTALL_FILE"
+    assert_contains "printf 'fedora_x64'" "$INSTALL_FILE"
     assert_contains 'is_opensuse()' "$INSTALL_FILE"
     assert_contains 'skipping Alacritty configuration copy' "$INSTALL_FILE"
     assert_contains 'skipping niri configuration copy' "$INSTALL_FILE"
@@ -281,6 +282,36 @@ test_install_preserves_dms_configs_on_ubuntu_x64() {
     rm -rf "$tmpdir"
 }
 
+test_install_deploys_fedora_outputs_on_dms() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir"
+    for fake in dms waybar foot; do
+        printf '#!/bin/sh\nexit 0\n' >"$bin_dir/$fake"
+        chmod +x "$bin_dir/$fake"
+    done
+
+    mkdir -p "$home_dir/.config/niri/dms"
+    printf 'include "dms/layout.kdl"\n' >"$home_dir/.config/niri/config.kdl"
+    printf 'output "DP-3" {\n    scale 2\n}\n' >"$home_dir/.config/niri/dms/outputs.kdl"
+
+    PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=fedora DOTFILES_ARCH=x86_64 XDG_SESSION_TYPE=wayland /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+        fail "install.sh should succeed on Fedora x64 with DMS"
+
+    assert_contains 'output "DP-3" {' "$home_dir/.config/niri/outputs.kdl"
+    assert_contains 'mode "3840x2160@59.997"' "$home_dir/.config/niri/outputs.kdl"
+    assert_contains 'scale 2' "$home_dir/.config/niri/outputs.kdl"
+    assert_contains 'scale 2' "$home_dir/.config/niri/dms/outputs.kdl"
+    assert_file_not_exists "$home_dir/.config/niri/common.kdl"
+    assert_contains 'include "dms/layout.kdl"' "$home_dir/.config/niri/config.kdl"
+
+    rm -rf "$tmpdir"
+}
+
 test_install_keeps_live_niri_config_for_unmapped_platform() {
     tmpdir=$(mktemp -d)
     home_dir=$tmpdir/home
@@ -411,6 +442,7 @@ test_install_copies_ubuntu_x64_niri_config
 test_install_preserves_arch_niri_config
 test_install_preserves_opensuse_dms_niri_and_alacritty_configs
 test_install_preserves_dms_configs_on_ubuntu_x64
+test_install_deploys_fedora_outputs_on_dms
 test_install_keeps_live_niri_config_for_unmapped_platform
 test_install_desktop_entries_are_idempotent
 test_install_preserves_unmanaged_desktop_entries

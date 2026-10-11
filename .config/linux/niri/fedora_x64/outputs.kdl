@@ -1,0 +1,12 @@
+// Machine: Fedora x86_64 desktop (DMS-managed).
+// Not shared with the Ubuntu x86_64 desk or the Ubuntu aarch64 laptop.
+//
+// Single panel: DP-3 AOC U27U2G6R4B, 3840x2160@59.997 (preferred), scale 2,
+// logical 1920x1080. VRR is supported by the panel but left disabled here.
+// Connector names drift; recheck with `niri msg outputs`.
+
+output "DP-3" {
+    mode "3840x2160@59.997"
+    scale 2
+    position x=0 y=0
+}

@@ -9,7 +9,7 @@
 | 文件 | 部署位置 | 作用 |
 | --- | --- | --- |
 | `niri-repo.kdl` | `~/.config/niri/niri-repo.kdl` | 仓库补回的 niri 片段：**只含键位**（不 spawn 仓库 autostart，理由见下） |
-| `../niri/<平台>/outputs.kdl` | `~/.config/niri/outputs.kdl` | 本机屏幕；按方案 B 作为 DMS 机器的权威 output 配置，include 在所有 `dms/*.kdl` 之前；不改写 `dms/outputs.kdl`。没有该平台文件的机器（当前 Fedora）跳过 |
+| `../niri/<平台>/outputs.kdl` | `~/.config/niri/outputs.kdl` | 本机屏幕；按方案 B 作为 DMS 机器的权威 output 配置，include 在所有 `dms/*.kdl` 之前；不改写 `dms/outputs.kdl`。没有该平台文件的机器跳过（`fedora_x64` 已入库） |
 | `settings.txt` | `~/.config/dms/settings.txt` | DMS 设置清单（key=value），由接线脚本幂等下发到 `dms ipc call settings set` / `night` |
 | `.config/scripts/dms-niri-setup` | `~/.config/scripts/dms-niri-setup` | 幂等接线脚本：下发 DMS 设置、补齐 DMS 默认键位、补 `dms/*.kdl` include、保证顺序、重建钉钉窗口规则 |
 

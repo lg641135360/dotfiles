@@ -95,3 +95,28 @@
 - live/提交：live **已下发**（`./install.sh`）。改动前快照：`~/.config/DankMaterialShell/settings.json.manual-backup.20261006_122603_102340` + 整目录 `/tmp/dms-config-before-20261006_122603_102340.tar.gz`。应用 6 项后回读：`acLockTimeout=600`、`acMonitorTimeout=900`、`useAutoLocation=false`、`touchpadDragLock=true`、夜灯 `Night mode: enabled` + `target 5500K`；`settings.json` diff = `+touchpadDragLock/acMonitorTimeout/acLockTimeout`、`-useAutoLocation`（等于默认值会被 DMS 自动移除）；夜灯状态落在 `~/.local/state/DankMaterialShell/session.json`（`nightModeEnabled=true, nightModeTemperature=5500`）；`dms-niri-setup --check` = **0**；`dms doctor` ✓ All checks passed。
 - 回滚：逐项反向 = `dms ipc call settings set acLockTimeout 0`、`dms ipc call settings set acMonitorTimeout 0`、`dms ipc call settings set useAutoLocation true`、`dms ipc call settings set touchpadDragLock false`、`dms ipc call night setTargetTemp 4500`、`dms ipc call night disable`；整目录回滚 = `rm -rf ~/.config/DankMaterialShell && tar xzf /tmp/dms-config-before-20261006_122603_102340.tar.gz -C ~/.config && systemctl --user restart dms`（session.json 需另用上面的 night 反向命令）。仓库已提交并推送 `758ca81`。回滚：`git revert 758ca81`。
 - 后续可能方向：① 等 10 分钟空闲实测自动锁屏（配置层已确认 `IdleService` 读该键）；② 天气/位置需要手动指定城市（本机无 GeoClue，`weatherEnabled` 仍为默认 true）；③ 如需整机搬运界面偏好，`dms backup create -o <file>`（可另存，不入库）。
+
+## 2026-10-11 — Fedora x64 DMS 机器：屏幕入库（2x）+ GNOME 桌面身份伪装（代理用）
+
+- 目的：把当前 Fedora x86_64 DMS 桌面的屏幕配置入库，缩放 2x；为让代理/网络工具识别 GNOME 会话，在 DMS 机器上伪装 `XDG_CURRENT_DESKTOP=niri:GNOME`。
+- 改动（仓库）：
+  1. 新增 `.config/linux/niri/fedora_x64/outputs.kdl`：DP-3 `3840x2160@59.997`、scale 2（逻辑 1920x1080）、`x=0`。
+  2. `install.sh`：`niri_platform_key()` 映射 `fedora_x86_64|fedora_amd64` → `fedora_x64`。
+  3. `.config/linux/dms/niri-repo.kdl`：新增 `environment { XDG_CURRENT_DESKTOP "niri:GNOME"; XDG_SESSION_DESKTOP "niri" }`。
+  4. `.config/linux/niri/common.kdl`：`XDG_CURRENT_DESKTOP` 还原为 `"niri"`（之前未提交的 `niri:GNOME` 改动撤回，原因：DMS 机器的 live `config.kdl` 不 include `common.kdl`，该改动不生效；且 Ubuntu 机器共用此文件）。
+  5. 测试（先红后绿）：`tests/niri_config_test.sh` 新增 Fedora 屏幕与 DMS 片段 GNOME 身份断言；`tests/install_wayland_test.sh` 新增 Fedora DMS 部署用例，scale 断言为 2。
+  6. 文档：`.config/linux/niri/README.md`、`.config/linux/dms/README.md`、`memory/niri.md` 同步。
+- 验证：`sh tests/niri_config_test.sh` PASS；`bash tests/install_wayland_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`niri validate` 对仓库 fedora_x64 与 live config.kdl 均通过；`git diff --check` OK。
+- live 同步（已执行）：
+  - 备份：`~/.config/niri/niri-repo.kdl.backup.20261011_082826`（改动前快照）；`dms-niri-setup` 自动备份 `~/.config/niri/config.kdl.backup.20261011_082826_102848`。
+  - 复制：仓库 `niri-repo.kdl` → live；仓库 `fedora_x64/outputs.kdl` → `~/.config/niri/outputs.kdl`。
+  - 接线：`dms-niri-setup` 补入 `include "outputs.kdl"`（位于 `dms/outputs.kdl` 之前）；`niri validate` 通过。
+  - 生效验证：`niri msg outputs` 显示 scale 2、逻辑 1920x1080；niri 拉起的子进程环境 `XDG_CURRENT_DESKTOP=niri:GNOME`。
+  - systemd 用户环境仍为 `niri`（登录时导入，未随重载更新），需要重新登录后才会对 systemd 拉起的服务生效。
+- 回滚：
+  - `cp ~/.config/niri/niri-repo.kdl.backup.20261011_082826 ~/.config/niri/niri-repo.kdl`
+  - `cp ~/.config/niri/config.kdl.backup.20261011_082826_102848 ~/.config/niri/config.kdl`
+  - `rm ~/.config/niri/outputs.kdl`；屏幕恢复为 scale 1.5 需同时 `git checkout` 对应版本。
+  - 仓库：本轮未提交，回滚为 `git checkout -- <file>` 与删除 `fedora_x64/`。
+- 未提交，待用户确认后提交。
+- 后续可能方向：重新登录后确认 systemd 拉起的代理服务也拿到 `niri:GNOME`；如代理工具依赖 `GNOME_DESKTOP_SESSION_ID` 等其它变量，需再补。
