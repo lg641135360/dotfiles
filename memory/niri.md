@@ -25,7 +25,7 @@
 
 - Ubuntu aarch64 笔记本：内屏 eDP-1 为 `2880x1800@120`、scale 2.0、逻辑坐标左侧 `x=0`；外接 DP-2 当前使用 `3840x2160@59.997`（4K60）、scale 2.0、逻辑坐标 `x=1440`。文件是 `ubuntu_aarch64/outputs.kdl`。
 - Ubuntu x86_64 桌面（当前环境）：DP-1（Dell D2421DS）左、HDMI-A-2（AOC Q24P1W1）右，均为 `2560x1440@59.951`、scale 1.25，右屏逻辑坐标 `x=2048`。文件是 `ubuntu_x64/outputs.kdl`，DMS 机器上该文件作为仓库权威屏幕配置；不和其他机器共用。接口名漂移时先用 `niri msg outputs` 对照实际名称。
-- Fedora x86_64 桌面（当前主机）：单屏 DP-3 AOC U27U2G6R4B，`3840x2160@59.997`、scale 2（逻辑 1920x1080），位于 `x=0`；文件是 `fedora_x64/outputs.kdl`。`XDG_CURRENT_DESKTOP=niri:GNOME` 仅由 DMS 片段 `niri-repo.kdl` 下发，用于让代理工具识别 GNOME 会话。内屏已不在线，若重新接入笔记本需另行评估。
+- Fedora x86_64 桌面（当前主机）：单屏 DP-3 AOC U27U2G6R4B，`3840x2160@59.997`、scale 2（逻辑 1920x1080），位于 `x=0`；文件是 `fedora_x64/outputs.kdl`。内屏已不在线，若重新接入笔记本需另行评估。 `XDG_CURRENT_DESKTOP=niri:GNOME` 由 DMS 片段 `niri-repo.kdl` 下发，Chrome 等程序依赖它读取 gsettings 代理（2026-10-11 去掉后 Chrome 无法联网，已恢复）。
 - 当前 aarch64 外屏 AOC U27U2G6R4B 已稳定提供 4K60（2026-10-06 实测 `niri msg outputs` 中 `3840x2160@59.997` 为 preferred 且运行稳定，VRR 不支持）；不要复用旧 Dell S2721DGF 的 120Hz modeline，否则可能黑屏或无信号。此前 4K30 记录（档位轨迹 1440p60→1080p60→4K30→4K60）已被实测推翻。
 
 ## 会话组件与运行规则

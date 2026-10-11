@@ -42,6 +42,8 @@ Waybar 亮度模块（`backlight`）仅用于 aarch64（MediaTek 笔记本有背
 | Ubuntu aarch64 笔记本 | `.config/linux/niri/ubuntu_aarch64/outputs.kdl` | eDP-1 `2880x1800@120` scale 2.0 在左；DP-2 AOC U27U2G6R4B `3840x2160@59.997` scale 2.0 在右，`x=1440` |
 | Fedora x86_64 桌面（DMS） | `.config/linux/niri/fedora_x64/outputs.kdl` | 单屏 DP-3 AOC U27U2G6R4B，`3840x2160@59.997`、scale 2（逻辑 1920x1080）、`x=0`。仅 DMS 机器部署，作为 `~/.config/niri/outputs.kdl` 权威屏幕配置 |
 
+Fedora x64 还在 `fedora_x64/proxy.conf` 中提供代理环境变量模板，代理地址由本机 `~/.config/dotfiles/proxy_env` 注入，部署到 `~/.config/environment.d/proxy.conf`。详见 `.config/linux/dms/README.md` 的「桌面身份与代理」。
+
 非 DMS 的 Ubuntu 上，`install.sh` 把 `outputs.kdl`、`common.kdl` 和改写过 include 的 `config.kdl` 复制到 `~/.config/niri/`。DMS 机器不覆盖 `config.kdl` 和 `dms/outputs.kdl`，只部署本机 `~/.config/niri/outputs.kdl`，并由 `dms-niri-setup` 在所有 `dms/*.kdl` 之前 include 它，使仓库屏幕配置优先。没有对应平台文件的机器保持 live 屏幕不动。
 
 新增机器时增加平台目录和 `outputs.kdl`，再在 `niri_platform_key` 里映射；不要把 output 写回 `common.kdl`。用 `niri validate -c <平台 config.kdl>` 验证。

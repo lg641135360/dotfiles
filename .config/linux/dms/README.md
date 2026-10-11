@@ -11,6 +11,8 @@
 | `niri-repo.kdl` | `~/.config/niri/niri-repo.kdl` | 仓库补回的 niri 片段：**只含键位**（不 spawn 仓库 autostart，理由见下） |
 | `../niri/<平台>/outputs.kdl` | `~/.config/niri/outputs.kdl` | 本机屏幕；按方案 B 作为 DMS 机器的权威 output 配置，include 在所有 `dms/*.kdl` 之前；不改写 `dms/outputs.kdl`。没有该平台文件的机器跳过（`fedora_x64` 已入库） |
 | `settings.txt` | `~/.config/dms/settings.txt` | DMS 设置清单（key=value），由接线脚本幂等下发到 `dms ipc call settings set` / `night` |
+| `dms.service.d/override.conf` | `~/.config/systemd/user/dms.service.d/override.conf` | DMS 机器专用 drop-in：`XDG_CURRENT_DESKTOP=niri:GNOME`，让 DMS 拉起的应用（如 Mod+Space 启动器）识别为 GNOME 会话，从而读取 gsettings 代理。内容变化时才 `daemon-reload` 并重启 dms |
+| `../niri/fedora_x64/proxy.conf` | `~/.config/environment.d/proxy.conf` | 代理环境变量模板（仅 Fedora x64 部署）。占位符由本机 `~/.config/dotfiles/proxy_env` 渲染；缺失时跳过。重新登录后 niri 会话及其子进程继承代理变量 |
 | `.config/scripts/dms-niri-setup` | `~/.config/scripts/dms-niri-setup` | 幂等接线脚本：下发 DMS 设置、补齐 DMS 默认键位、补 `dms/*.kdl` include、保证顺序、重建钉钉窗口规则 |
 
 `install.sh` 检测到 `niri` + `dms` 时自动部署片段、对应平台的 `outputs.kdl` 与 `settings.txt`，并运行接线脚本；脚本本身在
@@ -68,6 +70,19 @@ night.enabled=<true|false>    → dms ipc call night enable|disable
   或 `dms ipc call night disable`；
 - `--check` 会把这些项当成漂移一并报告（退出码 1）。
 
+## 桌面身份与代理
+
+Chrome 等程序在 Linux 下根据桌面身份选择读取 gsettings 还是环境变量。去掉 `niri:GNOME` 身份后 Chrome 无法联网，因此 DMS 机器需要两层：
+
+- **niri 片段**（`niri-repo.kdl`）的 `environment { XDG_CURRENT_DESKTOP "niri:GNOME" }`：作用于 niri 拉起的子进程（终端、Chrome 等）。
+- **dms drop-in**（`dms.service.d/override.conf`）：作用于 DMS 拉起的子进程。Mod+Space 启动的应用走这一条，只有 niri 片段时它们不生效。
+
+两者都只在 DMS 机器部署，与平台无关。非 DMS 机器不部署 drop-in。
+
+代理变量由 `~/.config/environment.d/proxy.conf` 注入 systemd 用户环境，只在 `fedora_x64` 部署。代理地址不入库：每台机器在 `~/.config/dotfiles/proxy_env` 中写 `PROXY_HOST=`（可选 `PROXY_PORT`、`SOCKS_PORT`，默认 7890 / 7891），`install.sh` 渲染模板后部署；文件缺失则警告并跳过。同一组 `PROXY_HOST`/`PROXY_PORT` 还会通过 `gsettings` 写入 `org.gnome.system.proxy`（`mode`、`http`/`https` 的 host 与 port、`ignore-hosts`），供 GNOME 原生应用与 Chrome 使用；`gsettings` 不可用时只警告。`environment.d` 只在用户管理器启动时读取，修改后需要重新登录，`systemctl --user daemon-reexec` 不能让已运行的 niri 与其子进程生效。`gsettings` 的代理设置供 GNOME 原生应用使用，与 `environment.d` 互不替代。
+
+`GTK_IM_MODULE` 由 `/etc/profile.d/fcitx5.sh`（`fcitx5-autostart`）在 GUI 会话中写入，`niri-repo.kdl` 的 `spawn-sh-at-startup "systemctl --user unset-environment GTK_IM_MODULE"` 将其从 systemd 用户环境中清除，使 Wayland GTK 走 text-input 协议，fcitx5 不再提示取消设置。
+
 ## 接线机制（三条硬约束）
 
 1. **include 顺序决定键位归谁**：niri 的 `binds {}` 合并规则是「后出现的同键绑定
@@ -106,7 +121,7 @@ include "niri-repo.kdl"      // 仓库键位优先：binds 后出现的同键覆
 | polkit agent | DMS 自带 polkit（`dms doctor` 显示 Polkit Available） |
 | 剪贴板链（clipboard-wayland + wl-clip-persist + cliphist） | DMS 自带剪贴板服务（`dms clipboard history` / `copy` / `paste`；还有 `cliphist-migrate` 迁移旧历史） |
 | fcitx5 | XDG autostart（`~/.config/autostart/fcitx5.desktop`，niri.service → `xdg-desktop-autostart.target`） |
-| `GTK_IM_MODULE` 清理 | Fedora 的 `/etc/environment` 不含该变量，不需要清理 |
+| `GTK_IM_MODULE` 清理 | Fedora 的 `/etc/profile.d/fcitx5.sh`（`fcitx5-autostart`）会设置该变量。`niri-repo.kdl` 用 `spawn-sh-at-startup "systemctl --user unset-environment GTK_IM_MODULE"` 清掉 systemd 用户环境中的值，不依赖 `wayland-autostart` |
 | 应用包装脚本（browser/terminal/launcher…） | 这些是**按键按需 spawn**，不靠 autostart |
 
 所以 DMS 机器上 spawn 它只会重复职责（而且一旦以后装了 blueman/udiskie/polkit-gnome
@@ -219,3 +234,5 @@ dms ipc call night status                    # Night mode: enabled；target 5500
 - 屏幕层：从 `config.kdl` 移除 `include "outputs.kdl"` 和对应注释，恢复 DMS output 配置；
   再跑 `install.sh` / `dms-niri-setup` 会重新接回仓库屏幕层。只改仓库 screen 文件也可逐项回退。
 - 窗口规则：`dms config windowrules remove niri <id>`。
+- 桌面身份：删除 `~/.config/systemd/user/dms.service.d/override.conf` 后执行 `systemctl --user daemon-reload && systemctl --user restart dms`；`niri-repo.kdl` 中的 `environment` 块删除后 `niri validate` 并重新登录。
+- 代理：删除 `~/.config/environment.d/proxy.conf` 并重新登录。
