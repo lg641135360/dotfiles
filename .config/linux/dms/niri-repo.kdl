@@ -25,8 +25,9 @@
 // 并自行确认不要与 DMS 的同类服务重复。
 
 // 由 niri-session 导入的 systemd 用户环境里含 /etc/profile.d/fcitx5.sh 写入的
-// GTK_IM_MODULE=fcitx，会让 fcitx5 提示取消设置；这里清掉它，Wayland GTK 走 text-input。
-spawn-sh-at-startup "systemctl --user unset-environment GTK_IM_MODULE"
+// GTK_IM_MODULE=fcitx 与 QT_IM_MODULE=fcitx;fcitx5 在 Wayland 下推荐两者都不设
+// (走 text-input 前端,只留 XMODIFIERS 给 XWayland/XIM),任一残留都会触发提示。
+spawn-sh-at-startup "systemctl --user unset-environment GTK_IM_MODULE QT_IM_MODULE"
 
 // 伪装 GNOME 桌面身份：Chrome 等程序只在识别为 GNOME 时读取 gsettings 代理。仅 DMS 机器需要，
 // 放在这里而不是 common.kdl，避免影响 Ubuntu 机器的 niri 会话。

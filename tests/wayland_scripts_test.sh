@@ -51,12 +51,13 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_not_contains 'export INPUT_METHOD=fcitx' "$AUTOSTART_SCRIPT"
     assert_contains 'dbus-update-activation-environment --systemd' "$AUTOSTART_SCRIPT"
     assert_contains 'systemctl --user import-environment' "$AUTOSTART_SCRIPT"
-    # GTK_IM_MODULE 必须从 systemd 用户环境清除：sddm/niri-session 会把
-    # im-config 注入的 GTK_IM_MODULE=fcitx 导入用户会话，Wayland GTK 应走
-    # text-input-v3，否则 fcitx5 会持续弹出 Wayland 检测提示。脚本里的
-    # `unset GTK_IM_MODULE` 只影响 fork 的子进程，systemd 用户环境须单独清。
-    assert_contains 'unset GTK_IM_MODULE' "$AUTOSTART_SCRIPT"
-    assert_contains 'systemctl --user unset-environment GTK_IM_MODULE' "$AUTOSTART_SCRIPT"
+    # GTK_IM_MODULE 与 QT_IM_MODULE 必须从 systemd 用户环境清除:sddm/niri-session
+    # 会把 im-config 注入的这两个变量导入用户会话;Wayland 下 GTK/Qt 应走
+    # text-input-v3,fcitx5 5.1+ 检测到任一被设就会弹"推荐不设置 GTK_IM_MODULE
+    # 和 QT_IM_MODULE"提示,只留 XMODIFIERS 给 XWayland/XIM。脚本里的 `unset`
+    # 只影响 fork 的子进程,systemd 用户环境须单独清。
+    assert_contains 'unset GTK_IM_MODULE QT_IM_MODULE' "$AUTOSTART_SCRIPT"
+    assert_contains 'systemctl --user unset-environment GTK_IM_MODULE QT_IM_MODULE' "$AUTOSTART_SCRIPT"
     assert_contains 'start_portal_after_niri' "$AUTOSTART_SCRIPT"
     assert_contains 'org.gnome.Mutter.ScreenCast' "$AUTOSTART_SCRIPT"
     assert_contains 'xdg-desktop-portal-gnome.service' "$AUTOSTART_SCRIPT"

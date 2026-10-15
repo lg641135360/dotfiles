@@ -273,3 +273,32 @@
 - 未验证：未在真机运行 `install.sh` 写入 gsettings（沙箱使用假 gsettings）。
 - 未提交。
 - 回滚：`git checkout -- install.sh tests/install_wayland_test.sh .config/linux/dms/README.md logs/trace.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）；live gsettings 回滚为 `gsettings set org.gnome.system.proxy mode 'none'`（如需）。
+
+## 2026-10-15 — 同时清除 systemd 用户环境中的 QT_IM_MODULE（fcitx5 提示复发）
+
+- 目的：消除 fcitx5 5.1.23 弹出的"检测到设置了 GTK_IM_MODULE 和 QT_IM_MODULE … 推荐不设置"提示（用户描述为"只设一个变量就行"——即 Wayland 下只留 `XMODIFIERS`，GTK/Qt 走 text-input-v3）。
+- 根因：与 2026-10-11 那次同源。`/etc/profile.d/fcitx5.sh`（Fedora `fcitx5-autostart` 包）在登录时 export 全部 4 个变量（`INPUT_METHOD`/`GTK_IM_MODULE`/`QT_IM_MODULE`/`XMODIFIERS`），niri-session 的 `import-environment` 把它们带入 systemd 用户会话。上一轮只清了 `GTK_IM_MODULE`，`QT_IM_MODULE=fcitx` 残留，触发本轮提示。
+- 改动（仓库，测试先红后绿）：
+  1. `.config/linux/dms/niri-repo.kdl`：`spawn-sh-at-startup` 的 `unset-environment` 扩展为 `GTK_IM_MODULE QT_IM_MODULE`（一行两变量）。
+  2. `.config/scripts/wayland-autostart`：`unset GTK_IM_MODULE QT_IM_MODULE`；`systemctl --user unset-environment GTK_IM_MODULE QT_IM_MODULE`；注释同步说明。
+  3. `tests/niri_config_test.sh`：原 `test_dms_fragment_unsets_gtk_im_module_from_systemd_env` 改名 `test_dms_fragment_unsets_im_modules_from_systemd_env`，断言一行两变量。
+  4. `tests/wayland_scripts_test.sh`：断言 `unset GTK_IM_MODULE QT_IM_MODULE` 与 `unset-environment GTK_IM_MODULE QT_IM_MODULE` 两条。
+  5. `memory/niri.md`："Wayland 输入法变量"条目更新为"GTK/Qt 都走 text-input-v3，只留 XMODIFIERS 给 XWayland/XIM"。
+- 未改动：`.config/linux/x11/xsessionrc` 与 `rofi-launch` 中的 `GTK_IM_MODULE=fcitx` / `QT_IM_MODULE=fcitx`——X11/Awesome 会话仍需要这些变量，fcitx5 的提示只针对 Wayland。
+- 改动（live）：
+  - 备份：`~/.config/niri/niri-repo.kdl.backup.20261015_092243`、`~/.config/scripts/wayland-autostart.backup.20261015_092243`。
+  - 仓库版本覆盖 live；`chmod +x wayland-autostart`；`niri validate -c ~/.config/niri/config.kdl` OK。
+  - 当前会话执行 `systemctl --user unset-environment QT_IM_MODULE GTK_IM_MODULE`；`systemctl --user show-environment` 仅剩 `INPUT_METHOD=fcitx` 与 `XMODIFIERS=@im=fcitx`。
+  - 老备份按保留 3 份清理：删除 `niri-repo.kdl.backup.20261011_084554` 与 `niri-repo.kdl.backup.20261011_082826`。
+- 验证：`sh -n .config/scripts/wayland-autostart` OK；`niri validate -c .config/linux/dms/niri-repo.kdl` OK；`sh tests/niri_config_test.sh` PASS；`sh tests/wayland_scripts_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`git diff --check` OK。
+- 运行态验证（同日 09:30 补做）：`fcitx5 -d --replace` 重启（旧 PID 4418 → 新 PID 98964），`fcitx5-remote -n` 返回 `keyboard-us`；`waylandim` addon 加载，`Using Wayland native input method protocol: 1`；`dbus-monitor` 抓 12 秒桌面通知共 0 条，**Wayland 提示未再弹**。顺带实证：fcitx5 的提示判定**只读 systemd 用户环境、不读自身进程 env**——新 fcitx5 进程因从 Trae 终端 fork 仍带着 `GTK_IM_MODULE=fcitx QT_IM_MODULE=fcitx`（self diagnose 已打印），但只要 systemd 用户环境干净就不发提示。
+- 未提交。
+- 回滚：
+  ```bash
+  cp ~/.config/niri/niri-repo.kdl.backup.20261015_092243 ~/.config/niri/niri-repo.kdl
+  cp ~/.config/scripts/wayland-autostart.backup.20261015_092243 ~/.config/scripts/wayland-autostart
+  chmod +x ~/.config/scripts/wayland-autostart
+  niri validate -c ~/.config/niri/config.kdl
+  ```
+  仓库：`git checkout -- .config/linux/dms/niri-repo.kdl .config/scripts/wayland-autostart tests/niri_config_test.sh tests/wayland_scripts_test.sh memory/niri.md logs/trace.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）。
+- 后续：下次登录 niri 时 `niri-repo.kdl` 的 `spawn-sh-at-startup` 会再次从 systemd 用户环境清掉两个变量（`/etc/profile.d/fcitx5.sh` 每次登录都会重新注入），提示不应复发。若复发，排查路径见 `memory/niri.md` 排障入口"fcitx/GTK"。

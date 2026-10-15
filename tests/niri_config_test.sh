@@ -309,8 +309,11 @@ test_dms_fragment_sets_gnome_desktop_identity_for_proxy_apps() {
     assert_not_contains 'XDG_CURRENT_DESKTOP "niri:GNOME"' "$NIRI_COMMON_CONFIG"
 }
 
-test_dms_fragment_unsets_gtk_im_module_from_systemd_env() {
-    assert_contains 'spawn-sh-at-startup "systemctl --user unset-environment GTK_IM_MODULE"' "$DMS_NIRI_FRAGMENT"
+test_dms_fragment_unsets_im_modules_from_systemd_env() {
+    # fcitx5 5.1+ 在 Wayland 下检测到 GTK_IM_MODULE 或 QT_IM_MODULE 任一被设
+    # 就会弹"推荐不设置 GTK_IM_MODULE 和 QT_IM_MODULE"提示;两者须一并清,
+    # 只留 XMODIFIERS 给 XWayland/XIM。
+    assert_contains 'spawn-sh-at-startup "systemctl --user unset-environment GTK_IM_MODULE QT_IM_MODULE"' "$DMS_NIRI_FRAGMENT"
 }
 
 test_fedora_x64_outputs_match_this_pc_only() {
@@ -351,7 +354,7 @@ test_niri_config_has_dingtalk_and_app_window_rules
 test_niri_overview_beautification
 test_readme_documents_parallel_trial_and_fallback
 test_dms_fragment_sets_gnome_desktop_identity_for_proxy_apps
-test_dms_fragment_unsets_gtk_im_module_from_systemd_env
+test_dms_fragment_unsets_im_modules_from_systemd_env
 test_fedora_x64_outputs_match_this_pc_only
 
 printf 'PASS: niri config tests\n'
