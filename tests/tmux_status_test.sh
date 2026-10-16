@@ -115,7 +115,12 @@ test_keybinding_and_title_enhancements() {
     assert_contains 'bind f display-popup -E -d "#{pane_current_path}"' "$TMUX_FILE"
     assert_contains 'set -g word-separators' "$TMUX_FILE"
     assert_contains 'set -g set-titles on' "$TMUX_FILE"
-    assert_contains "set -g set-titles-string '#S · #W'" "$TMUX_FILE"
+    assert_contains "set -g set-titles-string '#S · #I:#W'" "$TMUX_FILE"
+    # Window names stop changing with automatic-rename/allow-rename off, so the
+    # outer title needs the window index to tell same-session windows apart.
+    assert_not_contains "set-titles-string '#S · #W'" "$TMUX_FILE"
+    assert_contains 'automatic-rename off' "$TMUX_FILE"
+    assert_contains '窗口序号' "$README_FILE"
     assert_contains 'set -g status-left "#{E:@catppuccin_status_session}"' "$TMUX_FILE"
     assert_contains 'set -g status-left-length 20' "$TMUX_FILE"
     assert_contains '可连按，免重复前缀' "$README_FILE"
@@ -278,6 +283,8 @@ test_readme_documents_window_navigation() {
     assert_contains '树状选择器' "$README_FILE"
     assert_contains 'Ctrl+a + Tab' "$README_FILE"
     assert_contains '上一个窗口' "$README_FILE"
+    assert_contains 'Ctrl+a + n` / `Ctrl+a + p`' "$README_FILE"
+    assert_contains '沿用 tmux 内建默认绑定' "$README_FILE"
 }
 
 test_catppuccin_options_use_current_names

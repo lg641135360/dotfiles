@@ -4,6 +4,7 @@
 - 左侧显示带图标的当前 session 名（catppuccin session 模块，`status-left-length 20` 截断保护，避免 OMX/自动生成长 session 名挤占 tab 区域）。
 - 中间 window 列表启用状态图标（`@catppuccin_window_flags icon`，无新依赖）：当前窗口 / 上一个窗口 / activity / bell / zoom / mark / silent 以 Nerd Font 图标显示，对齐 tmux `#F` 顺序；synchronize-panes 不是 window flag，同步状态继续用 `Sync: ON/OFF` 提示。
 - 右侧只保留 Prefix/Copy 状态和日期时间，不显示当前 shell/application。
+- 外层终端窗口标题（`set-titles-string`）必须带窗口序号：用 `'#S · #I:#W'` 而非 `'#S · #W'`。`allow-rename` / `automatic-rename` 均已关闭，窗口名固定在新窗口创建时的 shell 名（通常就是 `zsh`），只拼窗口名会让同 session 的多个窗口标题完全一样，与"niri 任务切换可区分窗口"的目的相悖（2026-10-16 实测：三窗口标题恒为 `0 · zsh`；加上 `#I` 后为 `0 · 1:zsh`）。
 - 不要为了状态栏额外引入 CPU/RAM/Battery 插件依赖。
 
 ## Tab 标题

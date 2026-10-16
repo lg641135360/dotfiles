@@ -302,3 +302,28 @@
   ```
   仓库：`git checkout -- .config/linux/dms/niri-repo.kdl .config/scripts/wayland-autostart tests/niri_config_test.sh tests/wayland_scripts_test.sh memory/niri.md logs/trace.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）。
 - 后续：下次登录 niri 时 `niri-repo.kdl` 的 `spawn-sh-at-startup` 会再次从 systemd 用户环境清掉两个变量（`/etc/profile.d/fcitx5.sh` 每次登录都会重新注入），提示不应复发。若复发，排查路径见 `memory/niri.md` 排障入口"fcitx/GTK"。
+
+## 2026-10-16 — tmux 外层标题补窗口序号（修掉"可区分"宣称落空）
+
+- 目的：修掉 README / `memory/tmux.md` 宣称"外层终端标题可区分不同 tmux 窗口"但实测不成立的问题。
+- 根因：`set-titles-string '#S · #W'` 只拼 session 名与窗口名；而 `allow-rename off` + `automatic-rename off`（`.tmux.conf:37-38`）让窗口名停在新窗口创建时的 shell 名。live 实测三个窗口名全是 `zsh`、session 名为 `0`，外层标题恒为 `0 · zsh`，niri 任务切换无法区分。
+- 改动（仓库，先补断言再改配置）：
+  1. `.config/shared/tmux/.tmux.conf`：`set-titles-string '#S · #W'` → `'#S · #I:#W'`（加窗口序号）。
+  2. `.config/shared/tmux/README.md`：外层标题条目改写为 `session · 窗口序号:窗口名`（含"窗口名冻结"的原因说明）；快捷键表新增 `Ctrl+a + n` / `Ctrl+a + p` 行；表后段落补充 `n/p/q/z/d` 沿用内建绑定的说明。
+  3. `tests/tmux_status_test.sh`：`test_keybinding_and_title_enhancements` 断言改为新串，并新增"旧串不存在"、"`automatic-rename off`"、README"窗口序号"三条守卫；`test_readme_documents_window_navigation` 新增 n/p 行与内建绑定说明两条断言。
+- 未采纳（本轮评估后放弃）：① `tmux-tab-title` 的 `LC_ALL=C` 兜底（非 UTF-8 locale 下多字节截断会切出半个字符，实测可复现，但当前 tmux `#()` 环境是 `LANG=zh_CN.UTF-8`，无现实触发路径）；② `status-interval` 由 15 降到 5（tab 标签 `cd` 后最多滞后 15s，实测脚本每轮 3 窗口约 50ms、可忽略，但需用户现场观察后再定）。③ 脚本微优化（`strlen` 改 `${#}` 等，合计省约 5ms/窗口，且会触碰 `9e6a785` 刻意加的 `assert_not_contains 'pane_current_command'` 守卫）——收益小于风险，明确不动。
+- 改动（live）：**未同步**。`~/.tmux.conf` 在沙箱保护路径内，写入会被静默拦截（退出码 0 但文件不变，见 `memory/tmux.md` 的 Live 同步条），故本轮只改仓库，同步命令交给用户手动执行。
+- 验证：`tmux display-message -p '#S · #I:#W'` → `0 · 1:zsh` / `0 · 2:zsh` / `0 · 3:zsh`（格式可区分）；`tmux source-file -n .config/shared/tmux/.tmux.conf` OK；`sh -n tests/tmux_status_test.sh` OK；`./tests/tmux_status_test.sh` PASS；`./tests/repo_docs_test.sh` PASS；`git diff --check` OK。
+- 未验证：真机外层终端标题（foot / alacritty 窗口标题、niri 任务切换）需同步 live 并新开窗口后肉眼确认。
+- 未提交。
+- 回滚：仓库 `git checkout -- .config/shared/tmux/.tmux.conf .config/shared/tmux/README.md tests/tmux_status_test.sh logs/trace.md memory/tmux.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）。
+- live 同步命令（待用户执行，`!` 前缀可直接在本会话跑）：
+  ```bash
+  cd /data/rikoo/Documents/study/dotfiles
+  ts=$(date +%Y%m%d_%H%M%S)
+  cp -p ~/.tmux.conf ~/.tmux.conf.backup.$ts
+  cp .config/shared/tmux/.tmux.conf ~/.tmux.conf
+  echo "回滚: cp ~/.tmux.conf.backup.$ts ~/.tmux.conf && tmux source-file ~/.tmux.conf"
+  ls -1t ~/.tmux.conf.backup.* 2>/dev/null   # 按 install.sh 惯例保留最近 3 份，更早的手动删除
+  ```
+- 后续：同步 live 后需新开窗口才会写新的外层标题（已 attach 的客户端下一次重绘即生效）；`logs/trace-archive/2026-08.md` 中旧记录（⑦ `session · window`）为历史存档，按惯例不改写。
