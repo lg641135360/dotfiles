@@ -315,8 +315,8 @@
 - 改动（live）：**未同步**。`~/.tmux.conf` 在沙箱保护路径内，写入会被静默拦截（退出码 0 但文件不变，见 `memory/tmux.md` 的 Live 同步条），故本轮只改仓库，同步命令交给用户手动执行。
 - 验证：`tmux display-message -p '#S · #I:#W'` → `0 · 1:zsh` / `0 · 2:zsh` / `0 · 3:zsh`（格式可区分）；`tmux source-file -n .config/shared/tmux/.tmux.conf` OK；`sh -n tests/tmux_status_test.sh` OK；`./tests/tmux_status_test.sh` PASS；`./tests/repo_docs_test.sh` PASS；`git diff --check` OK。
 - 未验证：真机外层终端标题（foot / alacritty 窗口标题、niri 任务切换）需同步 live 并新开窗口后肉眼确认。
-- 未提交。
-- 回滚：仓库 `git checkout -- .config/shared/tmux/.tmux.conf .config/shared/tmux/README.md tests/tmux_status_test.sh logs/trace.md memory/tmux.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）。
+- 已提交：`40fe273`（`main`，已推送 `origin/main`）。上一基线 `57842b4`。
+- 回滚：`git revert 40fe273`（保留历史）；若要退回提交前状态，`git checkout 57842b4 -- .config/shared/tmux/.tmux.conf .config/shared/tmux/README.md tests/tmux_status_test.sh memory/tmux.md logs/trace.md`。
 - live 同步命令（待用户执行，`!` 前缀可直接在本会话跑）：
   ```bash
   cd /data/rikoo/Documents/study/dotfiles
