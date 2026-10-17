@@ -33,8 +33,8 @@
 - 验证：5 个 zsh 测试文件全 PASS；`tests/repo_docs_test.sh` PASS；`git diff --check` OK。/tmp 副本实测：`_comps[lsd]=_lsd`、`_comps[brew]=_brew`、主题 46 keys 生效、fpath 无重复、pty 实测延迟插件首个提示符后正常加载（`_zsh_highlight` 存在）；启动 0.20-0.22s → 0.14-0.15s（约 -30%）。
 - 未验证：`./tests/run.sh fast` 未整跑（改动限 zsh 模块，相关测试已全跑）；高亮/配对在首提示符后 ~50ms 激活的权衡已写入 README，交由日常使用感知。
 - live：已同步 4 个模块到 `~/.config/zsh/`（各自 `*.backup.20261017_132816`，旧 backup 按保留 3 份清理，pruned `path.zsh.backup.20260912_002741_3932`）；残留改名归档：`.p10k.zsh`（p10k 已弃用）、`.zcompdump.ubuntu.18364`（`compinit -d` 前的孤儿 dump）、`keybindings.zsh`（已并入 history.zsh）→ 各自 `*.backup.20261017_132816`；`~/.zshenv` 删冗余首行 `ZDOTDIR=~/.config/zsh`（未 export、被下行覆盖；守卫校验两条必需行在位后执行，用户显式确认，备份 `~/.zshenv.backup.20261017_132816`）。同步后 live 实测启动 0.14s，fpath/补全/主题/HISTSIZE 全部生效。
-- 提交：未提交。建议一轮一 commit，草稿：`feat(zsh): brew 补全进 fpath，syntax-highlighting 延迟加载，清死代码`。
-- 回滚信息：未提交。仓库 `git checkout -- .config/shared/zsh tests/zsh_plugins_test.sh tests/zsh_history_test.sh tests/zsh_path_test.sh logs/trace.md`；live 恢复（可直接复制执行）：
+- 提交：已提交 `4916cd8`（main，已推送 `origin/main`），本条目与归档（14 条旧条目移入 `logs/trace-archive/2026-10.md`）同在该 commit。
+- 回滚信息：commit `4916cd8`。仓库 `git revert 4916cd8`；live 恢复（可直接复制执行）：
   ```bash
   ts=20261017_132816
   cd ~/.config/zsh
