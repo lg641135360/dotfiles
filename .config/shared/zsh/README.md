@@ -108,7 +108,6 @@ Linux 机器的依赖分两层：下表属于纯 CLI 层，统一用 brew（`bre
 | `ls` | `lsd -F --group-dirs first` | 带图标和颜色的列表 |
 | `ll` | `lsd --all --header --long --group-dirs first` | 长列表（含隐藏文件） |
 | `tree` | `lsd --tree` | 树形目录 |
-| `cat` | `bat` | 带语法高亮的文件查看 |
 | `mkdir` | `mkdir -pv` | 创建目录（含父目录，显示过程） |
 | `cp` / `mv` / `rm` | `cp -iv` / `mv -iv` / `rm -iv` | 交互式操作 |
 
@@ -173,13 +172,18 @@ Linux 机器的依赖分两层：下表属于纯 CLI 层，统一用 brew（`bre
 
 ## 启动提速：compinit 跳过 compaudit + 插件延迟加载
 
-[plugins.zsh](.config/shared/zsh/plugins.zsh) 进一步三项优化，将启动从 ~0.35s 降到 ~0.2s：
+[plugins.zsh](.config/shared/zsh/plugins.zsh) 进一步四项优化，将启动从 ~0.35s 降到 ~0.15s：
 
 1. **`compinit -u` 跳过 compaudit**：compinit 默认跑 compaudit 检查 fpath 目录权限，实测占 ~0.15s（0.20s → 0.05s）。单用户桌面环境下 fpath 目录均由 zinit 管理（用户自己控制），权限检查无实际安全价值。
 2. **`compinit -d` 显式 dump 路径**：dump 写到 `$ZSH_CONF/.zcompdump`，避免不同 ZDOTDIR 调用或写入受限环境（如 IDE sandbox）产生 `.zcompdump.<host>.<pid>` 孤儿文件。
-3. **zsh-autopair / zsh-you-should-use 延迟加载**：这两个插件合计占 plugins.zsh 约 73% 耗时（autopair ~0.22s, you-should-use ~0.12s），但功能仅在按键时才需要。用 `zinit ice wait lucid` 延迟到首次提示符后异步加载，不阻塞首次提示符渲染。
+3. **zsh-autopair / zsh-you-should-use 延迟加载**：这两个插件功能仅在按键时才需要。用 `zinit ice wait lucid` 延迟到首次提示符后异步加载，不阻塞首次提示符渲染。
+4. **zsh-syntax-highlighting 延迟加载**（2026-10-17）：实测加载 ~50ms（`zinit times`，占插件总耗时约 41%）。它是最后一个会包装 widget 的插件（之后无插件需要它包装），且高亮只在按键渲染时生效、不参与首次提示符，`wait lucid` 延迟安全。fzf-tab / autosuggestions 保持同步：前者与 `zvm_after_init` 的 `enable-fzf-tab` 有加载顺序耦合（回归测试明确禁止延迟），后者参与每次按键渲染。
 
-延迟加载的权衡：autopair 的括号配对、you-should-use 的别名提醒在首次提示符后约 50ms 才激活，极少数场景下首次按键可能未触发配对。实际无感知。
+延迟加载的权衡：autopair 的括号配对、you-should-use 的别名提醒、syntax-highlighting 的命令上色在首次提示符后约 50ms 才激活，极少数场景下首次按键可能未触发配对/上色。实际无感知。
+
+## 补全来源：brew site-functions 进 fpath
+
+brew（Linuxbrew / Homebrew）把 CLI 的 zsh 补全装到 `<prefix>/share/zsh/site-functions`（`_lsd` / `_bat` / `_brew` / `_codex` 等），但该目录不在默认 fpath——不补上的话 brew 装的工具全部没有补全（2026-10-17 实测 `$fpath` 无 linuxbrew 条目，`lsd --<Tab>` 无候选）。[plugins.zsh](.config/shared/zsh/plugins.zsh) 在 compinit 之前把 Linuxbrew（`/home/linuxbrew/.linuxbrew`）与 macOS Homebrew（`/opt/homebrew`、`/usr/local`）的 site-functions 按存在性加入 fpath，补全随之进 dump。
 
 ## Tab 补全：fzf-tab 必须最后绑 `^I`
 

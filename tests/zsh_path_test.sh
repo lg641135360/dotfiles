@@ -51,6 +51,15 @@ run_wayland_env_zsh() {
     printf '%s\n' "$env_value"
 }
 
+# 平台分支用 zsh 内置 $OSTYPE（启动即就绪、零 fork），不用 uname
+# 子进程。env.zsh 已是同款写法，保持一致。只匹配非注释行，允许注释
+# 里解释这一选择。
+test_path_zsh_uses_ostype_not_uname_fork() {
+    assert_not_matches '^[^#]*\$\(uname\)' "$PATH_FILE"
+    assert_contains '"$OSTYPE" == darwin*' "$PATH_FILE"
+    assert_contains '"$OSTYPE" == linux*' "$PATH_FILE"
+}
+
 test_zsh_configs_are_syntactically_valid() {
     if [ -z "$ZSH_BIN" ]; then
         printf 'SKIP: zsh is not installed\n'
@@ -234,6 +243,7 @@ test_linux_wayland_environment_preserves_current_desktop() {
 }
 
 test_zsh_configs_are_syntactically_valid
+test_path_zsh_uses_ostype_not_uname_fork
 test_linux_path_includes_usr_local_nodejs_bin
 test_linux_path_includes_user_npm_global_bin
 test_linux_path_includes_local_node_current_bin

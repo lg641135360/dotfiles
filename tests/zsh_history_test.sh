@@ -27,7 +27,23 @@ test_keybindings_merged_into_history() {
     fi
 }
 
+# HISTDUP 不是 zsh 变量（tcsh histdup 的残留写法），zsh 直接忽略该赋值，
+# 属于死代码。去重已由 hist_ignore_all_dups / hist_save_no_dups /
+# hist_find_no_dups 覆盖。只匹配非注释行，允许注释里解释这段历史。
+test_no_dead_histdup_variable() {
+    assert_not_matches '^[^#]*HISTDUP=' "$HISTORY_FILE"
+}
+
+# HISTSIZE 从 10000 提到 50000：内存代价可忽略，历史回溯范围更实用。
+# SAVEHIST 跟随 HISTSIZE。
+test_histsize_is_50000() {
+    assert_contains 'HISTSIZE=50000' "$HISTORY_FILE"
+    assert_contains 'SAVEHIST=$HISTSIZE' "$HISTORY_FILE"
+}
+
 test_histfile_follows_zdotdir
 test_keybindings_merged_into_history
+test_no_dead_histdup_variable
+test_histsize_is_50000
 
 printf 'PASS: zsh history tests\n'

@@ -32,14 +32,16 @@ pathappend "$HOME/.cargo/bin"
 pathappend "$HOME/.config/tmux/plugins/tmuxifier/bin"
 
 # Platform-specific
-if [[ "$(uname)" == "Darwin" ]]; then
+# 用 zsh 内置 $OSTYPE 而非 $(uname) 子进程：启动即就绪，省两次 fork
+# （env.zsh 同款写法）。
+if [[ "$OSTYPE" == darwin* ]]; then
     # Homebrew (Apple Silicon + Intel) and MacPorts
     pathprepend "/opt/homebrew/bin"
     pathprepend "/usr/local/bin"
     pathprepend "/opt/local/bin"
     pathprepend "/opt/local/sbin"
     pathprepend "$HOME/.npm-global/bin"
-elif [[ "$(uname)" == "Linux" ]]; then
+elif [[ "$OSTYPE" == linux* ]]; then
     pathappend "/home/linuxbrew/.linuxbrew/bin"
     pathappend "/home/linuxbrew/.linuxbrew/sbin"
     pathappend "$HOME/.local/opt/node-current/bin"

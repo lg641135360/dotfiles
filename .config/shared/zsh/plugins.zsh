@@ -18,7 +18,8 @@ source "${ZINIT_HOME}/zinit.zsh"
 # 1. zsh-completions 必须在 compinit 之前进 fpath。
 # 2. fzf-tab 必须在 compinit 之后、会包装 widget 的插件之前
 #    （zsh-autosuggestions / zsh-syntax-highlighting）。
-# 3. syntax-highlighting 放这组最后，避免它包不到后续 widget。
+# 3. syntax-highlighting 放这组最后（之后无插件需要它包装），且高亮
+#    只在按键渲染时生效、不参与首次提示符，wait lucid 延迟可省 ~50ms。
 zinit light zsh-users/zsh-completions
 zinit light jeffreytse/zsh-vi-mode
 # 以下两个插件合计占 plugins.zsh 约 73% 耗时（autopair ~0.22s, you-should-use
@@ -32,6 +33,19 @@ zinit snippet OMZP::sudo
 zinit snippet OMZP::docker
 zinit snippet OMZP::command-not-found
 
+# brew（Linuxbrew / Homebrew）把 CLI 的 zsh 补全装到
+# <prefix>/share/zsh/site-functions（_lsd/_bat/_brew/_codex 等），该目录
+# 不在默认 fpath；compinit 之前补上，否则 brew 装的工具全部没有补全。
+for _brew_site_functions in \
+    /home/linuxbrew/.linuxbrew/share/zsh/site-functions \
+    /opt/homebrew/share/zsh/site-functions \
+    /usr/local/share/zsh/site-functions; do
+    # (Ie)：已在 fpath 里的（如 Ubuntu 默认含 /usr/local 项）不重复追加
+    [[ -d "$_brew_site_functions" ]] && (( ${fpath[(Ie)$_brew_site_functions]} == 0 )) && \
+        fpath+=("$_brew_site_functions")
+done
+unset _brew_site_functions
+
 # Load completions
 # -u 跳过 compaudit：单用户桌面 fpath 目录均由 zinit 管理，权限检查无实际
 # 价值，跳过可省约 0.15s（0.20s → 0.05s）。
@@ -40,9 +54,13 @@ zinit snippet OMZP::command-not-found
 autoload -Uz compinit && compinit -u -d "$ZSH_CONF/.zcompdump"
 
 # fzf-tab 官方要求在 compinit 之后加载；随后才加载会 wrap widget 的插件。
+# syntax-highlighting 是最后一个会包装 widget 的插件（之后无插件需要它
+# 包装），wait lucid 延迟加载不影响其它插件；fzf-tab / autosuggestions
+# 保持同步：前者与 zvm_after_init 的 enable-fzf-tab 有顺序耦合，后者
+# 参与每次按键渲染。
 zinit light Aloxaf/fzf-tab
 zinit light zsh-users/zsh-autosuggestions
-zinit light zsh-users/zsh-syntax-highlighting
+zinit ice wait lucid; zinit light zsh-users/zsh-syntax-highlighting
 
 # fzf-tab 推荐 zstyle（不要 use-fzf-default-opts，部分 FZF_DEFAULT_OPTS 会拆菜单）。
 zstyle ':completion:*:git-checkout:*' sort false

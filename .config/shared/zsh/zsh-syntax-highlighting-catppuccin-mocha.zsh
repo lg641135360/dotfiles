@@ -1,5 +1,11 @@
 # Catppuccin Mocha — zsh-syntax-highlighting theme
 
+# zsh-syntax-highlighting 已改为 wait lucid 延迟加载，本文件先于插件执行。
+# 插件加载时才声明的关联数组此处还不存在，字符串下标赋值会报
+# "assignment to invalid subscript range" 且全部失效，需先自行声明。
+# 插件加载时仅对未设置的 key 补默认值，不会覆盖此处样式。
+typeset -gA ZSH_HIGHLIGHT_STYLES
+
 # Comments
 ZSH_HIGHLIGHT_STYLES[comment]='fg=#6c7086'
 
