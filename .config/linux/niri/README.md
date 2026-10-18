@@ -40,7 +40,7 @@ Waybar 亮度模块（`backlight`）仅用于 aarch64（MediaTek 笔记本有背
 | --- | --- | --- |
 | Ubuntu x86_64 桌面（当前环境） | `.config/linux/niri/ubuntu_x64/outputs.kdl` | DP-1 Dell D2421DS 左、HDMI-A-2 AOC Q24P1W1 右，均为 `2560x1440@59.951`、scale 1.25、右屏 `x=2048` |
 | Ubuntu aarch64 笔记本 | `.config/linux/niri/ubuntu_aarch64/outputs.kdl` | eDP-1 `2880x1800@120` scale 2.0 在左；DP-2 AOC U27U2G6R4B `3840x2160@59.997` scale 2.0 在右，`x=1440` |
-| Fedora x86_64 桌面（DMS） | `.config/linux/niri/fedora_x64/outputs.kdl` | 单屏 DP-3 AOC U27U2G6R4B，`3840x2160@59.997`、scale 2（逻辑 1920x1080）、`x=0`。仅 DMS 机器部署，作为 `~/.config/niri/outputs.kdl` 权威屏幕配置 |
+| Fedora x86_64 桌面（DMS） | `.config/linux/niri/fedora_x64/outputs.kdl` | 双屏上下布局：DP-3 AOC U27U2G6R4B `3840x2160@59.997`、scale 2（逻辑 1920x1080）在上 `x=0 y=0`；DP-2 BOE 0x0B17 笔记本屏 `2560x1600@240.000`、scale 1.5（逻辑 1706x1066）、VRR 开启，居中放在 AOC 正下方 `x=107 y=1080`。仅 DMS 机器部署，作为 `~/.config/niri/outputs.kdl` 权威屏幕配置 |
 
 Fedora x64 还在 `fedora_x64/proxy.conf` 中提供代理环境变量模板，代理地址由本机 `~/.config/dotfiles/proxy_env` 注入，部署到 `~/.config/environment.d/proxy.conf`。详见 `.config/linux/dms/README.md` 的「桌面身份与代理」。
 

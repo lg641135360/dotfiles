@@ -137,3 +137,19 @@
 - 未验证：shellcheck 未安装，未做静态检查；未在真机运行 `install.sh`。
 - 未提交。
 - 回滚：`git checkout -- install.sh tests/install_wayland_test.sh logs/trace.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）。
+
+
+## 2026-10-18 — Fedora 桌面双屏：DP-2 移到 AOC 正下方
+
+- 目的：DP-2（BOE 0x0B17 笔记本屏，2560x1600@240 + scale 1.5 + VRR）此前只存在于 DMS 自动生成的 `dms/outputs.kdl`（右侧 x=1920），仓库权威 `fedora_x64/outputs.kdl` 未覆盖；用户要求改为放在 AOC 正下方并保持 240Hz + 1.5 缩放。
+- 改动（仓库）：
+  1. `.config/linux/niri/fedora_x64/outputs.kdl`：新增 `output "DP-2"`，`mode "2560x1600@240.000"`、`scale 1.5`、`position x=107 y=1080`（AOC 逻辑 1920 宽，BOE 逻辑 1706 宽，居中偏移 (1920-1706)/2=107，y 取 AOC 逻辑高 1080）、`variable-refresh-rate`；头部注释同步为双屏说明。仓库文件 include 在所有 `dms/*.kdl` 之前，first-match 覆盖 DMS 片段中的 DP-2。
+  2. `tests/niri_config_test.sh`：`test_fedora_x64_outputs_match_this_pc_only` 增加 DP-2 的 mode/scale/position/VRR 断言。
+  3. `.config/linux/niri/README.md`、`memory/niri.md`：Fedora 行从「单屏 DP-3」更新为双屏上下布局。
+- 改动（live）：`~/.config/niri/outputs.kdl` 覆盖为仓库版本（备份见下）；niri 26.04 监视配置自动重载，未手动 reload。
+- 验证：`niri validate -c ~/.config/niri/config.kdl` 通过；`niri msg outputs` 确认 DP-2 `Logical position: 107, 1080`、`2560x1600@240.000`、scale 1.5、VRR enabled，DP-3 保持 `0,0` scale 2；`tests/niri_config_test.sh`、`tests/install_wayland_test.sh`、`tests/dms_niri_setup_test.sh` PASS；`git diff --check` OK。
+- 未验证：长时间使用下的鼠标跨屏手感；若想左对齐而非居中，把 DP-2 的 x 改为 0 即可。
+- 未提交。
+- 回滚：
+  - live：`cp ~/.config/niri/outputs.kdl.backup.20261018_175911 ~/.config/niri/outputs.kdl`（niri 自动重载即恢复单屏仓库定义 + DMS 右侧 DP-2）。
+  - 仓库：`git checkout -- .config/linux/niri/fedora_x64/outputs.kdl tests/niri_config_test.sh .config/linux/niri/README.md memory/niri.md logs/trace.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）。

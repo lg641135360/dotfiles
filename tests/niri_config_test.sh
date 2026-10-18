@@ -322,6 +322,12 @@ test_fedora_x64_outputs_match_this_pc_only() {
     assert_contains 'mode "3840x2160@59.997"' "$NIRI_FEDORA_OUTPUTS"
     assert_contains 'scale 2' "$NIRI_FEDORA_OUTPUTS"
     assert_contains 'position x=0 y=0' "$NIRI_FEDORA_OUTPUTS"
+    # DP-2 BOE 笔记本屏（240Hz + scale 1.5 + VRR）居中放在 AOC 正下方
+    assert_contains 'output "DP-2" {' "$NIRI_FEDORA_OUTPUTS"
+    assert_contains 'mode "2560x1600@240.000"' "$NIRI_FEDORA_OUTPUTS"
+    assert_contains 'scale 1.5' "$NIRI_FEDORA_OUTPUTS"
+    assert_contains 'position x=107 y=1080' "$NIRI_FEDORA_OUTPUTS"
+    assert_contains 'variable-refresh-rate' "$NIRI_FEDORA_OUTPUTS"
     assert_not_contains 'output "eDP-1"' "$NIRI_FEDORA_OUTPUTS"
     assert_not_contains 'output "DP-1"' "$NIRI_FEDORA_OUTPUTS"
     assert_not_contains 'output "' "$NIRI_COMMON_CONFIG"
