@@ -149,7 +149,7 @@
 - 改动（live）：`~/.config/niri/outputs.kdl` 覆盖为仓库版本（备份见下）；niri 26.04 监视配置自动重载，未手动 reload。
 - 验证：`niri validate -c ~/.config/niri/config.kdl` 通过；`niri msg outputs` 确认 DP-2 `Logical position: 107, 1080`、`2560x1600@240.000`、scale 1.5、VRR enabled，DP-3 保持 `0,0` scale 2；`tests/niri_config_test.sh`、`tests/install_wayland_test.sh`、`tests/dms_niri_setup_test.sh` PASS；`git diff --check` OK。
 - 未验证：长时间使用下的鼠标跨屏手感；若想左对齐而非居中，把 DP-2 的 x 改为 0 即可。
-- 未提交。
+- 提交：已提交 `e965560`（main，未推送）。
 - 回滚：
   - live：`cp ~/.config/niri/outputs.kdl.backup.20261018_175911 ~/.config/niri/outputs.kdl`（niri 自动重载即恢复单屏仓库定义 + DMS 右侧 DP-2）。
-  - 仓库：`git checkout -- .config/linux/niri/fedora_x64/outputs.kdl tests/niri_config_test.sh .config/linux/niri/README.md memory/niri.md logs/trace.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）。
+  - 仓库：`git revert e965560`。
