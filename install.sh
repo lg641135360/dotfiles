@@ -287,6 +287,24 @@ deploy_dms_service_drop_in() {
     fi
 }
 
+deploy_dms_input_method_drop_in() {
+    local relative=".config/linux/dms/niri.service.d/10-input-method.conf"
+    local target="$HOME/.config/systemd/user/niri.service.d/10-input-method.conf"
+    local changed=1
+    if [ -f "$target" ] && cmp -s "$cur_path/$relative" "$target"; then
+        changed=0
+    fi
+    process_config "" "$relative" "~/.config/systemd/user/niri.service.d/10-input-method.conf" "DMS niri input-method drop-in" || return 1
+    if [ "$changed" -eq 1 ]; then
+        if ! systemctl --user daemon-reload; then
+            log_warn "Input-method drop-in was copied, but daemon-reload failed; run manually: systemctl --user daemon-reload"
+            log_warn "Rerunning install.sh with an unchanged drop-in will not retry the reload; after successful manual recovery, log out and log back in (do not restart niri)"
+            return 1
+        fi
+        log_info "Input-method cleanup applies on next niri login; niri was not restarted"
+    fi
+}
+
 # render_template <source> <dest> <placeholder> <value> [...]
 render_template() {
     local source="$1" dest="$2" content
@@ -861,6 +879,8 @@ main() {
                     log_warn "Failed to deploy per-machine niri outputs; continuing"
                 deploy_dms_service_drop_in ||
                     log_warn "Failed to deploy DMS service drop-in; continuing"
+                deploy_dms_input_method_drop_in ||
+                    log_warn "Failed to deploy DMS input-method drop-in; continuing"
                 if [ "$(niri_platform_key 2>/dev/null)" = "fedora_x64" ]; then
                     deploy_fedora_proxy_environment ||
                         log_warn "Failed to deploy Fedora x64 proxy environment; continuing"

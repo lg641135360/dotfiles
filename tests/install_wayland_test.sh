@@ -329,6 +329,9 @@ test_install_deploys_dms_service_gnome_identity_on_dms() {
         fail "install.sh should succeed on Ubuntu x64 with DMS"
 
     assert_contains 'XDG_CURRENT_DESKTOP=niri:GNOME' "$home_dir/.config/systemd/user/dms.service.d/override.conf"
+    drop_in=$home_dir/.config/systemd/user/niri.service.d/10-input-method.conf
+    assert_contains 'UnsetEnvironment=GTK_IM_MODULE QT_IM_MODULE' "$drop_in"
+    assert_contains 'ExecStartPre=/usr/bin/systemctl --user unset-environment GTK_IM_MODULE QT_IM_MODULE' "$drop_in"
 
     rm -rf "$tmpdir"
 }
@@ -350,6 +353,7 @@ test_install_skips_dms_service_drop_in_without_dms() {
         fail "install.sh should succeed without DMS"
 
     assert_file_not_exists "$home_dir/.config/systemd/user/dms.service.d/override.conf"
+    assert_file_not_exists "$home_dir/.config/systemd/user/niri.service.d/10-input-method.conf"
 
     rm -rf "$tmpdir"
 }
@@ -431,6 +435,61 @@ test_install_restarts_dms_only_when_drop_in_changes() {
     if [ -s "$calls" ]; then
         fail "second install with unchanged drop-in should not restart dms"
     fi
+
+    rm -rf "$tmpdir"
+}
+
+test_install_input_method_drop_in_reload_and_recovery() {
+    tmpdir=$(mktemp -d)
+    home_dir=$tmpdir/home
+    bin_dir=$tmpdir/bin
+    calls=$tmpdir/systemctl.calls
+    output=$tmpdir/output.log
+
+    mkdir -p "$home_dir" "$bin_dir"
+    prepare_install_path "$bin_dir" "install_extra_cmds"
+    printf '#!/bin/sh\nexit 0\n' >"$bin_dir/dms"
+    chmod +x "$bin_dir/dms"
+    printf '#!/bin/sh\necho "$*" >>"%s"\nexit "${TEST_SYSTEMCTL_EXIT:-0}"\n' "$calls" >"$bin_dir/systemctl"
+    chmod +x "$bin_dir/systemctl"
+
+    run_input_method_install() {
+        PATH=$bin_dir HOME=$home_dir DOTFILES_OS=Linux DOTFILES_DISTRO=ubuntu DOTFILES_ARCH=x86_64 \
+            TEST_SYSTEMCTL_EXIT=${1:-0} /bin/bash "$REPO_ROOT/install.sh" >"$output" 2>&1 ||
+            fail "install.sh should continue after a reload failure"
+    }
+
+    run_input_method_install
+    drop_in=$home_dir/.config/systemd/user/niri.service.d/10-input-method.conf
+    # Keep the DMS identity drop-in unchanged; only the input-method file differs.
+    printf '\n# stale input-method drop-in\n' >>"$drop_in"
+    : >"$calls"
+    run_input_method_install
+    IFS= read -r actual_calls <"$calls"
+    assert_equals '--user daemon-reload' "$actual_calls"
+    assert_equals 1 "$(wc -l <"$calls" | tr -d ' ')"
+    assert_contains 'Input-method cleanup applies on next niri login' "$output"
+
+    printf '\n# stale input-method drop-in\n' >>"$drop_in"
+    : >"$calls"
+    run_input_method_install 1
+    IFS= read -r actual_calls <"$calls"
+    assert_equals '--user daemon-reload' "$actual_calls"
+    assert_equals 1 "$(wc -l <"$calls" | tr -d ' ')"
+    assert_contains 'Input-method drop-in was copied, but daemon-reload failed' "$output"
+    assert_contains 'systemctl --user daemon-reload' "$output"
+    assert_contains 'Rerunning install.sh with an unchanged drop-in will not retry the reload' "$output"
+    assert_not_contains 'Input-method cleanup applies on next niri login' "$output"
+
+    # The documented recovery reloads units only; the next install stays a no-op.
+    : >"$calls"
+    PATH=$bin_dir HOME=$home_dir "$bin_dir/systemctl" --user daemon-reload ||
+        fail "manual recovery should succeed"
+    IFS= read -r actual_calls <"$calls"
+    assert_equals '--user daemon-reload' "$actual_calls"
+    : >"$calls"
+    run_input_method_install
+    [ ! -s "$calls" ] || fail "unchanged drop-ins should not reload or restart services"
 
     rm -rf "$tmpdir"
 }
@@ -725,6 +784,7 @@ test_install_skips_gnome_proxy_without_proxy_env_file
 test_install_rejects_non_numeric_proxy_port
 test_proxy_env_template_has_no_unrendered_placeholders_after_install
 test_install_restarts_dms_only_when_drop_in_changes
+test_install_input_method_drop_in_reload_and_recovery
 test_install_keeps_live_niri_config_for_unmapped_platform
 test_install_desktop_entries_are_idempotent
 test_install_preserves_unmanaged_desktop_entries

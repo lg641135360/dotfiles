@@ -139,6 +139,20 @@
 - 回滚：`git checkout -- install.sh tests/install_wayland_test.sh logs/trace.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）。
 
 
+## 2026-10-29 — 修复 DMS+niri 启动时 Fcitx5 输入法变量通知竞态
+
+- 目的：用户反馈每次全新重启进入 niri 后，DMS 都收到 Fcitx5“推荐取消设置 GTK_IM_MODULE/QT_IM_MODULE”的通知；确认不是旧进程残留。
+- 根因：`/etc/profile.d/fcitx5.sh` 在 niri-session 导入前设置两个变量；DMS 的 `app-org.fcitx.Fcitx5@autostart.service` 与 niri 的 `spawn-sh-at-startup` 并行，Fcitx5 先启动并继承变量。核对 Fcitx5 5.1.23 上游 `waylandmodule.cpp::selfDiagnose()` 后确认通知读取 Fcitx5 自身进程环境，不是 systemd 当前环境。
+- 改动（仓库，尚未同步 live）：
+  1. 新增 `.config/linux/dms/niri.service.d/10-input-method.conf`：通过 `ExecStartPre` 在 niri 启动前清理 systemd 用户环境，并以 `UnsetEnvironment` 防止 niri 进程继承 GTK/Qt 旧式变量。
+  2. `install.sh`：DMS 分支部署该 drop-in，内容变化时只执行 `systemctl --user daemon-reload`，不重启当前 niri 或 DMS；reload 失败时输出可直接执行的恢复命令，并明确说明重跑安装器不会自动重试。
+  3. `.config/linux/dms/README.md`、`niri-repo.kdl`、`memory/niri.md`：同步启动顺序、验证和回滚说明，并区分输入法 drop-in 与原有 DMS 身份 drop-in 的重启行为。
+  4. `tests/install_wayland_test.sh`：增加部署/非 DMS 不部署断言，以及仅输入法 drop-in 变更、reload 失败和手动恢复场景的回归测试。
+- 验证：`bash -n install.sh`、`sh -n tests/install_wayland_test.sh` PASS；`sh tests/install_wayland_test.sh`、`sh tests/repo_docs_test.sh`、`sh tests/niri_config_test.sh`、`sh tests/waybar_config_test.sh`、`sh tests/wayland_scripts_test.sh`、`sh tests/dms_niri_setup_test.sh` PASS；`git diff --check` PASS。测试先验证失败场景，再补实现后通过。
+- 本轮评审修复回滚锚点：已提交 `2622a07`，进入本轮时已有未提交的输入法修复；如需仅撤销本轮修复，使用 `git revert 2622a07` 会连同本条目一起回滚。后续可在用户授权后同步 live 并验证重新登录效果。
+- 未做：未同步 live，未重启 niri/DMS，未验证下一次登录后的 Fcitx5 `/proc/<pid>/environ`。
+- 已提交：`2622a07`；待推送 `origin/main`。回滚：`git revert 2622a07`。删除新增 `.config/linux/dms/niri.service.d/10-input-method.conf`，并回退 `install.sh`、`.config/linux/dms/README.md`、`.config/linux/dms/niri-repo.kdl`、`memory/niri.md`、`tests/install_wayland_test.sh` 的本轮改动。
+
 ## 2026-10-18 — Fedora 桌面双屏：DP-2 移到 AOC 正下方
 
 - 目的：DP-2（BOE 0x0B17 笔记本屏，2560x1600@240 + scale 1.5 + VRR）此前只存在于 DMS 自动生成的 `dms/outputs.kdl`（右侧 x=1920），仓库权威 `fedora_x64/outputs.kdl` 未覆盖；用户要求改为放在 AOC 正下方并保持 240Hz + 1.5 缩放。
