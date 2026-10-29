@@ -149,9 +149,9 @@
   3. `.config/linux/dms/README.md`、`niri-repo.kdl`、`memory/niri.md`：同步启动顺序、验证和回滚说明，并区分输入法 drop-in 与原有 DMS 身份 drop-in 的重启行为。
   4. `tests/install_wayland_test.sh`：增加部署/非 DMS 不部署断言，以及仅输入法 drop-in 变更、reload 失败和手动恢复场景的回归测试。
 - 验证：`bash -n install.sh`、`sh -n tests/install_wayland_test.sh` PASS；`sh tests/install_wayland_test.sh`、`sh tests/repo_docs_test.sh`、`sh tests/niri_config_test.sh`、`sh tests/waybar_config_test.sh`、`sh tests/wayland_scripts_test.sh`、`sh tests/dms_niri_setup_test.sh` PASS；`git diff --check` PASS。测试先验证失败场景，再补实现后通过。
-- 本轮评审修复回滚锚点：已提交 `2622a07`，进入本轮时已有未提交的输入法修复；如需仅撤销本轮修复，使用 `git revert 2622a07` 会连同本条目一起回滚。后续可在用户授权后同步 live 并验证重新登录效果。
+- 本轮评审修复回滚锚点：已提交 `0cad84f`，进入本轮时已有未提交的输入法修复；如需仅撤销本轮修复，使用 `git revert 0cad84f` 会连同本条目一起回滚。后续可在用户授权后同步 live 并验证重新登录效果。
 - 未做：未同步 live，未重启 niri/DMS，未验证下一次登录后的 Fcitx5 `/proc/<pid>/environ`。
-- 已提交：`2622a07`；待推送 `origin/main`。回滚：`git revert 2622a07`。删除新增 `.config/linux/dms/niri.service.d/10-input-method.conf`，并回退 `install.sh`、`.config/linux/dms/README.md`、`.config/linux/dms/niri-repo.kdl`、`memory/niri.md`、`tests/install_wayland_test.sh` 的本轮改动。
+- 已提交并推送：`0cad84f`（`origin/main`）；回滚：`git revert 0cad84f`。 `.config/linux/dms/niri.service.d/10-input-method.conf`，并回退 `install.sh`、`.config/linux/dms/README.md`、`.config/linux/dms/niri-repo.kdl`、`memory/niri.md`、`tests/install_wayland_test.sh` 的本轮改动。
 
 ## 2026-10-18 — Fedora 桌面双屏：DP-2 移到 AOC 正下方
 
