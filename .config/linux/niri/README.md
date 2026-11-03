@@ -239,7 +239,7 @@ Wayland 下钉钉会议共享只显示鼠标、画面全黑时，优先确认 Pi
 
 Qt/CEF 界面仍由 `QT_QPA_PLATFORM=xcb` 和默认 ozone=x11 跑在 XWayland，不会切换 CEF 的原生 Wayland 后端。这与会议 SDK 的原生捕获互不干扰。
 
-日常启动可直接使用 `Mod+C` 打开应用启动器并选择钉钉。系统 desktop entry 会执行官方 `/opt/apps/com.alibabainc.dingtalk/files/Elevator.sh`；该入口已经设置 `QT_QPA_PLATFORM=xcb`、钉钉运行库路径及自带 `libgbm.so`/`libcef.so` preload，实测可配合 niri portal 时序修复完成原生 Wayland/PipeWire 共享。
+日常启动可直接使用 `Mod+C` 打开应用启动器并选择钉钉。仓库通过用户级 `.config/linux/desktop-entries/com.alibabainc.dingtalk.desktop` 覆盖系统入口，以 `env GTK_IM_MODULE=fcitx /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh %u` 启动：官方 `Elevator.sh` 已设置 `QT_QPA_PLATFORM=xcb`、钉钉运行库路径及自带 `libgbm.so`/`libcef.so` preload，可配合 niri portal 时序修复完成原生 Wayland/PipeWire 共享；进程级 `GTK_IM_MODULE=fcitx` 则让钉钉内嵌 CEF 109（通过 `libgtk-3` X11 后端）加载 `im-fcitx5.so` 走 D-Bus，避免全局清除 `GTK_IM_MODULE` 后回退到 `im-xim.so`（一旦 `xwayland-satellite` 崩溃重启导致 fcitx5 丢失 `:1` X11 连接，或触发 `fcitx5#1641` XIM sync 竞争死锁，就会出现 Qt 搜索框能输中文而 CEF 聊天框/文档无法输入中文的问题），同时不会触发 fcitx5 的 Wayland 全局环境变量自检警告。
 
 `dingtalk-wayland` 只保留为排障脚本，不再启动钉钉。需要检查 ScreenCast/PipeWire 或安全清理残留进程时使用：
 

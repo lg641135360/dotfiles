@@ -25,3 +25,4 @@ desktop entry 中的 `Exec` 路径使用 `__HOME__` 占位符，由 `install.sh`
 - `obsidian.desktop` — 走 `obsidian-wayland`（`/opt/Obsidian` 安装，原生 Wayland + 禁用 Vulkan；该路径在 x86_64 是官方 deb，在 aarch64 是官方 arm64 tar.gz 解压产物，上游不发 arm64 deb）
 - `md.obsidian.Obsidian.desktop` — 同名的用户级覆盖文件，内容仅 `Hidden=true`，用于隐藏系统级 Obsidian 入口（官方安装生成，走 XWayland），避免 fuzzel 出现第二个 "Obsidian"；同 basename 用户级文件会覆盖系统级文件
 - `chatgpt.desktop` — 走 `chatgpt-wayland`（deb 版 `/usr/lib/chatgpt`，原生 Wayland；Electron 默认 X11，XWayland 下 fcitx5 走 XIM 导致 preedit 不同步）
+- `com.alibabainc.dingtalk.desktop` — 走 `env GTK_IM_MODULE=fcitx /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh %u`（钉钉保持 XWayland，其内嵌 CEF 109 通过 `libgtk-3` X11 后端创建输入法上下文；Wayland 会话全局清除 `GTK_IM_MODULE` 后 CEF 会回退到 `im-xim.so`，在 `xwayland-satellite` 重启丢 X11 连接或 `fcitx5#1641` XIM sync 死锁时导致聊天框等网页视图无法输入中文；仅对钉钉注入 `GTK_IM_MODULE=fcitx` 让 CEF 加载 `im-fcitx5.so` 走 D-Bus，与 Qt 搜索框一致，且不触发 fcitx5 的全局环境变量自检提示）

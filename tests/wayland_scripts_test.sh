@@ -25,6 +25,7 @@ OBSIDIAN_SCRIPT=$REPO_ROOT/.config/scripts/obsidian-wayland
 OBSIDIAN_DESKTOP=$REPO_ROOT/.config/linux/desktop-entries/obsidian.desktop
 CHATGPT_SCRIPT=$REPO_ROOT/.config/scripts/chatgpt-wayland
 CHATGPT_DESKTOP=$REPO_ROOT/.config/linux/desktop-entries/chatgpt.desktop
+DINGTALK_DESKTOP=$REPO_ROOT/.config/linux/desktop-entries/com.alibabainc.dingtalk.desktop
 
 test_wayland_autostart_checks_apps_and_separates_logs() {
     assert_executable "$AUTOSTART_SCRIPT"
@@ -577,6 +578,9 @@ test_dingtalk_wayland_is_troubleshooting_only() {
     assert_contains 'active_to_render_terminated' "$NIRI_README"
     assert_contains 'deviceScaleFactor' "$NIRI_README"
     assert_contains '--disable-gpu-compositing' "$NIRI_README"
+    assert_file_exists "$DINGTALK_DESKTOP"
+    assert_contains 'Exec=env GTK_IM_MODULE=fcitx /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh %u' "$DINGTALK_DESKTOP"
+    assert_contains 'im-fcitx5.so' "$NIRI_README"
 }
 
 test_browser_wayland_forces_native_wayland_ozone() {

@@ -20,6 +20,59 @@
   ```
 
 
+## 2026-11-03 — 钉钉 desktop entry 局部注入 GTK_IM_MODULE=fcitx（修复 CEF 界面无法输入中文）
+
+- 目的：解决钉钉内部分界面（Qt 搜索框正常，CEF 聊天框/内嵌文档无法唤起 fcitx5）无法输入中文的问题。
+- 根因：钉钉保持 XWayland 模式（`QT_QPA_PLATFORM=xcb` / CEF 109 `ozone=x11`），Qt 控件走自带 `libfcitx5platforminputcontextplugin.so`（D-Bus），而 CEF 109 通过系统 `libgtk-3.so.0`（GDK X11 后端）创建 `GtkIMContext`。Wayland 会话全局清除 `GTK_IM_MODULE` 后，CEF 回退加载 `im-xim.so`（XIM 协议）。当 `xwayland-satellite` 0.8.3 在 `src/server/mod.rs:1610`（`create_popup` 对父窗口 `&SurfaceRole` 直接 `.unwrap()`，上游 issue #188 Open，`main` 未修）因钉钉 tooltip panic 重启后，niri 按需重拉 `:1` 但不通知 fcitx5 重连（`Disconnected from X11 Display :1`，`XIM_SERVERS` 丢失），导致 CEF 界面完全无法输入中文；同时 `im-xim.so` 还受 `fcitx5#1641` XIM sync 死锁影响。
+- 改动（仓库，测试先行）：
+  1. 新增 `.config/linux/desktop-entries/com.alibabainc.dingtalk.desktop`：`Exec=env GTK_IM_MODULE=fcitx /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh %u`，让钉钉 CEF 加载 `im-fcitx5.so` 走 D-Bus，与 Qt 层统一，且不污染全局/systemd 环境。
+  2. `install.sh`：`linux_wayland_configs` 新增 `com.alibabainc.dingtalk.desktop` 部署项。
+  3. `tests/dingtalk_wayland_test.sh`、`tests/install_wayland_test.sh`、`tests/wayland_scripts_test.sh`：新增 desktop entry 存在性、`Exec=env GTK_IM_MODULE=fcitx ...` 及安装部署断言。
+  4. `.config/linux/desktop-entries/README.md`、`.config/linux/niri/README.md`、`memory/dingtalk.md`：同步记录双通道机制与修复方案。
+- 改动（live）：
+  - 备份：`~/.local/share/applications/com.alibabainc.dingtalk.desktop.backup.20261103_113013`（同目标共 3 份 backup，无需清理）。
+  - 同步：`.config/linux/desktop-entries/com.alibabainc.dingtalk.desktop` → `~/.local/share/applications/com.alibabainc.dingtalk.desktop`。
+  - 运行态恢复：执行 `busctl --user call org.fcitx.Fcitx5 /controller org.fcitx.Fcitx.Controller1 OpenX11Connection s ":1"`，`DISPLAY=:1 xprop -root XIM_SERVERS` 恢复为 `@server=fcitx`。
+- 验证：`bash -n install.sh`、`sh -n tests/dingtalk_wayland_test.sh`、`sh -n tests/install_wayland_test.sh`、`sh -n tests/wayland_scripts_test.sh` OK；`sh tests/dingtalk_wayland_test.sh`、`sh tests/install_wayland_test.sh`、`sh tests/wayland_scripts_test.sh`、`sh tests/niri_config_test.sh`、`sh tests/repo_docs_test.sh` PASS；`git diff --check` OK。
+- 运行态验证：调用 `OpenX11Connection(":1")` 后，GTK3 的 `im-xim.so` 通过 `XRegisterIMInstantiateCallback` 自动感知 `XIM_SERVERS` 重建了 `Group [x11::1]` 的 `frontend:xim` IC，用户确认无需重启钉钉已立即恢复中文输入；下次通过 `Mod+C` 重启钉钉后 CEF 将切换为加载 `im-fcitx5.so`（D-Bus）。
+- 回滚信息：未提交（基线 commit `798f7a0`）。live 恢复命令（可直接复制执行）：
+  ```bash
+  cp ~/.local/share/applications/com.alibabainc.dingtalk.desktop.backup.20261103_113013 ~/.local/share/applications/com.alibabainc.dingtalk.desktop
+  ```
+  仓库回滚：`rm -f .config/linux/desktop-entries/com.alibabainc.dingtalk.desktop && git checkout -- install.sh .config/linux/desktop-entries/README.md .config/linux/niri/README.md memory/dingtalk.md tests/dingtalk_wayland_test.sh tests/install_wayland_test.sh tests/wayland_scripts_test.sh logs/trace.md`。
+
+
+## 2026-10-29 — 修复 DMS+niri 启动时 Fcitx5 输入法变量通知竞态
+
+- 目的：用户反馈每次全新重启进入 niri 后，DMS 都收到 Fcitx5“推荐取消设置 GTK_IM_MODULE/QT_IM_MODULE”的通知；确认不是旧进程残留。
+- 根因：`/etc/profile.d/fcitx5.sh` 在 niri-session 导入前设置两个变量；DMS 的 `app-org.fcitx.Fcitx5@autostart.service` 与 niri 的 `spawn-sh-at-startup` 并行，Fcitx5 先启动并继承变量。核对 Fcitx5 5.1.23 上游 `waylandmodule.cpp::selfDiagnose()` 后确认通知读取 Fcitx5 自身进程环境，不是 systemd 当前环境。
+- 改动（仓库，尚未同步 live）：
+  1. 新增 `.config/linux/dms/niri.service.d/10-input-method.conf`：通过 `ExecStartPre` 在 niri 启动前清理 systemd 用户环境，并以 `UnsetEnvironment` 防止 niri 进程继承 GTK/Qt 旧式变量。
+  2. `install.sh`：DMS 分支部署该 drop-in，内容变化时只执行 `systemctl --user daemon-reload`，不重启当前 niri 或 DMS；reload 失败时输出可直接执行的恢复命令，并明确说明重跑安装器不会自动重试。
+  3. `.config/linux/dms/README.md`、`niri-repo.kdl`、`memory/niri.md`：同步启动顺序、验证和回滚说明，并区分输入法 drop-in 与原有 DMS 身份 drop-in 的重启行为。
+  4. `tests/install_wayland_test.sh`：增加部署/非 DMS 不部署断言，以及仅输入法 drop-in 变更、reload 失败和手动恢复场景的回归测试。
+- 验证：`bash -n install.sh`、`sh -n tests/install_wayland_test.sh` PASS；`sh tests/install_wayland_test.sh`、`sh tests/repo_docs_test.sh`、`sh tests/niri_config_test.sh`、`sh tests/waybar_config_test.sh`、`sh tests/wayland_scripts_test.sh`、`sh tests/dms_niri_setup_test.sh` PASS；`git diff --check` PASS。测试先验证失败场景，再补实现后通过。
+- 本轮评审修复回滚锚点：已提交 `0cad84f`，进入本轮时已有未提交的输入法修复；如需仅撤销本轮修复，使用 `git revert 0cad84f` 会连同本条目一起回滚。后续可在用户授权后同步 live 并验证重新登录效果。
+- 未做：未同步 live，未重启 niri/DMS，未验证下一次登录后的 Fcitx5 `/proc/<pid>/environ`。
+- 已提交并推送：`0cad84f`（`origin/main`）；回滚：`git revert 0cad84f`。 `.config/linux/dms/niri.service.d/10-input-method.conf`，并回退 `install.sh`、`.config/linux/dms/README.md`、`.config/linux/dms/niri-repo.kdl`、`memory/niri.md`、`tests/install_wayland_test.sh` 的本轮改动。
+
+
+## 2026-10-18 — Fedora 桌面双屏：DP-2 移到 AOC 正下方
+
+- 目的：DP-2（BOE 0x0B17 笔记本屏，2560x1600@240 + scale 1.5 + VRR）此前只存在于 DMS 自动生成的 `dms/outputs.kdl`（右侧 x=1920），仓库权威 `fedora_x64/outputs.kdl` 未覆盖；用户要求改为放在 AOC 正下方并保持 240Hz + 1.5 缩放。
+- 改动（仓库）：
+  1. `.config/linux/niri/fedora_x64/outputs.kdl`：新增 `output "DP-2"`，`mode "2560x1600@240.000"`、`scale 1.5`、`position x=107 y=1080`（AOC 逻辑 1920 宽，BOE 逻辑 1706 宽，居中偏移 (1920-1706)/2=107，y 取 AOC 逻辑高 1080）、`variable-refresh-rate`；头部注释同步为双屏说明。仓库文件 include 在所有 `dms/*.kdl` 之前，first-match 覆盖 DMS 片段中的 DP-2。
+  2. `tests/niri_config_test.sh`：`test_fedora_x64_outputs_match_this_pc_only` 增加 DP-2 的 mode/scale/position/VRR 断言。
+  3. `.config/linux/niri/README.md`、`memory/niri.md`：Fedora 行从「单屏 DP-3」更新为双屏上下布局。
+- 改动（live）：`~/.config/niri/outputs.kdl` 覆盖为仓库版本（备份见下）；niri 26.04 监视配置自动重载，未手动 reload。
+- 验证：`niri validate -c ~/.config/niri/config.kdl` 通过；`niri msg outputs` 确认 DP-2 `Logical position: 107, 1080`、`2560x1600@240.000`、scale 1.5、VRR enabled，DP-3 保持 `0,0` scale 2；`tests/niri_config_test.sh`、`tests/install_wayland_test.sh`、`tests/dms_niri_setup_test.sh` PASS；`git diff --check` OK。
+- 未验证：长时间使用下的鼠标跨屏手感；若想左对齐而非居中，把 DP-2 的 x 改为 0 即可。
+- 提交：已提交 `e965560`（main，未推送）。
+- 回滚：
+  - live：`cp ~/.config/niri/outputs.kdl.backup.20261018_175911 ~/.config/niri/outputs.kdl`（niri 自动重载即恢复单屏仓库定义 + DMS 右侧 DP-2）。
+  - 仓库：`git revert e965560`。
+
+
 ## 2026-10-17 — zsh 配置优化：brew 补全进 fpath、syntax-highlighting 延迟加载、死代码清理
 
 - 目的：把"分析 zsh 配置"结论落地（用户选"1/2/4/5/8 全做 + live 残留清理"）。
@@ -72,98 +125,3 @@
   ls -1t ~/.tmux.conf.backup.* 2>/dev/null   # 按 install.sh 惯例保留最近 3 份，更早的手动删除
   ```
 - 后续：同步 live 后需新开窗口才会写新的外层标题（已 attach 的客户端下一次重绘即生效）；`logs/trace-archive/2026-08.md` 中旧记录（⑦ `session · window`）为历史存档，按惯例不改写。
-
-
-## 2026-10-15 — 同时清除 systemd 用户环境中的 QT_IM_MODULE（fcitx5 提示复发）
-
-- 目的：消除 fcitx5 5.1.23 弹出的"检测到设置了 GTK_IM_MODULE 和 QT_IM_MODULE … 推荐不设置"提示（用户描述为"只设一个变量就行"——即 Wayland 下只留 `XMODIFIERS`，GTK/Qt 走 text-input-v3）。
-- 根因：与 2026-10-11 那次同源。`/etc/profile.d/fcitx5.sh`（Fedora `fcitx5-autostart` 包）在登录时 export 全部 4 个变量（`INPUT_METHOD`/`GTK_IM_MODULE`/`QT_IM_MODULE`/`XMODIFIERS`），niri-session 的 `import-environment` 把它们带入 systemd 用户会话。上一轮只清了 `GTK_IM_MODULE`，`QT_IM_MODULE=fcitx` 残留，触发本轮提示。
-- 改动（仓库，测试先红后绿）：
-  1. `.config/linux/dms/niri-repo.kdl`：`spawn-sh-at-startup` 的 `unset-environment` 扩展为 `GTK_IM_MODULE QT_IM_MODULE`（一行两变量）。
-  2. `.config/scripts/wayland-autostart`：`unset GTK_IM_MODULE QT_IM_MODULE`；`systemctl --user unset-environment GTK_IM_MODULE QT_IM_MODULE`；注释同步说明。
-  3. `tests/niri_config_test.sh`：原 `test_dms_fragment_unsets_gtk_im_module_from_systemd_env` 改名 `test_dms_fragment_unsets_im_modules_from_systemd_env`，断言一行两变量。
-  4. `tests/wayland_scripts_test.sh`：断言 `unset GTK_IM_MODULE QT_IM_MODULE` 与 `unset-environment GTK_IM_MODULE QT_IM_MODULE` 两条。
-  5. `memory/niri.md`："Wayland 输入法变量"条目更新为"GTK/Qt 都走 text-input-v3，只留 XMODIFIERS 给 XWayland/XIM"。
-- 未改动：`.config/linux/x11/xsessionrc` 与 `rofi-launch` 中的 `GTK_IM_MODULE=fcitx` / `QT_IM_MODULE=fcitx`——X11/Awesome 会话仍需要这些变量，fcitx5 的提示只针对 Wayland。
-- 改动（live）：
-  - 备份：`~/.config/niri/niri-repo.kdl.backup.20261015_092243`、`~/.config/scripts/wayland-autostart.backup.20261015_092243`。
-  - 仓库版本覆盖 live；`chmod +x wayland-autostart`；`niri validate -c ~/.config/niri/config.kdl` OK。
-  - 当前会话执行 `systemctl --user unset-environment QT_IM_MODULE GTK_IM_MODULE`；`systemctl --user show-environment` 仅剩 `INPUT_METHOD=fcitx` 与 `XMODIFIERS=@im=fcitx`。
-  - 老备份按保留 3 份清理：删除 `niri-repo.kdl.backup.20261011_084554` 与 `niri-repo.kdl.backup.20261011_082826`。
-- 验证：`sh -n .config/scripts/wayland-autostart` OK；`niri validate -c .config/linux/dms/niri-repo.kdl` OK；`sh tests/niri_config_test.sh` PASS；`sh tests/wayland_scripts_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`git diff --check` OK。
-- 运行态验证（同日 09:30 补做）：`fcitx5 -d --replace` 重启（旧 PID 4418 → 新 PID 98964），`fcitx5-remote -n` 返回 `keyboard-us`；`waylandim` addon 加载，`Using Wayland native input method protocol: 1`；`dbus-monitor` 抓 12 秒桌面通知共 0 条，**Wayland 提示未再弹**。顺带实证：fcitx5 的提示判定**只读 systemd 用户环境、不读自身进程 env**——新 fcitx5 进程因从 Trae 终端 fork 仍带着 `GTK_IM_MODULE=fcitx QT_IM_MODULE=fcitx`（self diagnose 已打印），但只要 systemd 用户环境干净就不发提示。
-- 未提交。
-- 回滚：
-  ```bash
-  cp ~/.config/niri/niri-repo.kdl.backup.20261015_092243 ~/.config/niri/niri-repo.kdl
-  cp ~/.config/scripts/wayland-autostart.backup.20261015_092243 ~/.config/scripts/wayland-autostart
-  chmod +x ~/.config/scripts/wayland-autostart
-  niri validate -c ~/.config/niri/config.kdl
-  ```
-  仓库：`git checkout -- .config/linux/dms/niri-repo.kdl .config/scripts/wayland-autostart tests/niri_config_test.sh tests/wayland_scripts_test.sh memory/niri.md logs/trace.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）。
-- 后续：下次登录 niri 时 `niri-repo.kdl` 的 `spawn-sh-at-startup` 会再次从 systemd 用户环境清掉两个变量（`/etc/profile.d/fcitx5.sh` 每次登录都会重新注入），提示不应复发。若复发，排查路径见 `memory/niri.md` 排障入口"fcitx/GTK"。
-
-
-## 2026-10-11 — install.sh 配套 GNOME 代理设置（gsettings）
-
-- 目的：`environment.d` 只覆盖终端与命令行，GNOME 原生应用与 Chrome 依赖 gsettings 中的系统代理；此前这部分只存在于 live 手动设置，未入库。
-- 改动（仓库）：
-  1. `install.sh`：新增 `apply_gnome_proxy_settings`，在 `deploy_fedora_proxy_environment` 中调用，写入 `mode manual`、`http`/`https` 的 host 与 port、`ignore-hosts`。使用与 `proxy_env` 相同的 `PROXY_HOST`/`PROXY_PORT`。`gsettings` 缺失或写入失败只警告。
-  2. `tests/install_wayland_test.sh`：新增 `test_install_applies_gnome_proxy_settings_from_proxy_env`（假 gsettings 记录调用，断言 6 条设置）与 `test_install_skips_gnome_proxy_without_proxy_env_file`。
-  3. `.config/linux/dms/README.md`：补充 gsettings 写入的说明。
-- 改动（live）：无。live 中 gsettings 已是 `manual`、`<PROXY_HOST>:7890`，与 `proxy_env` 一致；本轮不重新写入。
-- 验证：`bash tests/install_wayland_test.sh` PASS；`tests/niri_config_test.sh` PASS；`tests/dms_niri_setup_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`git diff --check` OK。
-- 未验证：未在真机运行 `install.sh` 写入 gsettings（沙箱使用假 gsettings）。
-- 未提交。
-- 回滚：`git checkout -- install.sh tests/install_wayland_test.sh .config/linux/dms/README.md logs/trace.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）；live gsettings 回滚为 `gsettings set org.gnome.system.proxy mode 'none'`（如需）。
-
-
-## 2026-10-11 — install.sh 优化（高/中/低优先级）
-
-- 目的：按《install.sh 处理逻辑梳理》中的建议优化 DMS 分支与代理部署，提高可读性并补齐校验。
-- 改动（仓库，`install.sh`）：
-  1. 高：新增 `deploy_dms_service_drop_in`，用 `cmp -s` 判断内容是否变化，变化才 `daemon-reload` 与 `restart dms`；替代原来的 `$(< file)` 比较。
-  2. 高：drop-in 逻辑从 `main()` 抽出为函数。
-  3. 中：新增 `render_template`，`deploy_fedora_proxy_environment` 复用它做占位符替换。
-  4. 中：`PROXY_PORT`、`SOCKS_PORT` 必须为数字，否则警告并跳过。
-  5. 低：`log_warn` 计数，结尾汇总 `Installation completed with N warning(s)`。
-  6. 第 4 条（备份清理）经检查 `clean_old_backups` 按目标文件名统计，`environment.d` 的备份已覆盖，无需改代码。
-- 改动（测试，`tests/install_wayland_test.sh`）：
-  - 新增 `test_install_rejects_non_numeric_proxy_port`、`test_proxy_env_template_has_no_unrendered_placeholders_after_install`、`test_install_summarizes_warnings_at_end`。
-  - drop-in 测试的沙箱额外链接 `cmp`（`install_extra_cmds`）。
-  - 验证“强制判定为变化”时 `test_install_restarts_dms_only_when_drop_in_changes` 会失败，恢复后通过。
-- 改动（live）：无。
-- 验证：`bash tests/install_wayland_test.sh` PASS；`tests/niri_config_test.sh`（bash 与 sh）PASS；`tests/dms_niri_setup_test.sh` PASS；`tests/zsh_path_test.sh` PASS；`./tests/run.sh fast` PASS=52 FAIL=0 SKIP=1；`bash -n install.sh` 通过；`git diff --check` OK；沙箱完整运行 `install.sh` 退出码 0。
-- 未验证：shellcheck 未安装，未做静态检查；未在真机运行 `install.sh`。
-- 未提交。
-- 回滚：`git checkout -- install.sh tests/install_wayland_test.sh logs/trace.md`（会丢失这些文件中本轮之前的未提交改动，请先确认）。
-
-
-## 2026-10-29 — 修复 DMS+niri 启动时 Fcitx5 输入法变量通知竞态
-
-- 目的：用户反馈每次全新重启进入 niri 后，DMS 都收到 Fcitx5“推荐取消设置 GTK_IM_MODULE/QT_IM_MODULE”的通知；确认不是旧进程残留。
-- 根因：`/etc/profile.d/fcitx5.sh` 在 niri-session 导入前设置两个变量；DMS 的 `app-org.fcitx.Fcitx5@autostart.service` 与 niri 的 `spawn-sh-at-startup` 并行，Fcitx5 先启动并继承变量。核对 Fcitx5 5.1.23 上游 `waylandmodule.cpp::selfDiagnose()` 后确认通知读取 Fcitx5 自身进程环境，不是 systemd 当前环境。
-- 改动（仓库，尚未同步 live）：
-  1. 新增 `.config/linux/dms/niri.service.d/10-input-method.conf`：通过 `ExecStartPre` 在 niri 启动前清理 systemd 用户环境，并以 `UnsetEnvironment` 防止 niri 进程继承 GTK/Qt 旧式变量。
-  2. `install.sh`：DMS 分支部署该 drop-in，内容变化时只执行 `systemctl --user daemon-reload`，不重启当前 niri 或 DMS；reload 失败时输出可直接执行的恢复命令，并明确说明重跑安装器不会自动重试。
-  3. `.config/linux/dms/README.md`、`niri-repo.kdl`、`memory/niri.md`：同步启动顺序、验证和回滚说明，并区分输入法 drop-in 与原有 DMS 身份 drop-in 的重启行为。
-  4. `tests/install_wayland_test.sh`：增加部署/非 DMS 不部署断言，以及仅输入法 drop-in 变更、reload 失败和手动恢复场景的回归测试。
-- 验证：`bash -n install.sh`、`sh -n tests/install_wayland_test.sh` PASS；`sh tests/install_wayland_test.sh`、`sh tests/repo_docs_test.sh`、`sh tests/niri_config_test.sh`、`sh tests/waybar_config_test.sh`、`sh tests/wayland_scripts_test.sh`、`sh tests/dms_niri_setup_test.sh` PASS；`git diff --check` PASS。测试先验证失败场景，再补实现后通过。
-- 本轮评审修复回滚锚点：已提交 `0cad84f`，进入本轮时已有未提交的输入法修复；如需仅撤销本轮修复，使用 `git revert 0cad84f` 会连同本条目一起回滚。后续可在用户授权后同步 live 并验证重新登录效果。
-- 未做：未同步 live，未重启 niri/DMS，未验证下一次登录后的 Fcitx5 `/proc/<pid>/environ`。
-- 已提交并推送：`0cad84f`（`origin/main`）；回滚：`git revert 0cad84f`。 `.config/linux/dms/niri.service.d/10-input-method.conf`，并回退 `install.sh`、`.config/linux/dms/README.md`、`.config/linux/dms/niri-repo.kdl`、`memory/niri.md`、`tests/install_wayland_test.sh` 的本轮改动。
-
-## 2026-10-18 — Fedora 桌面双屏：DP-2 移到 AOC 正下方
-
-- 目的：DP-2（BOE 0x0B17 笔记本屏，2560x1600@240 + scale 1.5 + VRR）此前只存在于 DMS 自动生成的 `dms/outputs.kdl`（右侧 x=1920），仓库权威 `fedora_x64/outputs.kdl` 未覆盖；用户要求改为放在 AOC 正下方并保持 240Hz + 1.5 缩放。
-- 改动（仓库）：
-  1. `.config/linux/niri/fedora_x64/outputs.kdl`：新增 `output "DP-2"`，`mode "2560x1600@240.000"`、`scale 1.5`、`position x=107 y=1080`（AOC 逻辑 1920 宽，BOE 逻辑 1706 宽，居中偏移 (1920-1706)/2=107，y 取 AOC 逻辑高 1080）、`variable-refresh-rate`；头部注释同步为双屏说明。仓库文件 include 在所有 `dms/*.kdl` 之前，first-match 覆盖 DMS 片段中的 DP-2。
-  2. `tests/niri_config_test.sh`：`test_fedora_x64_outputs_match_this_pc_only` 增加 DP-2 的 mode/scale/position/VRR 断言。
-  3. `.config/linux/niri/README.md`、`memory/niri.md`：Fedora 行从「单屏 DP-3」更新为双屏上下布局。
-- 改动（live）：`~/.config/niri/outputs.kdl` 覆盖为仓库版本（备份见下）；niri 26.04 监视配置自动重载，未手动 reload。
-- 验证：`niri validate -c ~/.config/niri/config.kdl` 通过；`niri msg outputs` 确认 DP-2 `Logical position: 107, 1080`、`2560x1600@240.000`、scale 1.5、VRR enabled，DP-3 保持 `0,0` scale 2；`tests/niri_config_test.sh`、`tests/install_wayland_test.sh`、`tests/dms_niri_setup_test.sh` PASS；`git diff --check` OK。
-- 未验证：长时间使用下的鼠标跨屏手感；若想左对齐而非居中，把 DP-2 的 x 改为 0 即可。
-- 提交：已提交 `e965560`（main，未推送）。
-- 回滚：
-  - live：`cp ~/.config/niri/outputs.kdl.backup.20261018_175911 ~/.config/niri/outputs.kdl`（niri 自动重载即恢复单屏仓库定义 + DMS 右侧 DP-2）。
-  - 仓库：`git revert e965560`。

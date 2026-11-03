@@ -1,7 +1,7 @@
 # 钉钉 Wayland 屏幕共享
 
 ## 启动入口
-- 日常通过 `Mod+C` 选择钉钉，使用系统 desktop entry 的官方 `Elevator.sh`；该路径已验证无需仓库启动脚本
+- 日常通过 `Mod+C` 选择钉钉，由用户级 desktop entry（`.config/linux/desktop-entries/com.alibabainc.dingtalk.desktop`）以 `env GTK_IM_MODULE=fcitx /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh %u` 调用官方 `Elevator.sh`；无需仓库启动脚本
 - `~/.config/scripts/dingtalk-wayland` 只做排障：`status` 检查会话 / PipeWire / ScreenCast portal / 钉钉进程，`stop|kill` 精确清理当前用户的钉钉/tblive。不再启动钉钉
 - **aarch64 + 8.1.1 已实测通过**：保留真实 Wayland 会话环境后，会议 SDK 可以直接使用原生 Wayland/PipeWire 捕获；Qt/CEF 界面仍以 `QT_QPA_PLATFORM=xcb` / ozone=x11 运行在 XWayland
 - **x86_64 + 8.2.8.260904001 已实测通过**：`libmeeting_sdk.so` 已编入 WebRTC Wayland/PipeWire capturer（`base_capturer_pipewire.cc` / `screencast_portal.cc`，运行时 `dlopen libpipewire-0.3.so.0`），保留 `XDG_SESSION_TYPE=wayland` 即可弹出系统选屏框并正常共享。旧版 `8.1.0` / `8.2.8.260818002` 只编译了 X11 capturer，那才需要 hook；当前仓库已删除 `tools/dingtalk-wayland-screenshare`
@@ -14,13 +14,15 @@
 - 根因：旧包 `libconference_new.so` ELF `GNU_STACK` 标记为 **RWE**；内核 `7.0.0-30-generic` 拒绝为共享库启用可执行栈 → dlopen 失败
 - `8.2.8.260904001` 官方已修：关键库 `GNU_STACK` 为 **RW**，并附带 `clear_execstack.sh`。新包无需再手工打补丁
 
-## 输入法随机失效（fcitx5#1641，XIM sync 死锁）
-- 症状：钉钉运行一段时间后随机"键盘失灵"——聊天框（CEF）所有按键（含纯英文）被吞、候选框不再弹出，重启钉钉才恢复；Qt 层（搜索框等，走自带 fcitx5 DBus 插件）不受影响。
-- 归属：社区同款 issue fcitx5#1641（2026-08-12，Open）：xcb-imdkit 1.0.6 XIM sync mode 下，`XIM_DESTROY_IC` 与在途 `XIM_SYNC_REPLY` 微秒级竞争（实测仅差 134µs）→ `_xcb_im_handle_sync_reply` 找不到 IC 提前退出 → `client->sync` 永不复位、后续按键全部入队不派发。钉钉 CEF 109 走 XWayland/XIM（`XMODIFIERS=@im=fcitx`），正好命中；本地 fcitx5 5.1.7（apt）早于且不包含修复，上游 xcb-imdkit 修复尚未合并。
-- 临时缓解：失效时重启 fcitx5（死锁状态在 fcitx5 进程内，重启即清零，影响面比重启钉钉小）。
-- Workaround（issue 作者实测）：fcitx5 XIM 前端关 sync mode（`xim.cpp:163` `xcb_im_set_use_sync_mode` 改 `false` 重编译）；apt 包本地替换后升级会被覆盖，维护成本高，未采用。
-- 实锤手段（下次失效时）：`fcitx5 -d --replace --verbose xim=4` 后观察日志是否出现"连续 `FORWARD_EVENT` 无处理行"特征。
-- 后续：等 xcb-imdkit 上游修复合并随发行版更新；届时验证钉钉不再随机失效即可关闭本条。
+## CEF 网页界面无法输入中文 / 输入法随机失效（已通过进程级 `GTK_IM_MODULE=fcitx` 走 D-Bus 根治）
+- 架构分流（2026-11-03 实测定位）：钉钉主进程混合了 **Qt5 原生组件**（顶部搜索框等，加载自带 `platforminputcontexts/libfcitx5platforminputcontextplugin.so` 走 D-Bus）与 **CEF 109 网页视图**（聊天输入框、内嵌文档等，X11 下通过系统 `libgtk-3.so.0` 的 `ui/gtk/input_method_context_impl_gtk.cc` 创建 `GtkIMContext`）。
+- 根因：Wayland 会话全局清除了 `GTK_IM_MODULE`（且 `gsettings` `gtk-im-module` 为空），导致运行在 XWayland（GDK X11 后端）下的 CEF 无法加载 `im-fcitx5.so`，按 `zh_CN` locale 回退加载了 `/usr/lib/x86_64-linux-gnu/gtk-3.0/3.0.0/immodules/im-xim.so`（XIM 协议）。走 `im-xim.so` 有两个严重缺陷：
+  1. **`xwayland-satellite` 崩溃重启后 XIM 永久断连**：`xwayland-satellite` 0.8.3（及最新 `main`）在 `src/server/mod.rs:1610`（`create_popup` 对父窗口 `&SurfaceRole` 直接 `.unwrap()`，上游 issue #188 Open）遇到钉钉会议关闭时的 tooltip 弹窗会 panic 退出（exit 101）；niri 随后按需重拉新的 `xwayland-satellite :1`，但不会通知已运行的 fcitx5 重连 `:1`（fcitx5 日志 `Disconnected from X11 Display :1` 后无 X11 连接，`DISPLAY=:1 xprop -root XIM_SERVERS` 为空），导致之后启动的钉钉 CEF 界面完全无法输入中文，而走 D-Bus 的 Qt 搜索框仍正常。
+  2. **fcitx5#1641 XIM sync 竞争死锁**：`XIM_DESTROY_IC` 与在途 `XIM_SYNC_REPLY` 微秒级竞争会导致 `client->sync` 永不复位，聊天框所有按键被吞。
+- **修复（2026-11-03 落地）**：新增用户级 `.config/linux/desktop-entries/com.alibabainc.dingtalk.desktop`，以 `Exec=env GTK_IM_MODULE=fcitx /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh %u` 启动钉钉。
+  - CEF 的 `libgtk-3` 改加载系统 `fcitx5-frontend-gtk3` 的 `im-fcitx5.so`（链接 `libFcitx5GClient.so.2`），与 Qt 层一样**全链路走 D-Bus（`org.fcitx.Fcitx5`）**，彻底脱离 X11/XIM，不受 `xwayland-satellite` 重启或 XIM sync 死锁影响。
+  - `GTK_IM_MODULE=fcitx` 仅限于钉钉进程环境，不污染 systemd 用户环境或 fcitx5 自身进程环境，不会触发 fcitx5 的 Wayland 自检警告。
+- 若其它纯 XIM 应用因 `xwayland-satellite` 重启丢失连接，可免重启恢复 fcitx5 的 X11 连接：`busctl --user call org.fcitx.Fcitx5 /controller org.fcitx.Fcitx.Controller1 OpenX11Connection s ":1"`。
 
 ## @ 候选框出现后立即消失（已修复：弹窗不抢焦点，2026-08-29 定案；DMS 机器见 2026-09-28 条目）
 - 症状：钉钉聊天输入 `@` 后成员候选框出现即消失；鼠标悬停在候选框上/完全不动鼠标都一样，与鼠标无关。曾怀疑 niri `focus-follows-mouse`，禁用后问题依旧（无关）。

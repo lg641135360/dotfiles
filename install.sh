@@ -624,6 +624,7 @@ linux_wayland_configs=(
     "|.config/linux/desktop-entries/obsidian.desktop|~/.local/share/applications/obsidian.desktop|Obsidian Wayland desktop entry"
     "|.config/linux/desktop-entries/md.obsidian.Obsidian.desktop|~/.local/share/applications/md.obsidian.Obsidian.desktop|Hide system Obsidian desktop entry"
     "|.config/linux/desktop-entries/chatgpt.desktop|~/.local/share/applications/chatgpt.desktop|ChatGPT Wayland desktop entry"
+    "|.config/linux/desktop-entries/com.alibabainc.dingtalk.desktop|~/.local/share/applications/com.alibabainc.dingtalk.desktop|DingTalk Wayland desktop entry"
     "|.config/scripts/dms-niri-setup|~/.config/scripts/dms-niri-setup|DMS niri setup script"
     "|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script"
     "|.config/scripts/wallpaper-wayland-next|~/.config/scripts/wallpaper-wayland-next|Wayland wallpaper switcher"

@@ -1,0 +1,18 @@
+[Desktop Entry]
+Categories=Chat;Office;
+Comment=
+# DingTalk stays on XWayland (QT_QPA_PLATFORM=xcb / CEF 109 ozone=x11).
+# Under Wayland sessions GTK_IM_MODULE is unset globally so native Wayland GTK
+# apps use text-input-v3, which causes DingTalk's embedded CEF (via libgtk-3 X11
+# backend) to fall back to im-xim.so. Scoping GTK_IM_MODULE=fcitx to DingTalk
+# makes CEF load im-fcitx5.so (D-Bus) just like its Qt widgets, avoiding XIM
+# disconnects on xwayland-satellite restarts and the fcitx5#1641 XIM sync hang
+# without triggering fcitx5's Wayland environment self-diagnose warning.
+Exec=env GTK_IM_MODULE=fcitx /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh %u
+GenericName=dingtalk
+Icon=/opt/apps/com.alibabainc.dingtalk/files/logo.ico
+Keywords=dingtalk;
+MimeType=x-scheme-handler/dingtalk;
+Name=钉钉
+Type=Application
+X-Deepin-Vendor=user-custom

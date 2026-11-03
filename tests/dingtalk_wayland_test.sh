@@ -5,6 +5,7 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$REPO_ROOT/tests/lib/assert.sh"
 
 SCRIPT=$REPO_ROOT/.config/scripts/dingtalk-wayland
+DESKTOP_ENTRY=$REPO_ROOT/.config/linux/desktop-entries/com.alibabainc.dingtalk.desktop
 HOOK_SOURCE=$REPO_ROOT/tools/dingtalk-wayland-screenshare
 
 test_hook_source_removed() {
@@ -57,9 +58,18 @@ test_status_checks_portal_without_managing_services() {
     assert_not_contains 'systemctl --user restart' "$SCRIPT"
 }
 
+test_desktop_entry_sets_gtk_im_module_for_cef_dbus_ime() {
+    assert_file_exists "$DESKTOP_ENTRY"
+    assert_contains 'Exec=env GTK_IM_MODULE=fcitx /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh %u' "$DESKTOP_ENTRY"
+    assert_not_contains '--ozone-platform=wayland' "$DESKTOP_ENTRY"
+    assert_not_contains '--enable-wayland-ime' "$DESKTOP_ENTRY"
+    assert_not_contains 'dingtalk-wayland' "$DESKTOP_ENTRY"
+}
+
 test_hook_source_removed
 test_script_is_troubleshooting_only
 test_stop_cleans_dingtalk_and_tblive_processes
 test_status_checks_portal_without_managing_services
+test_desktop_entry_sets_gtk_im_module_for_cef_dbus_ime
 
 printf 'PASS: dingtalk wayland tests\n'

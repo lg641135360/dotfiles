@@ -34,6 +34,7 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/linux/desktop-entries/obsidian.desktop|~/.local/share/applications/obsidian.desktop|Obsidian Wayland desktop entry' "$INSTALL_FILE"
     assert_contains '|.config/linux/desktop-entries/md.obsidian.Obsidian.desktop|~/.local/share/applications/md.obsidian.Obsidian.desktop|Hide system Obsidian desktop entry' "$INSTALL_FILE"
     assert_contains '|.config/linux/desktop-entries/chatgpt.desktop|~/.local/share/applications/chatgpt.desktop|ChatGPT Wayland desktop entry' "$INSTALL_FILE"
+    assert_contains '|.config/linux/desktop-entries/com.alibabainc.dingtalk.desktop|~/.local/share/applications/com.alibabainc.dingtalk.desktop|DingTalk Wayland desktop entry' "$INSTALL_FILE"
     # install.sh substitutes the __HOME__ placeholder in desktop entries with $HOME at deploy time.
     assert_contains '//__HOME__/$HOME' "$INSTALL_FILE"
     assert_contains '|.config/scripts/wallpaper-wayland|~/.config/scripts/wallpaper-wayland|Wayland wallpaper script' "$INSTALL_FILE"
@@ -136,6 +137,8 @@ test_install_copies_ubuntu_x64_niri_config() {
     assert_file_exists "$home_dir/.local/share/applications/google-chrome.desktop"
     assert_contains "Exec=$home_dir/.config/scripts/browser-wayland %U" "$home_dir/.local/share/applications/google-chrome.desktop"
     assert_not_contains '__HOME__' "$home_dir/.local/share/applications/google-chrome.desktop"
+    assert_file_exists "$home_dir/.local/share/applications/com.alibabainc.dingtalk.desktop"
+    assert_contains 'Exec=env GTK_IM_MODULE=fcitx /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh %u' "$home_dir/.local/share/applications/com.alibabainc.dingtalk.desktop"
 
     # XDG autostart overrides are deployed with Hidden=true.
     for autostart_override in \
