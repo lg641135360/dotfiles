@@ -867,8 +867,8 @@ main() {
             process_configs linux_wayland_configs
 
             # DMS (DankMaterialShell) owns the niri config and the shell stack:
-            # the repo only deploys its own fragment (wayland-autostart plus the
-            # restored muscle-memory binds) and then wires it into the
+            # the repo only deploys its own fragment (muscle-memory binds plus
+            # the DMS cheatsheet binding) and then wires it into the
             # DMS-managed config.kdl. dms-niri-setup is idempotent, backs up
             # config.kdl before edits and no-ops on non-DMS machines.
             if uses_dms_shell; then

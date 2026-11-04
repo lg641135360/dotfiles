@@ -83,6 +83,8 @@ own_include='include "niri-repo.kdl"'
 own_comment='// dotfiles 仓库片段（必须排在 dms/*.kdl 之后）'
 outputs_include='include "outputs.kdl"'
 outputs_comment='// 本机屏幕（仓库按机器分开，不进 dms/outputs.kdl）'
+binds_next_include='include "dms/binds-next.kdl"'
+binds_include='include "dms/binds.kdl"'
 settings_manifest=${DMS_SETTINGS_FILE:-$HOME/.config/dms/settings.txt}
 
 drift=0
@@ -264,6 +266,20 @@ if [ -f "$outputs" ]; then
     [ "$outputs_needs_rewrite" -eq 1 ] && drift=1
 fi
 
+# 2c) DMS 2.1 要求 binds-next.kdl 在用户 binds.kdl 之前，
+#     以便用户键位覆盖版本相关的默认键位。
+binds_order_needs_rewrite=0
+binds_next_line=$(grep -nF -- "$binds_next_include" "$config" | head -n 1 || true)
+binds_next_line=${binds_next_line%%:*}
+binds_line=$(grep -nF -- "$binds_include" "$config" | head -n 1 || true)
+binds_line=${binds_line%%:*}
+if [ -f "$dms_dir/binds-next.kdl" ] && [ -f "$dms_dir/binds.kdl" ] &&
+    [ -n "$binds_next_line" ] && [ -n "$binds_line" ] &&
+    [ "$binds_next_line" -gt "$binds_line" ]; then
+    binds_order_needs_rewrite=1
+    drift=1
+fi
+
 # 3) 仓库片段必须在所有 dms/*.kdl 之后（键位覆盖关系）；本机屏幕则必须在
 #    所有 dms/*.kdl 之前（output 首个匹配项优先）。缺失/顺序不对时统一重写 include 块。
 if [ -f "$fragment" ]; then
@@ -277,7 +293,8 @@ if [ -f "$fragment" ]; then
         reorder=1
     fi
 
-    if [ -z "$own_line" ] || [ "$missing_count" -gt 0 ] || [ "$reorder" -eq 1 ] || [ "$outputs_needs_rewrite" -eq 1 ]; then
+    if [ -z "$own_line" ] || [ "$missing_count" -gt 0 ] || [ "$reorder" -eq 1 ] ||
+        [ "$outputs_needs_rewrite" -eq 1 ] || [ "$binds_order_needs_rewrite" -eq 1 ]; then
         drift=1
         if [ "$apply" -eq 1 ]; then
             if [ "$reorder" -eq 1 ]; then
@@ -292,12 +309,15 @@ if [ -f "$fragment" ]; then
                     info "include 本机屏幕：$outputs_include"
                 fi
             fi
+            [ "$binds_order_needs_rewrite" -eq 1 ] &&
+                info "调整 include 顺序：binds-next.kdl 移到 binds.kdl 之前（DMS 2.1）"
             backup_config
             tmp_config=$config.tmp.$$
             # 先拿掉仓库自己的两行，再把屏幕插到第一个 dms include 之前，
             # 键位片段仍追加到末尾。
             grep -vF -- "$own_include" "$config" | grep -vF -- "$own_comment" \
-                | grep -vF -- "$outputs_include" | grep -vF -- "$outputs_comment" >"$tmp_config" || true
+                | grep -vF -- "$outputs_include" | grep -vF -- "$outputs_comment" \
+                | grep -vF -- "$binds_next_include" | grep -vF -- "$binds_include" >"$tmp_config" || true
             if [ -f "$outputs" ]; then
                 inserted=$config.outputs.$$
                 # 插到第一个 dms include 之前。不用 awk：install.sh 的依赖清单里没有它。
@@ -321,7 +341,32 @@ if [ -f "$fragment" ]; then
                 mv "$inserted" "$tmp_config"
             fi
             if [ "$missing_count" -gt 0 ]; then
-                cat "$missing" >>"$tmp_config"
+                # dms/*.kdl 的自然排序会让 binds-next 在 binds 前；下面会
+                # 统一重建这两个键位层，避免依赖 glob 顺序或 DMS 版本输出。
+                grep -vF -- "$binds_next_include" "$missing" \
+                    | grep -vF -- "$binds_include" >>"$tmp_config" || true
+            fi
+            if [ -f "$dms_dir/binds-next.kdl" ] || [ -f "$dms_dir/binds.kdl" ]; then
+                inserted=$config.binds.$$
+                first_dms=$(grep -nE 'include .*"dms/[^" ]+\.kdl"' "$tmp_config" | head -n 1 || true)
+                first_dms=${first_dms%%:*}
+                if [ -n "$first_dms" ]; then
+                    {
+                        if [ "$first_dms" -gt 1 ]; then
+                            sed -n "1,$((first_dms - 1))p" "$tmp_config"
+                        fi
+                        [ -f "$dms_dir/binds-next.kdl" ] && printf '%s\n' "$binds_next_include"
+                        [ -f "$dms_dir/binds.kdl" ] && printf '%s\n' "$binds_include"
+                        sed -n "${first_dms},\$p" "$tmp_config"
+                    } >"$inserted"
+                else
+                    {
+                        cat "$tmp_config"
+                        [ -f "$dms_dir/binds-next.kdl" ] && printf '%s\n' "$binds_next_include"
+                        [ -f "$dms_dir/binds.kdl" ] && printf '%s\n' "$binds_include"
+                    } >"$inserted"
+                fi
+                mv "$inserted" "$tmp_config"
             fi
             printf '%s\n%s\n' "$own_comment" "$own_include" >>"$tmp_config"
             mv "$tmp_config" "$config"
@@ -329,6 +374,8 @@ if [ -f "$fragment" ]; then
             info "需要改动：niri-repo.kdl 排在 dms/*.kdl 之前（键位会被 DMS 覆盖）"
         elif [ "$outputs_needs_rewrite" -eq 1 ]; then
             info "需要改动：$outputs_include 必须排在 dms/*.kdl 之前（方案 B：仓库屏幕优先）"
+        elif [ "$binds_order_needs_rewrite" -eq 1 ]; then
+            info "需要改动：$binds_next_include 必须排在 $binds_include 之前（DMS 2.1）"
         else
             info "需要改动：config.kdl 缺 $own_include"
         fi

@@ -14,7 +14,7 @@
 | `dms.service.d/override.conf` | `~/.config/systemd/user/dms.service.d/override.conf` | DMS 机器专用 drop-in：`XDG_CURRENT_DESKTOP=niri:GNOME`，让 DMS 拉起的应用（如 Mod+Space 启动器）识别为 GNOME 会话，从而读取 gsettings 代理。内容变化时才 `daemon-reload` 并重启 dms |
 | `niri.service.d/10-input-method.conf` | `~/.config/systemd/user/niri.service.d/10-input-method.conf` | 在 niri 启动前清除 systemd 用户环境，并让 niri/Fcitx5 不继承 GTK/Qt 旧式输入法变量，避免 Wayland 启动竞态触发诊断通知 |
 | `../niri/fedora_x64/proxy.conf` | `~/.config/environment.d/proxy.conf` | 代理环境变量模板（仅 Fedora x64 部署）。占位符由本机 `~/.config/dotfiles/proxy_env` 渲染；缺失时跳过。重新登录后 niri 会话及其子进程继承代理变量 |
-| `.config/scripts/dms-niri-setup` | `~/.config/scripts/dms-niri-setup` | 幂等接线脚本：下发 DMS 设置、补齐 DMS 默认键位、补 `dms/*.kdl` include、保证顺序、重建钉钉窗口规则 |
+| `.config/scripts/dms-niri-setup` | `~/.config/scripts/dms-niri-setup` | 幂等接线脚本：下发 DMS 设置、补齐 DMS 默认键位、补 `dms/*.kdl` include、按 DMS 2.1 排列键位层、重建钉钉窗口规则 |
 
 `install.sh` 检测到 `niri` + `dms` 时自动部署片段、对应平台的 `outputs.kdl` 与 `settings.txt`，并运行接线脚本；脚本本身在
 非 niri / 非 DMS 机器上是 no-op，也可以随时手动跑：
@@ -36,6 +36,12 @@ DMS 首次运行只会把 `~/.config/niri/dms/binds.kdl` 建成 0 字节，键�
 因此 `Mod+T` 默认落到 alacritty；想换成别的终端就在 DMS 设置 → Keybinds 里改，
 或用仓库的 `Mod+Return`（优先 foot）。
 
+DMS 2.1 另外生成 `binds-next.kdl`，用于跟随 niri 版本变化的默认键位。接线脚本保证
+`include "dms/binds-next.kdl"` 排在 `include "dms/binds.kdl"` 之前，让常规用户键位
+优先于版本相关默认值；仓库片段 `niri-repo.kdl` 仍排在全部 DMS 片段之后。`Mod+Shift+Slash`
+由仓库片段固定为 DMS 快捷键面板（`dms ipc call keybinds toggle niri`），不会被 DMS
+自动重生成的键位覆盖。
+
 ## DMS 设置的下发（`settings.txt`）
 
 DMS 的设置面很宽（30 个设置页、600+ 设置键），但绝大多数在本机仍处于 DMS 默认值，
@@ -47,7 +53,7 @@ night.temperature=<K>         → dms ipc call night setTargetTemp <K>
 night.enabled=<true|false>    → dms ipc call night enable|disable
 ```
 
-当前内容与理由（2026-10-06 在 Fedora 44 + DMS 1.6.2 上逐项对照过默认值）：
+当前内容与理由（2026-10-06 在 Fedora 44 + DMS 1.6.2 上逐项对照过默认值；DMS 2.1 复核配置键名仍可用）：
 
 | 键 | 值 | 理由 |
 | --- | --- | --- |
@@ -101,7 +107,9 @@ systemctl --user daemon-reload
    再覆盖若干键位"这一用法）。所以 `include "niri-repo.kdl"` **必须排在所有
    `include "dms/*.kdl"` 之后**；脚本会在顺序不对时重写尾部的 include 块。
 2. **本机屏幕由仓库负责**：niri 的 `output` 是按解析顺序取首个匹配项的 multipart 配置，因此方案 B 要求仓库的 `outputs.kdl` include 在所有 `dms/*.kdl` 之前，作为 DMS 机器的权威屏幕配置。DMS 仍可生成并保留 `dms/outputs.kdl`，但接线脚本不修改它，也不会让它覆盖仓库配置。
-3. **只补仓库自己的一层**：DMS 自管的 bar / 通知 / 锁屏 / idle / 壁纸 / 配色 /
+3. **DMS 2.1 键位层按顺序加载**：`dms/binds-next.kdl` 必须在 `dms/binds.kdl` 之前；仓库
+   `niri-repo.kdl` 最后加载，用于覆盖明确的仓库决策键，包括 DMS 快捷键面板。
+4. **只补仓库自己的一层**：DMS 自管的 bar / 通知 / 锁屏 / idle / 壁纸 / 配色 /
    `layout` / `input` / 窗口规则 / **剪贴板**都不在本目录重复声明。DMS 机器上需要仓库
    配的东西实际只剩**仓库肌肉记忆键位和本机屏幕**。
 
@@ -110,6 +118,7 @@ systemctl --user daemon-reload
 ```kdl
 include "outputs.kdl"        // 仓库屏幕优先：output 首个匹配项生效
 include "dms/outputs.kdl"    // 保留 DMS 文件；只为仓库未声明的屏幕提供配置
+include "dms/binds-next.kdl"
 include "dms/binds.kdl"
 // 其余 dms/*.kdl……
 include "niri-repo.kdl"      // 仓库键位优先：binds 后出现的同键覆盖
@@ -140,7 +149,7 @@ include "niri-repo.kdl"      // 仓库键位优先：binds 后出现的同键覆
 或 gammastep），在 `niri-repo.kdl` 里把 `spawn-sh-at-startup "~/.config/scripts/wayland-autostart"`
 加回去，并确认不与 DMS 同类服务重复。
 
-## 键位决策（2026-10-08，按本机 Ubuntu x64 的 live `dms/binds.kdl` 修订）
+## 键位决策（2026-11-04，DMS 2.1 接线调整；基础取舍沿用 2026-10-08 本机 Ubuntu x64 决策）
 
 `niri-repo.kdl` 排在所有 `dms/*.kdl` 之后，写进去的同键会盖掉 live。
 所以和本机已经一致的键**不写进片段**。非 DMS 机器仍用 `common.kdl`，不受这张表影响。

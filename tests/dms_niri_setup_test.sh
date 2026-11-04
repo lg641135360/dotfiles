@@ -178,6 +178,7 @@ seed_niri_fixture() {
     printf 'colors {\n}\n' >"$home_dir/.config/niri/dms/colors.kdl"
     : >"$home_dir/.config/niri/dms/binds.kdl"
     printf 'include "dms/input.kdl"\n' >"$home_dir/.config/niri/config.kdl"
+    printf 'binds {\n    Mod+Shift+Slash { show-hotkey-overlay; }\n}\n' >"$home_dir/.config/niri/dms/binds-next.kdl"
     printf 'output "TEST-1" {\n    scale 1\n}\n' >"$home_dir/.config/niri/outputs.kdl"
     cp "$FRAGMENT" "$home_dir/.config/niri/niri-repo.kdl"
     # 设置清单由 install.sh 部署到 ~/.config/dms/settings.txt。
@@ -279,10 +280,12 @@ test_apply_wires_fragments_and_rules() {
     assert_contains 'include "dms/input.kdl"' "$config"
     assert_contains 'include "dms/layout.kdl"' "$config"
     assert_contains 'include "dms/colors.kdl"' "$config"
+    assert_contains 'include "dms/binds-next.kdl"' "$config"
     assert_contains 'include "dms/binds.kdl"' "$config"
     assert_contains 'include "outputs.kdl"' "$config"
     assert_contains 'include "niri-repo.kdl"' "$config"
-    assert_order 'include "outputs.kdl"' 'include "dms/binds.kdl"' "$config"
+    assert_order 'include "outputs.kdl"' 'include "dms/binds-next.kdl"' "$config"
+    assert_order 'include "dms/binds-next.kdl"' 'include "dms/binds.kdl"' "$config"
     assert_order 'include "outputs.kdl"' 'include "niri-repo.kdl"' "$config"
     assert_equals "1" "$(grep -cF 'include "outputs.kdl"' "$config")"
     # Existing includes are not duplicated.
@@ -465,7 +468,7 @@ test_outputs_include_is_moved_before_dms_fragments() {
 
     # Make ONLY the output order wrong: all DMS includes, settings and rules
     # are already clean, and the repository bind fragment remains last.
-    printf 'include "dms/input.kdl"\ninclude "dms/binds.kdl"\ninclude "dms/colors.kdl"\ninclude "dms/layout.kdl"\ninclude "dms/outputs.kdl"\ninclude "outputs.kdl"\ninclude "niri-repo.kdl"\n' >"$config"
+    printf 'include "dms/input.kdl"\ninclude "dms/binds.kdl"\ninclude "dms/binds-next.kdl"\ninclude "dms/colors.kdl"\ninclude "dms/layout.kdl"\ninclude "dms/outputs.kdl"\ninclude "outputs.kdl"\ninclude "niri-repo.kdl"\n' >"$config"
     before=$(cat "$config")
     before_backups=$(backup_count)
 
@@ -480,7 +483,7 @@ test_outputs_include_is_moved_before_dms_fragments() {
     assert_equals "$before_backups" "$(backup_count)"
 
     run_setup >/dev/null 2>&1 || fail "setup should repair output order alone"
-    for name in input binds colors layout outputs; do
+    for name in input binds-next binds colors layout outputs; do
         assert_order 'include "outputs.kdl"' "include \"dms/$name.kdl\"" "$config"
         assert_order "include \"dms/$name.kdl\"" 'include "niri-repo.kdl"' "$config"
     done
@@ -533,7 +536,7 @@ test_outputs_precede_new_dms_includes_without_existing_includes() {
     config=$home_dir/.config/niri/config.kdl
     printf '// No DMS includes yet.\ninput {\n}\n' >"$config"
     run_setup >/dev/null 2>&1
-    for name in input binds colors layout; do
+    for name in input binds-next binds colors layout; do
         assert_order 'include "outputs.kdl"' "include \"dms/$name.kdl\"" "$config"
     done
     assert_contains '// No DMS includes yet.' "$config"
@@ -583,7 +586,10 @@ test_fragment_carries_repo_bindings() {
     assert_not_contains 'focus-column-or-monitor' "$FRAGMENT"
     assert_not_contains 'move-column-left-or-to-monitor' "$FRAGMENT"
     # DMS keeps these keys: launcher on Mod+Space, task manager on Mod+M,
-    # center-column on Mod+C.
+    # center-column on Mod+C. The cheatsheet binding is deliberately kept in
+    # the repo fragment so it wins over both DMS generated bind fragments.
+    assert_contains 'Mod+Shift+Slash' "$FRAGMENT"
+    assert_contains 'keybinds" "toggle" "niri' "$FRAGMENT"
     assert_not_contains 'Mod+Space {' "$FRAGMENT"
     assert_not_contains 'mod+space' "$FRAGMENT"
     assert_not_contains 'Mod+M ' "$FRAGMENT"

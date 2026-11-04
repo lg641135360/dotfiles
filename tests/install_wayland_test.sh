@@ -222,6 +222,8 @@ test_install_preserves_dms_configs_on_ubuntu_x64() {
     printf 'dms keys configuration\n' >"$home_dir/.config/alacritty/keys.toml"
     printf 'dms window configuration\n' >"$home_dir/.config/alacritty/window.toml"
     mkdir -p "$home_dir/.config/niri/dms"
+    printf 'binds {\n    Mod+Shift+Slash { show-hotkey-overlay; }\n}\n' >"$home_dir/.config/niri/dms/binds-next.kdl"
+    printf 'binds {\n    Mod+T { spawn "foot"; }\n}\n' >"$home_dir/.config/niri/dms/binds.kdl"
     printf 'output "DP-1" {\n    scale 2\n}\n' >"$home_dir/.config/niri/dms/outputs.kdl"
     printf 'include "dms/outputs.kdl"\n' >>"$home_dir/.config/niri/config.kdl"
     dms_outputs_before=$(cat "$home_dir/.config/niri/dms/outputs.kdl")
@@ -268,7 +270,10 @@ test_install_preserves_dms_configs_on_ubuntu_x64() {
     # 片段=纯键位：DMS 机器的会话服务由 DMS/niri-session/XDG autostart 负责。
     assert_not_matches '^[[:space:]]*spawn-sh-at-startup.*wayland-autostart' "$home_dir/.config/niri/niri-repo.kdl"
     assert_contains 'Mod+Tab' "$home_dir/.config/niri/niri-repo.kdl"
+    assert_contains 'Mod+Shift+Slash' "$home_dir/.config/niri/niri-repo.kdl"
+    assert_contains 'keybinds" "toggle" "niri' "$home_dir/.config/niri/niri-repo.kdl"
     assert_contains 'include "niri-repo.kdl"' "$home_dir/.config/niri/config.kdl"
+    assert_order 'include "dms/binds-next.kdl"' 'include "dms/binds.kdl"' "$home_dir/.config/niri/config.kdl"
     assert_order 'include "dms/layout.kdl"' 'include "niri-repo.kdl"' "$home_dir/.config/niri/config.kdl"
     # DMS 接线也使用方案 B：仓库 outputs.kdl 是权威屏幕配置，
     # dms-niri-setup 会把它排在所有 dms/*.kdl 之前；不覆盖 DMS 的 config.kdl

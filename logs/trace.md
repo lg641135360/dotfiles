@@ -20,6 +20,28 @@
   ```
 
 
+## 2026-11-04 — DMS 2.1 niri 接线修复：binds-next 顺序与 DMS 快捷键面板
+
+- 目的：适配当前 DMS 2.1.0 新增的 `dms/binds-next.kdl`，消除 DMS doctor 的键位 include 顺序警告；用户明确选择 `Mod+Shift+Slash` 使用 DMS 快捷键面板。
+- 改动（仓库）：
+  1. `.config/scripts/dms-niri-setup`：保证 `dms/binds-next.kdl` 排在 `dms/binds.kdl` 之前，并保持仓库 `niri-repo.kdl` 最后覆盖；补充幂等重排逻辑。
+  2. `.config/linux/dms/niri-repo.kdl`：固定 `Mod+Shift+Slash` 调用 `dms ipc call keybinds toggle niri`。
+  3. `.config/linux/dms/README.md`、`README.md`、`memory/niri.md`：同步 DMS 2.1 键位层和快捷键面板决策；`install.sh` 注释同步。
+  4. `tests/dms_niri_setup_test.sh`、`tests/install_wayland_test.sh`：增加 `binds-next` 顺序和 DMS 快捷键面板回归断言。
+- 改动（live）：已先备份并同步：
+  - `~/.config/scripts/dms-niri-setup.backup.20261104_130300`
+  - `~/.config/niri/niri-repo.kdl.backup.20261104_130300`
+  - 接线脚本生成：`~/.config/niri/config.kdl.backup.20261104_130300_53225`
+  - 当前 include 顺序为 `outputs.kdl` → `dms/binds-next.kdl` → `dms/binds.kdl` → 其余 DMS 片段 → `niri-repo.kdl`。
+- 验证：`bash -n install.sh`、相关 shell 语法检查、`./tests/dms_niri_setup_test.sh`、`./tests/install_wayland_test.sh`、`./tests/niri_config_test.sh`、`./tests/repo_docs_test.sh`、`git diff --check` 均 PASS；live `dms-niri-setup --check` 报「已是最新」；`niri validate -c ~/.config/niri/config.kdl` PASS；`dms doctor` 已无 binds-next/repository warning，仅保留可选能力提示（cava、khal、dux-search、dux-calendar、dux-files、adw-gtk3 等未安装）。
+- 运行态：未重启 niri 或 DMS；niri 已自动/现有配置验证通过，快捷键将在当前配置加载后按仓库片段生效。
+- 回滚信息：本轮提交前基线 `e7bd75e`；仓库回滚可用 `git revert <本轮提交>`；live 恢复命令：
+  ```bash
+  cp ~/.config/scripts/dms-niri-setup.backup.20261104_130300 ~/.config/scripts/dms-niri-setup
+  cp ~/.config/niri/niri-repo.kdl.backup.20261104_130300 ~/.config/niri/niri-repo.kdl
+  cp ~/.config/niri/config.kdl.backup.20261104_130300_53225 ~/.config/niri/config.kdl
+  ```
+
 ## 2026-11-03 — 钉钉 desktop entry 局部注入 GTK_IM_MODULE=fcitx（修复 CEF 界面无法输入中文）
 
 - 目的：解决钉钉内部分界面（Qt 搜索框正常，CEF 聊天框/内嵌文档无法唤起 fcitx5）无法输入中文的问题。
