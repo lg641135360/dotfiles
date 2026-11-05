@@ -33,7 +33,7 @@
   3. `.config/scripts/README.md`、`memory/desktop.md`：同步 `oom-watch` 采样项说明与 DPMS off `Shmem` 泄漏根因/规避经验。
 - 改动（live）：暂未同步更新后的 `~/.config/scripts/oom-watch`，也未修改 live DMS `acMonitorTimeout`（待用户确认）。
 - 验证：`sh -n .config/scripts/oom-watch`、`./tests/oom_watch_test.sh`、`./tests/install_wayland_test.sh`、`./tests/repo_docs_test.sh`、`git diff --check` 均 PASS。
-- 回滚信息：未提交（基线 `4c576545`）。仓库回滚可运行 `git checkout -- . && rm -f .config/scripts/oom-watch tests/oom_watch_test.sh`。
+- 回滚信息：已提交 `39c5310`（main，已推送 `origin/main`；基线 `4c57654`）。仓库回滚可运行 `git revert 39c5310`。
 
 
 ## 2026-11-05 — 落地 OOM 止血：DMS 不再自动关屏（acMonitorTimeout=0）+ oom-watch 增强版入库并按需启用
@@ -54,7 +54,7 @@
   - 新采样实测（`oom-watch once`）：`cgroup label=niri_service current_kb=641765376 peak_kb=26190098432 swap_kb=168263680 shmem_kb=364470272`、`cgroup label=dms_service current_kb=1194409984`、`drm pid=4422 name=niri client_id=14 total_kb=1205576 shared_kb=1001904`。
 - 未验证：锁屏 15 分钟后确实不再 `power-off-monitors`（需空闲实证，可 `journalctl --user -u dms.service -f | grep -iE "power|idle"`，或次日看 `niri.service memory.peak` 是否仍停在 ~0.7 GiB）。
 - 既有漂移（本轮发现并已修）：live `~/.config/niri/config.kdl`（mtime 原为 2026-10-08）缺 `include optional=true "dms/binds-next.kdl"`，`dms doctor` 报 1 warning、`dms-niri-setup --check` 退出 1。用户随后执行 `~/.config/scripts/dms-niri-setup`（apply，自动备份 `~/.config/niri/config.kdl.backup.20261105_104414_3294177`）：include 已补齐（`outputs.kdl` → `dms/binds-next.kdl` → `dms/binds.kdl` → 其余 dms → `niri-repo.kdl`），`--check` exit=0「已是最新」，`niri validate` PASS，`dms doctor` 全绿。
-- 回滚信息：未提交（基线 `4c576545`）。live 恢复可直接复制执行：
+- 回滚信息：已提交 `39c5310`（main，已推送 `origin/main`；基线 `4c57654`）。live 恢复可直接复制执行：
   ```bash
   cp ~/.config/dms/settings.txt.backup.20261105_103738 ~/.config/dms/settings.txt
   dms ipc call settings set acMonitorTimeout 900
@@ -102,7 +102,7 @@
   - 用户明确不需要自启：已移除临时加入 live `niri-repo.kdl` 的 `spawn-sh-at-startup "~/.config/scripts/oom-watch start"`，最终恢复为改动前内容；`niri validate` PASS，`dms-niri-setup --check` 报「已是最新」，live 片段中无 oom-watch 行。
   - `~/.config/scripts/wayland-autostart` 未同步 live（最终仓库也不含 oom-watch 自启）。
 - 验证：`sh -n .config/scripts/oom-watch`、`bash -n install.sh`、`./tests/oom_watch_test.sh`、`./tests/install_wayland_test.sh`、`./tests/niri_config_test.sh`、`./tests/dms_niri_setup_test.sh`、`./tests/repo_docs_test.sh`、`git diff --check` 均 PASS；`./tests/run.sh fast` **PASS=53 FAIL=0 SKIP=1**。
-- 回滚信息：未提交（基线 `4c576545`）。live 恢复命令（可直接复制执行）：
+- 回滚信息：已提交 `39c5310`（main，已推送 `origin/main`；基线 `4c57654`）。live 恢复命令（可直接复制执行）：
   ```bash
   ~/.config/scripts/oom-watch stop
   rm -f ~/.config/scripts/oom-watch
@@ -132,7 +132,7 @@
   - 运行态恢复：执行 `busctl --user call org.fcitx.Fcitx5 /controller org.fcitx.Fcitx.Controller1 OpenX11Connection s ":1"`，`DISPLAY=:1 xprop -root XIM_SERVERS` 恢复为 `@server=fcitx`。
 - 验证：`bash -n install.sh`、`sh -n tests/dingtalk_wayland_test.sh`、`sh -n tests/install_wayland_test.sh`、`sh -n tests/wayland_scripts_test.sh` OK；`sh tests/dingtalk_wayland_test.sh`、`sh tests/install_wayland_test.sh`、`sh tests/wayland_scripts_test.sh`、`sh tests/niri_config_test.sh`、`sh tests/repo_docs_test.sh` PASS；`git diff --check` OK。
 - 运行态验证：调用 `OpenX11Connection(":1")` 后，GTK3 的 `im-xim.so` 通过 `XRegisterIMInstantiateCallback` 自动感知 `XIM_SERVERS` 重建了 `Group [x11::1]` 的 `frontend:xim` IC，用户确认无需重启钉钉已立即恢复中文输入；下次通过 `Mod+C` 重启钉钉后 CEF 将切换为加载 `im-fcitx5.so`（D-Bus）。
-- 回滚信息：未提交（基线 commit `798f7a0`）。live 恢复命令（可直接复制执行）：
+- 回滚信息：已提交 `e7bd75e`（main，已推送）。live 恢复命令（可直接复制执行）：
   ```bash
   cp ~/.local/share/applications/com.alibabainc.dingtalk.desktop.backup.20261103_113013 ~/.local/share/applications/com.alibabainc.dingtalk.desktop
   ```
