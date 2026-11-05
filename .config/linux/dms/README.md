@@ -58,7 +58,7 @@ night.enabled=<true|false>    → dms ipc call night enable|disable
 | 键 | 值 | 理由 |
 | --- | --- | --- |
 | `acLockTimeout` | 600 | DMS 默认 0 = **永不自动锁屏**，与仓库 Wayland 基线（swayidle 空闲 10 分钟锁屏）不符 |
-| `acMonitorTimeout` | 900 | 同上，基线是 15 分钟关屏 |
+| `acMonitorTimeout` | 0 | **故意不自动关屏**：niri 在 DPMS off（CRTC 关闭、vblank 停摆）期间不回收客户端 dmabuf，实测以 ~3.6 GiB/h 积压到 `session.slice/niri.service` 的 shmem，2026-11-05 02:05 涨到 24 GiB 触发内核 OOM（详见 `memory/desktop.md` 与 `.config/scripts/oom-watch`）。写 0（= DMS 默认）是为了把旧机器上的 900 纠正回来；要暗屏走物理关显示器或系统级 suspend |
 | `useAutoLocation` | false | 本机 GeoClue2 不可用（`dms` 日志 `WARN GeoClue2 unavailable`），关掉避免反复重试 |
 | `touchpadDragLock` | true | 对齐仓库 niri input 基线（`common.kdl` 的 `drag-lock`） |
 | `night.temperature` | 5500 | 对齐仓库 gammastep 基线（4800/4500K 会把屏压得过暗） |
@@ -234,6 +234,7 @@ niri validate -c ~/.config/niri/config.kdl
 dms doctor                                   # Compositor / Blur / dms.service
 dms config windowrules list niri             # dmsStatus.included 应为 true
 dms ipc call settings get acLockTimeout      # 应为 600（设置清单已下发）
+dms ipc call settings get acMonitorTimeout   # 应为 0（不自动 power-off-monitors，见内存/OOM 根因）
 dms ipc call night status                    # Night mode: enabled；target 5500K
 ```
 

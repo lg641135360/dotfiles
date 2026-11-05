@@ -12,11 +12,18 @@
 # 2026-10-06 在 Fedora 44 + DMS 1.6.2 上逐项核对过默认值：settings.json 里当时
 # 只有 12 个顶层键，绝大多数设置仍是 DMS 默认，所以这里只列真正需要偏离的项。
 
-# 锁屏 / 关屏（秒，0 = Never）：对齐仓库 Wayland 基线
-# （wayland-autostart 的 swayidle：空闲 600s 锁屏、900s 关屏；DMS 默认两者都是 0）。
-# 只写 AC 组；batteryLockTimeout / batteryMonitorTimeout 按机器在 GUI 里设（本机无电池）。
+# 锁屏 / 关屏（秒，0 = Never）：只写 AC 组；batteryLockTimeout / batteryMonitorTimeout
+# 按机器在 GUI 里设（本机无电池）。
+# 锁屏保留仓库 Wayland 基线（swayidle / DMS 都是空闲 600s 锁屏）。
 acLockTimeout=600
-acMonitorTimeout=900
+# 关屏显式设 0 = 不自动 power-off-monitors（DMS 默认也是 0；写出来是为了把旧机器上
+# 已经下发过的 900 纠正回来）。
+# 原因：niri 在 DPMS off（输出 CRTC 关闭、vblank 停摆）期间不回收客户端 dmabuf，实测以
+# ~3.6 GiB/h 积压到 session.slice/niri.service 的 shmem，2026-11-05 02:05 涨到 24 GiB 触发
+# 内核 OOM 杀掉 Trae CN；只有 power-on / 显示器重连 / 解锁恢复刷新时才一次性释放。
+# 详见 memory/desktop.md「内存/OOM 与 GPU shmem」与 .config/scripts/oom-watch。
+# 需要暗屏时用物理关显示器电源或系统级 suspend（acSuspendTimeout）。
+acMonitorTimeout=0
 
 # 位置：本机 GeoClue2 不可用（dms 启动日志 WARN GeoClue2 unavailable），关掉自动
 # 定位，避免反复失败的重试。天气需要手动指定位置（DMS 设置 → 时间与天气），否则留空。

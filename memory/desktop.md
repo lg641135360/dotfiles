@@ -92,4 +92,15 @@
 - 备选方案 B：Flatpak 版 Fcitx5+Rime（官方维护、自带 librime-lua）可完整跑 rime-ice，但需迁移配置路径并改动 `wayland-autostart`/niri 环境，联动大，当前未采用。
 
 
+## 内存/OOM 与 GPU shmem（2026-11-05 更新，x86_64 niri + DMS + Intel UHD 730）
+
+- 每天复现的 OOM 不是普通应用 RSS 撑爆，也不是 Trae 自身泄漏：2026-11-04/05 `oom-watch` 完整抓到 3 个周期与 `02:05:06` 的 OOM Kill（`EVENT oom_kill_incremented from=2 to=3`）。实测规律：
+  1. 空闲 600s（`acLockTimeout=600`）进入锁屏后，`Shmem` **保持平稳**（约 2.6 GiB）。
+  2. 空闲 900s（`acMonitorTimeout=900`）触发 `niri msg action power-off-monitors`（DPMS 关屏）后，`Shmem` 立即开始以 **~3.6 GiB/h**（约 **1.02 MiB/s**，每 3 秒即 `DgopService` 轮询周期增长约 3–14 MiB）恒定速度线性上涨，且全部记在 **`session.slice/niri.service`** 的 cgroup `shmem` 下（`niri.service` `memory.peak` 达 24.98 GiB，而 `app.slice` 全部应用合计 `shmem` 仅 ~1.4–1.8 GiB）；即使 `02:05` Trae 被 OOM 杀掉未再运行，后续 `02:05→07:39`（涨到 26.3 GiB）与 `07:55→09:56`（涨到 15.6 GiB）依然以相同斜率暴涨。
+  3. 只要 **解锁屏幕** 或 **显示器 DPMS 唤醒重连**（触发 `power-on-monitors` / 刷新 surface），`niri.service` 积压的 15–26 GiB `Shmem` 会在 **15 秒内一次性全部释放** 回 ~1.4 GiB。
+  4. **根因机制**：DMS 的 `DBarWindow`（状态栏，含 `DgopService` 每 3 秒更新的 `network_speed_monitor`/`cpuUsage`/`memUsage`）没有像 `WallpaperBackground` 那样加 `updatesEnabled` 门控。当 `niri` 执行 `power-off-monitors` 关闭输出 CRTC 后，vblank/frame 回收停摆，但 Quickshell 仍在后台每 3 秒提交新的 EGL/dmabuf 缓冲区，导致 `niri` 合成器侧在 DPMS off 期间无限积压未释放的 i915 GEM/shmem buffer。
+  5. **已落地规避方案（2026-11-05）**：DMS `acMonitorTimeout` 设为 `0`（不自动 `power-off-monitors`），`acLockTimeout=600` 保留；要暗屏用物理关显示器或系统级 suspend（`acSuspendTimeout=0` 时不会自动休眠）。**任何**会触发 `power-off-monitors` 的路径都可能复现同一问题（包括非 DMS 机器上 `wayland-autostart` 的 swayidle `timeout 900`），在那类机器上启用前需先确认 niri 版本已修复或依旧泄漏。
+- `oom-watch`（`.config/scripts/oom-watch`）是常驻采样脚本：记录 meminfo、PSI、`user`/`app.slice`/`niri.service`/`dms.service` cgroup、shmem 最大的 scope/进程、`/proc/<pid>/fdinfo` 中 `drm-total-system0` 最大的 DRM/GPU 客户端、`/tmp` 与 `/dev/shm`，日志在 `~/.local/state/oom-watch/oom-watch.log`（8MiB × 5 轮转）。**不接入 autostart**：问题已定位（见上条），**默认不常开**；只在怀疑内存异常或 OOM 复现时手动 `~/.config/scripts/oom-watch start`，排查结束立刻 `stop`。
+- OOM killer 按 `oom_score`（RSS+swap）选 victim；app scope 的 `oom_score_adj` 通常为 200–300，所以 Trae/DingTalk/VSCode 会先于系统服务被杀，即使它们不是 shmem 的真正持有者。`cgroup memory.events.oom_kill` 可直接确认是否内核 OOM。
+
 niri / Wayland 与 Waybar 相关偏好已拆分到 `memory/niri.md` 和 `memory/waybar.md`。

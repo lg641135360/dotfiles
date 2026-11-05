@@ -10,6 +10,7 @@
 | `rofi-launch` | Rofi 应用启动器包装 |
 | `wayland-autostart` | Wayland 会话自启动；同步会话环境，等待 niri ScreenCast D-Bus 服务后修复 portal 启动顺序，并启动桌面组件；日志写入 `~/.local/state/niri/autostart/` |
 | `dingtalk-wayland` | 钉钉排障脚本：检查 ScreenCast/PipeWire 状态，并按 `/proc/<pid>/exe` 精确清理钉钉/tblive。日常启动用官方 `Elevator.sh` |
+| `oom-watch` | 内存/OOM 监控：后台采样 `/proc/meminfo`、PSI、`user`/`app.slice`/`niri.service`/`dms.service` cgroup 的 current/peak/swap/stat、shmem 最大的 app scope 与进程、`fdinfo` 中 `drm-total-system0` 最大的 DRM/GPU 客户端、`/tmp` 与 `/dev/shm`；日志默认 `~/.local/state/oom-watch/oom-watch.log`（8MiB × 5 轮转）。`start [--interval N]` / `stop` / `status` / `once` / `tail`；**不接入 autostart**，默认不常开（2026-11-05 已定位每日 OOM 根因，见 `memory/desktop.md`），仅在怀疑内存异常/OOM 复现时手动 `start`，排查结束 `stop` |
 | `terminal-wayland` | Wayland 终端启动器；默认 foot，缺失时回退 Alacritty |
 | `file-manager-wayland` | Wayland 文件管理器选择器（Dolphin → 系统默认 → 常见文件管理器） |
 | `launcher-wayland` | Wayland 应用启动器 |

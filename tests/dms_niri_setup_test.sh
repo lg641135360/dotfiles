@@ -346,7 +346,10 @@ test_applies_dms_settings_idempotently() {
 
     state=$home_dir/.stub-dms
     assert_equals '600' "$(cat "$state/setting.acLockTimeout")"
-    assert_equals '900' "$(cat "$state/setting.acMonitorTimeout")"
+    # acMonitorTimeout 的目标值 0 与 DMS 默认值相同：按幂等规则不产生 settings set，
+    # 但有效值必须为 0 —— 自动 power-off-monitors 会让 niri 积压 dmabuf/shmem（见 memory/desktop.md）。
+    assert_file_not_exists "$state/setting.acMonitorTimeout"
+    assert_equals '0' "$(HOME=$home_dir PATH=$bin_dir dms ipc call settings get acMonitorTimeout)"
     assert_equals 'true' "$(cat "$state/setting.touchpadDragLock")"
     assert_equals '5500' "$(cat "$state/night-temp")"
     assert_equals 'enabled' "$(cat "$state/night-enabled")"
@@ -370,7 +373,7 @@ test_settings_manifest_format() {
     [ -z "$bad" ] || fail "settings manifest lines must be key=value: $bad"
     for entry in \
         'acLockTimeout=600' \
-        'acMonitorTimeout=900' \
+        'acMonitorTimeout=0' \
         'useAutoLocation=false' \
         'touchpadDragLock=true' \
         'night.temperature=5500' \
@@ -619,6 +622,8 @@ test_docs_and_manifest_cover_dms_machine() {
     assert_contains '方案 B' "$DMS_README"
     assert_contains '首个匹配项' "$DMS_README"
     assert_contains 'outputs.kdl' "$DMS_README"
+    # 关屏策略的理由必须留在 README：DPMS off 下 niri 会持续积压 buffer（每日 OOM 根因）。
+    assert_contains 'power-off-monitors' "$DMS_README"
     # Package manifest gains the Fedora niri/DMS section.
     assert_contains 'avengemedia/dms' "$DNF_MANIFEST"
     assert_contains 'niri' "$DNF_MANIFEST"

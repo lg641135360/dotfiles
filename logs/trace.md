@@ -20,6 +20,50 @@
   ```
 
 
+## 2026-11-05 — 定位 niri + DMS 锁屏关屏（DPMS off）期间 Shmem 暴涨导致每日 OOM 根因，并增强 oom-watch
+
+- 目的：分析 2026-11-04 16:07 启动的 `oom-watch` 隔夜采样日志，定位每日凌晨 OOM 根因，并补充 `oom-watch` 对 `niri.service` / `dms.service` cgroup 与 `/proc/<pid>/fdinfo` DRM 显存的采样。
+- 诊断结论（实证）：
+  1. `oom-watch.log.1` 在 `2026-11-05 02:05:06` 捕获 `EVENT oom_kill_incremented from=2 to=3`（`app-dms-trae\x2dcn-mw1pb0nxku5y.scope` 被内核 OOM killer 杀掉）。
+  2. 对齐 3 个锁屏周期（`11-04 18:02→18:54`、`11-04 19:54→11-05 02:05`、`11-05 02:05→07:39` 与 `07:39→09:56`）发现：空闲 600s 仅锁屏（`acLockTimeout=600`）时 `Shmem` 完全平稳（~2.6 GiB）；**精确在空闲 900s（锁屏后 +300s，`acMonitorTimeout=900`）触发 `niri` 的 `PowerOffMonitors`（DPMS 关屏）那一刻**，`Shmem` 开始以 **~3.6 GiB/h（~1.02 MiB/s）** 线性上涨，且全部记在 `session.slice/niri.service`（`memory.peak` 24.98 GiB，`app.slice` 合计仅 ~1.4–1.8 GiB）；当显示器 DPMS 唤醒或解锁屏幕时，积压的 15–26 GiB `Shmem` 在 15s 内一次性释放回 ~1.4 GiB。
+  3. 根因机制：DMS 的 `DBarWindow`（状态栏，含 `DgopService` 每 3s 轮询更新的 `network_speed_monitor`/`cpuUsage`/`memUsage`）未设置 `updatesEnabled` 门控；当 `niri` 执行 `power-off-monitors` 关闭输出 CRTC 后，vblank 停止，但 Quickshell 仍每 3s 提交新缓冲区，导致 `niri` 合成器在 DPMS off 期间持续积压 i915 GEM/shmem buffer。
+- 改动（仓库）：
+  1. `.config/scripts/oom-watch`：新增 `niri_service`（`session.slice/niri.service`）与 `dms_service`（`app.slice/dms.service`）的 cgroup 采样；新增 `top_drm` 采样 `/proc/<pid>/fdinfo/*` 中 `drm-total-system0` 最大的 DRM/GPU 客户端。
+  2. `tests/oom_watch_test.sh`：新增 `niri_service`、`dms_service` 与 `drm` 行回归断言。
+  3. `.config/scripts/README.md`、`memory/desktop.md`：同步 `oom-watch` 采样项说明与 DPMS off `Shmem` 泄漏根因/规避经验。
+- 改动（live）：暂未同步更新后的 `~/.config/scripts/oom-watch`，也未修改 live DMS `acMonitorTimeout`（待用户确认）。
+- 验证：`sh -n .config/scripts/oom-watch`、`./tests/oom_watch_test.sh`、`./tests/install_wayland_test.sh`、`./tests/repo_docs_test.sh`、`git diff --check` 均 PASS。
+- 回滚信息：未提交（基线 `4c576545`）。仓库回滚可运行 `git checkout -- . && rm -f .config/scripts/oom-watch tests/oom_watch_test.sh`。
+
+
+## 2026-11-05 — 落地 OOM 止血：DMS 不再自动关屏（acMonitorTimeout=0）+ oom-watch 增强版入库并按需启用
+
+- 目的：用户拍板「1+2」——① 把 DMS `acMonitorTimeout` 从 900 改为 0（不再触发 `power-off-monitors`，止住 niri 在 DPMS off 期间的 dmabuf/shmem 积压）；② 增强版 `oom-watch` 同步 live，但**默认不常开**（问题已定位，只在怀疑内存异常/OOM 复现时手动 `start`）。
+- 改动（仓库，测试先行）：
+  1. `tests/dms_niri_setup_test.sh`：`acMonitorTimeout` 期望 900→0，改成断言「目标值等于 DMS 默认值 ⇒ 幂等跳过写、有效值仍为 0」（`assert_file_not_exists` + stub `settings get` 读值）；新增 README 必须保留 `power-off-monitors` 理由的守卫。
+  2. `.config/linux/dms/settings.txt`：`acMonitorTimeout=0`，注释写明 DPMS off 积压 dmabuf 根因与替代暗屏手段（显式写 0 而非删行，是为了把旧机器上已下发过的 900 纠正回来）。
+  3. `.config/linux/dms/README.md`：设置表该行改 0 + 理由；验证段补 `settings get acMonitorTimeout # 应为 0`。
+  4. `memory/niri.md`（DMS 设置基线）、`memory/desktop.md`（规避方案改为「已落地」，并补「任何 `power-off-monitors` 路径都可能复现，含非 DMS 机器的 swayidle `timeout 900`」）、`.config/scripts/README.md`（`oom-watch` 标注默认不常开）。`oom-watch` 脚本本体沿用上一轮未提交的增强版。
+- 改动（live）：
+  - `~/.config/dms/settings.txt` ← 仓库版，备份 `~/.config/dms/settings.txt.backup.20261105_103738`；随后只做一条 `dms ipc call settings set acMonitorTimeout 0`（未跑全量 `dms-niri-setup` apply，避免连带重写 niri 配置）。
+  - `~/.config/scripts/oom-watch` ← 仓库版（md5 `a3e826ff…`），备份 `~/.config/scripts/oom-watch.backup.20261105_103802`；备份总数 2 份，未触发「保留 3 份」清理。
+  - 已 `oom-watch stop`（原 pid 2298622），现不常驻；日志保留 `~/.local/state/oom-watch/oom-watch.log`（5.3 MB，含 11-05 02:05 OOM 现场）。
+- 验证：
+  - `./tests/dms_niri_setup_test.sh` 先红（`setting.acMonitorTimeout` 仍被写 900）后绿；`./tests/oom_watch_test.sh`、`./tests/repo_docs_test.sh`、`./tests/install_wayland_test.sh` PASS；`./tests/run.sh fast` **PASS=53 FAIL=0 SKIP=1**；`git diff --check` OK。
+  - live `dms ipc call settings get acMonitorTimeout` = `0`、`acLockTimeout` = `600`；`~/.config/dms/settings.json` 已落盘（`"acMonitorTimeout": 0`）。
+  - 新采样实测（`oom-watch once`）：`cgroup label=niri_service current_kb=641765376 peak_kb=26190098432 swap_kb=168263680 shmem_kb=364470272`、`cgroup label=dms_service current_kb=1194409984`、`drm pid=4422 name=niri client_id=14 total_kb=1205576 shared_kb=1001904`。
+- 未验证：锁屏 15 分钟后确实不再 `power-off-monitors`（需空闲实证，可 `journalctl --user -u dms.service -f | grep -iE "power|idle"`，或次日看 `niri.service memory.peak` 是否仍停在 ~0.7 GiB）。
+- 既有漂移（本轮发现并已修）：live `~/.config/niri/config.kdl`（mtime 原为 2026-10-08）缺 `include optional=true "dms/binds-next.kdl"`，`dms doctor` 报 1 warning、`dms-niri-setup --check` 退出 1。用户随后执行 `~/.config/scripts/dms-niri-setup`（apply，自动备份 `~/.config/niri/config.kdl.backup.20261105_104414_3294177`）：include 已补齐（`outputs.kdl` → `dms/binds-next.kdl` → `dms/binds.kdl` → 其余 dms → `niri-repo.kdl`），`--check` exit=0「已是最新」，`niri validate` PASS，`dms doctor` 全绿。
+- 回滚信息：未提交（基线 `4c576545`）。live 恢复可直接复制执行：
+  ```bash
+  cp ~/.config/dms/settings.txt.backup.20261105_103738 ~/.config/dms/settings.txt
+  dms ipc call settings set acMonitorTimeout 900
+  cp ~/.config/scripts/oom-watch.backup.20261105_103802 ~/.config/scripts/oom-watch
+  ~/.config/scripts/oom-watch start   # 仅在想恢复常驻监控时
+  cp ~/.config/niri/config.kdl.backup.20261105_104414_3294177 ~/.config/niri/config.kdl   # 需要回退 binds-next include 时
+  ```
+
+
 ## 2026-11-04 — DMS 2.1 niri 接线修复：binds-next 顺序与 DMS 快捷键面板
 
 - 目的：适配当前 DMS 2.1.0 新增的 `dms/binds-next.kdl`，消除 DMS doctor 的键位 include 顺序警告；用户明确选择 `Mod+Shift+Slash` 使用 DMS 快捷键面板。
@@ -42,6 +86,37 @@
   cp ~/.config/niri/config.kdl.backup.20261104_130300_53225 ~/.config/niri/config.kdl
   ```
 
+
+## 2026-11-04 — 新增 oom-watch 常驻内存/OOM 监控
+
+- 目的：用户反馈每天复现 OOM；2026-11-04 07:38 的内核日志显示 `shmem` 约 24G、i915 报 `Purging GPU memory, 0 pages freed`，普通进程 RSS 抓不到现场。新增常驻采样脚本，记录 meminfo/PSI/cgroup/app scope shmem/top 进程/tmpfs，供下一次复现定位。
+- 改动（仓库）：
+  1. `.config/scripts/oom-watch`：POSIX sh；`start [--interval N]` / `stop` / `status` / `once` / `tail`；日志默认 `~/.local/state/oom-watch/oom-watch.log`，8MiB × 5 轮转；记录 `MemAvailable`、`Shmem`、`ShmemHugePages`、PSI、user/app.slice cgroup、anon+shmem 最大的 app scope、RssShmem 最大的进程、`/tmp` 与 `/dev/shm`。
+  2. `install.sh`、`.config/scripts/README.md`、`README.md`、`memory/desktop.md`：部署项、脚本清单与长期排查经验同步；明确 **不接入 autostart**，需要时手动 `oom-watch start`。
+  3. `tests/oom_watch_test.sh` 新增；`tests/install_wayland_test.sh`、`tests/repo_docs_test.sh` 增加断言。
+- 改动（live）：用户确认后已备份并同步：
+  - `~/.config/scripts/oom-watch.backup.20261104_160722`（首版脚本，不含 `EVENT oom_kill_incremented`）
+  - `~/.config/niri/niri-repo.kdl.backup.20261104_160557`（改动前）与 `~/.config/niri/niri-repo.kdl.backup.20261104_161552`（含临时自启行的中间态）
+  - 新增 `~/.config/scripts/oom-watch`（755，当前版本含 `EVENT oom_kill_incremented`）。
+  - 已手动启动 `~/.config/scripts/oom-watch start`：pid 2298622（`/bin/sh ~/.config/scripts/oom-watch run`），日志 `~/.local/state/oom-watch/oom-watch.log`；验证 running 且日志持续增长。
+  - 用户明确不需要自启：已移除临时加入 live `niri-repo.kdl` 的 `spawn-sh-at-startup "~/.config/scripts/oom-watch start"`，最终恢复为改动前内容；`niri validate` PASS，`dms-niri-setup --check` 报「已是最新」，live 片段中无 oom-watch 行。
+  - `~/.config/scripts/wayland-autostart` 未同步 live（最终仓库也不含 oom-watch 自启）。
+- 验证：`sh -n .config/scripts/oom-watch`、`bash -n install.sh`、`./tests/oom_watch_test.sh`、`./tests/install_wayland_test.sh`、`./tests/niri_config_test.sh`、`./tests/dms_niri_setup_test.sh`、`./tests/repo_docs_test.sh`、`git diff --check` 均 PASS；`./tests/run.sh fast` **PASS=53 FAIL=0 SKIP=1**。
+- 回滚信息：未提交（基线 `4c576545`）。live 恢复命令（可直接复制执行）：
+  ```bash
+  ~/.config/scripts/oom-watch stop
+  rm -f ~/.config/scripts/oom-watch
+  # live niri-repo.kdl 已是改动前内容；如需强制恢复：
+  # cp ~/.config/niri/niri-repo.kdl.backup.20261104_160557 ~/.config/niri/niri-repo.kdl
+  # niri validate -c ~/.config/niri/config.kdl
+  ```
+  仓库回滚：
+  ```bash
+  git checkout -- install.sh README.md .config/scripts/README.md memory/desktop.md tests/install_wayland_test.sh tests/repo_docs_test.sh logs/trace.md
+  rm -f .config/scripts/oom-watch tests/oom_watch_test.sh
+  ```
+
+
 ## 2026-11-03 — 钉钉 desktop entry 局部注入 GTK_IM_MODULE=fcitx（修复 CEF 界面无法输入中文）
 
 - 目的：解决钉钉内部分界面（Qt 搜索框正常，CEF 聊天框/内嵌文档无法唤起 fcitx5）无法输入中文的问题。
@@ -62,88 +137,3 @@
   cp ~/.local/share/applications/com.alibabainc.dingtalk.desktop.backup.20261103_113013 ~/.local/share/applications/com.alibabainc.dingtalk.desktop
   ```
   仓库回滚：`rm -f .config/linux/desktop-entries/com.alibabainc.dingtalk.desktop && git checkout -- install.sh .config/linux/desktop-entries/README.md .config/linux/niri/README.md memory/dingtalk.md tests/dingtalk_wayland_test.sh tests/install_wayland_test.sh tests/wayland_scripts_test.sh logs/trace.md`。
-
-
-## 2026-10-29 — 修复 DMS+niri 启动时 Fcitx5 输入法变量通知竞态
-
-- 目的：用户反馈每次全新重启进入 niri 后，DMS 都收到 Fcitx5“推荐取消设置 GTK_IM_MODULE/QT_IM_MODULE”的通知；确认不是旧进程残留。
-- 根因：`/etc/profile.d/fcitx5.sh` 在 niri-session 导入前设置两个变量；DMS 的 `app-org.fcitx.Fcitx5@autostart.service` 与 niri 的 `spawn-sh-at-startup` 并行，Fcitx5 先启动并继承变量。核对 Fcitx5 5.1.23 上游 `waylandmodule.cpp::selfDiagnose()` 后确认通知读取 Fcitx5 自身进程环境，不是 systemd 当前环境。
-- 改动（仓库，尚未同步 live）：
-  1. 新增 `.config/linux/dms/niri.service.d/10-input-method.conf`：通过 `ExecStartPre` 在 niri 启动前清理 systemd 用户环境，并以 `UnsetEnvironment` 防止 niri 进程继承 GTK/Qt 旧式变量。
-  2. `install.sh`：DMS 分支部署该 drop-in，内容变化时只执行 `systemctl --user daemon-reload`，不重启当前 niri 或 DMS；reload 失败时输出可直接执行的恢复命令，并明确说明重跑安装器不会自动重试。
-  3. `.config/linux/dms/README.md`、`niri-repo.kdl`、`memory/niri.md`：同步启动顺序、验证和回滚说明，并区分输入法 drop-in 与原有 DMS 身份 drop-in 的重启行为。
-  4. `tests/install_wayland_test.sh`：增加部署/非 DMS 不部署断言，以及仅输入法 drop-in 变更、reload 失败和手动恢复场景的回归测试。
-- 验证：`bash -n install.sh`、`sh -n tests/install_wayland_test.sh` PASS；`sh tests/install_wayland_test.sh`、`sh tests/repo_docs_test.sh`、`sh tests/niri_config_test.sh`、`sh tests/waybar_config_test.sh`、`sh tests/wayland_scripts_test.sh`、`sh tests/dms_niri_setup_test.sh` PASS；`git diff --check` PASS。测试先验证失败场景，再补实现后通过。
-- 本轮评审修复回滚锚点：已提交 `0cad84f`，进入本轮时已有未提交的输入法修复；如需仅撤销本轮修复，使用 `git revert 0cad84f` 会连同本条目一起回滚。后续可在用户授权后同步 live 并验证重新登录效果。
-- 未做：未同步 live，未重启 niri/DMS，未验证下一次登录后的 Fcitx5 `/proc/<pid>/environ`。
-- 已提交并推送：`0cad84f`（`origin/main`）；回滚：`git revert 0cad84f`。 `.config/linux/dms/niri.service.d/10-input-method.conf`，并回退 `install.sh`、`.config/linux/dms/README.md`、`.config/linux/dms/niri-repo.kdl`、`memory/niri.md`、`tests/install_wayland_test.sh` 的本轮改动。
-
-
-## 2026-10-18 — Fedora 桌面双屏：DP-2 移到 AOC 正下方
-
-- 目的：DP-2（BOE 0x0B17 笔记本屏，2560x1600@240 + scale 1.5 + VRR）此前只存在于 DMS 自动生成的 `dms/outputs.kdl`（右侧 x=1920），仓库权威 `fedora_x64/outputs.kdl` 未覆盖；用户要求改为放在 AOC 正下方并保持 240Hz + 1.5 缩放。
-- 改动（仓库）：
-  1. `.config/linux/niri/fedora_x64/outputs.kdl`：新增 `output "DP-2"`，`mode "2560x1600@240.000"`、`scale 1.5`、`position x=107 y=1080`（AOC 逻辑 1920 宽，BOE 逻辑 1706 宽，居中偏移 (1920-1706)/2=107，y 取 AOC 逻辑高 1080）、`variable-refresh-rate`；头部注释同步为双屏说明。仓库文件 include 在所有 `dms/*.kdl` 之前，first-match 覆盖 DMS 片段中的 DP-2。
-  2. `tests/niri_config_test.sh`：`test_fedora_x64_outputs_match_this_pc_only` 增加 DP-2 的 mode/scale/position/VRR 断言。
-  3. `.config/linux/niri/README.md`、`memory/niri.md`：Fedora 行从「单屏 DP-3」更新为双屏上下布局。
-- 改动（live）：`~/.config/niri/outputs.kdl` 覆盖为仓库版本（备份见下）；niri 26.04 监视配置自动重载，未手动 reload。
-- 验证：`niri validate -c ~/.config/niri/config.kdl` 通过；`niri msg outputs` 确认 DP-2 `Logical position: 107, 1080`、`2560x1600@240.000`、scale 1.5、VRR enabled，DP-3 保持 `0,0` scale 2；`tests/niri_config_test.sh`、`tests/install_wayland_test.sh`、`tests/dms_niri_setup_test.sh` PASS；`git diff --check` OK。
-- 未验证：长时间使用下的鼠标跨屏手感；若想左对齐而非居中，把 DP-2 的 x 改为 0 即可。
-- 提交：已提交 `e965560`（main，未推送）。
-- 回滚：
-  - live：`cp ~/.config/niri/outputs.kdl.backup.20261018_175911 ~/.config/niri/outputs.kdl`（niri 自动重载即恢复单屏仓库定义 + DMS 右侧 DP-2）。
-  - 仓库：`git revert e965560`。
-
-
-## 2026-10-17 — zsh 配置优化：brew 补全进 fpath、syntax-highlighting 延迟加载、死代码清理
-
-- 目的：把"分析 zsh 配置"结论落地（用户选"1/2/4/5/8 全做 + live 残留清理"）。
-- 已做（仓库，测试先行）：
-  1. `.config/shared/zsh/plugins.zsh`：compinit 前把 Linuxbrew `/home/linuxbrew/.linuxbrew` 与 macOS Homebrew（`/opt/homebrew`、`/usr/local`）的 `share/zsh/site-functions` 按存在性 + `(Ie)` 去重加入 fpath——修掉 brew 装 CLI 全部无补全的缺陷（改前实测 `$fpath` 无 linuxbrew 条目，`_lsd`/`_bat`/`_brew`/`_codex` 未注册）；`zsh-syntax-highlighting` 改 `zinit ice wait lucid` 延迟加载（实测 ~50ms、占插件耗时 41%；它是最后一个包装 widget 的插件，延迟安全。fzf-tab / autosuggestions 保持同步：前者与 `zvm_after_init` 的 `enable-fzf-tab` 有顺序耦合且测试明确禁止延迟，后者参与每次按键渲染）。
-  2. `.config/shared/zsh/zsh-syntax-highlighting-catppuccin-mocha.zsh`：开头补 `typeset -gA ZSH_HIGHLIGHT_STYLES`——延迟加载后主题文件先于插件执行，关联数组未声明时字符串下标赋值报 `assignment to invalid subscript range` 且样式全部失效（/tmp 副本实测复现后修复；插件加载时仅补未设置 key 的默认值，不覆盖主题）。
-  3. `.config/shared/zsh/history.zsh`：删死代码 `HISTDUP=erase`（zsh 无此变量，tcsh `histdup` 残留，赋值被忽略）；`HISTSIZE` 10000→50000（SAVEHIST 跟随）。
-  4. `.config/shared/zsh/path.zsh`：平台分支 `$(uname)` ×2 → zsh 内置 `$OSTYPE`（零 fork，与 env.zsh 同款写法）。
-  5. `.config/shared/zsh/README.md`：删 `cat→bat` 漂移行（aliases.zsh 并无此别名）、"8 个插件"→"7 插件 + 4 OMZP snippet"、syntax-highlighting 标"延迟加载"、启动提速节三项→四项并补 brew fpath 小节。
-  6. 测试：`tests/zsh_plugins_test.sh` 立即加载组移出 s-h 并补 autosuggestions 禁延迟守卫，新增 s-h 延迟、主题 `typeset -gA`、brew fpath 三组断言；`tests/zsh_history_test.sh` 新增 HISTDUP 死代码与 HISTSIZE=50000 断言；`tests/zsh_path_test.sh` 新增 `$OSTYPE` 断言（后两者只匹配非注释行，允许注释解释历史）。
-- 验证：5 个 zsh 测试文件全 PASS；`tests/repo_docs_test.sh` PASS；`git diff --check` OK。/tmp 副本实测：`_comps[lsd]=_lsd`、`_comps[brew]=_brew`、主题 46 keys 生效、fpath 无重复、pty 实测延迟插件首个提示符后正常加载（`_zsh_highlight` 存在）；启动 0.20-0.22s → 0.14-0.15s（约 -30%）。
-- 未验证：`./tests/run.sh fast` 未整跑（改动限 zsh 模块，相关测试已全跑）；高亮/配对在首提示符后 ~50ms 激活的权衡已写入 README，交由日常使用感知。
-- live：已同步 4 个模块到 `~/.config/zsh/`（各自 `*.backup.20261017_132816`，旧 backup 按保留 3 份清理，pruned `path.zsh.backup.20260912_002741_3932`）；残留改名归档：`.p10k.zsh`（p10k 已弃用）、`.zcompdump.ubuntu.18364`（`compinit -d` 前的孤儿 dump）、`keybindings.zsh`（已并入 history.zsh）→ 各自 `*.backup.20261017_132816`；`~/.zshenv` 删冗余首行 `ZDOTDIR=~/.config/zsh`（未 export、被下行覆盖；守卫校验两条必需行在位后执行，用户显式确认，备份 `~/.zshenv.backup.20261017_132816`）。同步后 live 实测启动 0.14s，fpath/补全/主题/HISTSIZE 全部生效。
-- 提交：已提交 `4916cd8`（main，已推送 `origin/main`），本条目与归档（14 条旧条目移入 `logs/trace-archive/2026-10.md`）同在该 commit。
-- 回滚信息：commit `4916cd8`。仓库 `git revert 4916cd8`；live 恢复（可直接复制执行）：
-  ```bash
-  ts=20261017_132816
-  cd ~/.config/zsh
-  for f in plugins.zsh history.zsh path.zsh zsh-syntax-highlighting-catppuccin-mocha.zsh; do
-      cp "$f.backup.$ts" "$f"
-  done
-  mv .p10k.zsh.backup.$ts .p10k.zsh
-  mv .zcompdump.ubuntu.18364.backup.$ts .zcompdump.ubuntu.18364
-  mv keybindings.zsh.backup.$ts keybindings.zsh
-  cp ~/.zshenv.backup.$ts ~/.zshenv
-  ```
-
-
-## 2026-10-16 — tmux 外层标题补窗口序号（修掉"可区分"宣称落空）
-
-- 目的：修掉 README / `memory/tmux.md` 宣称"外层终端标题可区分不同 tmux 窗口"但实测不成立的问题。
-- 根因：`set-titles-string '#S · #W'` 只拼 session 名与窗口名；而 `allow-rename off` + `automatic-rename off`（`.tmux.conf:37-38`）让窗口名停在新窗口创建时的 shell 名。live 实测三个窗口名全是 `zsh`、session 名为 `0`，外层标题恒为 `0 · zsh`，niri 任务切换无法区分。
-- 改动（仓库，先补断言再改配置）：
-  1. `.config/shared/tmux/.tmux.conf`：`set-titles-string '#S · #W'` → `'#S · #I:#W'`（加窗口序号）。
-  2. `.config/shared/tmux/README.md`：外层标题条目改写为 `session · 窗口序号:窗口名`（含"窗口名冻结"的原因说明）；快捷键表新增 `Ctrl+a + n` / `Ctrl+a + p` 行；表后段落补充 `n/p/q/z/d` 沿用内建绑定的说明。
-  3. `tests/tmux_status_test.sh`：`test_keybinding_and_title_enhancements` 断言改为新串，并新增"旧串不存在"、"`automatic-rename off`"、README"窗口序号"三条守卫；`test_readme_documents_window_navigation` 新增 n/p 行与内建绑定说明两条断言。
-- 未采纳（本轮评估后放弃）：① `tmux-tab-title` 的 `LC_ALL=C` 兜底（非 UTF-8 locale 下多字节截断会切出半个字符，实测可复现，但当前 tmux `#()` 环境是 `LANG=zh_CN.UTF-8`，无现实触发路径）；② `status-interval` 由 15 降到 5（tab 标签 `cd` 后最多滞后 15s，实测脚本每轮 3 窗口约 50ms、可忽略，但需用户现场观察后再定）。③ 脚本微优化（`strlen` 改 `${#}` 等，合计省约 5ms/窗口，且会触碰 `9e6a785` 刻意加的 `assert_not_contains 'pane_current_command'` 守卫）——收益小于风险，明确不动。
-- 改动（live）：**未同步**。`~/.tmux.conf` 在沙箱保护路径内，写入会被静默拦截（退出码 0 但文件不变，见 `memory/tmux.md` 的 Live 同步条），故本轮只改仓库，同步命令交给用户手动执行。
-- 验证：`tmux display-message -p '#S · #I:#W'` → `0 · 1:zsh` / `0 · 2:zsh` / `0 · 3:zsh`（格式可区分）；`tmux source-file -n .config/shared/tmux/.tmux.conf` OK；`sh -n tests/tmux_status_test.sh` OK；`./tests/tmux_status_test.sh` PASS；`./tests/repo_docs_test.sh` PASS；`git diff --check` OK。
-- 未验证：真机外层终端标题（foot / alacritty 窗口标题、niri 任务切换）需同步 live 并新开窗口后肉眼确认。
-- 已提交：`40fe273`（`main`，已推送 `origin/main`）。上一基线 `57842b4`。
-- 回滚：`git revert 40fe273`（保留历史）；若要退回提交前状态，`git checkout 57842b4 -- .config/shared/tmux/.tmux.conf .config/shared/tmux/README.md tests/tmux_status_test.sh memory/tmux.md logs/trace.md`。
-- live 同步命令（待用户执行，`!` 前缀可直接在本会话跑）：
-  ```bash
-  cd /data/rikoo/Documents/study/dotfiles
-  ts=$(date +%Y%m%d_%H%M%S)
-  cp -p ~/.tmux.conf ~/.tmux.conf.backup.$ts
-  cp .config/shared/tmux/.tmux.conf ~/.tmux.conf
-  echo "回滚: cp ~/.tmux.conf.backup.$ts ~/.tmux.conf && tmux source-file ~/.tmux.conf"
-  ls -1t ~/.tmux.conf.backup.* 2>/dev/null   # 按 install.sh 惯例保留最近 3 份，更早的手动删除
-  ```
-- 后续：同步 live 后需新开窗口才会写新的外层标题（已 attach 的客户端下一次重绘即生效）；`logs/trace-archive/2026-08.md` 中旧记录（⑦ `session · window`）为历史存档，按惯例不改写。

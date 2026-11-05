@@ -49,6 +49,7 @@
 │       ├── rofi-launch/       # Rofi 启动脚本
 │       ├── wayland-autostart/ # Wayland 自启动
 │       ├── dingtalk-wayland/  # 钉钉排障入口（启动走官方 Elevator.sh）
+│       ├── oom-watch/         # 内存/OOM 监控（shmem/GPU/cgroup 采样）
 │       ├── terminal-wayland/  # Wayland 终端
 │       ├── file-manager-wayland/ # Wayland 文件管理器选择
 │       ├── launcher-wayland/  # Wayland 启动器

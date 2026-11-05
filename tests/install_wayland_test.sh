@@ -18,6 +18,7 @@ test_install_deploys_wayland_trial_files() {
     assert_contains '|.config/scripts/wayland-autostart|~/.config/scripts/wayland-autostart|Wayland autostart script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/file-manager-wayland|~/.config/scripts/file-manager-wayland|Wayland file manager selector' "$INSTALL_FILE"
     assert_contains '|.config/scripts/dingtalk-wayland|~/.config/scripts/dingtalk-wayland|DingTalk troubleshooting script' "$INSTALL_FILE"
+    assert_contains '|.config/scripts/oom-watch|~/.config/scripts/oom-watch|Memory/OOM watch script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/terminal-wayland|~/.config/scripts/terminal-wayland|Wayland terminal script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/launcher-wayland|~/.config/scripts/launcher-wayland|Wayland launcher script' "$INSTALL_FILE"
     assert_contains '|.config/scripts/lock-wayland|~/.config/scripts/lock-wayland|Wayland lock script' "$INSTALL_FILE"
@@ -103,6 +104,8 @@ test_install_copies_wayland_files_when_niri_exists_outside_wayland_session() {
 
     assert_file_exists "$home_dir/.config/scripts/wayland-autostart"
     assert_file_exists "$home_dir/.config/scripts/file-manager-wayland"
+    assert_file_exists "$home_dir/.config/scripts/oom-watch"
+    assert_executable "$home_dir/.config/scripts/oom-watch"
     assert_file_exists "$home_dir/.config/niri/config.kdl"
 
     rm -rf "$tmpdir"

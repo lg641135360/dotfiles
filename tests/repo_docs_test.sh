@@ -120,6 +120,7 @@ fi
 
 # New READMEs
 assert_file_exists "$REPO_ROOT/.config/scripts/README.md"
+assert_contains '`oom-watch`' "$REPO_ROOT/.config/scripts/README.md"
 assert_file_exists "$REPO_ROOT/.config/shared/ssh/README.md"
 assert_file_not_exists "$REPO_ROOT/.config/linux/dunst/README.md"
 assert_file_not_exists "$REPO_ROOT/.config/linux/dunst"

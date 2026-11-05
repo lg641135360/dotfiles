@@ -1,0 +1,456 @@
+#!/bin/sh
+# 内存 / OOM 监控常驻脚本。
+#
+# 背景（2026-11-04）：这台 Intel UHD 730（i915）机器每天复现 OOM。内核
+# Mem-Info 显示 shmem 可到约 24G，i915 的 OOM 通知器报
+# "Purging GPU memory, 0 pages freed"，随后内核 OOM killer 杀掉 Trae CN /
+# VSCode / DingTalk 等大应用。仅看应用 RSS 抓不到这类 GPU/共享内存压力，
+# 因此本脚本额外记录：
+#   - /proc/meminfo 的 AnonPages / Shmem / ShmemHugePages / MemAvailable
+#   - /proc/pressure/memory（PSI）
+#   - user@UID.service、app.slice、niri.service、dms.service 的 cgroup memory.current/peak/swap/stat
+#   - app scope 中 anon+shmem 最大的几个 scope
+#   - 进程 RssShmem / RssAnon / VmSwap 最大的几个进程
+#   - /proc/<pid>/fdinfo 中 drm-total-system0 最大的几个 DRM/GPU 客户端
+#   - /tmp 与 /dev/shm 的 tmpfs 使用量
+#   - cgroup memory.events 的 oom_kill 计数变化（事件标记）
+#
+# i915 的 GEM 明细需要 root，脚本会写一条 hint；需要时手动执行：
+#   sudo cat /sys/kernel/debug/dri/0/i915_gem_objects
+#   sudo journalctl -k | grep -iE 'Purging GPU|i915'
+#
+# 用法：
+#   oom-watch start [--interval N]   # 后台启动，默认 15 秒采样
+#   oom-watch stop                   # 停止
+#   oom-watch status                 # 查看 pid / 日志大小 / 最近几行
+#   oom-watch once                   # 前台采样一次（排障/测试）
+#   oom-watch tail                   # tail -f 日志
+#   oom-watch help
+#
+# 日志默认：~/.local/state/oom-watch/oom-watch.log
+# 轮转默认：单文件 8MiB，保留 5 份（约 40MiB）
+#
+# 可用环境变量覆盖：
+#   OOM_WATCH_STATE_DIR, OOM_WATCH_LOG, OOM_WATCH_PID, OOM_WATCH_INTERVAL,
+#   OOM_WATCH_MAX_BYTES, OOM_WATCH_KEEP, OOM_WATCH_CGROUP_ROOT,
+#   OOM_WATCH_MEMINFO, OOM_WATCH_PSI, OOM_WATCH_PROC_ROOT,
+#   OOM_WATCH_WARN_AVAIL_KB, OOM_WATCH_CRIT_AVAIL_KB,
+#   OOM_WATCH_WARN_SHMEM_KB, OOM_WATCH_CRIT_SHMEM_KB
+
+state_dir=${OOM_WATCH_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/oom-watch}
+log_file=${OOM_WATCH_LOG:-$state_dir/oom-watch.log}
+pid_file=${OOM_WATCH_PID:-$state_dir/oom-watch.pid}
+interval=${OOM_WATCH_INTERVAL:-15}
+max_bytes=${OOM_WATCH_MAX_BYTES:-8388608}
+keep=${OOM_WATCH_KEEP:-5}
+cg_root=${OOM_WATCH_CGROUP_ROOT:-/sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service}
+meminfo=${OOM_WATCH_MEMINFO:-/proc/meminfo}
+psi_file=${OOM_WATCH_PSI:-/proc/pressure/memory}
+proc_root=${OOM_WATCH_PROC_ROOT:-/proc}
+warn_avail_kb=${OOM_WATCH_WARN_AVAIL_KB:-2097152}
+crit_avail_kb=${OOM_WATCH_CRIT_AVAIL_KB:-1048576}
+warn_shmem_kb=${OOM_WATCH_WARN_SHMEM_KB:-8388608}
+crit_shmem_kb=${OOM_WATCH_CRIT_SHMEM_KB:-16777216}
+
+case "$interval" in ''|*[!0-9]*) interval=15 ;; esac
+[ "$interval" -gt 0 ] 2>/dev/null || interval=15
+case "$max_bytes" in ''|*[!0-9]*) max_bytes=8388608 ;; esac
+case "$keep" in ''|*[!0-9]*) keep=5 ;; esac
+[ "$keep" -ge 1 ] 2>/dev/null || keep=5
+
+usage() {
+    cat <<'EOF'
+Usage: oom-watch <command> [options]
+
+Commands:
+  start [--interval N]  后台启动常驻采样（默认 15 秒）
+  stop                  停止常驻采样
+  status                查看运行状态、日志路径与最近几行
+  once                  前台输出一次采样
+  tail                  tail -f 日志
+  help                  显示本帮助
+
+日志默认写入 ${XDG_STATE_HOME:-$HOME/.local/state}/oom-watch/oom-watch.log，
+单文件默认 8MiB，保留 5 份。环境变量覆盖见脚本头部注释。
+EOF
+}
+
+ensure_state_dir() {
+    mkdir -p "$state_dir" 2>/dev/null || true
+    chmod 700 "$state_dir" 2>/dev/null || true
+}
+
+running() {
+    [ -f "$pid_file" ] || return 1
+    pid=$(cat "$pid_file" 2>/dev/null || true)
+    [ -n "$pid" ] || return 1
+    kill -0 "$pid" 2>/dev/null
+}
+
+rotate_log() {
+    [ -f "$log_file" ] || return 0
+    size=$(wc -c < "$log_file" 2>/dev/null || printf 0)
+    case "$size" in ''|*[!0-9]*) return 0 ;; esac
+    [ "$size" -gt "$max_bytes" ] 2>/dev/null || return 0
+    i=$keep
+    while [ "$i" -gt 1 ]; do
+        prev=$((i - 1))
+        [ -f "$log_file.$prev" ] && mv -f "$log_file.$prev" "$log_file.$i"
+        i=$prev
+    done
+    mv -f "$log_file" "$log_file.1"
+}
+
+meminfo_line() {
+    if [ ! -r "$meminfo" ]; then
+        printf 'ts=%s meminfo status=unavailable path=%s\n' "$ts" "$meminfo"
+        return 0
+    fi
+    awk -v ts="$ts" \
+        -v warn_avail="$warn_avail_kb" -v crit_avail="$crit_avail_kb" \
+        -v warn_shmem="$warn_shmem_kb" -v crit_shmem="$crit_shmem_kb" '
+        BEGIN { mt=mf=avail=anon=shmem=shuge=srec=sunrec=pgt=cas=clim=st=sf=dirty=wb=0 }
+        /^MemTotal:/ { mt=$2 }
+        /^MemFree:/ { mf=$2 }
+        /^MemAvailable:/ { avail=$2 }
+        /^AnonPages:/ { anon=$2 }
+        /^Shmem:/ { shmem=$2 }
+        /^ShmemHugePages:/ { shuge=$2 }
+        /^SReclaimable:/ { srec=$2 }
+        /^SUnreclaim:/ { sunrec=$2 }
+        /^PageTables:/ { pgt=$2 }
+        /^Committed_AS:/ { cas=$2 }
+        /^CommitLimit:/ { clim=$2 }
+        /^SwapTotal:/ { st=$2 }
+        /^SwapFree:/ { sf=$2 }
+        /^Dirty:/ { dirty=$2 }
+        /^Writeback:/ { wb=$2 }
+        END {
+            level="INFO"
+            if (avail < warn_avail || shmem > warn_shmem) level="WARN"
+            if (avail < crit_avail || shmem > crit_shmem) level="CRIT"
+            printf "ts=%s level=%s mem_total_kb=%d mem_free_kb=%d mem_avail_kb=%d anon_kb=%d shmem_kb=%d shmem_huge_kb=%d slab_reclaimable_kb=%d slab_unreclaimable_kb=%d page_tables_kb=%d committed_as_kb=%d commit_limit_kb=%d swap_total_kb=%d swap_free_kb=%d dirty_kb=%d writeback_kb=%d\n", ts, level, mt, mf, avail, anon, shmem, shuge, srec, sunrec, pgt, cas, clim, st, sf, dirty, wb
+        }
+    ' "$meminfo"
+}
+
+psi_line() {
+    if [ -r "$psi_file" ]; then
+        printf 'ts=%s psi_memory %s\n' "$ts" "$(tr '\n' ' ' < "$psi_file")"
+    else
+        printf 'ts=%s psi_memory status=unavailable path=%s\n' "$ts" "$psi_file"
+    fi
+}
+
+cgroup_line() {
+    label=$1
+    path=$2
+    if [ ! -r "$path/memory.current" ]; then
+        printf 'ts=%s cgroup label=%s status=unavailable path=%s\n' "$ts" "$label" "$path"
+        return 0
+    fi
+    cur=$(cat "$path/memory.current" 2>/dev/null || printf 0)
+    peak=$(cat "$path/memory.peak" 2>/dev/null || printf 0)
+    swap=$(cat "$path/memory.swap.current" 2>/dev/null || printf 0)
+    oom=$(awk '/^oom_kill /{print $2}' "$path/memory.events" 2>/dev/null)
+    [ -n "$oom" ] || oom=0
+    awk -v ts="$ts" -v label="$label" -v cur="$cur" -v peak="$peak" -v swap="$swap" -v oom="$oom" '
+        BEGIN { anon=file=shmem=kernel=slab=0 }
+        /^anon / { anon=$2 }
+        /^file / { file=$2 }
+        /^shmem / { shmem=$2 }
+        /^kernel / { kernel=$2 }
+        /^slab / { slab=$2 }
+        END { printf "ts=%s cgroup label=%s current_kb=%s peak_kb=%s swap_kb=%s anon_kb=%d file_kb=%d shmem_kb=%d kernel_kb=%d slab_kb=%d oom_kill=%s\n", ts, label, cur, peak, swap, anon, file, shmem, kernel, slab, oom }
+    ' "$path/memory.stat" 2>/dev/null
+}
+
+top_scopes() {
+    slice=$cg_root/app.slice
+    [ -d "$slice" ] || return 0
+    tmp=$state_dir/.scopes.$$
+    : > "$tmp" 2>/dev/null || return 0
+    for d in "$slice"/app-*; do
+        [ -d "$d" ] || continue
+        name=$(basename "$d")
+        # 用 ENVIRON 传 scope 名：systemd 单元名里含 `\x2d` 等转义，
+        # awk -v 会把 `\x2d` 解释成 `-`，导致后续拼路径失败。
+        NAME=$name awk '
+            BEGIN { name=ENVIRON["NAME"]; a=s=f=0 }
+            /^anon / { a=$2 }
+            /^shmem / { s=$2 }
+            /^file / { f=$2 }
+            END { printf "%d %s %d %d %d\n", a+s, name, a, s, f }
+        ' "$d/memory.stat" 2>/dev/null >> "$tmp"
+    done
+    sort -nr "$tmp" 2>/dev/null | head -n 5 | while read -r key name a s f; do
+        [ -n "$name" ] || continue
+        cur=$(cat "$slice/$name/memory.current" 2>/dev/null || printf 0)
+        peak=$(cat "$slice/$name/memory.peak" 2>/dev/null || printf 0)
+        swap=$(cat "$slice/$name/memory.swap.current" 2>/dev/null || printf 0)
+        printf 'ts=%s scope name=%s current_kb=%s peak_kb=%s swap_kb=%s anon_kb=%s shmem_kb=%s file_kb=%s\n' "$ts" "$name" "$cur" "$peak" "$swap" "$a" "$s" "$f"
+    done
+    rm -f "$tmp"
+}
+
+top_procs() {
+    [ -d "$proc_root" ] || return 0
+    tmp=$state_dir/.procs.$$
+    awk '
+        function emit() {
+            if (pid != "") printf "%d %d %s %s %d\n", shmem, anon, pid, name, swap
+        }
+        BEGIN { pid=""; name="?"; anon=0; shmem=0; swap=0 }
+        FNR==1 {
+            emit()
+            pid=FILENAME
+            sub("/status$", "", pid)
+            sub("^.*/", "", pid)
+            name="?"; anon=0; shmem=0; swap=0
+        }
+        /^Name:/ { name=$0; sub(/^Name:[[:space:]]*/, "", name); gsub(/[[:space:]]+/, "_", name) }
+        /^RssAnon:/ { anon=$2 }
+        /^RssShmem:/ { shmem=$2 }
+        /^VmSwap:/ { swap=$2 }
+        END { emit() }
+    ' "$proc_root"/[0-9]*/status 2>/dev/null > "$tmp"
+    sort -nr "$tmp" 2>/dev/null | head -n 8 | while read -r shmem anon pid name swap; do
+        [ -n "$pid" ] || continue
+        adj=$(cat "$proc_root/$pid/oom_score_adj" 2>/dev/null || printf '?')
+        printf 'ts=%s proc pid=%s name=%s rss_shmem_kb=%s rss_anon_kb=%s vm_swap_kb=%s oom_score_adj=%s\n' "$ts" "$pid" "$name" "$shmem" "$anon" "$swap" "$adj"
+    done
+    rm -f "$tmp"
+}
+
+top_drm() {
+    [ -d "$proc_root" ] || return 0
+    tmp=$state_dir/.drm.$$
+    for pdir in "$proc_root"/[0-9]*; do
+        [ -r "$pdir/fdinfo" ] || continue
+        set -- "$pdir"/fdinfo/*
+        [ -e "$1" ] || continue
+        awk -v pid="${pdir##*/}" '
+            function to_kb(val, unit,   v) {
+                v = val + 0
+                if (unit == "MiB") return int(v * 1024)
+                if (unit == "GiB") return int(v * 1048576)
+                return int(v)
+            }
+            function flush_file() {
+                if (cid != "" && total > 0) {
+                    if (!(cid in seen) || total > max_total[cid]) {
+                        seen[cid] = 1
+                        max_total[cid] = total
+                        max_shared[cid] = shared
+                        max_res[cid] = res
+                        max_purge[cid] = purge
+                    }
+                }
+                cid = ""; total = shared = res = purge = 0
+            }
+            FNR == 1 { flush_file() }
+            /^drm-client-id:/ { cid = $2 }
+            /^drm-total-system0:/ { total = to_kb($2, $3) }
+            /^drm-shared-system0:/ { shared = to_kb($2, $3) }
+            /^drm-resident-system0:/ { res = to_kb($2, $3) }
+            /^drm-purgeable-system0:/ { purge = to_kb($2, $3) }
+            END {
+                flush_file()
+                for (c in seen) {
+                    printf "%d %s %s %d %d %d\n", max_total[c], pid, c, max_shared[c], max_res[c], max_purge[c]
+                }
+            }
+        ' "$@" 2>/dev/null
+    done > "$tmp"
+    sort -nr "$tmp" 2>/dev/null | head -n 6 | while read -r total pid cid shared res purge; do
+        [ -n "$pid" ] || continue
+        name=$(awk '/^Name:/{sub(/^Name:[[:space:]]*/, ""); gsub(/[[:space:]]+/, "_"); print; exit}' "$proc_root/$pid/status" 2>/dev/null)
+        [ -n "$name" ] || name="?"
+        printf 'ts=%s drm pid=%s name=%s client_id=%s total_kb=%s shared_kb=%s resident_kb=%s purgeable_kb=%s\n' \
+            "$ts" "$pid" "$name" "$cid" "$total" "$shared" "$res" "$purge"
+    done
+    rm -f "$tmp"
+}
+
+tmpfs_line() {
+    df -kP /tmp /dev/shm 2>/dev/null | awk -v ts="$ts" '
+        NR > 1 { printf "ts=%s tmpfs mount=%s used_kb=%s avail_kb=%s total_kb=%s\n", ts, $6, $3, $4, $2 }
+    '
+}
+
+sample() {
+    ts=$(date '+%Y-%m-%dT%H:%M:%S%z')
+    meminfo_line
+    psi_line
+    cgroup_line user "$cg_root"
+    cgroup_line app_slice "$cg_root/app.slice"
+    [ -r "$cg_root/session.slice/niri.service/memory.current" ] && cgroup_line niri_service "$cg_root/session.slice/niri.service"
+    [ -r "$cg_root/app.slice/dms.service/memory.current" ] && cgroup_line dms_service "$cg_root/app.slice/dms.service"
+    top_scopes
+    top_procs
+    top_drm
+    tmpfs_line
+}
+
+oom_counter() {
+    awk '/^oom_kill /{print $2}' "$cg_root/memory.events" 2>/dev/null || printf 0
+}
+
+run_daemon() {
+    ensure_state_dir
+    if [ ! -d "$state_dir" ]; then
+        printf 'oom-watch: cannot create state dir: %s\n' "$state_dir" >&2
+        exit 1
+    fi
+    if ! : >> "$log_file" 2>/dev/null; then
+        printf 'oom-watch: cannot write log: %s\n' "$log_file" >&2
+        exit 1
+    fi
+    trap 'rm -f "$pid_file"; exit 0' INT TERM HUP
+    trap 'rm -f "$pid_file"' EXIT
+    printf '%s\n' "$$" > "$pid_file"
+    rotate_log
+    {
+        printf '=== oom-watch start ts=%s pid=%s interval=%ss log=%s ===\n' \
+            "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$$" "$interval" "$log_file"
+        printf 'ts=%s hint=%s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" \
+            "i915 GEM requires root: sudo cat /sys/kernel/debug/dri/0/i915_gem_objects; sudo journalctl -k | grep -iE 'Purging GPU|i915'"
+    } >> "$log_file"
+    last_oom=$(oom_counter)
+    case "$last_oom" in ''|*[!0-9]*) last_oom=0 ;; esac
+    while :; do
+        rotate_log
+        sample >> "$log_file"
+        current_oom=$(oom_counter)
+        case "$current_oom" in ''|*[!0-9]*) current_oom=$last_oom ;; esac
+        if [ "$current_oom" -gt "$last_oom" ]; then
+            printf 'ts=%s EVENT oom_kill_incremented from=%s to=%s hint=%s\n' \
+                "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$last_oom" "$current_oom" \
+                "sudo journalctl -k --since '-10 min' | grep -iE 'Out of memory|Purging GPU|i915'" >> "$log_file"
+            last_oom=$current_oom
+        fi
+        sleep "$interval"
+    done
+}
+
+start_daemon() {
+    ensure_state_dir
+    if running; then
+        printf 'oom-watch already running pid=%s log=%s\n' "$(cat "$pid_file")" "$log_file"
+        return 0
+    fi
+    if ! : >> "$log_file" 2>/dev/null; then
+        printf 'oom-watch: cannot write log: %s\n' "$log_file" >&2
+        return 1
+    fi
+    export OOM_WATCH_STATE_DIR="$state_dir"
+    export OOM_WATCH_INTERVAL="$interval"
+    if command -v setsid >/dev/null 2>&1; then
+        setsid "$0" run >>"$state_dir/daemon.out" 2>&1 </dev/null &
+    else
+        nohup "$0" run >>"$state_dir/daemon.out" 2>&1 </dev/null &
+    fi
+    i=0
+    while [ "$i" -lt 5 ]; do
+        running && break
+        sleep 1
+        i=$((i + 1))
+    done
+    if running; then
+        printf 'oom-watch started pid=%s log=%s\n' "$(cat "$pid_file")" "$log_file"
+    else
+        printf 'oom-watch failed to start; see %s\n' "$state_dir/daemon.out" >&2
+        tail -n 20 "$state_dir/daemon.out" 2>/dev/null >&2 || true
+        return 1
+    fi
+}
+
+stop_daemon() {
+    if ! running; then
+        rm -f "$pid_file"
+        printf 'oom-watch not running\n'
+        return 0
+    fi
+    pid=$(cat "$pid_file")
+    kill "$pid" 2>/dev/null || true
+    i=0
+    while [ "$i" -lt 5 ] && kill -0 "$pid" 2>/dev/null; do
+        sleep 1
+        i=$((i + 1))
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+        kill -9 "$pid" 2>/dev/null || true
+    fi
+    rm -f "$pid_file"
+    printf 'oom-watch stopped pid=%s\n' "$pid"
+}
+
+status_daemon() {
+    if running; then
+        size=$(wc -c < "$log_file" 2>/dev/null || printf 0)
+        printf 'oom-watch running pid=%s log=%s size_bytes=%s\n' "$(cat "$pid_file")" "$log_file" "$size"
+        tail -n 3 "$log_file" 2>/dev/null || true
+    else
+        printf 'oom-watch not running (log=%s)\n' "$log_file"
+    fi
+}
+
+tail_daemon() {
+    if [ ! -f "$log_file" ]; then
+        printf 'oom-watch: log not found: %s\n' "$log_file" >&2
+        return 1
+    fi
+    tail -n 50 -f "$log_file"
+}
+
+command=${1:-help}
+[ $# -gt 0 ] && shift
+
+case "$command" in
+    start)
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --interval)
+                    [ $# -ge 2 ] || { usage >&2; exit 2; }
+                    interval=$2
+                    shift 2
+                    ;;
+                --interval=*)
+                    interval=${1#*=}
+                    shift
+                    ;;
+                *)
+                    printf 'oom-watch: unknown option: %s\n' "$1" >&2
+                    exit 2
+                    ;;
+            esac
+        done
+        case "$interval" in ''|*[!0-9]*) interval=15 ;; esac
+        [ "$interval" -gt 0 ] 2>/dev/null || interval=15
+        start_daemon
+        ;;
+    stop)
+        stop_daemon
+        ;;
+    status)
+        status_daemon
+        ;;
+    once)
+        ensure_state_dir
+        sample
+        ;;
+    run)
+        run_daemon
+        ;;
+    tail)
+        tail_daemon
+        ;;
+    help|-h|--help)
+        usage
+        ;;
+    *)
+        printf 'oom-watch: unknown command: %s\n' "$command" >&2
+        usage >&2
+        exit 2
+        ;;
+esac
