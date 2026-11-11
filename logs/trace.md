@@ -145,8 +145,12 @@
   1. 新增 `.github/workflows/ci.yml`：push(main) / PR / workflow_dispatch 触发；`actions/checkout@v4`（`submodules: recursive` + `fetch-depth: 2`）；Node 22 并 `npm --prefix scripts install`（`archive_trace_test.sh` 走 `npx tsx`，且 `scripts/package-lock.json` 被 gitignore）；apt 补装 zsh（缺失时 `zsh_path_test` 会退化为 SKIP）；`git diff --check HEAD^..HEAD`；按 shebang 选择 `sh -n` / `bash -n`；最后 `./tests/run.sh fast`。
   2. 新增 `tests/ci_workflow_test.sh`：断言工作流存在、含 push/PR 触发、跑 fast、做 range 形式 whitespace 检查、初始化 submodule，并要求 README 记录 CI。
   3. `README.md`：结构树补 `.github/`，「运行测试」补 CI 说明（明确 nvim 测试不在 CI 中跑）。
+  4. 首跑失败后的修复 `tests/oom_watch_test.sh`：`assert_output_contains 'tmpfs mount=/tmp'` 把主机布局写死，改为钉行格式 `ts=… tmpfs mount=<path> used_kb=N avail_kb=N total_kb=N` 并要求至少上报一行，不再钉具体挂载点。
 - 改动（live）：无。
-- 验证：`./tests/run.sh fast` PASS=54 FAIL=0 SKIP=1；`tests/ci_workflow_test.sh`、`tests/repo_docs_test.sh` PASS；`python3 -c 'yaml.safe_load(...)'` 解析通过；74 个 shell 文件 shebang 语法检查通过；`git diff --check` OK。
-- 未验证：GitHub Actions 首次运行结果待推送后确认。
-- 提交：本轮随 `feat(ci)` 提交推送，hash 待回填。
-- 回滚：`git revert <本轮 CI 提交>`；未提交时 `git checkout -- README.md logs/trace.md && rm -rf .github/workflows tests/ci_workflow_test.sh`。
+- 验证：本地 `./tests/run.sh fast` PASS=54 FAIL=0 SKIP=1；`tests/ci_workflow_test.sh`、`tests/repo_docs_test.sh`、`tests/oom_watch_test.sh` PASS；`python3 -c 'yaml.safe_load(...)'` 解析通过；74 个 shell 文件 shebang 语法检查通过；`git diff --check` OK。
+- CI 首跑（run 42939995673 / `83bf9e2`）失败在 `tests/oom_watch_test.sh`：runner 的 `/tmp` 落在根分区，`df -kP /tmp` 报 `mount=/` 而不是 `/tmp`。用 `ubuntu:24.04` 容器以非 root（uid 1001）复现并验证修复，容器内整套 fast 为 PASS=49 FAIL=0 SKIP=6（缺 lua/luajit 等环境项）。
+- CI 二跑（run 42944078425 / `a41e49c`）通过：job step 全绿、无 annotation，badge 转为 `CI - passing`。
+- 未验证：真机（Ubuntu 26.04 桌面 / Fedora DMS）上的 CI 等价环境未单独复跑，仅覆盖本机与容器。
+- 附带发现（本轮不修）：容器内以 root 跑 `install.sh` 时，`process_config` 的 `cp -p` 会把源文件属主/权限带到 `mktemp` 临时文件，配合 `fs.protected_regular` 在写回 `__HOME__` 渲染结果时报 `Permission denied`；线上 runner 以非 root 运行不触发，`tests/install_wayland_test.sh` 在 runner 身份下通过。后续可把该 `cp -p` 改为不保留权限。
+- 提交：CI 门禁 `83bf9e2`，测试修复 `a41e49c`（均已推送 `origin/main`）。
+- 回滚：`git revert a41e49c`（仅撤销 tmpfs 断言修复）；`git revert 83bf9e2`（撤销 CI 门禁；会与本条 trace 冲突，优先用 `git revert -n` 后手工处理 trace）；未提交时 `git checkout -- tests/oom_watch_test.sh`。
