@@ -63,6 +63,7 @@
 │       ├── chatgpt-wayland/   # Wayland ChatGPT 启动器
 │       ├── obsidian-wayland/  # Wayland Obsidian 启动器
 │       ├── herdr-report/      # Trae CLI 生命周期 → herdr 状态上报桥接
+├── .github/          # 协作者入口与 CI（copilot-instructions.md / workflows/ci.yml）
 ├── scripts/          # TypeScript 工具（trace 归档等）
 ├── tests/            # 回归测试
 │   ├── run.sh        # 测试运行器
@@ -149,6 +150,11 @@ fcitx5 走 XDG autostart（`~/.config/autostart/fcitx5.desktop`），其余职�
 `~/.config/cc/statusline.sh`，并配置 `~/.claude/settings.json` 指向该脚本。
 
 ## 运行测试
+
+推送与 PR 由 GitHub Actions（`.github/workflows/ci.yml`）自动执行同一套门禁：`git diff --check HEAD^..HEAD`、
+按 shebang 选择 `sh -n` / `bash -n` 的语法检查，以及 `./tests/run.sh fast`（runner 上补装
+Node 22 与 zsh，并初始化 nvim submodule）。nvim 测试不在 CI 中跑，仍需本地
+`./tests/run.sh full`。
 
 ```shell
 # 运行全部测试

@@ -1,0 +1,66 @@
+name: CI
+
+# 远端兜底：AGENTS.md 的验证策略要求在推送前跑 `tests/run.sh fast`，这里把它
+# 固化成 push / PR 门禁，避免只靠人工纪律（漏跑一次就会把回归带到 origin/main）。
+# 只跑 fast：nvim 测试启动开销大，保留在本地 `./tests/run.sh full`。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # .config/shared/nvim 是 submodule；install_submodule_test 与安装器的
+          # 空目录守卫都依赖它存在。
+          submodules: recursive
+          # 只为下面 range 形式的 whitespace 检查取到 HEAD^。
+          fetch-depth: 2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install script dev dependencies
+        # scripts/package-lock.json 被 .gitignore 排除，所以用 install 而非 ci；
+        # tests/archive_trace_test.sh 通过 npx tsx 直接引用 scripts/*.ts。
+        run: npm --prefix scripts install --no-audit --no-fund
+
+      - name: Install test tools
+        # zsh 缺失时 zsh_path_test 会退化为 SKIP；装上才能真正执行。
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zsh
+
+      - name: Whitespace check (pushed commit)
+        # 干净 checkout 上裸 `git diff --check` 是 no-op，必须给出范围。
+        # 单提交推送（本仓库常态）下 HEAD^..HEAD 正是这次推送的内容。
+        run: git diff --check HEAD^..HEAD
+
+      - name: Shell syntax check
+        # 对齐 AGENTS.md 验证矩阵：按 shebang 选 sh -n / bash -n。
+        run: |
+          bash -n install.sh
+          for file in tests/*.sh tests/lib/*.sh .config/scripts/*; do
+            [ -f "$file" ] || continue
+            case "$file" in *.md) continue ;; esac
+            if head -n 1 "$file" | grep -q '^#!/bin/sh'; then
+              sh -n "$file"
+            else
+              bash -n "$file"
+            fi
+          done
+
+      - name: Fast regression tests
+        run: ./tests/run.sh fast

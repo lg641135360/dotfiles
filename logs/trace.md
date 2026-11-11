@@ -137,3 +137,16 @@
   cp ~/.local/share/applications/com.alibabainc.dingtalk.desktop.backup.20261103_113013 ~/.local/share/applications/com.alibabainc.dingtalk.desktop
   ```
   仓库回滚：`rm -f .config/linux/desktop-entries/com.alibabainc.dingtalk.desktop && git checkout -- install.sh .config/linux/desktop-entries/README.md .config/linux/niri/README.md memory/dingtalk.md tests/dingtalk_wayland_test.sh tests/install_wayland_test.sh tests/wayland_scripts_test.sh logs/trace.md`。
+
+## 2026-11-11 — 新增 GitHub Actions CI 门禁（fast 套件 + whitespace / 语法检查）
+
+- 目的：此前测试只在本地手动跑，推送前漏跑 `./tests/run.sh fast` 就会把回归带到 `origin/main`；补远端兜底。
+- 改动（仓库）：
+  1. 新增 `.github/workflows/ci.yml`：push(main) / PR / workflow_dispatch 触发；`actions/checkout@v4`（`submodules: recursive` + `fetch-depth: 2`）；Node 22 并 `npm --prefix scripts install`（`archive_trace_test.sh` 走 `npx tsx`，且 `scripts/package-lock.json` 被 gitignore）；apt 补装 zsh（缺失时 `zsh_path_test` 会退化为 SKIP）；`git diff --check HEAD^..HEAD`；按 shebang 选择 `sh -n` / `bash -n`；最后 `./tests/run.sh fast`。
+  2. 新增 `tests/ci_workflow_test.sh`：断言工作流存在、含 push/PR 触发、跑 fast、做 range 形式 whitespace 检查、初始化 submodule，并要求 README 记录 CI。
+  3. `README.md`：结构树补 `.github/`，「运行测试」补 CI 说明（明确 nvim 测试不在 CI 中跑）。
+- 改动（live）：无。
+- 验证：`./tests/run.sh fast` PASS=54 FAIL=0 SKIP=1；`tests/ci_workflow_test.sh`、`tests/repo_docs_test.sh` PASS；`python3 -c 'yaml.safe_load(...)'` 解析通过；74 个 shell 文件 shebang 语法检查通过；`git diff --check` OK。
+- 未验证：GitHub Actions 首次运行结果待推送后确认。
+- 提交：本轮随 `feat(ci)` 提交推送，hash 待回填。
+- 回滚：`git revert <本轮 CI 提交>`；未提交时 `git checkout -- README.md logs/trace.md && rm -rf .github/workflows tests/ci_workflow_test.sh`。
