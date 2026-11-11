@@ -124,7 +124,13 @@ EOF
     assert_output_contains 'scope name=app-test.scope current_kb=5242880' "$output"
     assert_output_contains 'proc pid=123 name=test-proc rss_shmem_kb=2048' "$output"
     assert_output_contains 'drm pid=123 name=test-proc client_id=14 total_kb=1260256' "$output"
-    assert_output_contains 'tmpfs mount=/tmp' "$output"
+    # tmpfs 段每行形如 `ts=… tmpfs mount=<path> used_kb=N avail_kb=N total_kb=N`。
+    # 挂载点随主机布局变化（桌面机 /tmp 是 tmpfs，CI runner 与容器里 /tmp 落在根分区），
+    # 所以只钉行格式和“确实上报了”，不钉具体路径。
+    assert_output_contains 'tmpfs mount=' "$output"
+    bad_tmpfs=$(printf '%s\n' "$output" | grep ' tmpfs mount=' |
+        grep -Ev '^ts=[^ ]+ tmpfs mount=[^ ]+ used_kb=[0-9]+ avail_kb=[0-9]+ total_kb=[0-9]+$' || true)
+    [ -z "$bad_tmpfs" ] || fail "unexpected tmpfs line format: $bad_tmpfs"
 }
 
 test_once_level_crit_when_shmem_over_threshold() {
