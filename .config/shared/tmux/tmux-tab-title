@@ -378,7 +378,7 @@ if [ "${1:-}" = --format ]; then
 fi
 
 pane_target=${1:-}
-format='#{pane_current_path}	#{pane_title}	#{pane_tty}'
+format='#{pane_current_path}	#{pane_title}	#{pane_tty}	#{pane_current_command}'
 
 if [ -n "$pane_target" ]; then
     pane_info=$(tmux display-message -p -t "$pane_target" "$format" 2>/dev/null || true)
@@ -391,13 +391,19 @@ if [ -z "$pane_info" ]; then
     exit 0
 fi
 
-old_ifs=$IFS
-IFS=$(printf '\t')
-set -- $pane_info
-pane_path=${1:-}
-pane_title=${2:-}
-pane_tty=${3:-}
-IFS=$old_ifs
+# Note: POSIX `set -- $pane_info` collapses consecutive tabs when pane_title is empty,
+# so extract tab-delimited fields with parameter expansion to preserve empty fields.
+pane_path=${pane_info%%	*}
+rest=${pane_info#*	}
+pane_title=${rest%%	*}
+rest=${rest#*	}
+pane_tty=${rest%%	*}
+pane_cmd=${rest#*	}
 
-remote_host=$(detect_ssh_host_from_tty "$pane_tty" || true)
+remote_host=''
+case "$pane_cmd" in
+    ssh|mosh-client|''|*"$pane_tty"*)
+        remote_host=$(detect_ssh_host_from_tty "$pane_tty" || true)
+        ;;
+esac
 format_label "$pane_path" "$remote_host" "$pane_title"

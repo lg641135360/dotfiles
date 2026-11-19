@@ -20,6 +20,18 @@
   ```
 
 
+## 2026-11-19 — tmux 二次优化（重载幂等 / tab-title 跳过非 SSH ps / 浮窗样式）
+
+- 目的：消除 `C-a r` 重复重载导致的数组选项堆积，降低 `tmux-tab-title` 在本地 pane 的轮询开销，并放大/圆角化临时 shell 浮窗。
+- 改动（仓库，测试先行）：
+  1. `.config/shared/tmux/.tmux.conf`：在 `update-environment` 与 `terminal-features` 追加前分别加 `set -gu update-environment`、`set -su terminal-features` 保证 `C-a r` 幂等；`C-a f` 浮窗改为 `display-popup -E -w 85% -h 85% -b rounded -d "#{pane_current_path}"`。
+  2. `.config/shared/tmux/tmux-tab-title`：单次 `tmux display-message` 顺带取 `#{pane_current_command}`，并用参数展开切分 tab 字段（修复空 `pane_title` 时 `set --` 吞字段）；仅在命令为 `ssh` / `mosh-client` 或空值时才调 `ps`，本地非 SSH pane 跳过 `ps | awk`。
+  3. `.config/shared/tmux/README.md`、`tests/tmux_status_test.sh`：同步浮窗说明，并补充重载幂等顺序守卫与 stub 行为测试。
+- 改动（live）：无（按 `AGENTS.md` / `memory/tmux.md` 边界，live 同步命令交用户手动执行）。
+- 验证：先红后绿；`sh -n .config/shared/tmux/tmux-tab-title`、`./tests/tmux_status_test.sh`、隔离 socket `tmux -L test-reload-check` 连续 `source-file` 两次幂等验证、`git diff --check` 均通过。
+- 回滚信息：未提交（基线 `abf89d3`）。仓库回滚可执行 `git checkout -- .config/shared/tmux/ tests/tmux_status_test.sh logs/trace.md`。
+
+
 ## 2026-11-19 — 优化 tmux 配置（tmux-256color + usstyle / swap-window 跟随 / allow-passthrough / Wayland env）
 
 - 目的：优化 tmux 3.8 下的 Neovim 斜体与波浪下划线支持、窗口移动手感、yazi 图片透传及重连后的 Wayland/niri 环境变量同步，并减少 `tmux-tab-title` ASCII 长度计算的外部进程开销。

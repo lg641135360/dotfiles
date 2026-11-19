@@ -90,8 +90,10 @@ test_bottom_overrides_survive_plugin_defaults() {
 
 test_true_color_sync_feedback_and_mouse_copy() {
     assert_contains 'set -g default-terminal "tmux-256color"' "$TMUX_FILE"
+    assert_contains 'set -su terminal-features' "$TMUX_FILE"
     assert_contains "set -as terminal-features ',xterm-256color:RGB:Sync:usstyle,alacritty:RGB:Sync:usstyle,foot:RGB:Sync:usstyle'" "$TMUX_FILE"
     assert_contains 'set -g allow-passthrough on' "$TMUX_FILE"
+    assert_contains 'set -gu update-environment' "$TMUX_FILE"
     assert_contains 'set -ga update-environment " NIRI_SOCKET"' "$TMUX_FILE"
     assert_contains 'bind-key s setw synchronize-panes \; display "Sync: #{?pane_synchronized,ON,OFF}"' "$TMUX_FILE"
     assert_contains 'bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-selection-and-cancel' "$TMUX_FILE"
@@ -101,6 +103,18 @@ test_true_color_sync_feedback_and_mouse_copy() {
     assert_contains 'WAYLAND_DISPLAY' "$README_FILE"
     assert_contains 'Sync: ON/OFF' "$README_FILE"
     assert_contains '鼠标拖选松开后立即复制并退出复制模式' "$README_FILE"
+}
+
+test_array_options_are_idempotent_on_reload() {
+    unset_env_line=$(awk '/set -gu update-environment/ { print NR; exit }' "$TMUX_FILE")
+    append_env_line=$(awk '/set -ga update-environment " NIRI_SOCKET"/ { print NR; exit }' "$TMUX_FILE")
+    unset_feat_line=$(awk '/set -su terminal-features/ { print NR; exit }' "$TMUX_FILE")
+    append_feat_line=$(awk '/set -as terminal-features / { print NR; exit }' "$TMUX_FILE")
+
+    [ -n "$unset_env_line" ] && [ -n "$append_env_line" ] || fail "expected unset + append for update-environment"
+    [ "$unset_env_line" -lt "$append_env_line" ] || fail "expected set -gu update-environment before set -ga"
+    [ -n "$unset_feat_line" ] && [ -n "$append_feat_line" ] || fail "expected unset + append for terminal-features"
+    [ "$unset_feat_line" -lt "$append_feat_line" ] || fail "expected set -su terminal-features before set -as"
 }
 
 test_daily_pane_workflow_enhancements() {
@@ -122,7 +136,7 @@ test_keybinding_and_title_enhancements() {
     assert_contains 'bind -r < swap-window -d -t -1' "$TMUX_FILE"
     assert_contains 'bind -r > swap-window -d -t +1' "$TMUX_FILE"
     assert_contains 'bind Escape copy-mode' "$TMUX_FILE"
-    assert_contains 'bind f display-popup -E -d "#{pane_current_path}"' "$TMUX_FILE"
+    assert_contains 'bind f display-popup -E -w 85% -h 85% -b rounded -d "#{pane_current_path}"' "$TMUX_FILE"
     assert_contains 'set -g word-separators' "$TMUX_FILE"
     assert_contains 'set -g set-titles on' "$TMUX_FILE"
     assert_contains "set -g set-titles-string '#S · #I:#W'" "$TMUX_FILE"
@@ -268,6 +282,42 @@ EOF
     assert_output_not_contains "prod-alt" "$multi_alias"
 }
 
+test_tab_title_helper_skips_ps_for_local_non_ssh_command() {
+    stub_dir=$(mktemp -d)
+    TMP_DIRS="$TMP_DIRS $stub_dir"
+    ps_log=$stub_dir/ps.called
+
+    cat >"$stub_dir/tmux" <<'EOF'
+#!/bin/sh
+printf '/home/rikoo/Documents/dotfiles\t\t/dev/pts/99\tzsh\n'
+EOF
+    cat >"$stub_dir/ps" <<EOF
+#!/bin/sh
+printf 'called\n' >"$ps_log"
+exit 1
+EOF
+    chmod +x "$stub_dir/tmux" "$stub_dir/ps"
+
+    label=$(HOME=/home/rikoo PATH="$stub_dir:$PATH" "$HELPER_FILE" "%1")
+    assert_equals "dotfiles" "$label"
+    [ ! -e "$ps_log" ] || fail "expected tmux-tab-title to skip ps when pane_current_command is a local non-ssh command"
+
+    cat >"$stub_dir/tmux" <<'EOF'
+#!/bin/sh
+printf '/home/rikoo/Documents/dotfiles\t\t/dev/pts/99\tssh\n'
+EOF
+    cat >"$stub_dir/ps" <<EOF
+#!/bin/sh
+printf 'called\n' >"$ps_log"
+printf 'S+ ssh ssh deploy@db01.example.com\n'
+EOF
+    chmod +x "$stub_dir/tmux" "$stub_dir/ps"
+
+    ssh_label=$(HOME=/home/rikoo PATH="$stub_dir:$PATH" "$HELPER_FILE" "%1")
+    assert_equals "db01:dotfiles" "$ssh_label"
+    [ -e "$ps_log" ] || fail "expected tmux-tab-title to inspect ps when pane_current_command is ssh"
+}
+
 test_window_navigation_enhancements() {
     assert_contains 'bind w choose-tree -Zw' "$TMUX_FILE"
     assert_contains 'bind Tab last-window' "$TMUX_FILE"
@@ -301,6 +351,7 @@ test_catppuccin_options_use_current_names
 test_status_bar_has_balanced_left_and_right_modules
 test_bottom_overrides_survive_plugin_defaults
 test_true_color_sync_feedback_and_mouse_copy
+test_array_options_are_idempotent_on_reload
 test_daily_pane_workflow_enhancements
 test_resurrect_pane_contents
 test_keybinding_and_title_enhancements
@@ -311,6 +362,7 @@ test_tab_title_helper_formats_path_and_remote_context
 test_tab_title_helper_prefers_explicit_ssh_aliases
 test_tab_title_helper_uses_no_alias_host_fallbacks
 test_tab_title_helper_skips_complex_ssh_config
+test_tab_title_helper_skips_ps_for_local_non_ssh_command
 test_window_navigation_enhancements
 test_readme_documents_status_bar_layout
 test_readme_documents_window_navigation
