@@ -193,8 +193,8 @@ backup_config() {
 # 1) DMS 默认键位：binds.kdl 为空时补齐。
 #    注意 `dms setup binds` 是交互式命令（会询问提权工具与终端），脚本里跑不通；
 #    `dms setup headless` 才是非交互入口，但它会写/覆盖 config.kdl，所以在临时
-#    HOME 里生成、只取需要的 binds.kdl（已装 alacritty 时用它作为终端，
-#    否则保持 DMS 默认）。
+#    HOME 里生成、只取需要的 binds.kdl（按仓库 Wayland 终端策略优先 foot、
+#    缺失回退 alacritty，都缺失时保持 DMS 默认）。
 binds_file=$dms_dir/binds.kdl
 if [ ! -s "$binds_file" ]; then
     drift=1
@@ -204,7 +204,11 @@ if [ ! -s "$binds_file" ]; then
             warn "mktemp 不可用，无法生成 DMS 默认键位"
         else
             setup_terminal=""
-            command -v alacritty >/dev/null 2>&1 && setup_terminal="--terminal alacritty"
+            if command -v foot >/dev/null 2>&1; then
+                setup_terminal="--terminal foot"
+            elif command -v alacritty >/dev/null 2>&1; then
+                setup_terminal="--terminal alacritty"
+            fi
             # $setup_terminal 故意不加引号：为空时不应产生空参数。
             # shellcheck disable=SC2086
             if HOME=$scratch DMS_PRIVESC=sudo dms setup headless --compositor niri --skip-existing $setup_terminal </dev/null >/dev/null 2>&1 &&

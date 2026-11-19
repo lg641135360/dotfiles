@@ -108,7 +108,7 @@ spawn-sh-at-startup "~/.config/scripts/wayland-autostart"
 - `fcitx5`
 - `swaybg` 随机壁纸（优先 `~/Pictures/wall`，回退系统 `/usr/share/backgrounds`，镜像 Awesome 会话的 `randomize_wallpaper` 来源）
 - `gammastep` 自动色温（`~/.local/state/niri/autostart/gammastep.log`）
-- `swayidle`：空闲 10 分钟锁屏；锁屏后再空闲 5 分钟（timeout 900）用 `niri msg action power-off-monitors` 关闭显示器，唤醒输入时 `power-on-monitors` 恢复——只走 DPMS 关屏不挂起，无挂起唤醒的网络/显示风暴问题；waybar `idle_inhibitor` 激活期间锁屏/关屏整体被抑制。系统主动睡眠前也调用 `lock-wayland`（自动挂起已移除，原因见 logs/trace.md 2026-08-18：挂起唤醒瞬间的网络/显示风暴会让 Electron 应用以未捕获的 `net::ERR_INTERNET_DISCONNECTED` 静默退出）
+- `swayidle`：空闲 10 分钟锁屏，系统主动睡眠前也调用 `lock-wayland`；waybar `idle_inhibitor` 激活期间自动锁屏被抑制。**不自动 DPMS 关屏**（与 DMS 侧 `acMonitorTimeout=0` 基线对齐：niri 在 `power-off-monitors` 期间不回收客户端 dmabuf，实测以 ~3.6 GiB/h 积压 shmem 并触发 OOM，详见 `memory/desktop.md`）；自动挂起也已移除（挂起唤醒瞬间的网络/显示风暴会让 Electron 应用以未捕获的 `net::ERR_INTERNET_DISCONNECTED` 静默退出）。
 - KDE 或 GNOME polkit agent（若存在）
 - `blueman-applet`、`udiskie -t` 等托盘/辅助服务（若存在）。音量控制不再依赖 `pasystray`：由 waybar `pulseaudio` 模块（左键静音、滚轮调音量、右键 `pavucontrol`）覆盖，因此 niri 会话不残留 XWayland 客户端。
 - `wl-clip-persist` + `cliphist` 剪贴板管理：`clipboard-wayland start` 直接启动 `wl-clip-persist --clipboard regular --ignore-event-on-error` 持有当前剪贴板，并以独立的 `wl-paste --watch cliphist store` 记录历史；父脚本监管并共同清理三个子进程。`--ignore-event-on-error` 避免 persist 读新选区失败时把上一份文本写回当前剪贴板（截图刚复制成功、Ctrl+V 仍贴旧文本）。安装版 persist 0.5.0 没有 `--read-timeout` / `--restore-clipboard-on-error`，不要写这两个参数。缺少其中一个依赖时，另一项功能仍可降级运行；`Mod+v` 调用 `clipboard-wayland history`，通过 fuzzel 检索历史并写回剪贴板。`wl-clip-persist` 不在 Ubuntu apt 源，2026-08-29 起由源码编译安装到 `/usr/local/bin`（更新方式：`git pull && cargo build --release` 后覆盖）；`cliphist` 用 apt 安装（0.5.0）。

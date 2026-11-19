@@ -322,18 +322,30 @@ test_second_run_is_idempotent() {
     rm -rf "$tmpdir"
 }
 
-test_setup_generation_prefers_installed_alacritty() {
+test_setup_generation_prefers_installed_foot_then_alacritty() {
+    setup_sandbox
+    printf '#!/bin/sh\nexit 0\n' >"$bin_dir/foot"
+    printf '#!/bin/sh\nexit 0\n' >"$bin_dir/alacritty"
+    chmod +x "$bin_dir/foot" "$bin_dir/alacritty"
+    seed_niri_fixture
+
+    PATH=$bin_dir HOME=$home_dir "$SCRIPT" >/dev/null 2>&1 ||
+        fail "dms-niri-setup should succeed with foot and alacritty present"
+
+    # 全平台 Wayland 统一 foot 优先；foot 存在时传 --terminal foot。
+    assert_contains '--terminal foot' "$tmpdir/stub-dms-args"
+    rm -rf "$tmpdir"
+
+    # foot 缺失、仅装 alacritty 时回退 --terminal alacritty。
     setup_sandbox
     printf '#!/bin/sh\nexit 0\n' >"$bin_dir/alacritty"
     chmod +x "$bin_dir/alacritty"
     seed_niri_fixture
 
     PATH=$bin_dir HOME=$home_dir "$SCRIPT" >/dev/null 2>&1 ||
-        fail "dms-niri-setup should succeed with alacritty present"
+        fail "dms-niri-setup should succeed with alacritty fallback"
 
-    # 已装 alacritty 时把终端选项传给 dms setup headless，生成的 Mod+T 才可用。
     assert_contains '--terminal alacritty' "$tmpdir/stub-dms-args"
-
     rm -rf "$tmpdir"
 }
 
@@ -638,7 +650,7 @@ for test_case in \
     test_noop_without_niri \
     test_checks_without_config_kdl_is_noop \
     test_apply_wires_fragments_and_rules \
-    test_setup_generation_prefers_installed_alacritty \
+    test_setup_generation_prefers_installed_foot_then_alacritty \
     test_applies_dms_settings_idempotently \
     test_settings_manifest_format \
     test_second_run_is_idempotent \

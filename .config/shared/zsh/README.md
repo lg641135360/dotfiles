@@ -155,7 +155,7 @@ Linux 机器的依赖分两层：下表属于纯 CLI 层，统一用 brew（`bre
 ├── plugins.zsh     ← zinit + 8 个插件 + compinit + zvm_after_init（fzf --zsh / fzf-tab）
 ├── options.zsh     ← setopt 选项（已关闭 autocd / correct）
 ├── path.zsh        ← PATH 管理（pathappend/prepend）
-├── env.zsh         ← 环境变量（EDITOR, FZF_DEFAULT_OPTS, PAGER）
+├── env.zsh         ← 环境变量（EDITOR, TERMINAL[Linux 优先 foot/兜底 alacritty], FZF_DEFAULT_OPTS, PAGER）
 ├── history.zsh     ← 历史配置（HISTSIZE, 去重规则, HISTFILE=$ZDOTDIR/.zsh_history）+ ↑↓ 历史搜索绑定
 ├── aliases.zsh     ← 命令别名（条件加载）
 ├── functions.zsh   ← 工具函数（y, cpp, mkdirg 等）

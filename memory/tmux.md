@@ -23,7 +23,8 @@
 
 ## 终端特性（terminal-features）
 - tmux 按客户端实际 TERM 匹配 terminal-features 规则；两平台主力终端（aarch64 foot、x64 alacritty）均以 `TERM=xterm-256color` 运行（SSH 远程兼容，foot.ini `term=` / alacritty.toml `env.TERM` 有意为之），规则必须写 `xterm-256color:`，写 `foot:`/`alacritty:` 匹配不上。
-- 当前规则：`',xterm-256color:RGB:Sync,alacritty:RGB:Sync,foot:RGB:Sync'`；RGB 真彩色（tmux 为 pane 注入 `COLORTERM=truecolor`），Sync 同步输出（foot 1.16.2 与 alacritty 0.13+ 均支持 CSI ?2026）。多个 feature 用冒号连写（tmux 默认值同款语法）。
+- 当前规则：`',xterm-256color:RGB:Sync:usstyle,alacritty:RGB:Sync:usstyle,foot:RGB:Sync:usstyle'`；RGB 真彩色（tmux 为 pane 注入 `COLORTERM=truecolor`），Sync 同步输出（foot 1.16.2 与 alacritty 0.13+ 均支持 CSI ?2026），`usstyle` 支持波浪/彩色下划线。多个 feature 用冒号连写（tmux 默认值同款语法）。`default-terminal` 在 TPM 加载后显式设为 `tmux-256color`，避免被 `tmux-sensible` 重置为 `screen-256color`。
+- 开启 `allow-passthrough on`（yazi Sixel/Kitty 图片预览与 OSC 透传）并在 `update-environment` 追加 `NIRI_SOCKET`（`WAYLAND_DISPLAY` 已由 tmux 3.8+ 内置，重连后新窗口保持 Wayland/niri socket 最新）。
 - Sync 实测有效：mtgpu 驱动下 tmux 内快速滚动（如 `seq 1 50000`）的撕裂明显改善（2026-08-23 用户确认），Sync 规则保留，勿因"理论收益小"移除。
 - kitty 已退役（配置移除），不再写 kitty 规则。
 

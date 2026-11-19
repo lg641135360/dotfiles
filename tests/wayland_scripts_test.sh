@@ -82,10 +82,10 @@ test_wayland_autostart_checks_apps_and_separates_logs() {
     # 锁屏与 before-sleep 锁屏。
     assert_not_contains "timeout 1800 'systemctl suspend'" "$AUTOSTART_SCRIPT"
     assert_contains 'timeout 600 "$lock_script"' "$AUTOSTART_SCRIPT"
-    # 锁屏后再过 5 分钟 DPMS 关屏（2026-09-01）：power-off-monitors 只关屏不挂起，
-    # 无唤醒风暴问题；唤醒输入时 resume 恢复。README 同步说明。
-    assert_contains "timeout 900 'niri msg action power-off-monitors'" "$AUTOSTART_SCRIPT"
-    assert_contains "resume 'niri msg action power-on-monitors'" "$AUTOSTART_SCRIPT"
+    # 不自动 DPMS 关屏（与 DMS 侧 acMonitorTimeout=0 基线一致）：
+    # niri 在 DPMS off 期间不回收客户端 dmabuf，以 ~3.6 GiB/h 积压 shmem 并触发 OOM。
+    assert_not_contains "timeout 900 'niri msg action power-off-monitors'" "$AUTOSTART_SCRIPT"
+    assert_not_contains "resume 'niri msg action power-on-monitors'" "$AUTOSTART_SCRIPT"
     assert_contains 'before-sleep "$lock_script"' "$AUTOSTART_SCRIPT"
     assert_contains 'power-off-monitors' "$NIRI_README"
     assert_contains '/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1' "$AUTOSTART_SCRIPT"

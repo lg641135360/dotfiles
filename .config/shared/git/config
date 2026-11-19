@@ -27,9 +27,6 @@
     changed = yellow
     untracked = red
 
-[log]
-    abbrevCommit = true
-
 [push]
     autoSetupRemote = true
 

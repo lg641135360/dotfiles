@@ -225,11 +225,37 @@ copy_config() {
     fi
 }
 
+# Evaluate config availability guard without eval.
+# Supported forms (matching the repo's *_configs arrays):
+#   ""                      -> always available
+#   "command -v <cmd>"      -> command lookup on PATH
+#   "[ -d <dir> ]"          -> directory existence check
+check_config_available() {
+    local check_cmd="$1"
+    case "$check_cmd" in
+        "")
+            return 0
+            ;;
+        "command -v "*)
+            command -v "${check_cmd#command -v }" >/dev/null 2>&1
+            ;;
+        "[ -d "*" ]")
+            local dir="${check_cmd#\[ -d }"
+            dir="${dir% \]}"
+            [ -d "$dir" ]
+            ;;
+        *)
+            log_warn "Unsupported check_cmd format: $check_cmd"
+            return 1
+            ;;
+    esac
+}
+
 # Process configuration
 process_config() {
     local check_cmd="$1" source="$2" target="$3" name="$4"
 
-    if [ -n "$check_cmd" ] && ! eval "$check_cmd" >/dev/null 2>&1; then
+    if ! check_config_available "$check_cmd"; then
         log_warn "$name not found; skipping its configuration"
         return 0
     fi
@@ -840,7 +866,7 @@ main() {
         # macOS system defaults (run once)
         if [ -f "$cur_path/.config/macos/defaults.sh" ]; then
             log_info "Setting macOS system defaults..."
-            bash "$cur_path/.config/macos/defaults.sh"
+            "$BASH" "$cur_path/.config/macos/defaults.sh"
         fi
     elif [[ "$os" == "Linux" ]]; then
         log_info "Processing Linux configurations..."

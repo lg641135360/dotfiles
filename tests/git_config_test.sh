@@ -37,3 +37,19 @@ assert_not_contains 'core.editor = nvim' "$MEMORY"
 require_config alias.subinit "submodule update --init --recursive"
 require_config alias.subs "submodule status"
 require_config alias.cs "commit --signoff"
+
+# [log] 区块与 abbrevCommit 不应重复定义。
+log_section_count="$(grep -c '^\[log\]$' "$CONFIG")"
+if [[ "$log_section_count" -ne 1 ]]; then
+  echo "expected exactly one [log] section in $CONFIG, got: $log_section_count"
+  exit 1
+fi
+abbrev_count="$(grep -c '^[[:space:]]*abbrevCommit[[:space:]]*=' "$CONFIG")"
+if [[ "$abbrev_count" -ne 1 ]]; then
+  echo "expected abbrevCommit to appear once in $CONFIG, got: $abbrev_count"
+  exit 1
+fi
+require_config log.abbrevCommit "true"
+require_config log.date "relative"
+require_config log.graph "true"
+require_config log.decorate "true"

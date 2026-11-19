@@ -1,5 +1,5 @@
 # Fedora 系统层包清单（dnf）
-# 用途：本仓库 Fedora 机器（GNOME 主力）的系统层依赖。
+# 用途：本仓库 Fedora 机器（niri + DMS 主力）的系统层依赖。
 # 用法：sudo dnf install $(grep -v '^#' ~/.config/linux/packages/dnf.txt)
 #
 # 分层约定（2026-10-06）：

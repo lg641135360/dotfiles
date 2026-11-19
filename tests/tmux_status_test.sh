@@ -70,13 +70,17 @@ test_status_bar_has_balanced_left_and_right_modules() {
 }
 
 test_bottom_overrides_survive_plugin_defaults() {
+    default_term_line=$(awk '/set -g default-terminal "tmux-256color"/ { print NR; exit }' "$TMUX_FILE")
     status_interval_line=$(awk '/set -g status-interval 15/ { print NR; exit }' "$TMUX_FILE")
     status_left_line=$(awk '/set -g status-left/ { print NR; exit }' "$TMUX_FILE")
     tpm_line=$(awk '/run '\''~\/.tmux\/plugins\/tpm\/tpm'\''/ { print NR; exit }' "$TMUX_FILE")
 
+    [ -n "$default_term_line" ] || fail "expected default-terminal override"
     [ -n "$status_interval_line" ] || fail "expected status-interval override"
     [ -n "$status_left_line" ] || fail "expected status-left override"
     [ -n "$tpm_line" ] || fail "expected TPM run line"
+    [ "$default_term_line" -gt "$tpm_line" ] ||
+        fail "expected default-terminal override after TPM so tmux-sensible cannot reset it to screen-256color"
     [ "$status_interval_line" -gt "$tpm_line" ] ||
         fail "expected status-interval override after TPM so tmux-sensible cannot reset it"
     [ "$status_left_line" -gt "$tpm_line" ] ||
@@ -85,10 +89,16 @@ test_bottom_overrides_survive_plugin_defaults() {
 
 
 test_true_color_sync_feedback_and_mouse_copy() {
-    assert_contains "set -as terminal-features ',xterm-256color:RGB:Sync,alacritty:RGB:Sync,foot:RGB:Sync'" "$TMUX_FILE"
+    assert_contains 'set -g default-terminal "tmux-256color"' "$TMUX_FILE"
+    assert_contains "set -as terminal-features ',xterm-256color:RGB:Sync:usstyle,alacritty:RGB:Sync:usstyle,foot:RGB:Sync:usstyle'" "$TMUX_FILE"
+    assert_contains 'set -g allow-passthrough on' "$TMUX_FILE"
+    assert_contains 'set -ga update-environment " NIRI_SOCKET"' "$TMUX_FILE"
     assert_contains 'bind-key s setw synchronize-panes \; display "Sync: #{?pane_synchronized,ON,OFF}"' "$TMUX_FILE"
     assert_contains 'bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-selection-and-cancel' "$TMUX_FILE"
     assert_contains '24-bit 真彩色' "$README_FILE"
+    assert_contains 'tmux-256color' "$README_FILE"
+    assert_contains 'allow-passthrough' "$README_FILE"
+    assert_contains 'WAYLAND_DISPLAY' "$README_FILE"
     assert_contains 'Sync: ON/OFF' "$README_FILE"
     assert_contains '鼠标拖选松开后立即复制并退出复制模式' "$README_FILE"
 }
@@ -109,8 +119,8 @@ test_resurrect_pane_contents() {
 test_keybinding_and_title_enhancements() {
     assert_contains 'bind-key -r h select-pane -L' "$TMUX_FILE"
     assert_contains 'bind -r H resize-pane -L 5' "$TMUX_FILE"
-    assert_contains 'bind < swap-window -t -1' "$TMUX_FILE"
-    assert_contains 'bind > swap-window -t +1' "$TMUX_FILE"
+    assert_contains 'bind -r < swap-window -d -t -1' "$TMUX_FILE"
+    assert_contains 'bind -r > swap-window -d -t +1' "$TMUX_FILE"
     assert_contains 'bind Escape copy-mode' "$TMUX_FILE"
     assert_contains 'bind f display-popup -E -d "#{pane_current_path}"' "$TMUX_FILE"
     assert_contains 'set -g word-separators' "$TMUX_FILE"

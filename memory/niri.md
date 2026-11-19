@@ -34,7 +34,7 @@
 
 - niri 只调用 `~/.config/scripts/wayland-autostart`。该脚本按命令存在性启动 Waybar、Mako、fcitx5、壁纸、gammastep、swayidle、polkit agent、可选的 blueman/udiskie，并把最近一次启动日志写入 `~/.local/state/niri/autostart/`。
 - gammastep 使用 5500K 的温和夜间色温和 `-b 1.0:1.0`；不启用托盘 indicator。`gammastep-indicator.service` 若全局 enabled，需用 `systemctl --user mask`，仅 disable 不足以阻止冲突。
-- swayidle 在空闲 600 秒后锁屏，900 秒后用 `niri msg action power-off-monitors` 关屏，恢复输入时重新打开显示器；waybar idle inhibitor 会整体抑制这条链。自动挂起不作为当前方案。
+- swayidle 在空闲 600 秒后锁屏并在 `before-sleep` 前锁屏；waybar idle inhibitor 会整体抑制这条链。不再自动执行 `niri msg action power-off-monitors` 关屏（与 DMS 侧 `acMonitorTimeout=0` 基线一致，规避 niri 在 DPMS off 期间持续积压 dmabuf/shmem 触发 OOM）。自动挂起不作为当前方案。
 - niri 通过 systemd 集成拉起 XDG autostart，因此仓库用 `Hidden=true` 覆盖 GNOME/X11 遗留入口。当前仓库覆盖 Evolution alarm、nm-applet、print-applet 和 geoclue demo agent；`at-spi-dbus-bus` 保留。EDS 的 D-Bus activated 单元需要 live 侧 mask + stop，单纯 disable/stop 不可靠。
 
 ### 剪贴板与输入法

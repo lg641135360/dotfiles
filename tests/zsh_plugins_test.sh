@@ -131,12 +131,15 @@ test_fzf_tab_recommended_zstyles() {
 }
 
 # Ctrl-T / Alt-C 在 fd 可用时用它列文件，否则保持 fzf 默认 find。
+# 用 zsh 内置 $+commands[fd] 避免每次启动 fork $(command -v ...)。
 test_env_wires_fd_for_fzf_widgets() {
-    assert_contains 'command -v fd' "$ENV_FILE"
+    assert_contains '$+commands[fd]' "$ENV_FILE"
     assert_contains 'FZF_CTRL_T_COMMAND=' "$ENV_FILE"
     assert_contains 'FZF_ALT_C_COMMAND=' "$ENV_FILE"
     assert_contains 'fd --hidden --follow --exclude .git' "$ENV_FILE"
     assert_contains 'fd --type d --hidden --follow --exclude .git' "$ENV_FILE"
+    assert_not_matches '^[^#]*\$\(command -v ' "$ENV_FILE"
+    assert_not_matches '^[^#]*\$\(command -v ' "$ALIASES_FILE"
 }
 
 # setopt correct 会和补全抢注意力；autocd 会把目录名当 cd，误触多。

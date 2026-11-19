@@ -242,6 +242,42 @@ test_linux_wayland_environment_preserves_current_desktop() {
         fail "expected Wayland desktop environment to be preserved, got: $env_value"
 }
 
+test_env_zsh_selects_terminal_and_idempotent_fzf_opts() {
+    if [ -z "$ZSH_BIN" ]; then
+        printf 'SKIP: zsh is not installed\n'
+        return 0
+    fi
+
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/bin-foot" "$tmpdir/bin-alacritty" "$tmpdir/bin-empty"
+    printf '#!/bin/sh\nexit 0\n' >"$tmpdir/bin-foot/foot"
+    printf '#!/bin/sh\nexit 0\n' >"$tmpdir/bin-foot/fzf"
+    printf '#!/bin/sh\nexit 0\n' >"$tmpdir/bin-alacritty/alacritty"
+    chmod +x "$tmpdir/bin-foot/foot" "$tmpdir/bin-foot/fzf" "$tmpdir/bin-alacritty/alacritty"
+
+    if [ "$(uname)" = "Linux" ]; then
+        term_foot=$(PATH="$tmpdir/bin-foot:/usr/bin:/bin" HOME="$HOME" ZDOTDIR="$tmpdir" \
+            "$ZSH_BIN" -fc ". \"$ENV_FILE\"; print -r -- \$TERMINAL")
+        assert_equals "foot" "$term_foot"
+
+        term_fallback=$(PATH="$tmpdir/bin-alacritty" HOME="$HOME" ZDOTDIR="$tmpdir" \
+            "$ZSH_BIN" -fc ". \"$ENV_FILE\"; print -r -- \$TERMINAL")
+        assert_equals "alacritty" "$term_fallback"
+    fi
+
+    # 重复 source env.zsh 不应导致 FZF_DEFAULT_OPTS 无限追加或带前导空格。
+    fzf_once=$(PATH="$tmpdir/bin-foot:/usr/bin:/bin" HOME="$HOME" ZDOTDIR="$tmpdir" \
+        "$ZSH_BIN" -fc "unset FZF_DEFAULT_OPTS; . \"$ENV_FILE\"; print -r -- \$FZF_DEFAULT_OPTS")
+    fzf_twice=$(PATH="$tmpdir/bin-foot:/usr/bin:/bin" HOME="$HOME" ZDOTDIR="$tmpdir" \
+        "$ZSH_BIN" -fc "unset FZF_DEFAULT_OPTS; . \"$ENV_FILE\"; . \"$ENV_FILE\"; print -r -- \$FZF_DEFAULT_OPTS")
+    assert_equals "$fzf_once" "$fzf_twice"
+    case "$fzf_once" in
+        " "*) fail "FZF_DEFAULT_OPTS should not start with a leading space" ;;
+    esac
+
+    rm -rf "$tmpdir"
+}
+
 test_zsh_configs_are_syntactically_valid
 test_path_zsh_uses_ostype_not_uname_fork
 test_linux_path_includes_usr_local_nodejs_bin
@@ -252,5 +288,6 @@ test_linux_path_includes_linuxbrew_sbin
 test_linux_path_keeps_system_bin_before_linuxbrew_bin
 test_linux_desktop_portal_environment_targets_awesome
 test_linux_wayland_environment_preserves_current_desktop
+test_env_zsh_selects_terminal_and_idempotent_fzf_opts
 
 printf 'PASS: zsh path tests\n'

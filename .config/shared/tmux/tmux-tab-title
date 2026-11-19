@@ -5,7 +5,14 @@ set -f
 MAX_LABEL_LEN=${TMUX_TAB_TITLE_MAX:-28}
 
 strlen() {
-    printf '%s\n' "$1" | awk '{ print length }'
+    case "$1" in
+        *[![:ascii:]]*)
+            printf '%s\n' "$1" | awk '{ print length }'
+            ;;
+        *)
+            printf '%s\n' "${#1}"
+            ;;
+    esac
 }
 
 truncate_tail() {

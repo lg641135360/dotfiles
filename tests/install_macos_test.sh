@@ -70,6 +70,9 @@ test_install_macos_branch_runs_defaults_and_brewfile_hint() {
     # defaults.sh is executed, so its "Setting macOS defaults..." banner
     # appears in the install.sh output.
     assert_contains 'Setting macOS defaults' "$output"
+    # install.sh 应避免 eval 检查命令，并用当前现代 "$BASH" 调 defaults.sh。
+    assert_not_contains 'eval "$check_cmd"' "$INSTALL_FILE"
+    assert_contains '"$BASH" "$cur_path/.config/macos/defaults.sh"' "$INSTALL_FILE"
 
     rm -rf "$tmpdir"
 }

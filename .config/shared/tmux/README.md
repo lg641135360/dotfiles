@@ -15,7 +15,7 @@
 
 Catppuccin Mocha，与桌面主题保持一致。
 
-`terminal-features` 启用 24-bit 真彩色与同步输出（Sync）：两个主力终端（aarch64 的 foot、x64 的 alacritty）均以 `TERM=xterm-256color` 运行（SSH 远程兼容），因此规则按 `xterm-256color` 匹配，另保留 `alacritty` / `foot` 原生 TERM 兜底。真彩色生效后 tmux 会为 pane 自动设置 `COLORTERM=truecolor`，tmux 内的 nvim 等程序可直接使用真彩色输出；Sync 让 tmux 整屏重绘原子提交，可减少大输出滚动时的闪烁。
+`default-terminal` 在 TPM 加载后显式设为 `tmux-256color`（避免被 `tmux-sensible` 重置为 `screen-256color` 导致 Neovim 斜体/波浪下划线异常）。`terminal-features` 启用 24-bit 真彩色（RGB）、同步输出（Sync）与下划线样式（`usstyle`）：两个主力终端（aarch64 的 foot、x64 的 alacritty）均以 `TERM=xterm-256color` 运行（SSH 远程兼容），因此规则按 `xterm-256color` 匹配，另保留 `alacritty` / `foot` 原生 TERM 兜底。真彩色生效后 tmux 会为 pane 自动设置 `COLORTERM=truecolor`，tmux 内的 nvim 等程序可直接使用真彩色与 LSP 波浪下划线；Sync 让 tmux 整屏重绘原子提交，可减少大输出滚动时的闪烁。同时启用 `allow-passthrough on` 以透传 yazi 在 foot/alacritty 中的 Sixel/Kitty 图片预览与 OSC 序列，并在 `update-environment` 追加 `NIRI_SOCKET`（`WAYLAND_DISPLAY` 已由现代 tmux 内置），确保重连会话后新窗口继承最新 Wayland/niri socket。
 
 ## 状态栏
 
@@ -44,7 +44,7 @@ Catppuccin Mocha，与桌面主题保持一致。
 | `Ctrl+a + \|` | 水平分割窗格 |
 | `Ctrl+a + -` | 垂直分割窗格 |
 | `Ctrl+a + c` | 在当前 pane 目录中新建窗口 |
-| `Ctrl+a + <` / `Ctrl+a + >` | 当前窗口左移 / 右移（配合自动重排编号） |
+| `Ctrl+a + <` / `Ctrl+a + >` | 当前窗口左移 / 右移（焦点跟随，可连按，配合自动重排编号） |
 | `Ctrl+a + f` | 弹出临时 shell 浮窗（退出即消失，继承当前目录） |
 | `Ctrl+a + r` | 重新加载配置 |
 | `Ctrl+a + [` / `Ctrl+a + Esc` | 进入复制/滚动模式（vim 键绑定） |
